@@ -4,6 +4,23 @@
 #include <utility>
 
 namespace swan {
+namespace {
+
+bool alwaysReturns(const std::vector<StmtPtr>& statements) {
+    for (const auto& statement : statements) {
+        if (!statement) continue;
+        if (dynamic_cast<const ReturnStmt*>(statement.get())) return true;
+        if (const auto* conditional = dynamic_cast<const IfStmt*>(statement.get())) {
+            if (!conditional->elseBody.empty() &&
+                alwaysReturns(conditional->body) &&
+                alwaysReturns(conditional->elseBody))
+                return true;
+        }
+    }
+    return false;
+}
+
+} // namespace
 
 SemanticAnalyzer::SemanticAnalyzer(const Module& module)
     : module_(module), currentScope_(&globalScope_) {
@@ -173,6 +190,13 @@ void SemanticAnalyzer::analyzeFunction(const FunctionDecl& function) {
 
     for (const auto& statement : function.body) {
         if (statement) analyzeStatement(*statement);
+    }
+    if (hasExpectedReturnType_ && !expectedReturnType_.isUnknown() &&
+        expectedReturnType_.kind != TypeKind::None &&
+        !alwaysReturns(function.body)) {
+        report(function.location, "S023",
+               "Function '" + function.name +
+               "' must return a value on every reachable path.");
     }
 
     currentScope_ = previousScope;
