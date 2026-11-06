@@ -5,27 +5,36 @@ class EmitError(Exception): pass
 TYPE_MAP={"int":"int","float":"double","bool":"bool","string":"const char *","void":"void"}
 
 class CEmitter:
-    def __init__(self): self.lines=[]; self.indent=0
+    def __init__(self): self.lines=[]; self.indent=0; self.symbols={}
     def line(self,text=""): self.lines.append(("    "*self.indent+text) if text else "")
     def ctype(self,typ):
         if typ in TYPE_MAP: return TYPE_MAP[typ]
         raise EmitError(f"unsupported type '{typ}'")
     def emit(self,nodes):
         self.lines=["#include <stdbool.h>","#include <stdio.h>","#include <stddef.h>",""]
+        functions=[node for node in nodes if node.kind=="function"]
         for node in nodes:
             if node.kind=="struct":
                 self.line(f"typedef struct {node.data['name']} {{"); self.indent+=1
                 for name,typ in node.data["fields"]: self.line(f"{self.ctype(typ)} {name};")
                 self.indent-=1; self.line(f"}} {node.data['name']};"); self.line()
+        for node in functions:
+            d=node.data; params=[]
+            for name,typ in d["params"]:
+                if typ is None: raise EmitError(f"{node.token.line}:{node.token.column}: parameter '{name}' requires a type")
+                params.append(f"{self.ctype(typ)} {name}")
+            self.line(f"{self.ctype(d['return_type'])} {d['name']}({', '.join(params) if params else 'void'});")
+        if functions: self.line()
         for node in nodes:
             if node.kind=="function": self.function(node)
             elif node.kind not in ("struct","import"): raise EmitError(f"{node.token.line}:{node.token.column}: unsupported top-level declaration '{node.kind}'")
         return "\n".join(self.lines).rstrip()+"\n"
     def function(self,node):
         d=node.data; params=[]
+        self.symbols={}
         for name,typ in d["params"]:
             if typ is None: raise EmitError(f"{node.token.line}:{node.token.column}: parameter '{name}' requires a type")
-            params.append(f"{self.ctype(typ)} {name}")
+            params.append(f"{self.ctype(typ)} {name}"); self.symbols[name]=typ
         args=", ".join(params) if params else "void"
         self.line(f"{self.ctype(d['return_type'])} {d['name']}({args}) {{"); self.indent+=1
         for child in d["body"]: self.statement(child)
@@ -33,6 +42,7 @@ class CEmitter:
     def infer(self,node):
         if node is None: return None
         if node.kind=="literal": return {"INT":"int","FLOAT":"float","STRING":"string","TRUE":"bool","FALSE":"bool"}.get(node.data["literal_type"])
+        if node.kind=="name": return self.symbols.get(node.data["name"])
         if node.kind=="binary": return "bool" if node.data["op"] in ("==","!=","<",">","<=",">=","and","or","&&","||") else self.infer(node.data["left"])
         return None
     def statement(self,node):
@@ -40,15 +50,15 @@ class CEmitter:
         if k=="variable":
             inferred=d["type"] or self.infer(d["value"])
             if inferred is None: raise EmitError(f"{node.token.line}:{node.token.column}: cannot infer type for '{d['name']}'")
-            typ=self.ctype(inferred); qualifier="" if d["mutable"] else "const "
+            typ=self.ctype(inferred); self.symbols[d["name"]]=inferred
+            qualifier="" if d["mutable"] else "const "
             init=f" = {self.expr(d['value'])}" if d["value"] else ""
             self.line(f"{qualifier}{typ} {d['name']}{init};")
         elif k=="log":
-            value=d["value"]
-            if value.kind=="literal" and value.data["literal_type"]=="STRING": self.line(f"puts({self.expr(value)});")
-            elif self.infer(value)=="float": self.line(f'printf("%g\\n", (double)({self.expr(value)}));')
-            elif self.infer(value)=="int": self.line(f'printf("%d\\n", (int)({self.expr(value)}));')
-            elif self.infer(value)=="bool": self.line(f'printf("%d\\n", (int)({self.expr(value)}));')
+            value=d["value"]; typ=self.infer(value)
+            if typ=="string": self.line(f"puts({self.expr(value)});")
+            elif typ=="float": self.line(f'printf("%g\\n", (double)({self.expr(value)}));')
+            elif typ in ("int","bool"): self.line(f'printf("%d\\n", (int)({self.expr(value)}));')
             else: raise EmitError(f"{node.token.line}:{node.token.column}: log currently requires a string, number, or boolean")
         elif k=="return": self.line("return;" if d["value"] is None else f"return {self.expr(d['value'])};")
         elif k=="expression": self.line(self.expr(d["value"])+";")
