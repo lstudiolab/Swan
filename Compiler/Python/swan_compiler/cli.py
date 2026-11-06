@@ -21,7 +21,7 @@ def main(argv=None):
         if args.output:
             target=pathlib.Path(args.output)
             if target.suffix.lower()!=".c": raise ValueError("output file must use the .c extension")
-            target.write_text(result,encoding="utf-8",newline="\\n")
+            target.write_text(result,encoding="utf-8",newline="\n")
         else: sys.stdout.write(result)
         return 0
     except (OSError,UnicodeError,ValueError,LexError,ParseError,EmitError) as error:
