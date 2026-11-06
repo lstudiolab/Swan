@@ -58,6 +58,7 @@ Unsupported syntax is reported as an error instead of being silently accepted. I
           lexer.py
           parser.py
           emitter.py
+          sema.py
           cli.py
         tests/
 
