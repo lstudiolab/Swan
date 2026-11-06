@@ -2,78 +2,81 @@
 
 Swan uses a layered, header-oriented C++20 compiler architecture. Its organization takes two useful ideas from established compilers:
 
-- Goose's fine-grained compiler headers and central driver.
-- Swift's domain-oriented separation between basic infrastructure, syntax, semantic analysis, frontend, code generation, and driver responsibilities.
+- **Goose:** focused headers for concrete compiler responsibilities and a small central driver.
+- **Swift:** domain-oriented subsystem boundaries, with compiler infrastructure, syntax, semantic analysis, frontend orchestration, and backend work kept distinct.
 
-This is an architectural reference, not copied Goose or Swift source code.
+This is an architectural adaptation, not copied Goose or Swift source code.
 
 ## Repository layout
 
 ```text
 main.cpp
 compiler/include/swan/
-├── Basic/       Tokens, source locations, diagnostics
+├── Basic/       Source locations, tokens, and diagnostics
 ├── Support/     Version and filesystem utilities
-├── Lex/         Keyword classification and lexical scanning
+├── Lex/         Keyword classification and focused token scanners
 ├── AST/         Expression, declaration, statement, and program nodes
-├── Parse/       Token cursor, declarations, statements, expressions
-├── Sema/        Type rules, declarations, scopes, statements, expressions
+├── Parse/       Parser core, declarations, statements, expressions
+├── Sema/        Type rules, scopes, declarations, statements, expressions
 ├── Frontend/    Lexing, parsing, and semantic-analysis orchestration
-├── CodeGen/     C type mapping, string escaping, expression/statement/program emission
+├── CodeGen/     C types, literal escaping, expression/statement/program emission
 ├── Compiler/    Whole-compilation orchestration and backend selection
 └── Driver/      Command-line options and executable driver
 ```
 
-Top-level headers such as `swan/Parser.hpp` and `swan/Compiler.hpp` remain as compatibility forwarding headers. The old `swan/Driver/Compiler.hpp` path is also retained as a forwarding header. New compiler code should include the subsystem header that owns the component.
+Top-level headers such as `swan/Parser.hpp` and `swan/Compiler.hpp` remain thin compatibility facades. The old `swan/Driver/Compiler.hpp` path is also retained as a forwarding header. New compiler code should include the subsystem header that owns the component.
 
-## Compilation flow
+## Subsystem responsibilities
 
-```text
-.swan source
-    -> Lex
-    -> Parse
-    -> AST
-    -> Sema
-    -> Frontend result (checked AST)
-    -> Compiler orchestration
-    -> CodeGen
-    -> generated C
-```
-
-- **Lex** converts source characters into tokens.
-- **Parse** builds the syntax tree from tokens.
-- **AST** defines the compiler's syntax representation.
-- **Sema** validates declarations, scopes, types, and expressions.
+- **Basic** owns source locations, tokens, and diagnostics. It must not depend on compiler phases.
+- **Support** owns small utilities such as file reading, file writing, and version information.
+- **Lex** converts source characters into tokens. Identifier, number, string, and punctuation scanning are separate responsibilities.
+- **AST** defines the syntax representation. It does not depend on the parser or semantic analyzer.
+- **Parse** consumes tokens and constructs the AST. Expression precedence and grammar routines are separated from parser state management.
+- **Sema** validates declarations, scopes, types, statements, and expressions. It does not emit target code.
 - **Frontend** coordinates the language-analysis stages and returns a checked program.
-- **CodeGen** emits C from a semantically checked program.
+- **CodeGen** consumes a semantically checked program and emits C11. Type mapping, literal escaping, and expression/statement/program emission are separated.
 - **Compiler** coordinates the frontend and the currently supported C backend.
-- **Driver** handles command-line input/output and process-level behavior; it does not own language semantics or backend implementation.
-
-SIL generation, demand analysis, and optimization are intentionally absent until Swan's language semantics and frontend are stable.
+- **Driver** handles command-line input/output and process-level behavior. It does not own language semantics or backend implementation.
 
 ## Dependency direction
 
 The dependency direction is intentionally one-way:
 
-- Basic and Support provide low-level facilities.
-- Lex, AST, Parse, and Sema implement language representation and analysis.
-- Frontend composes those language stages.
-- CodeGen consumes the checked AST.
-- Compiler composes Frontend and CodeGen.
-- Driver handles process arguments and file I/O through Compiler.
+1. Basic and Support provide low-level facilities.
+2. Lex, AST, Parse, and Sema implement language representation and analysis.
+3. Frontend composes those language stages.
+4. CodeGen consumes the checked AST.
+5. Compiler composes Frontend and CodeGen.
+6. Driver handles process arguments and file I/O through Compiler.
 
 A lower-level subsystem must not depend on Driver. Frontend must not depend on CodeGen. This keeps semantic analysis reusable by future tools such as a formatter, language server, or alternate backend.
 
 ## Translation-unit policy
 
-The executable has one C++ translation unit: `main.cpp`. Implementations are provided by inline definitions in subsystem headers and included through their owning component headers. This preserves the requested single-translation-unit build without CMake.
+The executable has one checked-in C++ translation unit: `main.cpp`. Implementations are provided by inline definitions in subsystem headers and included through their owning component headers. This preserves the requested single-translation-unit build without CMake.
 
 The build uses the system C++ compiler directly through `build.sh`; the project targets C++20 and treats compiler warnings as errors.
 
-## Extension rules
+## Header rules
 
-1. Put a feature in the subsystem that owns its responsibility.
-2. Split implementation by cohesive responsibility when a header becomes difficult to navigate.
-3. Keep dependencies flowing toward lower-level interfaces; the driver coordinates but does not implement compiler semantics.
-4. Do not add placeholder passes or claim a stage exists before it has executable behavior and tests.
-5. Add a focused regression test for every language or compiler behavior change.
+1. Each header has one primary responsibility and lives in its owning subsystem.
+2. Public component headers declare the component; focused headers define related implementation routines.
+3. Headers include their direct dependencies and use `#pragma once`.
+4. The header smoke test compiles every header as the only include in a temporary translation unit.
+5. Do not add placeholder headers for future features.
+6. Keep compatibility facades thin while existing examples and tools still use them.
+7. Add a focused regression test for every language or compiler behavior change.
+
+## Current compilation pipeline
+
+```text
+Source text
+  -> Lexer
+  -> Parser
+  -> AST
+  -> Semantic analysis
+  -> C source generation
+```
+
+SIL generation, demand analysis, and SIL optimization are future phases. They must not be represented by empty or pretend implementations before Swan's language semantics are stable.

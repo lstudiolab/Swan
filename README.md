@@ -81,29 +81,27 @@ Recognizing a keyword does not mean its semantics are complete. Imports, `for`, 
 sh test.sh
 ```
 
-The tests build the native compiler, transpile sample Swan programs, compile generated C, execute the results, and check semantic errors.
+The test suite builds the native compiler, compiles every header independently to check include boundaries, transpiles sample Swan programs, compiles generated C, executes the results, and checks semantic errors.
 
 ## Project structure
 
-The compiler uses a layered header architecture informed by Goose's focused compiler headers and Swift's subsystem-oriented organization. See [Compiler Architecture](docs/ARCHITECTURE.md) for responsibilities and dependency boundaries.
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for subsystem responsibilities and dependency rules.
 
 ```text
 main.cpp
 compiler/include/swan/
-├── Basic/       Tokens, source locations, diagnostics
-├── Support/     Version and filesystem utilities
-├── Lex/         Keyword classification and lexical scanning
-├── AST/         Expression, declaration, statement, and program nodes
-├── Parse/       Parser core, declarations, statements, expressions
-├── Sema/        Scope, declaration, statement, expression, and type analysis
-├── Frontend/    Lexing, parsing, and semantic-analysis orchestration
-├── CodeGen/     C type mapping and program, statement, expression emitters
-├── Compiler/    Whole-compilation orchestration and backend selection
-└── Driver/      Command-line handling and executable driver
+  Basic/       Tokens, source locations, diagnostics
+  Support/     Filesystem and version utilities
+  Lex/         Keyword, character, identifier, number, string, punctuation scanners
+  AST/         AST node definitions
+  Parse/       Parser core, declarations, statements, expressions
+  Sema/        Scope, declaration, statement, expression, type analysis
+  Frontend/    Lexing, parsing, and semantic-analysis orchestration
+  Compiler/    Whole-compilation pipeline
+  CodeGen/     C type mapping and focused C emitters
+  Driver/      Command-line parsing and executable driver
 
-examples/        Swan programs
-tests/           Compiler smoke tests
-build.sh         Direct C++20 build, no CMake
+examples/
+tests/
+build.sh
 ```
-
-The compiler currently has one C++ translation unit, `main.cpp`. The subsystem headers contain inline implementations and are included through their owning component headers.
