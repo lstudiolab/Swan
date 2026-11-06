@@ -166,7 +166,7 @@ void Lexer::scanNumber() {
     emit(isFloat ? TokenKind::Float : TokenKind::Integer, start, where);
 }
 
-void Lexer::scanString(const std::string& opening, const std::string& closing) {
+void Lexer::scanString(std::string_view opening, std::string_view closing) {
     const auto start = offset_;
     const auto where = location();
     for (std::size_t i = 0; i < opening.size(); ++i) advance();
@@ -257,8 +257,11 @@ void Lexer::scanToken() {
     }
 
     if (current() == '"' || current() == '\'') {
-        const std::string quote(1, current());
-        scanString(quote, quote);
+        const char quote = current();
+        const std::size_t delimiterSize =
+            current(1) == quote && current(2) == quote ? 3 : 1;
+        const std::string_view delimiter(source_.data() + offset_, delimiterSize);
+        scanString(delimiter, delimiter);
         return;
     }
 
@@ -268,9 +271,9 @@ void Lexer::scanToken() {
         (static_cast<unsigned char>(current(2)) == 0x9C ||
          static_cast<unsigned char>(current(2)) == 0x9D)) {
         const bool opening = static_cast<unsigned char>(current(2)) == 0x9C;
-        const std::string delimiter = opening ? "\xE2\x80\x9C" : "\xE2\x80\x9D";
-        const std::string closing = opening ? "\xE2\x80\x9D" : "\xE2\x80\x9C";
-        scanString(delimiter, closing);
+        const std::string_view left("\xE2\x80\x9C", 3);
+        const std::string_view right("\xE2\x80\x9D", 3);
+        scanString(opening ? left : right, opening ? right : left);
         return;
     }
 
