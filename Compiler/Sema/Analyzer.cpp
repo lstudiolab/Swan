@@ -1,5 +1,6 @@
 #include "Swan/Sema/Analyzer.hpp"
 
+#include <unordered_set>
 #include <utility>
 
 namespace swan {
@@ -61,9 +62,10 @@ void SemanticAnalyzer::predeclare() {
     }
 
     // Resolve function signatures after all top-level structures are known.
+    std::unordered_set<std::string> resolvedFunctions;
     for (const auto& statement : module_.statements) {
         const auto* function = dynamic_cast<const FunctionDecl*>(statement.get());
-        if (!function) continue;
+        if (!function || !resolvedFunctions.insert(function->name).second) continue;
         auto* symbol = globalScope_.lookup(function->name);
         if (!symbol || symbol->kind != SymbolKind::Function) continue;
         if (function->returnType)
