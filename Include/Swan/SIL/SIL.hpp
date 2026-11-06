@@ -17,7 +17,7 @@ enum class Opcode {
     ConstantInt, ConstantFloat, ConstantBool, ConstantString, ConstantNone,
     Load, Store,
     Add, Subtract, Multiply, Divide, Remainder,
-    Negate, LogicalNot,
+    Negate, LogicalNot, LogicalAnd, LogicalOr,
     Equal, NotEqual, Less, LessEqual, Greater, GreaterEqual,
     Call, Log,
     Jump, Branch, Return
@@ -72,6 +72,11 @@ public:
 class Verifier {
 public:
     bool verify(const Module& module, std::vector<SemaDiagnostic>& diagnostics) const;
+};
+
+class Optimizer {
+public:
+    void optimize(Module& module) const;
 };
 
 std::string toString(Type type);
