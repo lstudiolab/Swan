@@ -1,44 +1,47 @@
 # Swan
 
-Swan is a programming language with a native C++20 compiler. The compiler parses and validates Swan programs, then emits portable C11 source.
+Swan is a programming language with a native C++20 compiler. It currently parses and validates Swan source, then emits portable C11 source.
 
-The compiler implementation is C++. Python is not required to build, run, or test Swan. CMake is not used.
+The compiler implementation is C++. Python and CMake are not required.
 
 ## Compiler pipeline
 
 ```text
-Swan source (.swan)
-        |
-        v
-Swan compiler (C++20)
-  lexer -> parser -> semantic analysis -> C emitter
-        |
-        v
-Generated C source (.c)
-        |
-        v
-Optional external C compiler (Clang or GCC)
-        |
-        v
-Native executable
+.swan source
+    |
+    v
+Lexer
+    |
+    v
+Parser
+    |
+    v
+AST
+    |
+    v
+Sema (semantic analysis)
+    |
+    v
+C source generation
+    |
+    v
+.c output
+
+Planned after the language and frontend stabilize:
+    SIL generation -> SIL demand -> SIL optimization
 ```
 
-Swan owns its language rules and compilation pipeline. C is the current output target; the Swan compiler itself does not invoke a C compiler.
+SIL is deliberately not implemented yet. The immediate priority is a correct and stable language frontend and C output backend. The future SIL stages will be introduced only after the Swan language design is stable.
 
-## Build
+## Build without CMake
 
-Requirements:
-- A C++20 compiler: Clang 15+, GCC 12+, or a compatible compiler.
-- A C11 compiler is only needed to compile generated C programs or run the full smoke tests.
-- A POSIX shell for the supplied shell scripts.
-
-Build directly, without CMake:
+Requirements: a C++20 compiler (Clang 15+, GCC 12+, or compatible).
 
 ```sh
 sh build.sh
 ```
 
-The executable is written to `build/swan`. Select a compiler with `CXX=clang++ sh build.sh`.
+This compiles all compiler translation units directly and writes `build/swan`.
 
 ## Use
 
@@ -48,37 +51,29 @@ cc -std=c11 hello.c -o hello
 ./hello
 ```
 
-Without `-o`, generated C is written to standard output. Use `--version` or `--help` for command information.
+Swan itself emits C source. It does not invoke the C compiler.
 
-## Install on Linux, macOS, or Termux
+## Install
+
+Linux, macOS, and Termux:
 
 ```sh
 sh install.sh
 ```
 
-The installer builds and tests Swan, then installs the executable into `$PREFIX/bin` when `PREFIX` is set (as in Termux), or `~/.local/bin` otherwise. Ensure that directory is on your `PATH`.
+Windows: run `install.ps1` with a C++20 compiler installed.
 
-On Windows, run `install.ps1` from a shell with Clang, GCC, or MSVC installed. It builds `build/swan.exe`.
+## Implemented frontend
 
-## Compiler implementation reference
+- Lexer with source locations, comments, strings, numbers, operators, and keyword recognition.
+- Recursive-descent parser and precedence-based expression parser.
+- Explicit AST nodes for declarations, statements, and expressions.
+- Semantic analysis for primitive types, function declarations, parameter and return types, variable scopes, mutability, calls, and control-flow conditions.
+- C11 source generation for the supported language subset.
 
-The native compiler takes architectural inspiration from [Goose](https://github.com/aardappel/goose): a C++20 implementation with distinct lexing, parsing, semantic analysis, and code-generation stages. Swan's compiler is an independent implementation; it does not copy Goose's source code or language semantics.
+Current syntax includes functions, typed parameters, structs, local `let`/`var`/`const`, `if`/`else`, `while`, return, loop control, arithmetic, comparisons, boolean operations, calls, and `log`.
 
-Goose also bundles TinyCC so it can compile and execute generated C in-process. Swan does not bundle TinyCC at this stage because its current compiler contract is to emit C source, not to execute programs. Adding an embedded C compiler would increase the dependency and build footprint without helping the current transpilation step. Swan's build is a direct C++ compiler invocation and has no CMake dependency.
-
-## Current language support
-
-The native compiler currently supports:
-- Functions with typed parameters and return types.
-- Primitive types: `int`, `float`, `bool`, `string`, and `void`.
-- Struct declarations.
-- `let`, `var`, and `const` local declarations.
-- `if`, `else`, and `while` blocks.
-- `return`, `break`, `continue`, and `pass`.
-- Arithmetic, comparisons, boolean operators, assignments, direct function calls, and `log`.
-- Source-positioned lexer, parser, and semantic diagnostics.
-
-The compiler deliberately rejects language features that are not implemented. Imports, `for`, `loop`, asynchronous operations, and the final semantics of `hold`, `store`, `operate`, `clone`, and related ownership keywords remain future work. A keyword being recognized by the lexer does not mean its behavior is implemented.
+Recognizing a keyword does not mean its semantics are complete. Imports, `for`, `loop`, async operations, and the ownership/recovery semantics of `hold`, `store`, `operate`, and `clone` are not implemented yet. Unsupported constructs must not be treated as stable language features.
 
 ## Tests
 
@@ -86,18 +81,21 @@ The compiler deliberately rejects language features that are not implemented. Im
 sh test.sh
 ```
 
-Tests build the C++ compiler, transpile representative Swan programs, compile the generated C with the host C compiler, run those programs, and verify that invalid programs are rejected.
+The tests build the native compiler, transpile sample Swan programs, compile generated C, execute the results, and check semantic errors.
 
-## Repository layout
+## Project structure
 
 ```text
-lib/swan.cpp       Complete C++20 compiler implementation
-examples/          Swan example programs
-tests/             Compiler tests
-build.sh           Direct C++ build; no CMake
-test.sh            Native compiler smoke tests
-install.sh         Linux/macOS/Termux installer
-install.ps1        Windows build helper
+compiler/
+  include/swan/       Public stage interfaces and AST definitions
+  src/
+    lexer/            Lexical analysis
+    parser/           Syntax analysis
+    sema/             Semantic analysis
+    codegen/          C source generation
+    driver/           CLI entry point
+    Compiler.cpp      Pipeline orchestration
+examples/             Swan programs
+tests/                Compiler smoke tests
+build.sh              Direct C++20 build, no CMake
 ```
-
-The compiler implementation is kept in one source file as requested. Build and test scripts are separate from the compiler implementation.
