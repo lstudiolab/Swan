@@ -1,4 +1,4 @@
-"""Command-line interface for Swan's Python compiler."""
+"""Command-line interface for Swan's Python transpiler."""
 import argparse
 import pathlib
 import sys
@@ -9,7 +9,7 @@ from .sema import Analyzer, SemanticError
 
 VERSION="0.2.0"
 def main(argv=None):
-    cli=argparse.ArgumentParser(prog="swan",description="Swan source-to-C transpiler")
+    cli=argparse.ArgumentParser(prog="swan",description="Transpile Swan source into C source")
     cli.add_argument("source",help="input .swan file")
     cli.add_argument("-o","--output",help="output .c file; defaults to stdout")
     cli.add_argument("--version",action="version",version=f"Swan {VERSION}")
