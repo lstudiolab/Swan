@@ -96,7 +96,7 @@ Supported in the current lowering path:
 - Integer and string logging
 - Return statements
 
-The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, async/coroutine lowering, and finalized hold, store, and operate semantics still need implementation.
+The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, async/coroutine lowering, string concatenation/comparison, top-level executable statements, and finalized hold, store, and operate semantics still need implementation. Division is also deferred because Swan currently defines its result as floating point.
 
 Function parameter annotations are retained in the AST and checked by semantic analysis. The initial LLVM ABI still represents supported parameters and values as 64-bit integers; floating-point signatures are rejected until their lowering is implemented.
 
