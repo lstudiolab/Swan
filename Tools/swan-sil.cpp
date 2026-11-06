@@ -52,6 +52,17 @@ int main(int argc, char** argv) {
                   << diagnostic.message << '\n';
     if (!result.ok()) return 1;
 
+    swan::sil::Optimizer optimizer;
+    optimizer.optimize(result.module);
+    std::vector<swan::SemaDiagnostic> verificationErrors;
+    swan::sil::Verifier verifier;
+    if (!verifier.verify(result.module, verificationErrors)) {
+        for (const auto& diagnostic : verificationErrors)
+            std::cerr << "sil verifier[" << diagnostic.code << "]: "
+                      << diagnostic.message << '\\n';
+        return 1;
+    }
+
     std::cout << swan::sil::print(result.module);
     return 0;
 }
