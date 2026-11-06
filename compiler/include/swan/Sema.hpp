@@ -30,18 +30,18 @@ private:
 
 namespace swan {
 inline Sema::Sema(const Program& program) : program_(program) {}
-inline bool inline Sema::numeric(const std::string& type) { return type == "int" || type == "float"; }
-inline bool inline Sema::compatible(const std::string& expected,const std::string& actual) {
+inline bool Sema::numeric(const std::string& type) { return type == "int" || type == "float"; }
+inline bool Sema::compatible(const std::string& expected,const std::string& actual) {
     return expected == actual || (expected == "float" && actual == "int");
 }
-inline std::pair<std::string,bool>* inline Sema::lookup(const std::string& name) {
+inline std::pair<std::string,bool>* Sema::lookup(const std::string& name) {
     for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
         auto found = scope->find(name);
         if (found != scope->end()) return &found->second;
     }
     return nullptr;
 }
-inline void inline Sema::analyze() {
+inline void Sema::analyze() {
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct && !types_.insert(node->name).second)
             fail(node->token,"type '" + node->name + "' is already defined");
@@ -60,7 +60,7 @@ inline void inline Sema::analyze() {
         else fail(node->token,"only function and struct declarations are allowed at file scope");
     }
 }
-inline void inline Sema::analyzeFunction(const StmtPtr& function) {
+inline void Sema::analyzeFunction(const StmtPtr& function) {
     scopes_.clear(); scopes_.emplace_back();
     return_type_ = function->return_type;
     if (!types_.contains(return_type_)) fail(function->token,"unknown return type '" + return_type_ + "'");
@@ -73,12 +73,12 @@ inline void inline Sema::analyzeFunction(const StmtPtr& function) {
     loop_depth_ = 0;
     analyzeBlock(function->body);
 }
-inline void inline Sema::analyzeBlock(const std::vector<StmtPtr>& statements) {
+inline void Sema::analyzeBlock(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
     for (const auto& statement : statements) analyzeStatement(statement);
     scopes_.pop_back();
 }
-inline void inline Sema::analyzeStatement(const StmtPtr& node) {
+inline void Sema::analyzeStatement(const StmtPtr& node) {
     switch (node->kind) {
     case Stmt::Kind::Variable: {
         if (scopes_.back().contains(node->name))
@@ -122,7 +122,7 @@ inline void inline Sema::analyzeStatement(const StmtPtr& node) {
     default: fail(node->token,"statement is not supported in this context");
     }
 }
-inline std::string inline Sema::analyzeExpression(const ExprPtr& node) {
+inline std::string Sema::analyzeExpression(const ExprPtr& node) {
     switch (node->kind) {
     case Expr::Kind::Literal:
         if (node->literal_kind == "INT") return "int";
