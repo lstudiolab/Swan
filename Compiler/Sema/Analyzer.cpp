@@ -123,11 +123,10 @@ void SemanticAnalyzer::analyzeVariable(const VarDecl& variable, bool field) {
                initializerType.toString() + "'.");
     }
 
-    if (field) return;
-
     const bool mutableValue = variable.declarationKind == TokenKind::Var;
     Type valueType = variable.typeName ? declaredType : initializerType;
-    Symbol symbol(variable.name, SymbolKind::Variable, valueType, mutableValue);
+    Symbol symbol(variable.name, field ? SymbolKind::Field : SymbolKind::Variable,
+                  valueType, mutableValue);
     if (!currentScope_->define(std::move(symbol))) {
         report(variable.location, "S001",
                "Duplicate declaration of '" + variable.name + "' in this scope.");
