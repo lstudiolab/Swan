@@ -9,6 +9,8 @@ Parser::Parser(const std::vector<Token>& tokens) : tokens_(tokens) {}
 const std::vector<ParserError>& Parser::errors() const noexcept { return errors_; }
 
 const Token& Parser::peek(std::size_t lookahead) const noexcept {
+    static const Token eof{TokenKind::EndOfFile, "", SourceLocation{}};
+    if (tokens_.empty()) return eof;
     const auto index = current_ + lookahead;
     return index < tokens_.size() ? tokens_[index] : tokens_.back();
 }
