@@ -118,7 +118,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
     if (needsPrintf) {
         output << "@swan.fmt.int = private unnamed_addr constant [5 x i8] c\"%ld\\0A\\00\", align 1\n";
         output << "@swan.fmt.str = private unnamed_addr constant [4 x i8] c\"%s\\0A\\00\", align 1\n";
-        output << "declare i32 @printf(i8*, ...)\n";
+        output << "declare i32 @printf(ptr, ...)\n";
     }
     if (!strings.empty() || needsPrintf) output << '\n';
 
