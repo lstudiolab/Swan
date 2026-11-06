@@ -5,7 +5,7 @@
       "label": "Swan: Transpile current file to C",
       "type": "process",
       "command": "swan",
-      "args": ["\${file}", "-o", "\${fileDirname}/\${fileBasenameNoExtension}.c"],
+      "args": ["${file}", "-o", "${fileDirname}/${fileBasenameNoExtension}.c"],
       "problemMatcher": [],
       "group": { "kind": "build", "isDefault": true }
     }
