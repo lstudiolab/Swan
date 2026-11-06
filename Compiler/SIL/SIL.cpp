@@ -449,6 +449,9 @@ Result Lowerer::lower(const swan::Module& source) {
                     "SIL currently requires executable code to be inside a function.");
             continue;
         }
+        if (declaration->isAsync)
+            result.diagnostics.emplace_back(declaration->location, "L007",
+                "Async functions require coroutine lowering, which is not implemented yet.");
         Function function;
         function.name = declaration->name;
         function.returnType = declaration->returnType
