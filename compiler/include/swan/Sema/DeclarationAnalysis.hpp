@@ -17,6 +17,7 @@ inline void Sema::analyze() {
             std::unordered_set<std::string> names;
             for (const auto& field : node->fields) {
                 if (!types_.contains(field.type)) fail(field.token,"unknown field type '" + field.type + "'");
+                if (field.type == "void") fail(field.token,"struct fields cannot have type void");
                 if (!names.insert(field.name).second) fail(field.token,"duplicate field '" + field.name + "'");
             }
         } else if (node->kind == Stmt::Kind::Function) analyzeFunction(node);
@@ -31,10 +32,13 @@ inline void Sema::analyzeFunction(const StmtPtr& function) {
     for (const auto& parameter : function->parameters) {
         if (parameter.type.empty()) fail(parameter.token,"parameter '" + parameter.name + "' requires a type");
         if (!types_.contains(parameter.type)) fail(parameter.token,"unknown parameter type '" + parameter.type + "'");
+        if (parameter.type == "void") fail(parameter.token,"parameters cannot have type void");
         if (!scopes_.back().emplace(parameter.name,std::pair{parameter.type,false}).second)
             fail(parameter.token,"duplicate parameter '" + parameter.name + "'");
     }
     loop_depth_ = 0;
     analyzeBlock(function->body);
+    if (return_type_ != "void" && !alwaysReturns(function->body))
+        fail(function->token,"non-void function '" + function->name + "' does not return on every path");
 }
 }
