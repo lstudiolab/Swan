@@ -4,6 +4,17 @@
 #include <utility>
 
 namespace swan {
+inline bool Sema::alwaysReturns(const std::vector<StmtPtr>& statements) const {
+    for (const auto& statement : statements) {
+        if (statement->kind == Stmt::Kind::Return) return true;
+        if (statement->kind == Stmt::Kind::If &&
+            !statement->alternate.empty() &&
+            alwaysReturns(statement->body) &&
+            alwaysReturns(statement->alternate)) return true;
+    }
+    return false;
+}
+
 inline void Sema::analyzeBlock(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
     for (const auto& statement : statements) analyzeStatement(statement);
@@ -19,6 +30,7 @@ inline void Sema::analyzeStatement(const StmtPtr& node) {
         std::string type = node->type.empty() ? actual : node->type;
         if (type.empty()) fail(node->token,"cannot infer type for '" + node->name + "'");
         if (!types_.contains(type)) fail(node->token,"unknown type '" + type + "'");
+        if (type == "void") fail(node->token,"variables cannot have type void");
         if (!actual.empty() && !compatible(type,actual))
             fail(node->token,"cannot initialize " + type + " with " + actual);
         scopes_.back()[node->name] = {type,node->mutable_value};
