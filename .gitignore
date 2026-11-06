@@ -1,12 +1,5 @@
-# CMake
-/build/
-/cmake-build-*/
-/CMakeFiles/
-/CMakeCache.txt
-/compile_commands.json
-/Testing/
-
 # Native build products
+/build/
 *.o
 *.obj
 *.a
@@ -17,7 +10,6 @@
 *.exe
 *.bc
 *.ll
-*.sil
 
 # VS Code
 .vscode/*
@@ -28,9 +20,3 @@
 vscode/node_modules/
 vscode/*.vsix
 vscode/out/
-
-# Python compiler artifacts
-__pycache__/
-*.py[cod]
-*.egg-info/
-.venv/
