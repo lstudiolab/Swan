@@ -20,25 +20,25 @@ class Lexer:
 
     def peek(self, offset=0):
         pos = self.index + offset
-        return self.source[pos] if pos < len(self.source) else "\\0"
+        return self.source[pos] if pos < len(self.source) else ""
 
     def advance(self):
         ch = self.peek()
-        if ch != "\\0":
+        if ch:
             self.index += 1
-            if ch == "\\n": self.line, self.column = self.line + 1, 1
+            if ch == "\n": self.line, self.column = self.line + 1, 1
             else: self.column += 1
         return ch
 
     def tokenize(self):
-        while self.peek() != "\\0":
+        while self.peek():
             ch = self.peek()
-            if ch in " \\t\\r": self.advance(); continue
-            if ch == "\\n":
+            if ch in " \t\r": self.advance(); continue
+            if ch == "\n":
                 line, col = self.line, self.column
-                self.advance(); self.tokens.append(Token("NEWLINE", "\\n", line, col)); continue
+                self.advance(); self.tokens.append(Token("NEWLINE", "\n", line, col)); continue
             if ch == "#":
-                while self.peek() not in ("\\n", "\\0"): self.advance()
+                while self.peek() not in ("\n", ""): self.advance()
                 continue
             line, col = self.line, self.column
             if ch.isalpha() or ch == "_":
@@ -56,15 +56,15 @@ class Lexer:
                 self.tokens.append(Token(kind, self.source[start:self.index], line, col)); continue
             if ch in ('"', "'"):
                 quote = self.advance(); value = []
-                while self.peek() not in (quote, "\\0"):
+                while self.peek() not in (quote, ""):
                     current = self.advance()
-                    if current == "\\\\":
+                    if current == "\\":
                         escaped = self.advance()
-                        mapping = {"n":"\\n", "r":"\\r", "t":"\\t", "\\\\":"\\\\", '"':'"', "'":"'"}
+                        mapping = {"n":"\n", "r":"\r", "t":"\t", "\\":"\\", '"':'"', "'":"'"}
                         if escaped not in mapping: raise LexError(f"{line}:{col}: unknown escape sequence")
                         value.append(mapping[escaped])
                     else: value.append(current)
-                if self.peek() == "\\0": raise LexError(f"{line}:{col}: unterminated string")
+                if self.peek() == "": raise LexError(f"{line}:{col}: unterminated string")
                 self.advance(); self.tokens.append(Token("STRING", "".join(value), line, col)); continue
             pair = ch + self.peek(1)
             if pair in ("->", "==", "!=", "<=", ">=", "&&", "||"):
