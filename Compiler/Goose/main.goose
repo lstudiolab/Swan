@@ -54,12 +54,12 @@ fn transpile(source: u8[:], output: u8[>..]&) -> bool {
             return false;
         }
 
-        if line.len >= 4 && line[..4] == "pass" {
+        if line == "pass" || (line.len > 4 && line[..4] == "pass" && is_space(line[4])) {
             output.append("    (void)0;\n");
             continue;
         }
 
-        if line.len >= 3 && line[..3] == "log" {
+        if line == "log" || (line.len > 3 && line[..3] == "log" && is_space(line[3])) {
             var q = 3;
             while q < line.len && is_space(line[q]) { q += 1; }
             if q >= line.len || (line[q] != '"' && line[q] != '\'') {
@@ -88,7 +88,7 @@ fn transpile(source: u8[:], output: u8[>..]&) -> bool {
             continue;
         }
 
-        if line.len >= 6 && line[..6] == "return" {
+        if line == "return" || (line.len > 6 && line[..6] == "return" && is_space(line[6])) {
             var q = 6;
             while q < line.len && is_space(line[q]) { q += 1; }
             var value_end = line.len;
@@ -126,7 +126,7 @@ fn main() {
     }
 
     let input_path = args[1];
-    var output_path: u8[] = "output.c";
+    var output_path: u8[:] = "output.c";
     var i = 2;
     while i < args.len {
         if args[i] == "-o" {
