@@ -61,6 +61,23 @@ add_executable(swan-sil
 
 target_link_libraries(swan-sil PRIVATE swan_sil)
 
+add_library(swan_llvm_backend
+    Compiler/Backend/LLVM/LLVMEmitter.cpp
+)
+
+target_include_directories(swan_llvm_backend
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/Include
+)
+
+target_link_libraries(swan_llvm_backend PUBLIC swan_sil)
+
+add_executable(swan-llvm
+    Tools/swan-llvm.cpp
+)
+
+target_link_libraries(swan-llvm PRIVATE swan_llvm_backend)
+
 include(CTest)
 if(BUILD_TESTING)
     add_test(
@@ -79,5 +96,10 @@ if(BUILD_TESTING)
     add_test(
         NAME swan-sil-smoke
         COMMAND swan-sil ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-smoke.swan
+    )
+    add_test(
+        NAME swan-llvm-smoke
+        COMMAND swan-llvm ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-smoke.swan
+                -o ${CMAKE_CURRENT_BINARY_DIR}/sil-smoke.ll
     )
 endif()
