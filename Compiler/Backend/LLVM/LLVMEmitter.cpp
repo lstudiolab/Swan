@@ -294,9 +294,9 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                             if (i) output << ", ";
                             output << "i64 " << operand(i);
                         }
-                        output << ")\\n";
+                        output << ")\n";
                         if (returnsVoid)
-                            output << "  " << resultName << " = add i64 0, 0\\n";
+                            output << "  " << resultName << " = add i64 0, 0\n";
                         break;
                     }
                     case sil::Opcode::Log: {
@@ -338,12 +338,12 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                     case sil::Opcode::Return:
                         if (nativeMain) {
                             output << "  %mainret" << block.id << " = trunc i64 "
-                                   << operand(0) << " to i32\\n";
-                            output << "  ret i32 %mainret" << block.id << "\\n";
+                                   << operand(0) << " to i32\n";
+                            output << "  ret i32 %mainret" << block.id << "\n";
                         } else if (function.returnType == sil::Type::Void) {
-                            output << "  ret void\\n";
+                            output << "  ret void\n";
                         } else {
-                            output << "  ret i64 " << operand(0) << "\\n";
+                            output << "  ret i64 " << operand(0) << "\n";
                         }
                         break;
                 }
