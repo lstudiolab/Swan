@@ -73,3 +73,16 @@ The first benchmark suite should include identifier-heavy input, deeply nested e
 5. Re-run the same fixtures after every optimization.
 
 Correctness and generated-code equivalence take precedence over compile-time improvements.
+
+
+## Implemented low-risk optimizations
+
+The current optimization pass makes five targeted changes:
+
+- Keyword classification uses binary search over a sorted, compile-time keyword table instead of a linear scan.
+- Punctuation scanning checks operator characters directly and only constructs a string for a recognized token, avoiding the temporary two-character string on the punctuation path.
+- The lexer reserves an initial token capacity based on source length to reduce repeated vector growth on ordinary source files.
+- Expression type inference evaluates each binary operand's inferred type once. The previous implementation could recursively infer the left subtree twice and the right subtree once, multiplying work on left-heavy expression trees.
+- C output indentation is written directly to the stream instead of allocating a temporary indentation string for every emitted line.
+
+These are algorithmic/allocation reductions, not a claim of a measured percentage improvement. Run the benchmark harness on the same machine before and after changes to quantify end-to-end impact. The harness measures a deterministic 2,500-declaration file; phase-level profiling and peak-memory measurement remain future work.

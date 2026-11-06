@@ -1,16 +1,18 @@
 #pragma once
+#include <algorithm>
+#include <array>
 #include <string_view>
+
 namespace swan {
 inline bool isKeyword(std::string_view value) {
-    static constexpr std::string_view keywords[] = {
-        "fn", "let", "var", "const", "struct", "if", "else", "while", "return",
-        "break", "continue", "pass", "log", "true", "false", "none", "int",
-        "float", "bool", "string", "void", "and", "or", "not", "import", "as",
-        "for", "loop", "async", "await", "sync", "hold", "store", "operate",
-        "clone", "get", "init", "deinit", "release", "enum", "class", "type",
-        "public", "private", "export", "self", "case", "range"
+    static constexpr std::array<std::string_view, 48> keywords = {
+        "and", "as", "async", "await", "bool", "break", "case", "class",
+        "clone", "const", "continue", "deinit", "else", "enum", "export",
+        "false", "float", "fn", "for", "get", "hold", "if", "import", "init",
+        "int", "let", "log", "loop", "none", "not", "operate", "or", "pass",
+        "private", "public", "range", "release", "return", "self", "store",
+        "string", "struct", "sync", "true", "type", "var", "void", "while"
     };
-    for (const auto keyword : keywords) if (keyword == value) return true;
-    return false;
+    return std::binary_search(keywords.begin(), keywords.end(), value);
 }
 }

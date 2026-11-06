@@ -5,7 +5,11 @@
 
 namespace swan {
 inline void CGenerator::line(const std::string& value) {
-    if (!value.empty()) output_ << std::string(indent_ * 4,' ') << value;
+    if (!value.empty()) {
+        for (unsigned level = 0; level < indent_; ++level)
+            output_ << "    ";
+        output_ << value;
+    }
     output_ << '\n';
 }
 inline void CGenerator::block(const std::vector<StmtPtr>& statements) {

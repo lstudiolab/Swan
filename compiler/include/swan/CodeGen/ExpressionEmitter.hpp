@@ -12,7 +12,7 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
         if (node->literal_kind == "FLOAT") return "float";
         if (node->literal_kind == "STRING") return "string";
         if (node->literal_kind == "true" || node->literal_kind == "false") return "bool";
-        return {};
+        return "none";
     case Expr::Kind::Name: {
         auto found = symbols_.find(node->value);
         return found == symbols_.end() ? "" : found->second;
@@ -24,13 +24,16 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
         }
         return {};
     case Expr::Kind::Unary: return inferredType(node->left);
-    case Expr::Kind::Binary:
+    case Expr::Kind::Binary: {
         if (node->op == "==" || node->op == "!=" || node->op == "<" ||
             node->op == ">" || node->op == "<=" || node->op == ">=" ||
-            node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||") return "bool";
+            node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||")
+            return "bool";
         if (node->op == "/") return "float";
-        return inferredType(node->left) == "float" || inferredType(node->right) == "float"
-            ? "float" : inferredType(node->left);
+        const auto leftType = inferredType(node->left);
+        const auto rightType = inferredType(node->right);
+        return leftType == "float" || rightType == "float" ? "float" : leftType;
+    }
     case Expr::Kind::Member: return {};
     }
     return {};
