@@ -1,1 +1,1 @@
-"""Swan compiler implementation."""
+"""Swan-to-C transpiler implementation."""
