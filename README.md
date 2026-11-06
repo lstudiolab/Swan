@@ -1,3 +1,5 @@
+![Swan programming language logo](assets/swan-logo.svg)
+
 # Swan
 
 Swan is a programming language with a native C++20 compiler. It currently parses and validates Swan source, then emits portable C11 source.
