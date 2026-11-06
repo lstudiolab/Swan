@@ -173,7 +173,10 @@ private:
                     diagnose(expression.location, "Unary negation currently supports integer values only.");
                 instruction.opcode = Opcode::Negate;
             }
-            else if (unary->op.kind == TokenKind::Not) instruction.opcode = Opcode::LogicalNot;
+            else if (unary->op.kind == TokenKind::Not) {
+                instruction.opcode = Opcode::LogicalNot;
+                instruction.type = Type::Bool;
+            }
             else if (unary->op.kind == TokenKind::Log) {
                 instruction.opcode = Opcode::Log;
                 instruction.type = Type::Void;
