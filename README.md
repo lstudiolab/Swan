@@ -90,13 +90,13 @@ Supported in the current lowering path:
 - Function declarations and direct function calls
 - Integer and boolean literals
 - Local variables represented through SSA values
-- Integer arithmetic and comparisons
+- Integer addition, subtraction, multiplication, remainder, and comparisons
 - Unary negation and logical not
-- Conditional and while-loop control flow without loop-carried assignments
+- Conditional and while-loop control flow, including break and continue; loop-carried assignments are not yet supported
 - Integer and string logging
 - Return statements
 
-The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, and finalized hold, store, and operate semantics still need implementation. break and continue are currently lowered for while loops.
+The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, async/coroutine lowering, and finalized hold, store, and operate semantics still need implementation.
 
 Function parameter annotations are retained in the AST and checked by semantic analysis. The initial LLVM ABI still represents supported parameters and values as 64-bit integers; floating-point signatures are rejected until their lowering is implemented.
 
