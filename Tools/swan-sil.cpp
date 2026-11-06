@@ -59,7 +59,7 @@ int main(int argc, char** argv) {
     if (!verifier.verify(result.module, verificationErrors)) {
         for (const auto& diagnostic : verificationErrors)
             std::cerr << "sil verifier[" << diagnostic.code << "]: "
-                      << diagnostic.message << '\\n';
+                      << diagnostic.message << '\n';
         return 1;
     }
 
