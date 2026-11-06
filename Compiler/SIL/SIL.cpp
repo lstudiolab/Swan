@@ -28,8 +28,9 @@ bool terminates(const BasicBlock& block) {
 
 class FunctionLowering {
 public:
-    FunctionLowering(Function& function, std::vector<SemaDiagnostic>& diagnostics)
-        : function_(function), diagnostics_(diagnostics) {
+    FunctionLowering(Function& function, std::vector<SemaDiagnostic>& diagnostics,
+                     const std::unordered_map<std::string, Type>& functionTypes)
+        : function_(function), diagnostics_(diagnostics), functionTypes_(functionTypes) {
         createBlock("entry");
     }
 
@@ -38,8 +39,12 @@ public:
             const ValueID id = nextValue_++;
             const Type type = parameter.typeName
                 ? typeFromName(*parameter.typeName) : Type::Unknown;
+            if (parameter.typeName && (type == Type::Unknown || type == Type::Void))
+                diagnose(declaration.location, "Parameter '" + parameter.name +
+                         "' uses a type that SIL cannot represent yet.");
             function_.parameters.push_back({parameter.name, type, id});
             variables_[parameter.name] = id;
+            valueTypes_[id] = type;
         }
         lowerStatements(declaration.body);
         if (!terminates(current())) {
@@ -62,6 +67,8 @@ private:
     BlockID nextBlock_ = 0;
     ValueID nextValue_ = 1;
     std::unordered_map<std::string, ValueID> variables_;
+    std::unordered_map<ValueID, Type> valueTypes_;
+    const std::unordered_map<std::string, Type>& functionTypes_;
     std::vector<std::pair<BlockID, BlockID>> loopTargets_;
 
     BasicBlock& current() { return function_.blocks[currentBlock_]; }
@@ -74,7 +81,14 @@ private:
     }
 
     void select(BlockID id) { currentBlock_ = id; }
-    void emit(Instruction instruction) { current().instructions.push_back(std::move(instruction)); }
+    void emit(Instruction instruction) {
+        if (instruction.result) valueTypes_[instruction.result] = instruction.type;
+        current().instructions.push_back(std::move(instruction));
+    }
+    Type valueType(ValueID id) const {
+        const auto found = valueTypes_.find(id);
+        return found == valueTypes_.end() ? Type::Unknown : found->second;
+    }
 
     void diagnose(SourceLocation location, std::string message) {
         diagnostics_.emplace_back(location, "L001", std::move(message));
@@ -140,6 +154,7 @@ private:
                 return constantNone();
             }
             instruction.operands.push_back(found->second);
+            instruction.type = valueType(found->second);
             const auto id = instruction.result;
             emit(std::move(instruction));
             return id;
@@ -148,11 +163,16 @@ private:
         if (const auto* unary = dynamic_cast<const UnaryExpr*>(&expression)) {
             if (!unary->operand) return constantNone();
             const auto value = lowerExpression(*unary->operand);
+            const Type operandType = valueType(value);
             Instruction instruction;
             instruction.result = nextValue_++;
             instruction.operands.push_back(value);
-            instruction.type = Type::Unknown;
-            if (unary->op.kind == TokenKind::Minus) instruction.opcode = Opcode::Negate;
+            instruction.type = operandType;
+            if (unary->op.kind == TokenKind::Minus) {
+                if (operandType == Type::F64 || operandType == Type::String)
+                    diagnose(expression.location, "Unary negation currently supports integer values only.");
+                instruction.opcode = Opcode::Negate;
+            }
             else if (unary->op.kind == TokenKind::Not) instruction.opcode = Opcode::LogicalNot;
             else if (unary->op.kind == TokenKind::Log) {
                 instruction.opcode = Opcode::Log;
@@ -187,15 +207,31 @@ private:
 
             const auto left = lowerExpression(*binary->left);
             const auto right = lowerExpression(*binary->right);
+            const Type leftType = valueType(left);
+            const Type rightType = valueType(right);
             Instruction instruction;
             instruction.result = nextValue_++;
             instruction.operands = {left, right};
-            instruction.type = Type::Unknown;
+            instruction.type = Type::I64;
+            if (leftType == Type::F64 || rightType == Type::F64) {
+                diagnose(expression.location, "Floating-point operators are not supported by the current SIL backend.");
+            }
+            if ((leftType == Type::String || rightType == Type::String) &&
+                binary->op.kind != TokenKind::Plus) {
+                diagnose(expression.location, "String comparisons and arithmetic need dedicated runtime lowering.");
+            }
             switch (binary->op.kind) {
-                case TokenKind::Plus: instruction.opcode = Opcode::Add; break;
+                case TokenKind::Plus:
+                    if (leftType == Type::String && rightType == Type::String)
+                        diagnose(expression.location, "String concatenation is not implemented in the current SIL backend.");
+                    instruction.opcode = Opcode::Add;
+                    break;
                 case TokenKind::Minus: instruction.opcode = Opcode::Subtract; break;
                 case TokenKind::Star: instruction.opcode = Opcode::Multiply; break;
-                case TokenKind::Slash: instruction.opcode = Opcode::Divide; break;
+                case TokenKind::Slash:
+                    diagnose(expression.location, "Division currently produces floating-point results and is not lowered yet.");
+                    instruction.opcode = Opcode::Divide;
+                    break;
                 case TokenKind::Percent: instruction.opcode = Opcode::Remainder; break;
                 case TokenKind::Equal: instruction.opcode = Opcode::Equal; instruction.type = Type::Bool; break;
                 case TokenKind::NotEqual: instruction.opcode = Opcode::NotEqual; instruction.type = Type::Bool; break;
@@ -221,7 +257,13 @@ private:
             Instruction instruction;
             instruction.opcode = Opcode::Call;
             instruction.result = nextValue_++;
-            instruction.type = Type::Unknown;
+            const auto functionType = functionTypes_.find(callee->name);
+            if (functionType == functionTypes_.end()) {
+                diagnose(expression.location, "Call target '" + callee->name +
+                         "' has no implemented SIL runtime or function body.");
+                return constantNone();
+            }
+            instruction.type = functionType->second;
             instruction.text = callee->name;
             for (const auto& argument : call->arguments)
                 if (argument) instruction.operands.push_back(lowerExpression(*argument));
@@ -243,8 +285,18 @@ private:
 
     void lowerStatement(const Stmt& statement) {
         if (const auto* variable = dynamic_cast<const VarDecl*>(&statement)) {
+            const Type declaredType = variable->typeName
+                ? typeFromName(*variable->typeName) : Type::Unknown;
+            if (variable->typeName &&
+                (declaredType == Type::Unknown || declaredType == Type::Void))
+                diagnose(statement.location, "Variable '" + variable->name +
+                         "' uses a type that SIL cannot represent yet.");
+            if (declaredType == Type::F64)
+                diagnose(statement.location, "Floating-point local variables are not supported by the current SIL backend.");
             const auto value = variable->initializer
                 ? lowerExpression(*variable->initializer) : constantNone();
+            if (variable->typeName && declaredType != Type::Unknown)
+                valueTypes_[value] = declaredType;
             variables_[variable->name] = value;
             Instruction store;
             store.opcode = Opcode::Store;
@@ -378,6 +430,14 @@ private:
 Result Lowerer::lower(const swan::Module& source) {
     Result result;
     result.module.functions.reserve(source.statements.size());
+    std::unordered_map<std::string, Type> functionTypes;
+    for (const auto& statement : source.statements) {
+        const auto* declaration = dynamic_cast<const FunctionDecl*>(statement.get());
+        if (declaration) {
+            functionTypes[declaration->name] = declaration->returnType
+                ? typeFromName(*declaration->returnType) : Type::Unknown;
+        }
+    }
     for (const auto& statement : source.statements) {
         const auto* declaration = dynamic_cast<const FunctionDecl*>(statement.get());
         if (!declaration) {
@@ -390,7 +450,12 @@ Result Lowerer::lower(const swan::Module& source) {
         function.name = declaration->name;
         function.returnType = declaration->returnType
             ? typeFromName(*declaration->returnType) : Type::Unknown;
-        FunctionLowering lowering(function, result.diagnostics);
+        if (declaration->returnType &&
+            function.returnType == Type::Unknown)
+            result.diagnostics.emplace_back(declaration->location, "L003",
+                "Function return type '" + *declaration->returnType +
+                "' is not supported by SIL yet.");
+        FunctionLowering lowering(function, result.diagnostics, functionTypes);
         lowering.lower(*declaration);
         result.module.functions.push_back(std::move(function));
     }
