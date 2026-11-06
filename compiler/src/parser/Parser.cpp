@@ -19,7 +19,8 @@ Token Parser::advance() {
 }
 Token Parser::expect(std::string_view kind, std::string_view message) {
     if (check(kind)) return advance();
-    fail(peek(),message.empty() ? "expected " + std::string(kind) : message);
+    if (message.empty()) fail(peek(),std::string("expected ") + std::string(kind));
+    fail(peek(),message);
 }
 void Parser::separators() { while (match("NEWLINE") || match(";")) {} }
 std::string Parser::typeName() {
