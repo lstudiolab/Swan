@@ -88,7 +88,11 @@ class CEmitter:
         if k=="literal": return json.dumps(d["value"],ensure_ascii=False) if d["literal_type"]=="STRING" else d["value"]
         if k=="name": return d["name"]
         if k=="unary": return ("!" if d["op"] in ("not","!") else d["op"])+self.expr(d["value"])
-        if k=="binary": return f"({self.expr(d['left'])} { {'and':'&&','or':'||'}.get(d['op'],d['op']) } {self.expr(d['right'])})"
+        if k=="binary":
+            left=self.expr(d["left"]); right=self.expr(d["right"])
+            if d["op"]=="/": return f"((double)({left}) / (double)({right}))"
+            op={"and":"&&","or":"||"}.get(d["op"],d["op"])
+            return f"({left} {op} {right})"
         if k=="call": return f"{self.expr(d['callee'])}({', '.join(self.expr(a) for a in d['args'])})"
         if k=="member": return f"{self.expr(d['base'])}.{d['name']}"
         raise EmitError(f"{node.token.line}:{node.token.column}: unsupported expression '{k}'")
