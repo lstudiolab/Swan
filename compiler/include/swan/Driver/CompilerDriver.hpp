@@ -1,5 +1,5 @@
 #pragma once
-#include "swan/Driver/Compiler.hpp"
+#include "swan/Compiler/Compiler.hpp"
 #include "swan/Driver/CommandLine.hpp"
 #include "swan/Support/FileSystem.hpp"
 #include "swan/Support/Version.hpp"

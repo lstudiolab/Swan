@@ -85,7 +85,7 @@ The tests build the native compiler, transpile sample Swan programs, compile gen
 
 ## Project structure
 
-The compiler uses a layered header architecture informed by Goose's focused compiler headers and Swift's subsystem-oriented organization. See [Compiler Architecture](docs/ARCHITECTURE.md) for the responsibilities and dependency boundaries.
+The compiler uses a layered header architecture informed by Goose's focused compiler headers and Swift's subsystem-oriented organization. See [Compiler Architecture](docs/ARCHITECTURE.md) for responsibilities and dependency boundaries.
 
 ```text
 main.cpp
@@ -96,8 +96,10 @@ compiler/include/swan/
 ├── AST/         Expression, declaration, statement, and program nodes
 ├── Parse/       Parser core, declarations, statements, expressions
 ├── Sema/        Scope, declaration, statement, expression, and type analysis
+├── Frontend/    Lexing, parsing, and semantic-analysis orchestration
 ├── CodeGen/     C type mapping and program, statement, expression emitters
-└── Driver/      Command-line handling and compiler orchestration
+├── Compiler/    Whole-compilation orchestration and backend selection
+└── Driver/      Command-line handling and executable driver
 
 examples/        Swan programs
 tests/           Compiler smoke tests

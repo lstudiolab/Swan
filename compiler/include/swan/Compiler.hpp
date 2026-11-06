@@ -1,2 +1,2 @@
 #pragma once
-#include "swan/Driver/Compiler.hpp"
+#include "swan/Compiler/Compiler.hpp"
