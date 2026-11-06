@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <map>
+#include <string_view>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
@@ -15,7 +16,15 @@ struct StringGlobal {
 };
 
 std::string functionSymbol(const std::string& name) {
-    return name == "main" ? "@main" : "@swan.fn." + name;
+    if (name == "main") return "@main";
+    static constexpr char hex[] = "0123456789ABCDEF";
+    std::string symbol = "@swan.fn.";
+    symbol.reserve(symbol.size() + name.size() * 2);
+    for (const unsigned char byte : name) {
+        symbol.push_back(hex[(byte >> 4) & 0x0f]);
+        symbol.push_back(hex[byte & 0x0f]);
+    }
+    return symbol;
 }
 
 std::string valueName(sil::ValueID value) {
@@ -86,7 +95,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
     if (!verifier.verify(module, result.diagnostics)) return result;
 
     std::unordered_map<std::string, sil::Type> functionTypes;
-    std::map<sil::ValueID, StringGlobal> strings;
+    std::map<std::pair<std::string, sil::ValueID>, StringGlobal> strings;
     std::size_t stringIndex = 0;
     bool needsPrintf = false;
 
@@ -95,7 +104,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
         for (const auto& block : function.blocks) {
             for (const auto& instruction : block.instructions) {
                 if (instruction.opcode == sil::Opcode::ConstantString) {
-                    strings[instruction.result] = {
+                    strings[{function.name, instruction.result}] = {
                         "@swan.str." + std::to_string(stringIndex++),
                         decodeString(instruction.text)
                     };
@@ -123,6 +132,10 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
     if (!strings.empty() || needsPrintf) output << '\n';
 
     for (const auto& function : module.functions) {
+        if (function.name == "main" && !function.parameters.empty())
+            report(result, "B008", "The native entry function 'main' cannot have parameters.");
+        if (function.name == "main" && function.returnType == sil::Type::Void)
+            report(result, "B007", "The native entry function 'main' must return an integer status.");
         if (function.returnType == sil::Type::F64)
             report(result, "B005", "Floating-point function returns are not supported by the current LLVM ABI.");
         for (const auto& parameter : function.parameters) {
@@ -144,7 +157,9 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
             }
         }
 
-        output << "define " << (function.returnType == sil::Type::Void ? "void" : "i64")
+        const bool nativeMain = function.name == "main";
+        output << "define " << (nativeMain ? "i32" :
+                    (function.returnType == sil::Type::Void ? "void" : "i64"))
                << ' ' << functionSymbol(function.name) << '(';
         for (std::size_t i = 0; i < function.parameters.size(); ++i) {
             if (i) output << ", ";
@@ -175,7 +190,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                         report(result, "B001", "LLVM backend does not yet lower floating-point SIL values.");
                         break;
                     case sil::Opcode::ConstantString: {
-                        const auto found = strings.find(instruction.result);
+                        const auto found = strings.find({function.name, instruction.result});
                         if (found == strings.end()) {
                             report(result, "B002", "Missing string constant storage.");
                             break;
@@ -265,11 +280,15 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                             break;
                         }
                         const bool returnsVoid = found->second == sil::Type::Void;
+                        const bool returnsMain = instruction.text == "main";
                         if (returnsVoid)
                             output << "  ";
+                        else if (returnsMain)
+                            output << "  " << resultName << ".raw = ";
                         else
                             output << "  " << resultName << " = ";
-                        output << "call " << (returnsVoid ? "void" : "i64") << ' '
+                        output << "call " << (returnsVoid ? "void" :
+                                     (returnsMain ? "i32" : "i64")) << ' '
                                << functionSymbol(instruction.text) << '(';
                         for (std::size_t i = 0; i < instruction.operands.size(); ++i) {
                             if (i) output << ", ";
