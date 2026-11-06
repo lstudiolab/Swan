@@ -1,7 +1,6 @@
 #pragma once
 #include "swan/AST/AST.hpp"
 #include "swan/Basic/Diagnostic.hpp"
-#include "swan/Basic/Diagnostic.hpp"
 #include "swan/Parse/Precedence.hpp"
 #include <vector>
 
@@ -27,13 +26,6 @@ private:
     std::vector<Token> tokens_;
     std::size_t position_ = 0;
 };
-}
-
-#include <algorithm>
-#include <utility>
-
-namespace swan {
-
 }
 
 #include "swan/Parse/ParserCore.hpp"
