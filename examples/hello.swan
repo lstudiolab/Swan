@@ -1,1 +1,4 @@
-fn main() -> int {\n    log "Hello from Swan";\n    return 0;\n}\n
+fn main() -> int {
+    log "Hello from Swan";
+    return 0;
+}
