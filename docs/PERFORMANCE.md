@@ -10,13 +10,12 @@ Swan currently emits C11. It does not invoke a C compiler as part of its own com
 
 ### 1. Lexing
 
-The scanner visits each source character and creates token values. Token kind and token value are currently stored as strings. Identifier, numeric, and string scanning can therefore create repeated string work.
+The scanner visits each source character and creates token values. Token kind and token value are still stored as strings, so token representation remains a larger future optimization. The current pass uses binary search for keyword classification, avoids constructing a temporary two-character string on punctuation checks, and reserves an initial token-vector capacity from source length.
 
 Potential future improvements:
 
 - Replace token-kind strings with a compact enum.
 - Store source offsets and lengths for identifier and numeric tokens instead of eagerly copying text.
-- Reserve token storage when a useful estimate is available.
 - Keep decoded string-literal storage only where escape processing requires it.
 
 ### 2. Parsing and AST allocation
@@ -42,7 +41,7 @@ Potential future improvements:
 
 ### 4. C generation
 
-The C emitter recursively constructs expression strings. Its inferred-type routine walks expression nodes again, repeating some work already performed during semantic analysis.
+The C emitter recursively constructs expression strings. Its inferred-type routine still walks expression nodes again rather than consuming semantic results. The current pass avoids duplicate recursive inference of the same binary operands and writes indentation directly to the output stream.
 
 Potential future improvements:
 
