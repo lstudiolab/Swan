@@ -472,60 +472,144 @@ Result Lowerer::lower(const swan::Module& source) {
 
 bool Verifier::verify(const Module& module,
                       std::vector<SemaDiagnostic>& diagnostics) const {
+    struct Definition {
+        std::size_t block;
+        std::size_t instruction;
+        bool parameter;
+    };
+
     bool valid = true;
+    const auto fail = [&](const char* code, std::string message) {
+        diagnostics.emplace_back(SourceLocation{}, code, std::move(message));
+        valid = false;
+    };
+
     for (const auto& function : module.functions) {
-        std::unordered_set<ValueID> values;
-        for (const auto& parameter : function.parameters) {
-            if (parameter.value == 0 || !values.insert(parameter.value).second) {
-                diagnostics.emplace_back(SourceLocation{}, "V001",
-                    "Invalid or duplicate parameter value in function '" + function.name + "'.");
-                valid = false;
-            }
-        }
-        if (function.blocks.empty()) {
-            diagnostics.emplace_back(SourceLocation{}, "V002",
-                "Function '" + function.name + "' has no basic blocks.");
-            valid = false;
+        const std::size_t blockCount = function.blocks.size();
+        if (blockCount == 0) {
+            fail("V002", "Function '" + function.name + "' has no basic blocks.");
             continue;
         }
-        for (const auto& block : function.blocks) {
-            if (block.instructions.empty() || !terminates(block)) {
-                diagnostics.emplace_back(SourceLocation{}, "V003",
-                    "Basic block '" + block.name + "' in function '" +
-                    function.name + "' has no terminator.");
-                valid = false;
+
+        std::unordered_map<ValueID, Definition> definitions;
+        for (const auto& parameter : function.parameters) {
+            if (parameter.value == 0 ||
+                !definitions.emplace(parameter.value, Definition{0, 0, true}).second) {
+                fail("V001", "Invalid or duplicate parameter value in function '" +
+                     function.name + "'.");
             }
-            for (const auto& instruction : block.instructions) {
-                if (instruction.result && !values.insert(instruction.result).second) {
-                    diagnostics.emplace_back(SourceLocation{}, "V004",
-                        "Duplicate SSA value identifier in function '" + function.name + "'.");
-                    valid = false;
+        }
+
+        std::vector<std::vector<BlockID>> predecessors(blockCount);
+        for (std::size_t blockIndex = 0; blockIndex < blockCount; ++blockIndex) {
+            const auto& block = function.blocks[blockIndex];
+            if (block.id != blockIndex)
+                fail("V009", "Basic block identifiers must match their position in function '" +
+                     function.name + "'.");
+
+            if (block.instructions.empty() || !terminates(block))
+                fail("V003", "Basic block '" + block.name + "' in function '" +
+                     function.name + "' has no terminator.");
+
+            bool sawTerminator = false;
+            for (std::size_t instructionIndex = 0;
+                 instructionIndex < block.instructions.size(); ++instructionIndex) {
+                const auto& instruction = block.instructions[instructionIndex];
+                const bool isTerminator = instruction.opcode == Opcode::Jump ||
+                    instruction.opcode == Opcode::Branch ||
+                    instruction.opcode == Opcode::Return;
+                if (sawTerminator)
+                    fail("V008", "Instruction appears after a terminator in block '" +
+                         block.name + "'.");
+                sawTerminator = sawTerminator || isTerminator;
+
+                if (instruction.result &&
+                    !definitions.emplace(instruction.result,
+                        Definition{blockIndex, instructionIndex, false}).second) {
+                    fail("V004", "Duplicate SSA value identifier in function '" +
+                         function.name + "'.");
                 }
-                for (const auto operand : instruction.operands) {
-                    if (operand == 0 || values.find(operand) == values.end()) {
-                        diagnostics.emplace_back(SourceLocation{}, "V005",
-                            "Instruction references an undefined or forward SSA value in function '" +
-                            function.name + "'.");
-                        valid = false;
+
+                const auto sourceBlock = static_cast<BlockID>(blockIndex);
+                if (instruction.opcode == Opcode::Jump) {
+                    if (instruction.trueTarget >= blockCount)
+                        fail("V006", "Jump target is out of range in function '" +
+                             function.name + "'.");
+                    else
+                        predecessors[instruction.trueTarget].push_back(sourceBlock);
+                } else if (instruction.opcode == Opcode::Branch) {
+                    if (instruction.trueTarget >= blockCount ||
+                        instruction.falseTarget >= blockCount) {
+                        fail("V007", "Branch target is out of range in function '" +
+                             function.name + "'.");
+                    } else {
+                        predecessors[instruction.trueTarget].push_back(sourceBlock);
+                        predecessors[instruction.falseTarget].push_back(sourceBlock);
                     }
                 }
-                if (instruction.opcode == Opcode::Jump &&
-                    instruction.trueTarget >= function.blocks.size()) {
-                    diagnostics.emplace_back(SourceLocation{}, "V006", "Jump target is out of range.");
-                    valid = false;
+            }
+        }
+
+        std::vector<std::unordered_set<BlockID>> dominators(blockCount);
+        for (std::size_t block = 0; block < blockCount; ++block) {
+            if (block == 0 || predecessors[block].empty()) {
+                dominators[block].insert(static_cast<BlockID>(block));
+            } else {
+                for (std::size_t candidate = 0; candidate < blockCount; ++candidate)
+                    dominators[block].insert(static_cast<BlockID>(candidate));
+            }
+        }
+
+        bool changed = true;
+        while (changed) {
+            changed = false;
+            for (std::size_t block = 1; block < blockCount; ++block) {
+                if (predecessors[block].empty()) continue;
+                auto next = dominators[predecessors[block].front()];
+                for (std::size_t p = 1; p < predecessors[block].size(); ++p) {
+                    const auto& incoming = dominators[predecessors[block][p]];
+                    for (auto it = next.begin(); it != next.end();) {
+                        if (incoming.count(*it) == 0) it = next.erase(it);
+                        else ++it;
+                    }
                 }
-                if (instruction.opcode == Opcode::Branch &&
-                    (instruction.trueTarget >= function.blocks.size() ||
-                     instruction.falseTarget >= function.blocks.size())) {
-                    diagnostics.emplace_back(SourceLocation{}, "V007", "Branch target is out of range.");
-                    valid = false;
+                next.insert(static_cast<BlockID>(block));
+                if (next != dominators[block]) {
+                    dominators[block] = std::move(next);
+                    changed = true;
+                }
+            }
+        }
+
+        for (std::size_t blockIndex = 0; blockIndex < blockCount; ++blockIndex) {
+            const auto& block = function.blocks[blockIndex];
+            for (std::size_t instructionIndex = 0;
+                 instructionIndex < block.instructions.size(); ++instructionIndex) {
+                const auto& instruction = block.instructions[instructionIndex];
+                for (const auto operand : instruction.operands) {
+                    const auto definition = definitions.find(operand);
+                    if (operand == 0 || definition == definitions.end()) {
+                        fail("V005", "Instruction references an undefined SSA value in function '" +
+                             function.name + "'.");
+                        continue;
+                    }
+                    const auto& source = definition->second;
+                    if (source.parameter) continue;
+                    if (source.block == blockIndex) {
+                        if (source.instruction >= instructionIndex)
+                            fail("V010", "Instruction uses an SSA value before its definition in function '" +
+                                 function.name + "'.");
+                    } else if (dominators[blockIndex].count(
+                                   static_cast<BlockID>(source.block)) == 0) {
+                        fail("V011", "SSA value does not dominate its use in function '" +
+                             function.name + "'.");
+                    }
                 }
             }
         }
     }
     return valid;
 }
-
 
 void Optimizer::optimize(Module& module) const {
     struct Constant {
