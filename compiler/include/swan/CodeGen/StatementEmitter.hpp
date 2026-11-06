@@ -27,7 +27,7 @@ inline void CGenerator::statement(const StmtPtr& node) {
             scope[node->name] = old == symbols_.end() ? "" : old->second;
         }
         symbols_[node->name] = type;
-        line(std::string(node->mutable_value ? "" : "const ") + cType(type) + " " +
+        line(cType(type) + (node->mutable_value ? " " : " const ") +
              cVariableName(node->name) + (node->value ? " = " + expression(node->value) : "") + ";");
         break;
     }
@@ -59,7 +59,7 @@ inline void CGenerator::function(const StmtPtr& node) {
     std::string parameters;
     for (const auto& parameter : node->parameters) {
         if (!parameters.empty()) parameters += ", ";
-        parameters += cType(parameter.type) + " " + cVariableName(parameter.name);
+        parameters += cType(parameter.type) + " const " + cVariableName(parameter.name);
         symbols_[parameter.name] = parameter.type;
         scopes_.back()[parameter.name] = parameter.type;
     }

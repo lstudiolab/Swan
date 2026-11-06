@@ -76,4 +76,18 @@ SWAN
 test "$("$TMP/identifier-collisions")" = "3
 8"
 printf 'PASS: generated C identifier isolation\n'
+cat > "$TMP/immutable-string.swan" <<'SWAN'
+fn echo(value: string) -> string { return value; }
+fn main() -> int {
+    let greeting = "Hello";
+    log greeting;
+    log echo(greeting);
+    return 0;
+}
+SWAN
+"$SWAN" "$TMP/immutable-string.swan" -o "$TMP/immutable-string.c"
+"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/immutable-string.c" -o "$TMP/immutable-string"
+test "$("$TMP/immutable-string")" = "Hello
+Hello"
+printf 'PASS: immutable string and parameter declarations\n'
 printf 'PASS: compiler regression suite\n'
