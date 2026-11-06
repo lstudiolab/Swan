@@ -1,48 +1,28 @@
 #include "Swan/Frontend/Lexer.hpp"
 
-#include <cctype>
-#include <unordered_map>
 #include <utility>
 
 namespace swan {
 namespace {
 
-const std::unordered_map<std::string, TokenKind> keywords = {
-    {"let", TokenKind::Let}, {"var", TokenKind::Var},
-    {"const", TokenKind::Const}, {"fn", TokenKind::Fn},
-    {"struct", TokenKind::Struct}, {"type", TokenKind::Type},
-    {"enum", TokenKind::Enum}, {"class", TokenKind::Class},
-    {"int", TokenKind::Int}, {"public", TokenKind::Public},
-    {"private", TokenKind::Private}, {"import", TokenKind::Import},
-    {"export", TokenKind::Export}, {"as", TokenKind::As},
-    {"self", TokenKind::Self},
-
-    {"if", TokenKind::If}, {"else", TokenKind::Else},
-    {"endif", TokenKind::EndIf}, {"while", TokenKind::While},
-    {"for", TokenKind::For}, {"loop", TokenKind::Loop},
-    {"range", TokenKind::Range}, {"case", TokenKind::Case},
-    {"break", TokenKind::Break}, {"continue", TokenKind::Continue},
-    {"return", TokenKind::Return}, {"pass", TokenKind::Pass},
-
-    {"async", TokenKind::Async}, {"await", TokenKind::Await},
-    {"sync", TokenKind::Sync}, {"operate", TokenKind::Operate},
-
-    {"hold", TokenKind::Hold}, {"store", TokenKind::Store},
-    {"clone", TokenKind::Clone}, {"get", TokenKind::Get},
-    {"init", TokenKind::Init}, {"deinit", TokenKind::Deinit},
-    {"release", TokenKind::Release},
-
-    {"true", TokenKind::True}, {"false", TokenKind::False},
-    {"none", TokenKind::None}, {"log", TokenKind::Log},
-};
-
-bool isIdentifierStart(unsigned char c) {
-    return std::isalpha(c) || c == '_' || c >= 0x80;
+// ASCII fast paths avoid locale-sensitive ctype calls in the hot loop.
+constexpr bool isDigit(unsigned char c) noexcept {
+    return c >= '0' && c <= '9';
 }
 
-bool isIdentifierContinue(unsigned char c) {
-    return std::isalnum(c) || c == '_' || c >= 0x80;
+constexpr bool isAlpha(unsigned char c) noexcept {
+    return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
+
+constexpr bool isIdentifierStart(unsigned char c) noexcept {
+    return isAlpha(c) || c == '_' || c >= 0x80;
+}
+
+constexpr bool isIdentifierContinue(unsigned char c) noexcept {
+    return isIdentifierStart(c) || isDigit(c);
+}
+
+
 
 } // namespace
 
@@ -91,11 +71,47 @@ void Lexer::error(SourceLocation where, std::string message) {
     errors_.push_back({where, std::move(message)});
 }
 
-TokenKind Lexer::keywordKind(const std::string& text) noexcept {
-    const auto found = keywords.find(text);
-    return found == keywords.end() ? TokenKind::Identifier : found->second;
+TokenKind Lexer::keywordKind(std::string_view text) noexcept {
+    // Length-first dispatch keeps keyword recognition allocation-free.
+#define SWAN_KEYWORD(word, kind) if (text == word) return TokenKind::kind
+    switch (text.size()) {
+        case 2:
+            SWAN_KEYWORD("fn", Fn); SWAN_KEYWORD("if", If);
+            SWAN_KEYWORD("as", As); break;
+        case 3:
+            SWAN_KEYWORD("let", Let); SWAN_KEYWORD("var", Var);
+            SWAN_KEYWORD("int", Int); SWAN_KEYWORD("for", For);
+            SWAN_KEYWORD("not", Not); SWAN_KEYWORD("get", Get);
+            SWAN_KEYWORD("log", Log); SWAN_KEYWORD("and", And);
+            SWAN_KEYWORD("or", Or); break;
+        case 4:
+            SWAN_KEYWORD("const", Const); SWAN_KEYWORD("type", Type);
+            SWAN_KEYWORD("enum", Enum); SWAN_KEYWORD("else", Else);
+            SWAN_KEYWORD("loop", Loop); SWAN_KEYWORD("case", Case);
+            SWAN_KEYWORD("pass", Pass); SWAN_KEYWORD("sync", Sync);
+            SWAN_KEYWORD("hold", Hold); SWAN_KEYWORD("self", Self);
+            SWAN_KEYWORD("true", True); SWAN_KEYWORD("none", None);
+            SWAN_KEYWORD("init", Init); break;
+        case 5:
+            SWAN_KEYWORD("class", Class); SWAN_KEYWORD("endif", EndIf);
+            SWAN_KEYWORD("while", While); SWAN_KEYWORD("range", Range);
+            SWAN_KEYWORD("break", Break); SWAN_KEYWORD("async", Async);
+            SWAN_KEYWORD("await", Await); SWAN_KEYWORD("store", Store);
+            SWAN_KEYWORD("clone", Clone); SWAN_KEYWORD("deinit", Deinit);
+            SWAN_KEYWORD("false", False); break;
+        case 6:
+            SWAN_KEYWORD("struct", Struct); SWAN_KEYWORD("import", Import);
+            SWAN_KEYWORD("export", Export); SWAN_KEYWORD("return", Return);
+            SWAN_KEYWORD("public", Public); SWAN_KEYWORD("private", Private);
+            SWAN_KEYWORD("operate", Operate); SWAN_KEYWORD("release", Release);
+            SWAN_KEYWORD("switch", Case); break;
+        case 7:
+            SWAN_KEYWORD("continue", Continue); break;
+        default: break;
+    }
+#undef SWAN_KEYWORD
+    return TokenKind::Identifier;
 }
-
 void Lexer::applyIndentation(std::size_t width, SourceLocation where) {
     const auto currentWidth = indentation_.back();
     if (width > currentWidth) {
@@ -131,18 +147,19 @@ void Lexer::scanIdentifier() {
     while (!atEnd() && isIdentifierContinue(static_cast<unsigned char>(current()))) {
         advance();
     }
-    const auto text = source_.substr(start, offset_ - start);
-    tokens_.push_back({keywordKind(text), text, where});
+    const auto length = offset_ - start;
+    const std::string_view text(source_.data() + start, length);
+    tokens_.push_back({keywordKind(text), std::string(text), where});
 }
 
 void Lexer::scanNumber() {
     const auto start = offset_;
     const auto where = location();
 
-    while (std::isdigit(static_cast<unsigned char>(current()))) advance();
+    while (isDigit(static_cast<unsigned char>(current()))) advance();
 
     bool isFloat = false;
-    if (current() == '.' && std::isdigit(static_cast<unsigned char>(current(1)))) {
+    if (current() == '.' && isDigit(static_cast<unsigned char>(current(1)))) {
         isFloat = true;
         advance();
         while (std::isdigit(static_cast<unsigned char>(current()))) advance();
@@ -236,7 +253,7 @@ void Lexer::scanToken() {
         scanIdentifier();
         return;
     }
-    if (std::isdigit(c)) {
+    if (isDigit(c)) {
         scanNumber();
         return;
     }
@@ -319,6 +336,11 @@ void Lexer::scanToken() {
 std::vector<Token> Lexer::tokenize() {
     tokens_.clear();
     errors_.clear();
+    // Token density is usually one token per 3–5 source bytes. Reserve once
+    // to avoid repeated vector growth while keeping the estimate conservative.
+    tokens_.reserve(source_.size() / 3 + 2);
+    errors_.reserve(4);
+    indentation_.reserve(16);
     offset_ = 0;
     line_ = 1;
     column_ = 1;
