@@ -83,25 +83,26 @@ TokenKind Lexer::keywordKind(std::string_view text) noexcept {
             SWAN_KEYWORD("int", Int); SWAN_KEYWORD("for", For);
             SWAN_KEYWORD("get", Get); SWAN_KEYWORD("log", Log); break;
         case 4:
-            SWAN_KEYWORD("const", Const); SWAN_KEYWORD("type", Type);
-            SWAN_KEYWORD("enum", Enum); SWAN_KEYWORD("else", Else);
-            SWAN_KEYWORD("loop", Loop); SWAN_KEYWORD("case", Case);
-            SWAN_KEYWORD("pass", Pass); SWAN_KEYWORD("sync", Sync);
-            SWAN_KEYWORD("hold", Hold); SWAN_KEYWORD("self", Self);
-            SWAN_KEYWORD("true", True); SWAN_KEYWORD("none", None);
-            SWAN_KEYWORD("init", Init); break;
+            SWAN_KEYWORD("type", Type); SWAN_KEYWORD("enum", Enum);
+            SWAN_KEYWORD("else", Else); SWAN_KEYWORD("loop", Loop);
+            SWAN_KEYWORD("case", Case); SWAN_KEYWORD("pass", Pass);
+            SWAN_KEYWORD("sync", Sync); SWAN_KEYWORD("hold", Hold);
+            SWAN_KEYWORD("self", Self); SWAN_KEYWORD("true", True);
+            SWAN_KEYWORD("none", None); SWAN_KEYWORD("init", Init); break;
         case 5:
-            SWAN_KEYWORD("class", Class); SWAN_KEYWORD("endif", EndIf);
-            SWAN_KEYWORD("while", While); SWAN_KEYWORD("range", Range);
-            SWAN_KEYWORD("break", Break); SWAN_KEYWORD("async", Async);
-            SWAN_KEYWORD("await", Await); SWAN_KEYWORD("store", Store);
-            SWAN_KEYWORD("clone", Clone); SWAN_KEYWORD("deinit", Deinit);
+            SWAN_KEYWORD("const", Const); SWAN_KEYWORD("class", Class);
+            SWAN_KEYWORD("endif", EndIf); SWAN_KEYWORD("while", While);
+            SWAN_KEYWORD("range", Range); SWAN_KEYWORD("break", Break);
+            SWAN_KEYWORD("async", Async); SWAN_KEYWORD("await", Await);
+            SWAN_KEYWORD("store", Store); SWAN_KEYWORD("clone", Clone);
             SWAN_KEYWORD("false", False); break;
         case 6:
             SWAN_KEYWORD("struct", Struct); SWAN_KEYWORD("import", Import);
             SWAN_KEYWORD("export", Export); SWAN_KEYWORD("return", Return);
-            SWAN_KEYWORD("public", Public); SWAN_KEYWORD("private", Private);
-            SWAN_KEYWORD("return", Return); break;
+            SWAN_KEYWORD("public", Public); SWAN_KEYWORD("deinit", Deinit); break;
+        case 7:
+            SWAN_KEYWORD("private", Private); SWAN_KEYWORD("operate", Operate);
+            SWAN_KEYWORD("release", Release); break;
         case 8:
             SWAN_KEYWORD("continue", Continue); break;
         default: break;
