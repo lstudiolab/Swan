@@ -61,6 +61,12 @@ add_executable(swan-sil
 
 target_link_libraries(swan-sil PRIVATE swan_sil)
 
+add_executable(swan-sil-verifier-test
+    Tests/sil-verifier.cpp
+)
+
+target_link_libraries(swan-sil-verifier-test PRIVATE swan_sil)
+
 add_library(swan_llvm_backend
     Compiler/Backend/LLVM/LLVMEmitter.cpp
 )
@@ -116,6 +122,10 @@ if(BUILD_TESTING)
     add_test(
         NAME swan-sil-control-flow
         COMMAND swan-sil ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-control-flow.swan
+    )
+    add_test(
+        NAME swan-sil-verifier-dominance
+        COMMAND swan-sil-verifier-test
     )
     add_test(
         NAME swan-llvm-smoke
