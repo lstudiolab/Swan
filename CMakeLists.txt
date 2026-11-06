@@ -8,7 +8,6 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(swan_frontend
     Compiler/Frontend/Lexer.cpp
     Compiler/Frontend/Parser.cpp
-    Compiler/Sema/Analyzer.cpp
 )
 
 target_include_directories(swan_frontend
@@ -28,11 +27,22 @@ add_executable(swan-parse
 
 target_link_libraries(swan-parse PRIVATE swan_frontend)
 
+add_library(swan_sema
+    Compiler/Sema/Analyzer.cpp
+)
+
+target_include_directories(swan_sema
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/Include
+)
+
+target_link_libraries(swan_sema PUBLIC swan_frontend)
+
 add_executable(swan-check
     Tools/swan-check.cpp
 )
 
-target_link_libraries(swan-check PRIVATE swan_frontend)
+target_link_libraries(swan-check PRIVATE swan_sema)
 
 include(CTest)
 if(BUILD_TESTING)
