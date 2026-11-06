@@ -1,159 +1,74 @@
 # Swan
 
-Swan is an indentation-based programming language with a C++17 compiler.
+Swan is a programming language with a Python-based compiler.
 
-> **Development status:** Swan is an early compiler implementation. The documented frontend and backend subset is usable for experimentation, but the language and runtime are not yet feature-complete or ABI-stable. Do not use it for production workloads yet.
+Status: the Python compiler is an early implementation. It currently supports a deliberately small language subset and transpiles Swan source into C source.
 
-## Install Swan
+## Syntax
 
-The installer configures a Release build, compiles the compiler, runs the test suite, and installs the `swan` command. It does not require LLVM to build the compiler. A C++17 toolchain and CMake 3.20+ are required; Clang is needed separately only when compiling emitted LLVM IR into a native executable.
+Swan uses braces to delimit every code block. Indentation is for readability only.
 
-### macOS and Linux
+    fn main() -> int {
+        log "Hello from Swan";
+        return 0;
+    }
 
-Install CMake and a C++17 compiler using your system's package manager, then run:
+A block begins with { and ends with }. Statements may be separated by newlines or semicolons.
 
-```sh
-git clone https://github.com/lstudiolab/Swan.git
-cd Swan
-sh install.sh
-```
+## Install
 
-The default install location is `~/.local/bin/swan`. The installer adds `~/.local/bin` to your Bash or Zsh profile when possible. Restart your terminal after installation.
+Python 3.10 or newer is required. No C++ compiler, CMake, Goose, or LLVM installation is required to run the Swan compiler.
 
-Examples of prerequisites:
+macOS, Linux, and Termux:
 
-- Ubuntu/Debian: `sudo apt install cmake build-essential`
-- Fedora: `sudo dnf install cmake gcc-c++ make`
-- macOS with Homebrew: `brew install cmake` (install Apple's Command Line Tools with `xcode-select --install` if needed)
-- Termux: `pkg install cmake clang make`
+    git clone https://github.com/lstudiolab/Swan.git
+    cd Swan
+    python3 -m pip install --user ./Compiler/Python
 
-### Windows (PowerShell)
+Windows PowerShell:
 
-Install CMake 3.20+ and a C++17 toolchain (Visual Studio Build Tools with the C++ workload is recommended). Then run:
+    git clone https://github.com/lstudiolab/Swan.git
+    cd Swan
+    py -m pip install --user .\Compiler\Python
 
-```powershell
-git clone https://github.com/lstudiolab/Swan.git
-cd Swan
-.\install.ps1
-```
+If the swan command is not found after installation, add Python's user scripts directory to PATH and open a new terminal.
 
-The default install location is `%USERPROFILE%\.local\bin`. The installer adds that directory to your user PATH. Open a new terminal after installation.
+## Transpile Swan to C
 
-### Custom install location
+    swan program.swan -o program.c
 
-Set `SWAN_INSTALL_PREFIX` before running the installer:
+Without -o, generated C source is written to standard output.
 
-```sh
-SWAN_INSTALL_PREFIX="$HOME/apps/swan" sh install.sh
-```
+Swan only emits a .c source file. It does not compile C, link programs, or generate executables. To run generated code, compile the C file separately:
 
-PowerShell:
+    cc program.c -o program
+    ./program
 
-```powershell
-$env:SWAN_INSTALL_PREFIX = "$HOME\apps\swan"
-.\install.ps1
-```
+## Current compiler support
 
-The executable is installed in the prefix's `bin` directory. To use a different build directory, set `SWAN_BUILD_DIR`. To skip tests (not recommended), set `SWAN_SKIP_TESTS=1`.
+The Python frontend contains a lexer, recursive-descent parser, and C source emitter. The current subset includes functions, typed parameters, primitive types, local variables, structs, if / else, while, return and loop-control statements, basic expressions, calls, and log.
 
-## Build manually
+Unsupported syntax is reported as an error instead of being silently accepted. Imports, for-loops, async operations, and the final behavior of hold, store, and operate are not implemented yet.
 
-If you prefer to configure the project yourself:
+## Compiler layout
 
-```sh
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-cmake --install build --prefix ~/.local
-```
+    Compiler/
+      Python/
+        swan_compiler/
+          lexer.py
+          parser.py
+          emitter.py
+          cli.py
+        tests/
 
-Ensure the install prefix's `bin` directory is on your `PATH`.
+Pipeline: .swan source -> Lexer -> Parser -> Syntax tree -> C emitter -> .c source.
 
-## Compiler commands
+## Tests
 
-```sh
-swan check program.swan
-swan emit-sil program.swan -o program.sil
-swan emit-llvm program.swan -o program.ll
-clang program.ll -o program
-```
+    PYTHONPATH=Compiler/Python python3 -m unittest discover -s Compiler/Python/tests -v
 
-The compiler exits non-zero when a stage reports an error. `check` performs lexer, parser, and semantic analysis. LLVM emission additionally lowers to SIL, optimizes, verifies, and emits LLVM IR.
-
-Focused tools are also built for compiler development: `swan-lex`, `swan-parse`, `swan-check`, `swan-sil`, and `swan-llvm`.
+CI also checks that emitted C can be compiled and run. That is a test of the output, not a stage performed by the Swan compiler.
 
 ## Visual Studio Code
 
-Swan includes a VS Code extension under `vscode/` with:
-
-- `.swan` file association
-- Syntax highlighting for Swan keywords, strings, numbers, operators, and built-ins
-- Indentation and bracket configuration
-- Code snippets for functions, structures, variables, conditions, loops, and logging
-- Workspace tasks to check a file and emit SIL or LLVM IR
-
-### Install the extension from source
-
-First install the Swan compiler using the instructions above. The `swan` executable must be available on your shell `PATH`.
-
-Then package and install the extension:
-
-```sh
-cd vscode
-npm install
-npm run package
-code --install-extension swan-language-0.1.0.vsix
-```
-
-Open a `.swan` file. Use **Terminal → Run Task** and choose a task beginning with **Swan:**. The repository includes these tasks in `.vscode/tasks.json`; copy or adapt them in your own Swan project.
-
-The initial extension is declarative editor support. It does **not** yet provide a language server, IntelliSense, go-to-definition, semantic highlighting, or inline compiler diagnostics. Those require a dedicated language-server implementation and a stable compiler diagnostic protocol.
-
-## Goose C transpiler (experimental)
-
-A replacement compiler is being implemented in Goose under `Compiler/Goose/`. Its target interface is `swan program.swan -o program.c`; it emits C source only and does not compile that C into an executable. The first committed vertical slice currently supports only a small `fn main():` subset with string-literal `log`, `pass`, and `return`. Unsupported statements are rejected. This implementation is not yet a replacement for the existing C++ compiler, and the normal installation/build instructions below still describe the legacy compiler until the Goose implementation has broader coverage and verified tests.
-
-## Compiler architecture
-
-```text
-Source
-  |
-  v
-Lexer -> Parser -> AST -> Semantic Analysis
-  |
-  v
-Swan Intermediate Language (SIL)
-  |  - lowering
-  |  - verification
-  |  - optimization
-  v
-LLVM IR Backend
-  |
-  v
-LLVM toolchain -> Native executable
-```
-
-## Current backend coverage
-
-The current SIL and LLVM path is incremental, not full language coverage.
-
-Supported in the current lowering path:
-
-- Function declarations and direct function calls
-- Integer and boolean literals
-- Local variables represented through SSA values
-- Integer addition, subtraction, multiplication, remainder, and comparisons
-- Unary negation and logical not
-- Conditional and while-loop control flow, including break and continue; loop-carried assignments are not yet supported
-- Integer and string logging
-- Return statements
-
-Unsupported or incomplete areas include typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, async/coroutine lowering, string concatenation/comparison, top-level executable statements, and finalized `hold`, `store`, and `operate` semantics. Division is deferred because its Swan result type is floating point.
-
-Function parameter annotations are retained in the AST and checked by semantic analysis. The initial LLVM ABI represents supported parameters and values as 64-bit integers; floating-point signatures are rejected until their lowering is implemented. Unsupported constructs should produce diagnostics rather than silently compiling as if implemented.
-
-## Tests and continuous integration
-
-CTest covers parser, semantic analysis, SIL lowering, verification, and LLVM emission. GitHub Actions builds the compiler, runs CTest, validates emitted LLVM IR with `llvm-as`, optimizes it with `opt`, and links/runs a native smoke test with Clang.
-
-A configured CI workflow is not evidence that a particular revision passed. Check the Actions tab for the status of the commit you intend to use.
+The vscode directory contains syntax highlighting, brace configuration, and snippets for Swan source files.
