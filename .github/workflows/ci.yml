@@ -5,23 +5,23 @@ on:
   pull_request:
   workflow_dispatch:
 jobs:
-  python-compiler:
+  transpiler:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Run compiler tests
-        run: PYTHONPATH=Compiler/Python python -m unittest discover -s Compiler/Python/tests -v
+      - name: Run transpiler tests
+        run: PYTHONPATH=lib python -m unittest discover -s tests -v
       - name: Install Python package and CLI
-        run: python -m pip install --no-deps ./Compiler/Python
+        run: python -m pip install --no-deps .
       - name: Verify installed CLI
         run: swan --version
       - name: Transpile smoke test
         run: |
           mkdir -p build
-          PYTHONPATH=Compiler/Python python -m swan_compiler.cli Compiler/Python/tests/hello.swan -o build/hello.c
+          swan examples/hello.swan -o build/hello.c
       - name: Compile and run emitted C (test only)
         run: |
           cc -std=c11 -Wall -Wextra -Werror build/hello.c -o build/hello
