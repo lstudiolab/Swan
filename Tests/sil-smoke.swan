@@ -1,4 +1,4 @@
-fn add(left, right) -> int:
+fn add(left: int, right: int) -> int:
     return left + right
 
 fn main() -> int:
