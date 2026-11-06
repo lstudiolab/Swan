@@ -65,7 +65,7 @@ public:
                     char x=advance();
                     if(x=='\\') {
                         if(eof()) fail({"STRING",value,line,col},"unterminated escape sequence");
-                        switch(char e=advance()) {
+                        switch(advance()) {
                             case 'n': value+='\n'; break; case 'r': value+='\r'; break;
                             case 't': value+='\t'; break; case '\\': value+='\\'; break;
                             case '"': value+='"'; break; case '\'': value+='\''; break;
@@ -274,7 +274,7 @@ private:
         switch(n->kind){
         case Expr::Kind::Literal:if(n->literal_kind=="INT")return "int";if(n->literal_kind=="FLOAT")return "float";if(n->literal_kind=="STRING")return "string";if(n->literal_kind=="true"||n->literal_kind=="false")return "bool";return {};
         case Expr::Kind::Name:{auto f=symbols_.find(n->value);return f==symbols_.end()?"":f->second;}
-        case Expr::Kind::Call:if(n->left->kind==Expr::Kind::Name){auto f=functions_.find(n->left->value);if(f!=functions_.end())return f->second->second->return_type;}return {};
+        case Expr::Kind::Call:if(n->left->kind==Expr::Kind::Name){auto f=functions_.find(n->left->value);if(f!=functions_.end())return f->second->return_type;}return {};
         case Expr::Kind::Binary:if(n->op=="=="||n->op=="!="||n->op=="<"||n->op==">"||n->op=="<="||n->op==">="||n->op=="and"||n->op=="or"||n->op=="&&"||n->op=="||")return "bool";if(n->op=="/")return "float";{auto l=infer(n->left),r=infer(n->right);return l=="float"||r=="float"?"float":l;}
         default:return {};
         }
