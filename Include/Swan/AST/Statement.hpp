@@ -36,8 +36,8 @@ struct ReturnStmt final : Stmt {
 
 struct ControlStmt final : Stmt {
     ControlStmt(TokenKind kind, SourceLocation location)
-        : Stmt(ASTNodeKind::ControlStmt, location), controlKind(kind) {}
-    TokenKind controlKind;
+        : Stmt(ASTNodeKind::ControlStmt, location), kind(kind) {}
+    TokenKind kind;
 };
 
 struct ImportStmt final : Stmt {
