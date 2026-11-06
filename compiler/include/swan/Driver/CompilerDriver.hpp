@@ -2,8 +2,10 @@
 #include "swan/Driver/Compiler.hpp"
 #include "swan/Driver/CommandLine.hpp"
 #include "swan/Support/FileSystem.hpp"
+#include "swan/Support/Version.hpp"
 #include "swan/Basic/Diagnostic.hpp"
 #include <iostream>
+#include <string>
 
 namespace swan {
 inline int runCompiler(int argc, char** argv) {
