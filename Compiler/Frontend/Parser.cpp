@@ -116,16 +116,20 @@ StmtPtr Parser::functionDeclaration(bool isAsync, SourceLocation start) {
         return nullptr;
     }
 
-    std::vector<std::string> parameters;
+    std::vector<FunctionParameter> parameters;
     parameters.reserve(4);
     if (!check(TokenKind::RightParen)) {
         do {
             if (!consume(TokenKind::Identifier, "Expected a parameter name.")) break;
-            parameters.push_back(previous().lexeme);
+            FunctionParameter parameter;
+            parameter.name = previous().lexeme;
             if (match(TokenKind::Colon)) {
-                if (check(TokenKind::Identifier) || check(TokenKind::Int)) advance();
-                else report(peek(), "Expected a parameter type after ':'.");
+                if (check(TokenKind::Identifier) || check(TokenKind::Int))
+                    parameter.typeName = advance().lexeme;
+                else
+                    report(peek(), "Expected a parameter type after ':'.");
             }
+            parameters.push_back(std::move(parameter));
         } while (match(TokenKind::Comma));
     }
     consume(TokenKind::RightParen, "Expected ')' after parameters.");
