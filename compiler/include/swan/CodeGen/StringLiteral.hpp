@@ -15,7 +15,7 @@ inline std::string escapeCString(const std::string& value) {
             default:
                 if (ch < 32 || ch >= 127) {
                     const char* hex = "0123456789abcdef";
-                    result << "\\x" << hex[ch >> 4] << hex[ch & 15] << "\\"\"";
+                    result << "\\x" << hex[ch >> 4] << hex[ch & 15] << "\"\"";
                 } else result << static_cast<char>(ch);
         }
     }
