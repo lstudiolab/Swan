@@ -222,7 +222,7 @@ private:
             }
             switch (binary->op.kind) {
                 case TokenKind::Plus:
-                    if (leftType == Type::String && rightType == Type::String)
+                    if (leftType == Type::String || rightType == Type::String)
                         diagnose(expression.location, "String concatenation is not implemented in the current SIL backend.");
                     instruction.opcode = Opcode::Add;
                     break;
