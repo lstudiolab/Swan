@@ -262,8 +262,11 @@ private:
             return;
         }
         if (const auto* conditional = dynamic_cast<const IfStmt*>(&statement)) {
+            const auto incomingVariables = variables_;
             const auto condition = conditional->condition
                 ? lowerExpression(*conditional->condition) : constantNone();
+            if (variables_ != incomingVariables)
+                diagnose(statement.location, "Assignments in branch conditions require explicit SSA merge support.");
             const auto thenBlock = static_cast<BlockID>(function_.blocks.size());
             function_.blocks.push_back({thenBlock, "if.then", {}});
             const auto elseBlock = static_cast<BlockID>(function_.blocks.size());
@@ -278,21 +281,34 @@ private:
             emit(std::move(branch));
 
             select(thenBlock);
+            variables_ = incomingVariables;
             lowerStatements(conditional->body);
+            const auto thenVariables = variables_;
             if (!terminates(current())) {
                 Instruction jump; jump.opcode = Opcode::Jump; jump.trueTarget = mergeBlock;
                 emit(std::move(jump));
             }
             select(elseBlock);
+            variables_ = incomingVariables;
             lowerStatements(conditional->elseBody);
+            const auto elseVariables = variables_;
             if (!terminates(current())) {
                 Instruction jump; jump.opcode = Opcode::Jump; jump.trueTarget = mergeBlock;
                 emit(std::move(jump));
             }
+            for (const auto& entry : incomingVariables) {
+                const auto thenValue = thenVariables.find(entry.first);
+                const auto elseValue = elseVariables.find(entry.first);
+                if ((thenValue != thenVariables.end() && thenValue->second != entry.second) ||
+                    (elseValue != elseVariables.end() && elseValue->second != entry.second))
+                    diagnose(statement.location, "Assignments across branches require phi-node support and are not lowered yet.");
+            }
+            variables_ = incomingVariables;
             select(mergeBlock);
             return;
         }
         if (const auto* loop = dynamic_cast<const WhileStmt*>(&statement)) {
+            const auto incomingVariables = variables_;
             const auto header = static_cast<BlockID>(function_.blocks.size());
             function_.blocks.push_back({header, "while.cond", {}});
             const auto body = static_cast<BlockID>(function_.blocks.size());
@@ -314,6 +330,12 @@ private:
                 Instruction back; back.opcode = Opcode::Jump; back.trueTarget = header;
                 emit(std::move(back));
             }
+            for (const auto& entry : incomingVariables) {
+                const auto changed = variables_.find(entry.first);
+                if (changed != variables_.end() && changed->second != entry.second)
+                    diagnose(statement.location, "Assignments in loops require loop-carried phi nodes and are not lowered yet.");
+            }
+            variables_ = incomingVariables;
             select(exit);
             return;
         }
