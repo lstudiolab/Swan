@@ -11,6 +11,15 @@ bool isKeywordToken(TokenKind kind) noexcept {
            value <= static_cast<unsigned int>(TokenKind::Log);
 }
 
+bool isTypeNameToken(TokenKind kind) noexcept {
+    return kind == TokenKind::Identifier || kind == TokenKind::Int ||
+           kind == TokenKind::None;
+}
+
+std::string typeNameFromToken(const Token& token) {
+    return token.kind == TokenKind::None ? "none" : token.lexeme;
+}
+
 } // namespace
 
 Parser::Parser(const std::vector<Token>& tokens) : tokens_(tokens) {
@@ -124,8 +133,8 @@ StmtPtr Parser::functionDeclaration(bool isAsync, SourceLocation start) {
             FunctionParameter parameter;
             parameter.name = previous().lexeme;
             if (match(TokenKind::Colon)) {
-                if (check(TokenKind::Identifier) || check(TokenKind::Int))
-                    parameter.typeName = advance().lexeme;
+                if (isTypeNameToken(peek().kind))
+                    parameter.typeName = typeNameFromToken(advance());
                 else
                     report(peek(), "Expected a parameter type after ':'.");
             }
@@ -136,8 +145,8 @@ StmtPtr Parser::functionDeclaration(bool isAsync, SourceLocation start) {
 
     std::optional<std::string> returnType;
     if (match(TokenKind::Arrow)) {
-        if (check(TokenKind::Identifier) || check(TokenKind::Int)) {
-            returnType = advance().lexeme;
+        if (isTypeNameToken(peek().kind)) {
+            returnType = typeNameFromToken(advance());
         } else report(peek(), "Expected a return type after '->'.");
     }
     auto body = blockAfterColon();
@@ -166,8 +175,8 @@ StmtPtr Parser::variableDeclaration() {
     const auto name = previous().lexeme;
     std::optional<std::string> typeName;
     if (match(TokenKind::Colon)) {
-        if (check(TokenKind::Identifier) || check(TokenKind::Int))
-            typeName = advance().lexeme;
+        if (isTypeNameToken(peek().kind))
+            typeName = typeNameFromToken(advance());
         else report(peek(), "Expected a type name after ':'.");
     }
     ExprPtr initializer;
