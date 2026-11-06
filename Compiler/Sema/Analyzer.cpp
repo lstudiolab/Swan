@@ -38,6 +38,7 @@ void SemanticAnalyzer::predeclare() {
         if (const auto* function = dynamic_cast<const FunctionDecl*>(statement.get())) {
             Symbol symbol(function->name, SymbolKind::Function, Type::function());
             symbol.parameterCount = function->parameters.size();
+            symbol.returnType = Type::unknown();
             if (!globalScope_.define(std::move(symbol))) {
                 report(function->location, "S001",
                        "Duplicate declaration of '" + function->name + "'.");
@@ -57,6 +58,14 @@ void SemanticAnalyzer::predeclare() {
                        "Duplicate declaration of '" + structure->name + "'.");
             }
         }
+    }
+
+    // Resolve declared return types only after all structures have been predeclared.
+    for (const auto& statement : module_.statements) {
+        const auto* function = dynamic_cast<const FunctionDecl*>(statement.get());
+        if (!function || !function->returnType) continue;
+        if (auto* symbol = globalScope_.lookup(function->name))
+            symbol->returnType = resolveType(*function->returnType, function->location);
     }
 
     const char* builtins[] = {"range", "self", "init"};
@@ -130,14 +139,15 @@ void SemanticAnalyzer::analyzeFunction(const FunctionDecl& function) {
     Scope* previousScope = currentScope_;
     const Type previousReturn = expectedReturnType_;
     const bool previousHasReturn = hasExpectedReturnType_;
+    const bool previousInsideFunction = insideFunction_;
     const std::size_t previousLoopDepth = loopDepth_;
 
     currentScope_ = &functionScope;
     loopDepth_ = 0;
+    insideFunction_ = true;
     hasExpectedReturnType_ = function.returnType.has_value();
-    expectedReturnType_ = function.returnType
-        ? resolveType(*function.returnType, function.location)
-        : Type::unknown();
+    const auto* functionSymbol = globalScope_.lookup(function.name);
+    expectedReturnType_ = functionSymbol ? functionSymbol->returnType : Type::unknown();
 
     for (const auto& parameter : function.parameters) {
         Symbol symbol(parameter, SymbolKind::Parameter, Type::unknown(), true);
@@ -155,6 +165,7 @@ void SemanticAnalyzer::analyzeFunction(const FunctionDecl& function) {
     currentScope_ = previousScope;
     expectedReturnType_ = previousReturn;
     hasExpectedReturnType_ = previousHasReturn;
+    insideFunction_ = previousInsideFunction;
     loopDepth_ = previousLoopDepth;
 }
 
@@ -235,7 +246,7 @@ void SemanticAnalyzer::analyzeStatement(const Stmt& statement) {
         return;
     }
     if (const auto* result = dynamic_cast<const ReturnStmt*>(&statement)) {
-        if (!hasExpectedReturnType_) {
+        if (!insideFunction_) {
             report(result->location, "S006", "'return' is only valid inside a function.");
         }
         Type actual = result->value ? analyzeExpression(*result->value) : Type::none();
@@ -433,7 +444,7 @@ Type SemanticAnalyzer::analyzeExpression(const Expr& expression) {
                    std::to_string(callee->parameterCount) + " argument(s), but got " +
                    std::to_string(call->arguments.size()) + ".");
         }
-        return Type::unknown();
+        return callee->kind == SymbolKind::Function ? callee->returnType : Type::unknown();
     }
 
     if (const auto* array = dynamic_cast<const ArrayExpr*>(&expression)) {
