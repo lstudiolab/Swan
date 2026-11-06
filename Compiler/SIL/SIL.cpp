@@ -1,7 +1,9 @@
 #include "Swan/SIL/SIL.hpp"
 
-#include <cstdlib>
+#include <algorithm>
 #include <iomanip>
+#include <limits>
+#include <unordered_map>
 #include <sstream>
 #include <unordered_set>
 #include <utility>
@@ -436,6 +438,138 @@ bool Verifier::verify(const Module& module,
     return valid;
 }
 
+
+void Optimizer::optimize(Module& module) const {
+    struct Constant {
+        std::int64_t value;
+        bool boolean;
+    };
+
+    for (auto& function : module.functions) {
+        for (auto& block : function.blocks) {
+            std::unordered_map<ValueID, Constant> constants;
+            for (auto& instruction : block.instructions) {
+                if (instruction.opcode == Opcode::ConstantInt ||
+                    instruction.opcode == Opcode::ConstantBool) {
+                    constants[instruction.result] = {
+                        instruction.integer, instruction.opcode == Opcode::ConstantBool
+                    };
+                    continue;
+                }
+
+                if (instruction.operands.size() == 1) {
+                    const auto found = constants.find(instruction.operands[0]);
+                    if (found != constants.end()) {
+                        bool folded = false;
+                        std::int64_t value = 0;
+                        bool boolean = false;
+                        if (instruction.opcode == Opcode::Negate &&
+                            found->second.value != std::numeric_limits<std::int64_t>::min()) {
+                            value = -found->second.value;
+                            folded = true;
+                        } else if (instruction.opcode == Opcode::LogicalNot) {
+                            value = found->second.value == 0 ? 1 : 0;
+                            boolean = true;
+                            folded = true;
+                        }
+                        if (folded) {
+                            instruction.opcode = boolean ? Opcode::ConstantBool : Opcode::ConstantInt;
+                            instruction.type = boolean ? Type::Bool : Type::I64;
+                            instruction.integer = value;
+                            instruction.operands.clear();
+                            instruction.text.clear();
+                            constants[instruction.result] = {value, boolean};
+                            continue;
+                        }
+                    }
+                }
+
+                if (instruction.operands.size() != 2) continue;
+                const auto left = constants.find(instruction.operands[0]);
+                const auto right = constants.find(instruction.operands[1]);
+                if (left == constants.end() || right == constants.end()) continue;
+
+                const auto a = left->second.value;
+                const auto b = right->second.value;
+                std::int64_t value = 0;
+                bool folded = true;
+                bool boolean = false;
+
+                switch (instruction.opcode) {
+                    case Opcode::Add:
+                        if ((b > 0 && a > std::numeric_limits<std::int64_t>::max() - b) ||
+                            (b < 0 && a < std::numeric_limits<std::int64_t>::min() - b))
+                            folded = false;
+                        else value = a + b;
+                        break;
+                    case Opcode::Subtract:
+                        if ((b < 0 && a > std::numeric_limits<std::int64_t>::max() + b) ||
+                            (b > 0 && a < std::numeric_limits<std::int64_t>::min() + b))
+                            folded = false;
+                        else value = a - b;
+                        break;
+                    case Opcode::Multiply:
+                        if (a == 0 || b == 0) value = 0;
+                        else if ((a == -1 && b == std::numeric_limits<std::int64_t>::min()) ||
+                                 (b == -1 && a == std::numeric_limits<std::int64_t>::min()))
+                            folded = false;
+                        else if (a > 0 ? (b > 0 ? a > std::numeric_limits<std::int64_t>::max() / b
+                                                 : b < std::numeric_limits<std::int64_t>::min() / a)
+                                       : (b > 0 ? a < std::numeric_limits<std::int64_t>::min() / b
+                                                : a < std::numeric_limits<std::int64_t>::max() / b))
+                            folded = false;
+                        else value = a * b;
+                        break;
+                    case Opcode::Divide:
+                        if (b == 0 || (a == std::numeric_limits<std::int64_t>::min() && b == -1))
+                            folded = false;
+                        else value = a / b;
+                        break;
+                    case Opcode::Remainder:
+                        if (b == 0 || (a == std::numeric_limits<std::int64_t>::min() && b == -1))
+                            folded = false;
+                        else value = a % b;
+                        break;
+                    case Opcode::Equal: value = a == b; boolean = true; break;
+                    case Opcode::NotEqual: value = a != b; boolean = true; break;
+                    case Opcode::Less: value = a < b; boolean = true; break;
+                    case Opcode::LessEqual: value = a <= b; boolean = true; break;
+                    case Opcode::Greater: value = a > b; boolean = true; break;
+                    case Opcode::GreaterEqual: value = a >= b; boolean = true; break;
+                    default: folded = false; break;
+                }
+
+                if (folded) {
+                    instruction.opcode = boolean ? Opcode::ConstantBool : Opcode::ConstantInt;
+                    instruction.type = boolean ? Type::Bool : Type::I64;
+                    instruction.integer = value;
+                    instruction.operands.clear();
+                    instruction.text.clear();
+                    constants[instruction.result] = {value, boolean};
+                }
+            }
+
+            std::unordered_map<ValueID, std::size_t> uses;
+            for (const auto& instruction : block.instructions)
+                for (const auto operand : instruction.operands) ++uses[operand];
+
+            auto sideEffecting = [](Opcode opcode) {
+                return opcode == Opcode::Store || opcode == Opcode::Call ||
+                       opcode == Opcode::Log || opcode == Opcode::Jump ||
+                       opcode == Opcode::Branch || opcode == Opcode::Return;
+            };
+            block.instructions.erase(
+                std::remove_if(block.instructions.begin(), block.instructions.end(),
+                    [&](const Instruction& instruction) {
+                        return instruction.result != 0 &&
+                               uses[instruction.result] == 0 &&
+                               !sideEffecting(instruction.opcode);
+                    }),
+                block.instructions.end());
+        }
+    }
+}
+
 std::string toString(Type type) {
     switch (type) {
         case Type::Void: return "void";
@@ -463,6 +597,8 @@ std::string toString(Opcode opcode) {
         case Opcode::Remainder: return "rem";
         case Opcode::Negate: return "neg";
         case Opcode::LogicalNot: return "not";
+        case Opcode::LogicalAnd: return "and";
+        case Opcode::LogicalOr: return "or";
         case Opcode::Equal: return "eq";
         case Opcode::NotEqual: return "ne";
         case Opcode::Less: return "lt";
