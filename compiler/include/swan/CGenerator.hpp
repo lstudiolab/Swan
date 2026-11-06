@@ -34,7 +34,7 @@ private:
 
 namespace swan {
 inline CGenerator::CGenerator(const Program& program) : program_(program) {}
-std::string inline CGenerator::cType(const std::string& type) const {
+inline std::string inline CGenerator::cType(const std::string& type) const {
     if (type == "int") return "int";
     if (type == "float") return "double";
     if (type == "bool") return "bool";
@@ -43,11 +43,11 @@ std::string inline CGenerator::cType(const std::string& type) const {
     if (structs_.contains(type)) return type;
     throw CompileError("unknown C type '" + type + "'");
 }
-void inline CGenerator::line(const std::string& value) {
+inline void inline CGenerator::line(const std::string& value) {
     if (!value.empty()) output_ << std::string(indent_ * 4,' ') << value;
     output_ << '\n';
 }
-std::string inline CGenerator::quote(const std::string& value) const {
+inline std::string inline CGenerator::quote(const std::string& value) const {
     std::ostringstream result; result << '"';
     for (unsigned char ch : value) {
         switch (ch) {
@@ -65,7 +65,7 @@ std::string inline CGenerator::quote(const std::string& value) const {
     }
     result << '"'; return result.str();
 }
-std::string inline CGenerator::inferredType(const ExprPtr& node) const {
+inline std::string inline CGenerator::inferredType(const ExprPtr& node) const {
     if (!node) return {};
     switch (node->kind) {
     case Expr::Kind::Literal:
@@ -97,7 +97,7 @@ std::string inline CGenerator::inferredType(const ExprPtr& node) const {
     }
     return {};
 }
-std::string inline CGenerator::expression(const ExprPtr& node) const {
+inline std::string inline CGenerator::expression(const ExprPtr& node) const {
     switch (node->kind) {
     case Expr::Kind::Literal:
         if (node->literal_kind == "STRING") return quote(node->value);
@@ -125,7 +125,7 @@ std::string inline CGenerator::expression(const ExprPtr& node) const {
     }
     return {};
 }
-void inline CGenerator::block(const std::vector<StmtPtr>& statements) {
+inline void inline CGenerator::block(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
     for (const auto& item : statements) statement(item);
     for (const auto& [name,oldType] : scopes_.back()) {
@@ -134,7 +134,7 @@ void inline CGenerator::block(const std::vector<StmtPtr>& statements) {
     }
     scopes_.pop_back();
 }
-void inline CGenerator::statement(const StmtPtr& node) {
+inline void inline CGenerator::statement(const StmtPtr& node) {
     switch (node->kind) {
     case Stmt::Kind::Variable: {
         const auto type = node->type.empty() ? inferredType(node->value) : node->type;
@@ -177,7 +177,7 @@ void inline CGenerator::statement(const StmtPtr& node) {
     default: fail(node->token,"unsupported statement in C generator");
     }
 }
-void inline CGenerator::function(const StmtPtr& node) {
+inline void inline CGenerator::function(const StmtPtr& node) {
     symbols_.clear(); scopes_.clear(); scopes_.emplace_back();
     std::string parameters;
     for (const auto& parameter : node->parameters) {
@@ -190,7 +190,7 @@ void inline CGenerator::function(const StmtPtr& node) {
          (parameters.empty() ? "void" : parameters) + ") {");
     ++indent_; block(node->body); --indent_; line("}"); line();
 }
-std::string inline CGenerator::generate() {
+inline std::string inline CGenerator::generate() {
     output_ << "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) structs_.insert(node->name);
