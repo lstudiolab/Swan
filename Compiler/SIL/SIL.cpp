@@ -329,7 +329,9 @@ private:
             branch.trueTarget = body; branch.falseTarget = exit;
             emit(std::move(branch));
             select(body);
+            loopTargets_.push_back({exit, header});
             lowerStatements(loop->body);
+            loopTargets_.pop_back();
             if (!terminates(current())) {
                 Instruction back; back.opcode = Opcode::Jump; back.trueTarget = header;
                 emit(std::move(back));
@@ -345,7 +347,20 @@ private:
         }
         if (const auto* control = dynamic_cast<const ControlStmt*>(&statement)) {
             if (control->kind == TokenKind::Pass) return;
-            diagnose(statement.location, "break and continue lowering require finalized loop-control semantics.");
+            if (control->kind == TokenKind::Break ||
+                control->kind == TokenKind::Continue) {
+                if (loopTargets_.empty()) {
+                    diagnose(statement.location, "Loop control has no active loop target.");
+                    return;
+                }
+                Instruction jump;
+                jump.opcode = Opcode::Jump;
+                jump.trueTarget = control->kind == TokenKind::Break
+                    ? loopTargets_.back().first : loopTargets_.back().second;
+                emit(std::move(jump));
+                return;
+            }
+            diagnose(statement.location, "This control statement is not supported by SIL lowering.");
             return;
         }
         if (dynamic_cast<const FunctionDecl*>(&statement) ||
