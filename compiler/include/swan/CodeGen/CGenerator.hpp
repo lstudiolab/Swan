@@ -32,12 +32,6 @@ private:
 };
 }
 
-#include <sstream>
-
-namespace swan {
-
-}
-
 #include "swan/CodeGen/ProgramEmitter.hpp"
 #include "swan/CodeGen/ExpressionEmitter.hpp"
 #include "swan/CodeGen/StatementEmitter.hpp"
