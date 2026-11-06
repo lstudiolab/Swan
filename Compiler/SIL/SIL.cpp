@@ -724,7 +724,10 @@ std::string print(const Module& module) {
                 output << "  ";
                 if (instruction.result) output << '%' << instruction.result << " = ";
                 output << toString(instruction.opcode);
-                if (!instruction.text.empty()) output << " \"" << instruction.text << '"';
+                if (instruction.opcode == Opcode::ConstantString)
+                    output << ' ' << instruction.text;
+                else if (!instruction.text.empty())
+                    output << " \"" << instruction.text << '"';
                 if (instruction.opcode == Opcode::ConstantInt ||
                     instruction.opcode == Opcode::ConstantBool)
                     output << ' ' << instruction.integer;
