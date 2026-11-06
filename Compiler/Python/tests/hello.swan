@@ -1,0 +1,4 @@
+fn main() -> int {
+    log "Hello from Swan";
+    return 0;
+}
