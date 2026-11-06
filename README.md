@@ -85,17 +85,23 @@ The tests build the native compiler, transpile sample Swan programs, compile gen
 
 ## Project structure
 
+The compiler uses a layered header architecture informed by Goose's focused compiler headers and Swift's subsystem-oriented organization. See [Compiler Architecture](docs/ARCHITECTURE.md) for the responsibilities and dependency boundaries.
+
 ```text
-main.cpp               CLI entry point and single C++ translation unit
-compiler/include/swan/  Header-based compiler stages:
-  Token.hpp             Tokens and diagnostics
-  Lexer.hpp             Lexical analysis
-  AST.hpp               Abstract syntax tree
-  Parser.hpp            Syntax analysis
-  Sema.hpp              Semantic analysis
-  CGenerator.hpp        C source generation
-  Compiler.hpp          Pipeline orchestration
-examples/             Swan programs
-tests/                Compiler smoke tests
-build.sh              Direct C++20 build, no CMake
+main.cpp
+compiler/include/swan/
+├── Basic/       Tokens, source locations, diagnostics
+├── Support/     Version and filesystem utilities
+├── Lex/         Keyword classification and lexical scanning
+├── AST/         Expression, declaration, statement, and program nodes
+├── Parse/       Parser core, declarations, statements, expressions
+├── Sema/        Scope, declaration, statement, expression, and type analysis
+├── CodeGen/     C type mapping and program, statement, expression emitters
+└── Driver/      Command-line handling and compiler orchestration
+
+examples/        Swan programs
+tests/           Compiler smoke tests
+build.sh         Direct C++20 build, no CMake
 ```
+
+The compiler currently has one C++ translation unit, `main.cpp`. The subsystem headers contain inline implementations and are included through their owning component headers.
