@@ -13,18 +13,21 @@ bool isKeywordToken(TokenKind kind) noexcept {
 
 } // namespace
 
-Parser::Parser(const std::vector<Token>& tokens) : tokens_(tokens) {}
+Parser::Parser(const std::vector<Token>& tokens) : tokens_(tokens) {
+    errors_.reserve(4);
+}
 
 const std::vector<ParserError>& Parser::errors() const noexcept { return errors_; }
 
 const Token& Parser::peek(std::size_t lookahead) const noexcept {
     static const Token eof{TokenKind::EndOfFile, "", SourceLocation{}};
-    if (tokens_.empty()) return eof;
-    const auto index = current_ + lookahead;
-    return index < tokens_.size() ? tokens_[index] : tokens_.back();
+    if (current_ >= tokens_.size() || lookahead >= tokens_.size() - current_)
+        return tokens_.empty() ? eof : tokens_.back();
+    return tokens_[current_ + lookahead];
 }
 const Token& Parser::previous() const noexcept {
-    return tokens_[current_ == 0 ? 0 : current_ - 1];
+    static const Token eof{TokenKind::EndOfFile, "", SourceLocation{}};
+    return tokens_.empty() || current_ == 0 ? eof : tokens_[current_ - 1];
 }
 bool Parser::atEnd() const noexcept { return check(TokenKind::EndOfFile); }
 bool Parser::check(TokenKind kind) const noexcept { return peek().kind == kind; }
@@ -66,6 +69,7 @@ void Parser::synchronize() {
 
 Module Parser::parse() {
     Module module;
+    module.statements.reserve(tokens_.size() / 8);
     skipNewlines();
     while (!atEnd()) {
         const auto before = current_;
@@ -94,7 +98,7 @@ StmtPtr Parser::declaration() {
     if (match(TokenKind::Return)) return returnStatement();
     if (match(TokenKind::Import)) return importStatement();
     if (match(TokenKind::Break) || match(TokenKind::Continue) || match(TokenKind::Pass)) {
-        const auto token = previous();
+        const Token& token = previous();
         finishStatement();
         return std::make_unique<ControlStmt>(token.kind, token.location);
     }
@@ -113,6 +117,7 @@ StmtPtr Parser::functionDeclaration(bool isAsync, SourceLocation start) {
     }
 
     std::vector<std::string> parameters;
+    parameters.reserve(4);
     if (!check(TokenKind::RightParen)) {
         do {
             if (!consume(TokenKind::Identifier, "Expected a parameter name.")) break;
@@ -148,7 +153,7 @@ StmtPtr Parser::structDeclaration() {
 }
 
 StmtPtr Parser::variableDeclaration() {
-    const auto declaration = advance();
+    const Token& declaration = advance();
     const auto start = declaration.location;
     if (!consume(TokenKind::Identifier, "Expected a variable name.")) {
         synchronize();
@@ -288,7 +293,7 @@ ExprPtr Parser::parsePrecedence(int minimumPrecedence) {
         const auto opKind = peek().kind;
         const int level = precedence(opKind);
         if (level < minimumPrecedence || level == 0) break;
-        const auto op = advance();
+        const Token& op = advance();
         const int nextMinimum = isAssignment(opKind) ? level : level + 1;
         auto right = parsePrecedence(nextMinimum);
         if (!right) {
@@ -321,7 +326,7 @@ ExprPtr Parser::prefixExpression() {
 ExprPtr Parser::primary() {
     if (check(TokenKind::Identifier) || check(TokenKind::Range) ||
         check(TokenKind::Self) || check(TokenKind::Init)) {
-        const auto token = advance();
+        const Token& token = advance();
         return std::make_unique<NameExpr>(token.lexeme, token.location);
     }
     if (check(TokenKind::Integer) || check(TokenKind::Float) ||
