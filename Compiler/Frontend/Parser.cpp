@@ -177,6 +177,7 @@ StmtPtr Parser::variableDeclaration() {
 
 std::vector<StmtPtr> Parser::blockAfterColon() {
     std::vector<StmtPtr> body;
+    body.reserve(4);
     consume(TokenKind::Colon, "Expected ':' before the indented block.");
     if (!match(TokenKind::Newline)) {
         report(peek(), "Expected a newline after ':'.");
@@ -342,6 +343,7 @@ ExprPtr Parser::primary() {
     if (match(TokenKind::LeftBracket)) {
         const auto start = previous().location;
         std::vector<ExprPtr> elements;
+        elements.reserve(4);
         if (!check(TokenKind::RightBracket)) {
             do {
                 auto element = expression();
@@ -369,6 +371,7 @@ ExprPtr Parser::postfix(ExprPtr value) {
         if (match(TokenKind::LeftParen)) {
             const auto start = previous().location;
             std::vector<ExprPtr> arguments;
+            arguments.reserve(2);
             if (!check(TokenKind::RightParen)) {
                 do {
                     auto argument = expression();
