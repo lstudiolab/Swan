@@ -35,10 +35,10 @@ Requirements:
 Build directly, without CMake:
 
 ```sh
-./build.sh
+sh build.sh
 ```
 
-The executable is written to `build/swan`. Select a compiler with `CXX=clang++ ./build.sh`.
+The executable is written to `build/swan`. Select a compiler with `CXX=clang++ sh build.sh`.
 
 ## Use
 
@@ -53,7 +53,7 @@ Without `-o`, generated C is written to standard output. Use `--version` or `--h
 ## Install on Linux, macOS, or Termux
 
 ```sh
-./install.sh
+sh install.sh
 ```
 
 The installer builds and tests Swan, then installs the executable into `$PREFIX/bin` when `PREFIX` is set (as in Termux), or `~/.local/bin` otherwise. Ensure that directory is on your `PATH`.
@@ -77,7 +77,7 @@ The compiler deliberately rejects language features that are not implemented. Im
 ## Tests
 
 ```sh
-./test.sh
+sh test.sh
 ```
 
 Tests build the C++ compiler, transpile representative Swan programs, compile the generated C with the host C compiler, run those programs, and verify that invalid programs are rejected.
@@ -87,8 +87,9 @@ Tests build the C++ compiler, transpile representative Swan programs, compile th
 ```text
 lib/swan.cpp       Complete C++20 compiler implementation
 examples/          Swan example programs
-tests/             Native compiler smoke tests
+tests/             Compiler tests
 build.sh           Direct C++ build; no CMake
+test.sh            Native compiler smoke tests
 install.sh         Linux/macOS/Termux installer
 install.ps1        Windows build helper
 ```
