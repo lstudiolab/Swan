@@ -5,6 +5,10 @@ fn announce() -> none:
     log "Swan compiler ready"
     return
 
+fn greet() -> none:
+    log "A second function owns a separate string"
+    return
+
 fn main() -> int:
     let answer = add(20, 22)
     if answer > 2:
@@ -12,4 +16,5 @@ fn main() -> int:
     else:
         log 0
     announce()
+    greet()
     return answer
