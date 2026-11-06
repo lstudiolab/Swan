@@ -23,9 +23,9 @@ private:
     Scope globalScope_;
     Scope* currentScope_ = nullptr;
     std::vector<SemaDiagnostic> diagnostics_;
-    std::vector<Type> structStack_;
     Type expectedReturnType_;
     bool hasExpectedReturnType_ = false;
+    bool insideFunction_ = false;
     std::size_t loopDepth_ = 0;
 
     void report(SourceLocation location, std::string code, std::string message);
