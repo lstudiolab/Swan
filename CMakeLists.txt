@@ -105,6 +105,11 @@ if(BUILD_TESTING)
     )
     set_tests_properties(swan-sema-parameter-errors PROPERTIES WILL_FAIL TRUE)
     add_test(
+        NAME swan-sema-return-errors
+        COMMAND swan-check ${CMAKE_CURRENT_SOURCE_DIR}/Tests/semantic-return-errors.swan
+    )
+    set_tests_properties(swan-sema-return-errors PROPERTIES WILL_FAIL TRUE)
+    add_test(
         NAME swan-sil-smoke
         COMMAND swan-sil ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-smoke.swan
     )
