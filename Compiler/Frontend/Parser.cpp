@@ -3,6 +3,15 @@
 #include <utility>
 
 namespace swan {
+namespace {
+
+bool isKeywordToken(TokenKind kind) noexcept {
+    const auto value = static_cast<unsigned int>(kind);
+    return value >= static_cast<unsigned int>(TokenKind::Let) &&
+           value <= static_cast<unsigned int>(TokenKind::Log);
+}
+
+} // namespace
 
 Parser::Parser(const std::vector<Token>& tokens) : tokens_(tokens) {}
 
@@ -310,7 +319,8 @@ ExprPtr Parser::prefixExpression() {
 }
 
 ExprPtr Parser::primary() {
-    if (check(TokenKind::Identifier)) {
+    if (check(TokenKind::Identifier) || check(TokenKind::Range) ||
+        check(TokenKind::Self) || check(TokenKind::Init)) {
         const auto token = advance();
         return std::make_unique<NameExpr>(token.lexeme, token.location);
     }
@@ -343,8 +353,11 @@ ExprPtr Parser::primary() {
 ExprPtr Parser::postfix(ExprPtr value) {
     while (value) {
         if (match(TokenKind::Dot)) {
-            if (!consume(TokenKind::Identifier, "Expected a member name after '.'."))
+            if (!check(TokenKind::Identifier) && !isKeywordToken(peek().kind)) {
+                report(peek(), "Expected a member name after '.'.");
                 return value;
+            }
+            advance();
             value = std::make_unique<MemberExpr>(std::move(value), previous());
             continue;
         }
