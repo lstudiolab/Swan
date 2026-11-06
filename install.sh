@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 
-ROOT_DIR=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+ROOT_DIR=$(CDPATH= cd "$(dirname "$0")" && pwd)
 BUILD_DIR="${SWAN_BUILD_DIR:-$ROOT_DIR/build}"
 PREFIX="${SWAN_INSTALL_PREFIX:-$HOME/.local}"
 BIN_DIR="$PREFIX/bin"
