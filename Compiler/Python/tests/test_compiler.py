@@ -17,6 +17,10 @@ class CompilerTests(unittest.TestCase):
         result=self.compile('fn main() -> int { var x: int = 0; while x < 2 { if x == 1 { log x; } else { log 0; } x = x + 1; } return 0; }')
         self.assertIn('while ((x < 2)) {', result)
         self.assertIn('} else {', result)
+    def test_float_promotion_and_division(self):
+        result=self.compile("fn main() -> int { log 1 + 2.5; log 5 / 2; return 0; }")
+        self.assertIn("printf(\"%g\\\\n\", (double)((1 + 2.5)));", result)
+        self.assertIn("((double)(5) / (double)(2))", result)
     def test_function_calls(self):
         result=self.compile('fn answer() -> int { return 42; } fn main() -> int { log answer(); return 0; }')
         self.assertIn('int answer(void);', result)
