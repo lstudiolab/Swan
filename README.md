@@ -1,8 +1,8 @@
 # Swan
 
-Swan is a programming language with a Python-based compiler.
+Swan is a programming language with a Python-based source-to-source transpiler.
 
-Status: the Python compiler is an early implementation. It currently supports a deliberately small language subset and transpiles Swan source into C source.
+Status: the Python transpiler is an early implementation. It currently supports a deliberately small language subset and transpiles Swan source into C source.
 
 ## Syntax
 
@@ -44,13 +44,13 @@ Swan only emits a .c source file. It does not compile C, link programs, or gener
     cc program.c -o program
     ./program
 
-## Current compiler support
+## Current transpiler support
 
-The Python frontend contains a lexer, recursive-descent parser, and C source emitter. The current subset includes functions, typed parameters, primitive types, local variables, structs, if / else, while, return and loop-control statements, basic expressions, calls, and log.
+The Python transpiler contains a lexer, recursive-descent parser, and C source emitter. The current subset includes functions, typed parameters, primitive types, local variables, structs, if / else, while, return and loop-control statements, basic expressions, calls, and log.
 
 Unsupported syntax is reported as an error instead of being silently accepted. Imports, for-loops, async operations, and the final behavior of hold, store, and operate are not implemented yet.
 
-## Compiler layout
+## Transpiler layout
 
     Compiler/
       Python/
