@@ -44,6 +44,7 @@ struct BasicBlock {
 struct Parameter {
     std::string name;
     Type type = Type::Unknown;
+    ValueID value = 0;
 };
 
 struct Function {
