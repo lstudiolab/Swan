@@ -27,7 +27,7 @@ class CEmitter:
         if functions: self.line()
         for node in nodes:
             if node.kind=="function": self.function(node)
-            elif node.kind not in ("struct","import"): raise EmitError(f"{node.token.line}:{node.token.column}: unsupported top-level declaration '{node.kind}'")
+            elif node.kind != "struct": raise EmitError(f"{node.token.line}:{node.token.column}: unsupported top-level declaration '{node.kind}'")
         return "\n".join(self.lines).rstrip()+"\n"
     def function(self,node):
         d=node.data; params=[]
