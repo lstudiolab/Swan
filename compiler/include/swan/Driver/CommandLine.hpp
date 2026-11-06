@@ -12,8 +12,8 @@ struct CommandLine {
     bool showVersion = false;
 };
 inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
-    for (int i = 1; i < argc; ++i) {
-        const std::string argument = argv[i];
+    for (int index = 1; index < argc; ++index) {
+        const std::string argument = argv[index];
         if (argument == "--version" || argument == "-v") {
             options.showVersion = true;
             return true;
@@ -23,27 +23,27 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
             return true;
         }
         if (argument == "-o" || argument == "--output") {
-            if (++i >= argc) {
+            if (++index >= argc) {
                 std::cerr << "swan: missing output path\n";
                 return false;
             }
-            options.output = argv[i];
+            options.output = argv[index];
             options.hasOutput = true;
-        } else if (options.input.empty()) {
-            options.input = argument;
-        } else {
-            std::cerr << "swan: unexpected argument '" << argument << "'\n";
-            return false;
+            continue;
         }
-    }
-    if (options.input.empty()) {
-        options.showHelp = true;
+        if (options.input.empty()) {
+            options.input = argument;
+            continue;
+        }
+        std::cerr << "swan: unexpected argument '" << argument << "'\n";
         return false;
     }
+    if (options.input.empty())
+        options.showHelp = true;
     return true;
 }
 inline void printHelp() {
     std::cout << "Swan " << versionString() << "\n"
               << "Usage: swan <source.swan> [-o output.c]\n";
 }
-}
+} // namespace swan::driver
