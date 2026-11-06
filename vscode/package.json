@@ -1,0 +1,55 @@
+{
+  "name": "swan-language",
+  "displayName": "Swan Language",
+  "description": "Language support for Swan: syntax highlighting, snippets, and compiler tasks.",
+  "version": "0.1.0",
+  "publisher": "lstudiolab",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "swan",
+    "programming-language",
+    "syntax-highlighting"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/lstudiolab/Swan.git",
+    "directory": "vscode"
+  },
+  "main": "./extension.js",
+  "contributes": {
+    "languages": [
+      {
+        "id": "swan",
+        "aliases": ["Swan", "swan"],
+        "extensions": [".swan"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "swan",
+        "scopeName": "source.swan",
+        "path": "./syntaxes/swan.tmLanguage.json"
+      }
+    ],
+    "snippets": [
+      {
+        "language": "swan",
+        "path": "./snippets/swan.json"
+      }
+    ]
+  },
+  "scripts": {
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.2.0"
+  }
+}
