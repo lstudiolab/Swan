@@ -1,7 +1,6 @@
 #pragma once
 #include "swan/AST/AST.hpp"
 #include "swan/Basic/Diagnostic.hpp"
-#include "swan/Basic/Diagnostic.hpp"
 #include "swan/Sema/TypeRules.hpp"
 #include <string>
 #include <unordered_map>
@@ -29,10 +28,6 @@ private:
     std::string return_type_;
     unsigned loop_depth_ = 0;
 };
-}
-
-namespace swan {
-
 }
 
 #include "swan/Sema/ScopeAnalysis.hpp"
