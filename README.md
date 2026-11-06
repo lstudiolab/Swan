@@ -22,10 +22,10 @@ The default install location is `~/.local/bin/swan`. The installer adds `~/.loca
 
 Examples of prerequisites:
 
-- Ubuntu/Debian: `sudo apt install cmake g++`
-- Fedora: `sudo dnf install cmake gcc-c++`
+- Ubuntu/Debian: `sudo apt install cmake build-essential`
+- Fedora: `sudo dnf install cmake gcc-c++ make`
 - macOS with Homebrew: `brew install cmake` (install Apple's Command Line Tools with `xcode-select --install` if needed)
-- Termux: `pkg install cmake clang`
+- Termux: `pkg install cmake clang make`
 
 ### Windows (PowerShell)
 
