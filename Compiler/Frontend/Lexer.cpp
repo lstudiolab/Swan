@@ -81,9 +81,7 @@ TokenKind Lexer::keywordKind(std::string_view text) noexcept {
         case 3:
             SWAN_KEYWORD("let", Let); SWAN_KEYWORD("var", Var);
             SWAN_KEYWORD("int", Int); SWAN_KEYWORD("for", For);
-            SWAN_KEYWORD("not", Not); SWAN_KEYWORD("get", Get);
-            SWAN_KEYWORD("log", Log); SWAN_KEYWORD("and", And);
-            SWAN_KEYWORD("or", Or); break;
+            SWAN_KEYWORD("get", Get); SWAN_KEYWORD("log", Log); break;
         case 4:
             SWAN_KEYWORD("const", Const); SWAN_KEYWORD("type", Type);
             SWAN_KEYWORD("enum", Enum); SWAN_KEYWORD("else", Else);
@@ -103,9 +101,8 @@ TokenKind Lexer::keywordKind(std::string_view text) noexcept {
             SWAN_KEYWORD("struct", Struct); SWAN_KEYWORD("import", Import);
             SWAN_KEYWORD("export", Export); SWAN_KEYWORD("return", Return);
             SWAN_KEYWORD("public", Public); SWAN_KEYWORD("private", Private);
-            SWAN_KEYWORD("operate", Operate); SWAN_KEYWORD("release", Release);
-            SWAN_KEYWORD("switch", Case); break;
-        case 7:
+            SWAN_KEYWORD("return", Return); break;
+        case 8:
             SWAN_KEYWORD("continue", Continue); break;
         default: break;
     }
