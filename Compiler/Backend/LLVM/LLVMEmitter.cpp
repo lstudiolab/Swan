@@ -288,18 +288,22 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                         const auto found = valueTypes.find(instruction.operands.front());
                         const bool isString = found != valueTypes.end() &&
                                               found->second == sil::Type::String;
+                        if (isString) {
+                            output << "  %logstr" << instruction.result
+                                   << " = inttoptr i64 " << operand(0) << " to ptr\\n";
+                        }
                         output << "  %log" << instruction.result << " = call i32 (ptr, ...) @printf(ptr "
                                << "getelementptr inbounds ("
                                << (isString ? "[4 x i8], ptr @swan.fmt.str"
                                             : "[5 x i8], ptr @swan.fmt.int")
                                << ", i64 0, i64 0), ";
                         if (isString)
-                            output << "ptr inttoptr (i64 " << operand(0) << " to ptr)";
+                            output << "ptr %logstr" << instruction.result;
                         else
                             output << "i64 " << operand(0);
-                        output << ")\n";
+                        output << ")\\n";
                         output << "  " << resultName << " = zext i32 %log"
-                               << instruction.result << " to i64\n";
+                               << instruction.result << " to i64\\n";
                         break;
                     }
                     case sil::Opcode::Jump:
