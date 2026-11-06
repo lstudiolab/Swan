@@ -2,26 +2,12 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Swan: Check current file",
+      "label": "Swan: Transpile current file to C",
       "type": "process",
       "command": "swan",
-      "args": ["check", "${file}"],
+      "args": ["\${file}", "-o", "\${fileDirname}/\${fileBasenameNoExtension}.c"],
       "problemMatcher": [],
-      "group": { "kind": "test", "isDefault": true }
-    },
-    {
-      "label": "Swan: Emit SIL",
-      "type": "process",
-      "command": "swan",
-      "args": ["emit-sil", "${file}", "-o", "${fileDirname}/${fileBasenameNoExtension}.sil"],
-      "problemMatcher": []
-    },
-    {
-      "label": "Swan: Emit LLVM IR",
-      "type": "process",
-      "command": "swan",
-      "args": ["emit-llvm", "${file}", "-o", "${fileDirname}/${fileBasenameNoExtension}.ll"],
-      "problemMatcher": []
+      "group": { "kind": "build", "isDefault": true }
     }
   ]
 }
