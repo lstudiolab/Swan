@@ -41,7 +41,7 @@ Requirements: a C++20 compiler (Clang 15+, GCC 12+, or compatible).
 sh build.sh
 ```
 
-This compiles all compiler translation units directly and writes `build/swan`.
+This compiles the single `main.cpp` translation unit, using the stage headers, and writes `build/swan`.
 
 ## Use
 
@@ -86,15 +86,15 @@ The tests build the native compiler, transpile sample Swan programs, compile gen
 ## Project structure
 
 ```text
-compiler/
-  include/swan/       Public stage interfaces and AST definitions
-  src/
-    lexer/            Lexical analysis
-    parser/           Syntax analysis
-    sema/             Semantic analysis
-    codegen/          C source generation
-    driver/           CLI entry point
-    Compiler.cpp      Pipeline orchestration
+main.cpp               CLI entry point and single C++ translation unit
+compiler/include/swan/  Header-based compiler stages:
+  Token.hpp             Tokens and diagnostics
+  Lexer.hpp             Lexical analysis
+  AST.hpp               Abstract syntax tree
+  Parser.hpp            Syntax analysis
+  Sema.hpp              Semantic analysis
+  CGenerator.hpp        C source generation
+  Compiler.hpp          Pipeline orchestration
 examples/             Swan programs
 tests/                Compiler smoke tests
 build.sh              Direct C++20 build, no CMake
