@@ -96,9 +96,9 @@ Supported in the current lowering path:
 - Integer and string logging
 - Return statements
 
-The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, break/continue, and finalized hold, store, and operate semantics still need implementation.
+The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, and finalized hold, store, and operate semantics still need implementation. break and continue are currently lowered for while loops.
 
-Function parameter type annotations are parsed by the frontend but are not yet retained in the AST; consequently, the initial backend currently uses 64-bit integer calling conventions for lowered values. This is a known limitation, not a language-level type rule.
+Function parameter annotations are retained in the AST and checked by semantic analysis. The initial LLVM ABI still represents supported parameters and values as 64-bit integers; floating-point signatures are rejected until their lowering is implemented.
 
 ## Tests
 
