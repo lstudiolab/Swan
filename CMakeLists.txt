@@ -26,3 +26,11 @@ add_executable(swan-parse
 )
 
 target_link_libraries(swan-parse PRIVATE swan_frontend)
+
+include(CTest)
+if(BUILD_TESTING)
+    add_test(
+        NAME swan-parser-smoke
+        COMMAND swan-parse ${CMAKE_CURRENT_SOURCE_DIR}/Tests/lexer-smoke.swan
+    )
+endif()
