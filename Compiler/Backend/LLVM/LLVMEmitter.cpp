@@ -290,7 +290,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                                               found->second == sil::Type::String;
                         if (isString) {
                             output << "  %logstr" << instruction.result
-                                   << " = inttoptr i64 " << operand(0) << " to ptr\\n";
+                                   << " = inttoptr i64 " << operand(0) << " to ptr\n";
                         }
                         output << "  %log" << instruction.result << " = call i32 (ptr, ...) @printf(ptr "
                                << "getelementptr inbounds ("
@@ -301,9 +301,9 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                             output << "ptr %logstr" << instruction.result;
                         else
                             output << "i64 " << operand(0);
-                        output << ")\\n";
+                        output << ")\n";
                         output << "  " << resultName << " = zext i32 %log"
-                               << instruction.result << " to i64\\n";
+                               << instruction.result << " to i64\n";
                         break;
                     }
                     case sil::Opcode::Jump:
