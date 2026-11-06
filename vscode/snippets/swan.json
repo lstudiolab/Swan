@@ -1,0 +1,57 @@
+{
+  "Function": {
+    "prefix": "fn",
+    "body": [
+      "fn ${1:functionName}(${2}):",
+      "    ${0:pass}"
+    ],
+    "description": "Declare a Swan function"
+  },
+  "Async function": {
+    "prefix": "asyncfn",
+    "body": [
+      "async fn ${1:functionName}(${2}):",
+      "    ${0:pass}"
+    ],
+    "description": "Declare an asynchronous Swan function"
+  },
+  "Variable": {
+    "prefix": "var",
+    "body": ["var ${1:name} = ${2:none}"],
+    "description": "Declare a mutable variable"
+  },
+  "Immutable value": {
+    "prefix": "let",
+    "body": ["let ${1:name} = ${2:none}"],
+    "description": "Declare an immutable value"
+  },
+  "Structure": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Name}:",
+      "    var ${2:field} = ${3:none}"
+    ],
+    "description": "Declare a Swan structure"
+  },
+  "If statement": {
+    "prefix": "if",
+    "body": [
+      "if ${1:condition}:",
+      "    ${0:pass}"
+    ],
+    "description": "Create an if block"
+  },
+  "While loop": {
+    "prefix": "while",
+    "body": [
+      "while ${1:condition}:",
+      "    ${0:pass}"
+    ],
+    "description": "Create a while loop"
+  },
+  "Log": {
+    "prefix": "log",
+    "body": ["log \"${1:message}\";"],
+    "description": "Log a value"
+  }
+}
