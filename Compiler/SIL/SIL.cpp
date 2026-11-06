@@ -446,8 +446,10 @@ void Optimizer::optimize(Module& module) const {
     };
 
     for (auto& function : module.functions) {
+        std::unordered_map<ValueID, Constant> constants;
+
+        // Fold in block order while retaining constants across basic blocks.
         for (auto& block : function.blocks) {
-            std::unordered_map<ValueID, Constant> constants;
             for (auto& instruction : block.instructions) {
                 if (instruction.opcode == Opcode::ConstantInt ||
                     instruction.opcode == Opcode::ConstantBool) {
@@ -461,8 +463,8 @@ void Optimizer::optimize(Module& module) const {
                     const auto found = constants.find(instruction.operands[0]);
                     if (found != constants.end()) {
                         bool folded = false;
-                        std::int64_t value = 0;
                         bool boolean = false;
+                        std::int64_t value = 0;
                         if (instruction.opcode == Opcode::Negate &&
                             found->second.value != std::numeric_limits<std::int64_t>::min()) {
                             value = -found->second.value;
@@ -548,16 +550,20 @@ void Optimizer::optimize(Module& module) const {
                     constants[instruction.result] = {value, boolean};
                 }
             }
+        }
 
-            std::unordered_map<ValueID, std::size_t> uses;
+        // Count uses across the whole function so values shared by blocks survive.
+        std::unordered_map<ValueID, std::size_t> uses;
+        for (const auto& block : function.blocks)
             for (const auto& instruction : block.instructions)
                 for (const auto operand : instruction.operands) ++uses[operand];
 
-            auto sideEffecting = [](Opcode opcode) {
-                return opcode == Opcode::Store || opcode == Opcode::Call ||
-                       opcode == Opcode::Log || opcode == Opcode::Jump ||
-                       opcode == Opcode::Branch || opcode == Opcode::Return;
-            };
+        const auto sideEffecting = [](Opcode opcode) {
+            return opcode == Opcode::Store || opcode == Opcode::Call ||
+                   opcode == Opcode::Log || opcode == Opcode::Jump ||
+                   opcode == Opcode::Branch || opcode == Opcode::Return;
+        };
+        for (auto& block : function.blocks) {
             block.instructions.erase(
                 std::remove_if(block.instructions.begin(), block.instructions.end(),
                     [&](const Instruction& instruction) {
