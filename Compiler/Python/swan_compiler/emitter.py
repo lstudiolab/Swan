@@ -48,7 +48,12 @@ class CEmitter:
         if node.kind=="literal": return {"INT":"int","FLOAT":"float","STRING":"string","TRUE":"bool","FALSE":"bool"}.get(node.data["literal_type"])
         if node.kind=="name": return self.symbols.get(node.data["name"])
         if node.kind=="call" and node.data["callee"].kind=="name": return self.functions.get(node.data["callee"].data["name"])
-        if node.kind=="binary": return "bool" if node.data["op"] in ("==","!=","<",">","<=",">=","and","or","&&","||") else self.infer(node.data["left"])
+        if node.kind=="binary":
+            op=node.data["op"]
+            if op in ("==","!=","<",">","<=",">=","and","or","&&","||"): return "bool"
+            left=self.infer(node.data["left"]); right=self.infer(node.data["right"])
+            if op=="/" or "float" in (left,right): return "float"
+            return left
         return None
     def statement(self,node):
         d=node.data; k=node.kind
