@@ -31,33 +31,33 @@ private:
 
 namespace swan {
 inline Parser::Parser(std::vector<Token> tokens) : tokens_(std::move(tokens)) {}
-inline const Token& inline Parser::peek(std::size_t offset) const {
+inline const Token& Parser::peek(std::size_t offset) const {
     return tokens_[std::min(position_ + offset,tokens_.size() - 1)];
 }
-inline bool inline Parser::check(std::string_view kind) const { return peek().kind == kind; }
-inline bool inline Parser::match(std::string_view kind) {
+inline bool Parser::check(std::string_view kind) const { return peek().kind == kind; }
+inline bool Parser::match(std::string_view kind) {
     if (!check(kind)) return false;
     advance(); return true;
 }
-inline Token inline Parser::advance() {
+inline Token Parser::advance() {
     Token token = peek();
     if (!check("EOF")) ++position_;
     return token;
 }
-inline Token inline Parser::expect(std::string_view kind, std::string_view message) {
+inline Token Parser::expect(std::string_view kind, std::string_view message) {
     if (check(kind)) return advance();
     if (message.empty()) fail(peek(),std::string("expected ") + std::string(kind));
     fail(peek(),message);
 }
-inline void inline Parser::separators() { while (match("NEWLINE") || match(";")) {} }
-inline std::string inline Parser::typeName() {
+inline void Parser::separators() { while (match("NEWLINE") || match(";")) {} }
+inline std::string Parser::typeName() {
     auto token = advance();
     if (token.kind != "IDENT" && token.kind != "int" && token.kind != "float" &&
         token.kind != "bool" && token.kind != "string" && token.kind != "void")
         fail(token,"expected type name");
     return token.value;
 }
-inline Program inline Parser::parse() {
+inline Program Parser::parse() {
     Program program;
     separators();
     while (!check("EOF")) {
@@ -68,7 +68,7 @@ inline Program inline Parser::parse() {
     }
     return program;
 }
-inline std::vector<StmtPtr> inline Parser::block() {
+inline std::vector<StmtPtr> Parser::block() {
     expect("{","expected '{' to begin block");
     std::vector<StmtPtr> body;
     separators();
@@ -81,7 +81,7 @@ inline std::vector<StmtPtr> inline Parser::block() {
     expect("}","expected '}' to close block");
     return body;
 }
-inline StmtPtr inline Parser::declaration() {
+inline StmtPtr Parser::declaration() {
     if (check("fn")) {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::Function; node->token = advance();
@@ -138,7 +138,7 @@ inline StmtPtr inline Parser::declaration() {
     }
     return statement();
 }
-inline StmtPtr inline Parser::statement() {
+inline StmtPtr Parser::statement() {
     if (check("if")) {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::If; node->token = advance();
@@ -177,7 +177,7 @@ inline StmtPtr inline Parser::statement() {
     node->token = node->value->token;
     return node;
 }
-inline int inline Parser::precedence(std::string_view op) {
+inline int Parser::precedence(std::string_view op) {
     if (op == "=") return 1;
     if (op == "or" || op == "||") return 2;
     if (op == "and" || op == "&&") return 3;
@@ -187,7 +187,7 @@ inline int inline Parser::precedence(std::string_view op) {
     if (op == "*" || op == "/" || op == "%") return 7;
     return 0;
 }
-inline ExprPtr inline Parser::expression(int minimum) {
+inline ExprPtr Parser::expression(int minimum) {
     auto left = prefix();
     while (precedence(peek().kind) >= minimum) {
         auto op = advance();
@@ -199,7 +199,7 @@ inline ExprPtr inline Parser::expression(int minimum) {
     }
     return left;
 }
-inline ExprPtr inline Parser::prefix() {
+inline ExprPtr Parser::prefix() {
     if (check("!") || check("-") || check("not")) {
         auto op = advance();
         auto node = std::make_shared<Expr>();
