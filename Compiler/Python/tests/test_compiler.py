@@ -26,7 +26,7 @@ class CompilerTests(unittest.TestCase):
     def test_bad_character(self):
         with self.assertRaises(LexError): self.compile('fn main() { @; }')
     def test_unknown_type(self):
-        with self.assertRaises(EmitError): self.compile('fn main() -> Widget { return 0; }')
+        with self.assertRaises(SemanticError): self.compile('fn main() -> Widget { return 0; }')
     def test_unknown_name(self):
         with self.assertRaises(SemanticError): self.compile('fn main() -> int { log missing; return 0; }')
     def test_immutable_assignment(self):
