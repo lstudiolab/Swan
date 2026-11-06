@@ -123,6 +123,12 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
     if (!strings.empty() || needsPrintf) output << '\n';
 
     for (const auto& function : module.functions) {
+        if (function.returnType == sil::Type::F64)
+            report(result, "B005", "Floating-point function returns are not supported by the current LLVM ABI.");
+        for (const auto& parameter : function.parameters) {
+            if (parameter.type == sil::Type::F64)
+                report(result, "B006", "Floating-point parameters are not supported by the current LLVM ABI.");
+        }
         std::unordered_map<sil::ValueID, sil::Type> valueTypes;
         for (const auto& parameter : function.parameters)
             valueTypes[parameter.value] = parameter.type;
