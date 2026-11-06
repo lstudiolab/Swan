@@ -1,7 +1,0 @@
-fn add(left, right) -> int:
-    return left + right
-
-let answer: int = add(2, 3)
-
-if answer > 2:
-    log answer
