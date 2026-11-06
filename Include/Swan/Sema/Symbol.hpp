@@ -24,6 +24,7 @@ struct Symbol {
     Type type;
     bool mutableValue = false;
     std::size_t parameterCount = 0;
+    Type returnType;
     std::vector<std::string> fields;
 
     Symbol() = default;
