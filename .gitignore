@@ -1,0 +1,30 @@
+# CMake
+/build/
+/cmake-build-*/
+/CMakeFiles/
+/CMakeCache.txt
+/compile_commands.json
+/Testing/
+
+# Native build products
+*.o
+*.obj
+*.a
+*.lib
+*.so
+*.dylib
+*.dll
+*.exe
+*.bc
+*.ll
+*.sil
+
+# VS Code
+.vscode/*
+!.vscode/tasks.json
+!.vscode/extensions.json
+
+# VS Code extension packaging
+vscode/node_modules/
+vscode/*.vsix
+vscode/out/
