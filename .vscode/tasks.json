@@ -1,0 +1,27 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Swan: Check current file",
+      "type": "process",
+      "command": "swan",
+      "args": ["check", "${file}"],
+      "problemMatcher": [],
+      "group": { "kind": "test", "isDefault": true }
+    },
+    {
+      "label": "Swan: Emit SIL",
+      "type": "process",
+      "command": "swan",
+      "args": ["emit-sil", "${file}", "-o", "${fileDirname}/${fileBasenameNoExtension}.sil"],
+      "problemMatcher": []
+    },
+    {
+      "label": "Swan: Emit LLVM IR",
+      "type": "process",
+      "command": "swan",
+      "args": ["emit-llvm", "${file}", "-o", "${fileDirname}/${fileBasenameNoExtension}.ll"],
+      "problemMatcher": []
+    }
+  ]
+}
