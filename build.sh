@@ -3,5 +3,8 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 CXX=${CXX:-c++}
 mkdir -p "$ROOT/build"
-"$CXX" -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror -Wno-misleading-indentation "$ROOT/lib/swan.cpp" -o "$ROOT/build/swan"
-printf 'Built %s\n' "$ROOT/build/swan"
+SOURCES=$(find "$ROOT/compiler/src" -type f -name '*.cpp' | sort)
+# shellcheck disable=SC2086
+"$CXX" -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror \
+  -I"$ROOT/compiler/include" $SOURCES -o "$ROOT/build/swan"
+printf 'Built %s\\n' "$ROOT/build/swan"
