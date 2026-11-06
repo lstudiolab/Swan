@@ -9,8 +9,13 @@
 
 namespace swan {
 
+struct FunctionParameter {
+    std::string name;
+    std::optional<std::string> typeName;
+};
+
 struct FunctionDecl final : Stmt {
-    FunctionDecl(std::string name, std::vector<std::string> parameters,
+    FunctionDecl(std::string name, std::vector<FunctionParameter> parameters,
                  std::optional<std::string> returnType, std::vector<StmtPtr> body,
                  bool isAsync, SourceLocation location)
         : Stmt(ASTNodeKind::FunctionDecl, location),
@@ -18,7 +23,7 @@ struct FunctionDecl final : Stmt {
           returnType(std::move(returnType)), body(std::move(body)), isAsync(isAsync) {}
 
     std::string name;
-    std::vector<std::string> parameters;
+    std::vector<FunctionParameter> parameters;
     std::optional<std::string> returnType;
     std::vector<StmtPtr> body;
     bool isAsync;
