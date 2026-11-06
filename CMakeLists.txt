@@ -7,6 +7,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(swan_frontend
     Compiler/Frontend/Lexer.cpp
+    Compiler/Frontend/Parser.cpp
 )
 
 target_include_directories(swan_frontend
@@ -19,3 +20,9 @@ add_executable(swan-lex
 )
 
 target_link_libraries(swan-lex PRIVATE swan_frontend)
+
+add_executable(swan-parse
+    Tools/swan-parse.cpp
+)
+
+target_link_libraries(swan-parse PRIVATE swan_frontend)
