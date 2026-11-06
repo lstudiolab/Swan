@@ -1,13 +1,17 @@
 # Swan
 
-Swan is an indentation-based programming language and compiler written in C++17.
+Swan is an indentation-based programming language with a C++17 compiler.
 
-## Build
+> **Development status:** Swan is an early compiler implementation. The documented frontend and backend subset is usable for experimentation, but the language and runtime are not yet feature-complete or ABI-stable. Do not use it for production workloads yet.
 
-Requirements:
-- CMake 3.20+
-- A C++17 compiler
-- LLVM command-line tools and Clang for validating and compiling emitted LLVM IR
+## Requirements
+
+- CMake 3.20 or newer
+- A C++17 compiler (GCC 10+, Clang 12+, or a supported MSVC toolchain)
+- LLVM 15+ and Clang for validating and compiling emitted LLVM IR
+- Node.js 20+ and npm only when packaging the VS Code extension
+
+## Build from source
 
 ~~~sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
@@ -15,39 +19,53 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ~~~
 
-## Compiler tools
-
-The unified compiler driver is the main entry point:
+To install the compiler to the configured prefix:
 
 ~~~sh
-build/swan check program.swan
-build/swan emit-sil program.swan -o program.sil
-build/swan emit-llvm program.swan -o program.ll
+cmake --install build --prefix ~/.local
 ~~~
 
-Focused stage tools are also available for debugging:
+Ensure `~/.local/bin` is on your `PATH`.
+
+## Compiler commands
 
 ~~~sh
-# Lex source into tokens
-build/swan-lex program.swan
-
-# Parse source into an AST
-build/swan-parse program.swan
-
-# Run semantic analysis
-build/swan-check program.swan
-
-# Lower supported functions into Swan SIL
-build/swan-sil program.swan
-
-# Emit LLVM IR
-build/swan-llvm program.swan -o program.ll
-
-# Assemble, optimize, and compile the emitted IR with LLVM tools
-llvm-as program.ll -o program.bc
-opt -O2 program.bc -o program.opt.bc
-clang program.opt.bc -o program
+swan check program.swan
+swan emit-sil program.swan -o program.sil
+swan emit-llvm program.swan -o program.ll
+clang program.ll -o program
 ~~~
+
+The compiler exits non-zero when a stage reports an error. `check` performs lexer, parser, and semantic analysis. LLVM emission additionally lowers to SIL, optimizes, verifies, and emits LLVM IR.
+
+Focused tools are also built for compiler development: `swan-lex`, `swan-parse`, `swan-check`, `swan-sil`, and `swan-llvm`.
+
+## Visual Studio Code
+
+Swan includes a VS Code extension under `vscode/` with:
+
+- `.swan` file association
+- Syntax highlighting for Swan keywords, strings, numbers, operators, and built-ins
+- Indentation and bracket configuration
+- Code snippets for functions, structures, variables, conditions, loops, and logging
+- Workspace tasks to check a file and emit SIL or LLVM IR
+
+### Install the extension from source
+
+First build and install the Swan compiler using the instructions above. The `swan` executable must be available on your shell `PATH`.
+
+Then package and install the extension:
+
+~~~sh
+cd vscode
+npm install
+npm run package
+code --install-extension swan-language-0.1.0.vsix
+~~~
+
+Open a `.swan` file. Use **Terminal → Run Task** and choose a task beginning with **Swan:**. The repository includes these tasks in `.vscode/tasks.json`; copy or adapt them in your own Swan project.
+
+The initial extension is declarative editor support. It does **not** yet provide a language server, IntelliSense, go-to-definition, semantic highlighting, or inline compiler diagnostics. Those require a dedicated language-server implementation and a stable compiler diagnostic protocol.
 
 ## Compiler architecture
 
@@ -55,38 +73,26 @@ clang program.opt.bc -o program
 Source
   |
   v
-Lexer
-  |
-  v
-Parser
-  |
-  v
-AST
-  |
-  v
-Semantic Analysis
+Lexer -> Parser -> AST -> Semantic Analysis
   |
   v
 Swan Intermediate Language (SIL)
   |  - lowering
   |  - verification
-  |  - constant folding
-  |  - dead-code elimination
+  |  - optimization
   v
 LLVM IR Backend
   |
   v
-LLVM assembler / optimizer / native toolchain
-  |
-  v
-Executable
+LLVM toolchain -> Native executable
 ~~~
 
 ## Current backend coverage
 
-The current SIL and LLVM path is an incremental implementation, not yet full language coverage.
+The current SIL and LLVM path is incremental, not full language coverage.
 
 Supported in the current lowering path:
+
 - Function declarations and direct function calls
 - Integer and boolean literals
 - Local variables represented through SSA values
@@ -96,10 +102,12 @@ Supported in the current lowering path:
 - Integer and string logging
 - Return statements
 
-The compiler reports unsupported constructs rather than silently pretending to compile them. In particular, typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, async/coroutine lowering, string concatenation/comparison, top-level executable statements, and finalized hold, store, and operate semantics still need implementation. Division is also deferred because Swan currently defines its result as floating point.
+Unsupported or incomplete areas include typed floating-point lowering, struct layout and member access, imports, array operations, for iteration, async/coroutine lowering, string concatenation/comparison, top-level executable statements, and finalized `hold`, `store`, and `operate` semantics. Division is deferred because its Swan result type is floating point.
 
-Function parameter annotations are retained in the AST and checked by semantic analysis. The initial LLVM ABI still represents supported parameters and values as 64-bit integers; floating-point signatures are rejected until their lowering is implemented.
+Function parameter annotations are retained in the AST and checked by semantic analysis. The initial LLVM ABI represents supported parameters and values as 64-bit integers; floating-point signatures are rejected until their lowering is implemented. Unsupported constructs should produce diagnostics rather than silently compiling as if implemented.
 
-## Tests
+## Tests and continuous integration
 
-CTest covers parser, semantic analysis, SIL lowering, and LLVM emission. GitHub Actions additionally assembles the emitted LLVM IR and links/runs a native smoke-test executable.
+CTest covers parser, semantic analysis, SIL lowering, verification, and LLVM emission. GitHub Actions builds the compiler, runs CTest, validates emitted LLVM IR with `llvm-as`, optimizes it with `opt`, and links/runs a native smoke test with Clang.
+
+A configured CI workflow is not evidence that a particular revision passed. Check the Actions tab for the status of the commit you intend to use.
