@@ -1,0 +1,115 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "Swan",
+  "scopeName": "source.swan",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#declarations" },
+    { "include": "#control" },
+    { "include": "#operations" },
+    { "include": "#constants" },
+    { "include": "#operators" },
+    { "include": "#punctuation" },
+    { "include": "#types" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.number-sign.swan", "match": "#.*$" }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.swan",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "name": "constant.character.escape.swan", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.double.swan",
+          "begin": "[\"“]",
+          "end": "[\"”]",
+          "patterns": [{ "name": "constant.character.escape.swan", "match": "\\\\." }]
+        },
+        {
+          "name": "string.quoted.single.swan",
+          "begin": "'",
+          "end": "'",
+          "patterns": [{ "name": "constant.character.escape.swan", "match": "\\\\." }]
+        }
+      ]
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.float.swan", "match": "\\b[0-9]+\\.[0-9]+\\b" },
+        { "name": "constant.numeric.integer.swan", "match": "\\b[0-9]+\\b" }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "storage.type.function.swan",
+          "match": "\\b(async\\s+)?(fn)\\b"
+        },
+        {
+          "name": "storage.type.swan",
+          "match": "\\b(struct|class|enum|type|int)\\b"
+        },
+        {
+          "name": "storage.modifier.swan",
+          "match": "\\b(public|private|let|var|const|import|export|as)\\b"
+        }
+      ]
+    },
+    "control": {
+      "patterns": [
+        {
+          "name": "keyword.control.swan",
+          "match": "\\b(if|else|endif|while|for|loop|case|break|continue|return|pass|range)\\b"
+        }
+      ]
+    },
+    "operations": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.swan",
+          "match": "\\b(log|get|hold|store|clone|release|operate|sync|await|init|deinit|self)\\b"
+        }
+      ]
+    },
+    "constants": {
+      "patterns": [
+        { "name": "constant.language.swan", "match": "\\b(true|false|none)\\b" }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        {
+          "name": "keyword.operator.swan",
+          "match": "->|==|!=|<=|>=|=|\\+|-|\\*|/|%|<|>|\\b(and|or|not)\\b"
+        }
+      ]
+    },
+    "punctuation": {
+      "patterns": [
+        { "name": "punctuation.separator.swan", "match": "[,:;.]" },
+        { "name": "punctuation.section.brackets.swan", "match": "[()\\[\\]{}]" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "entity.name.type.swan",
+          "match": "\\b[A-Z][A-Za-z0-9_]*\\b"
+        },
+        {
+          "name": "entity.name.function.swan",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
+        }
+      ]
+    }
+  }
+}
