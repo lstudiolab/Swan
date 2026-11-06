@@ -58,7 +58,7 @@ if command -v swan >/dev/null 2>&1; then
     swan --help 2>/dev/null || true
 fi
 echo "Try: swan check path/to/file.swan"
-if [ -n "$PROFILE" ]; then
+if [ "$PREFIX" = "$HOME/.local" ] && [ -n "$PROFILE" ]; then
     echo "Restart your terminal (or run: . \"$PROFILE\") before using swan in a new session."
 else
     echo "Add $BIN_DIR to your PATH to run 'swan' from any directory."
