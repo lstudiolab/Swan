@@ -1,31 +1,39 @@
 """Basic name, call, mutability, and type validation for Swan."""
-from .parser import Node
-
 class SemanticError(Exception): pass
-
 NUMERIC={"int","float"}
+BUILTIN_TYPES={"int","float","bool","string","void"}
 
 class Analyzer:
     def __init__(self,nodes):
         self.nodes=nodes
         self.functions={}
-        self.errors=[]
+        self.types=set(BUILTIN_TYPES)
     def fail(self,node,message):
         raise SemanticError(f"{node.token.line}:{node.token.column}: {message}")
     def analyze(self):
+        for node in self.nodes:
+            if node.kind=="struct":
+                name=node.data["name"]
+                if name in self.types: self.fail(node,f"type '{name}' is already defined")
+                self.types.add(name)
         for node in self.nodes:
             if node.kind=="function":
                 name=node.data["name"]
                 if name in self.functions: self.fail(node,f"function '{name}' is already declared")
                 self.functions[name]=node
         for node in self.nodes:
-            if node.kind=="function": self.function(node)
-            elif node.kind not in ("struct",): self.fail(node,f"unsupported top-level declaration '{node.kind}'")
+            if node.kind=="struct":
+                for field,typ in node.data["fields"]:
+                    if typ not in self.types: self.fail(node,f"unknown field type '{typ}' for '{field}'")
+            elif node.kind=="function": self.function(node)
+            else: self.fail(node,f"unsupported top-level declaration '{node.kind}'")
     def function(self,node):
         self.scopes=[{}]
         self.return_type=node.data["return_type"]
+        if self.return_type not in self.types: self.fail(node,f"unknown return type '{self.return_type}'")
         for name,typ in node.data["params"]:
             if typ is None: self.fail(node,f"parameter '{name}' requires a type")
+            if typ not in self.types: self.fail(node,f"unknown parameter type '{typ}'")
             if name in self.scopes[-1]: self.fail(node,f"parameter '{name}' is already declared")
             self.scopes[-1][name]=(typ,False)
         for statement in node.data["body"]: self.statement(statement)
@@ -42,6 +50,7 @@ class Analyzer:
             actual=self.expression(d["value"]) if d["value"] else None
             typ=d["type"] or actual
             if typ is None: self.fail(node,f"cannot infer type for '{d['name']}'")
+            if typ not in self.types: self.fail(node,f"unknown type '{typ}'")
             if actual and not self.compatible(typ,actual): self.fail(node,f"cannot assign {actual} to {typ} variable '{d['name']}'")
             self.scopes[-1][d["name"]]=(typ,d["mutable"])
         elif k=="log":
