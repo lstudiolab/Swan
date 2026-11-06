@@ -5,6 +5,12 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 INCLUDE="$ROOT/compiler/include"
 CXX=${CXX:-c++}
 
+CPP_COUNT=$(find "$ROOT" -type f -name '*.cpp' | wc -l | tr -d ' ')
+if [ "$CPP_COUNT" -ne 1 ] || [ ! -f "$ROOT/main.cpp" ]; then
+    echo "FAIL: the compiler must have exactly one C++ translation unit: main.cpp" >&2
+    exit 1
+fi
+
 find "$INCLUDE/swan" -type f -name '*.hpp' -print | sort |
 while IFS= read -r header; do
     relative=${header#"$INCLUDE"/}
@@ -13,4 +19,4 @@ while IFS= read -r header; do
             -I"$INCLUDE" -x c++ -fsyntax-only -
 done
 
-printf 'PASS: standalone compiler headers\n'
+printf 'PASS: one translation unit and standalone compiler headers\n'
