@@ -107,7 +107,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
 
     std::ostringstream output;
     output << "; Swan LLVM IR\n";
-    output << '\\n';
+    output << '\n';
 
     for (const auto& entry : strings) {
         const auto length = entry.second.bytes.size() + 1;
