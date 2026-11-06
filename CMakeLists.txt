@@ -109,6 +109,10 @@ if(BUILD_TESTING)
         COMMAND swan-sil ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-smoke.swan
     )
     add_test(
+        NAME swan-sil-control-flow
+        COMMAND swan-sil ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-control-flow.swan
+    )
+    add_test(
         NAME swan-llvm-smoke
         COMMAND swan-llvm ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-smoke.swan
                 -o ${CMAKE_CURRENT_BINARY_DIR}/sil-smoke.ll
