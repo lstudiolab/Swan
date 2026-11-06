@@ -1,7 +1,6 @@
 #pragma once
 #include "swan/Basic/Token.hpp"
 #include "swan/Basic/Diagnostic.hpp"
-#include "swan/Basic/Diagnostic.hpp"
 #include "swan/Lex/Keywords.hpp"
 #include <string_view>
 #include <vector>
@@ -20,13 +19,6 @@ private:
     std::size_t line_ = 1;
     std::size_t column_ = 1;
 };
-}
-
-#include <cctype>
-#include <string>
-
-namespace swan {
-
 }
 
 #include "swan/Lex/Scanner.hpp"
