@@ -20,7 +20,7 @@ class CEmitter:
         for node in nodes:
             if node.kind=="function": self.function(node)
             elif node.kind not in ("struct","import"): raise EmitError(f"{node.token.line}:{node.token.column}: unsupported top-level declaration '{node.kind}'")
-        return "\\n".join(self.lines).rstrip()+"\\n"
+        return "\n".join(self.lines).rstrip()+"\n"
     def function(self,node):
         d=node.data; params=[]
         for name,typ in d["params"]:
@@ -38,16 +38,18 @@ class CEmitter:
     def statement(self,node):
         d=node.data; k=node.kind
         if k=="variable":
-            typ=self.ctype(d["type"] or self.infer(d["value"]))
-            qualifier="" if d["mutable"] else "const "
+            inferred=d["type"] or self.infer(d["value"])
+            if inferred is None: raise EmitError(f"{node.token.line}:{node.token.column}: cannot infer type for '{d['name']}'")
+            typ=self.ctype(inferred); qualifier="" if d["mutable"] else "const "
             init=f" = {self.expr(d['value'])}" if d["value"] else ""
             self.line(f"{qualifier}{typ} {d['name']}{init};")
         elif k=="log":
             value=d["value"]
             if value.kind=="literal" and value.data["literal_type"]=="STRING": self.line(f"puts({self.expr(value)});")
-            elif self.infer(value)=="float": self.line(f"printf(\\"%g\\\\n\\", (double)({self.expr(value)}));")
-            elif self.infer(value)=="int": self.line(f"printf(\\"%d\\\\n\\", (int)({self.expr(value)}));")
-            else: self.line(f"printf(\\"%s\\\\n\\", (const char *)({self.expr(value)}));")
+            elif self.infer(value)=="float": self.line(f'printf("%g\\n", (double)({self.expr(value)}));')
+            elif self.infer(value)=="int": self.line(f'printf("%d\\n", (int)({self.expr(value)}));')
+            elif self.infer(value)=="bool": self.line(f'printf("%d\\n", (int)({self.expr(value)}));')
+            else: raise EmitError(f"{node.token.line}:{node.token.column}: log currently requires a string, number, or boolean")
         elif k=="return": self.line("return;" if d["value"] is None else f"return {self.expr(d['value'])};")
         elif k=="expression": self.line(self.expr(d["value"])+";")
         elif k=="if":
