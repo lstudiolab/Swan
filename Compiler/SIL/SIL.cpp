@@ -515,6 +515,61 @@ bool Verifier::verify(const Module& module,
             for (std::size_t instructionIndex = 0;
                  instructionIndex < block.instructions.size(); ++instructionIndex) {
                 const auto& instruction = block.instructions[instructionIndex];
+                std::size_t expectedOperands = 0;
+                bool requiresResult = false;
+                switch (instruction.opcode) {
+                    case Opcode::ConstantInt:
+                    case Opcode::ConstantFloat:
+                    case Opcode::ConstantBool:
+                    case Opcode::ConstantString:
+                    case Opcode::ConstantNone:
+                        requiresResult = true;
+                        break;
+                    case Opcode::Load:
+                    case Opcode::Negate:
+                    case Opcode::LogicalNot:
+                    case Opcode::Log:
+                        expectedOperands = 1;
+                        requiresResult = true;
+                        break;
+                    case Opcode::Add:
+                    case Opcode::Subtract:
+                    case Opcode::Multiply:
+                    case Opcode::Divide:
+                    case Opcode::Remainder:
+                    case Opcode::LogicalAnd:
+                    case Opcode::LogicalOr:
+                    case Opcode::Equal:
+                    case Opcode::NotEqual:
+                    case Opcode::Less:
+                    case Opcode::LessEqual:
+                    case Opcode::Greater:
+                    case Opcode::GreaterEqual:
+                        expectedOperands = 2;
+                        requiresResult = true;
+                        break;
+                    case Opcode::Call:
+                        requiresResult = true;
+                        break;
+                    case Opcode::Store:
+                    case Opcode::Jump:
+                    case Opcode::Branch:
+                    case Opcode::Return:
+                        expectedOperands = instruction.opcode == Opcode::Branch ||
+                            instruction.opcode == Opcode::Return ||
+                            instruction.opcode == Opcode::Store ? 1 : 0;
+                        break;
+                }
+                if (instruction.operands.size() != expectedOperands)
+                    fail("V012", "Instruction has an invalid operand count in function '" +
+                         function.name + "'.");
+                if (requiresResult && instruction.result == 0)
+                    fail("V013", "Value-producing instruction has no result identifier in function '" +
+                         function.name + "'.");
+                if (!requiresResult && instruction.result != 0)
+                    fail("V014", "Terminator or store instruction must not define an SSA value in function '" +
+                         function.name + "'.");
+
                 const bool isTerminator = instruction.opcode == Opcode::Jump ||
                     instruction.opcode == Opcode::Branch ||
                     instruction.opcode == Opcode::Return;
