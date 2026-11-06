@@ -9,7 +9,7 @@
 namespace {
 constexpr const char* version = "0.5.0";
 void help() {
-    std::cout << "Swan " << version << "\\n"
+    std::cout << "Swan " << version << "\n"
               << "Usage: swan <source.swan> [-o output.c]\\n";
 }
 }
@@ -19,7 +19,7 @@ int main(int argc,char** argv) {
     for (int i = 1; i < argc; ++i) {
         const std::string argument = argv[i];
         if (argument == "--version" || argument == "-v") {
-            std::cout << "Swan " << version << '\\n'; return 0;
+            std::cout << "Swan " << version << '\n'; return 0;
         }
         if (argument == "--help" || argument == "-h") { help(); return 0; }
         if (argument == "-o" || argument == "--output") {
@@ -44,7 +44,7 @@ int main(int argc,char** argv) {
         } else std::cout << generated;
         return 0;
     } catch (const std::exception& error) {
-        std::cerr << "swan: " << error.what() << '\\n';
+        std::cerr << "swan: " << error.what() << '\n';
         return 1;
     }
 }
