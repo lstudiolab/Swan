@@ -60,6 +60,12 @@ The installer builds and tests Swan, then installs the executable into `$PREFIX/
 
 On Windows, run `install.ps1` from a shell with Clang, GCC, or MSVC installed. It builds `build/swan.exe`.
 
+## Compiler implementation reference
+
+The native compiler takes architectural inspiration from [Goose](https://github.com/aardappel/goose): a C++20 implementation with distinct lexing, parsing, semantic analysis, and code-generation stages. Swan's compiler is an independent implementation; it does not copy Goose's source code or language semantics.
+
+Goose also bundles TinyCC so it can compile and execute generated C in-process. Swan does not bundle TinyCC at this stage because its current compiler contract is to emit C source, not to execute programs. Adding an embedded C compiler would increase the dependency and build footprint without helping the current transpilation step. Swan's build is a direct C++ compiler invocation and has no CMake dependency.
+
 ## Current language support
 
 The native compiler currently supports:
