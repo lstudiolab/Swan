@@ -10,8 +10,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Build native C++20 compiler
-        run: ./build.sh
+        run: sh build.sh
       - name: Run compiler tests
-        run: ./test.sh
+        run: sh test.sh
       - name: Verify CLI version
         run: ./build/swan --version
