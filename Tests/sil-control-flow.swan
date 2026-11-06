@@ -1,4 +1,0 @@
-fn main() -> int:
-    while true:
-        break
-    return 0
