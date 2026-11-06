@@ -266,7 +266,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                         }
                         const bool returnsVoid = found->second == sil::Type::Void;
                         if (returnsVoid)
-                            output << "  %callvoid" << instruction.result << " = ";
+                            output << "  ";
                         else
                             output << "  " << resultName << " = ";
                         output << "call " << (returnsVoid ? "void" : "i64") << ' '
