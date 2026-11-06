@@ -145,9 +145,8 @@ void Lexer::scanIdentifier() {
     while (!atEnd() && isIdentifierContinue(static_cast<unsigned char>(current()))) {
         advance();
     }
-    const auto length = offset_ - start;
-    const std::string_view text(source_.data() + start, length);
-    tokens_.push_back({keywordKind(text), std::string(text), where});
+    const std::string_view text(source_.data() + start, offset_ - start);
+    emit(keywordKind(text), start, where);
 }
 
 void Lexer::scanNumber() {
@@ -160,13 +159,13 @@ void Lexer::scanNumber() {
     if (current() == '.' && isDigit(static_cast<unsigned char>(current(1)))) {
         isFloat = true;
         advance();
-        while (std::isdigit(static_cast<unsigned char>(current()))) advance();
+        while (isDigit(static_cast<unsigned char>(current()))) advance();
     }
 
     emit(isFloat ? TokenKind::Float : TokenKind::Integer, start, where);
 }
 
-void Lexer::scanString(std::string_view opening, std::string_view closing) {
+void Lexer::scanString(std::string_view opening, std::string_view closing, bool multiline) {
     const auto start = offset_;
     const auto where = location();
     for (std::size_t i = 0; i < opening.size(); ++i) advance();
@@ -179,20 +178,16 @@ void Lexer::scanString(std::string_view opening, std::string_view closing) {
             continue;
         }
 
-        bool closingMatches = true;
-        for (std::size_t i = 0; i < closing.size(); ++i) {
-            if (current(i) != closing[i]) {
-                closingMatches = false;
-                break;
-            }
-        }
-        if (closingMatches) {
+        // string::compare uses a bounded byte comparison and avoids a per-byte
+        // delimiter loop in the common string-scanning path.
+        if (closing.size() <= source_.size() - offset_ &&
+            source_.compare(offset_, closing.size(), closing) == 0) {
             for (std::size_t i = 0; i < closing.size(); ++i) advance();
             closed = true;
             break;
         }
 
-        if (current() == '\n' && opening.size() == 1) break;
+        if (current() == '\n' && !multiline) break;
         advance();
     }
 
@@ -201,7 +196,6 @@ void Lexer::scanString(std::string_view opening, std::string_view closing) {
 }
 
 void Lexer::scanLine() {
-    const auto lineStart = offset_;
     const auto lineLocation = location();
     std::size_t width = 0;
 
@@ -239,7 +233,6 @@ void Lexer::scanLine() {
         tokens_.push_back({TokenKind::Newline, "\n", where});
     }
 
-    (void)lineStart;
 }
 
 void Lexer::scanToken() {
@@ -247,25 +240,8 @@ void Lexer::scanToken() {
     const auto where = location();
     const unsigned char c = static_cast<unsigned char>(current());
 
-    if (isIdentifierStart(c)) {
-        scanIdentifier();
-        return;
-    }
-    if (isDigit(c)) {
-        scanNumber();
-        return;
-    }
-
-    if (current() == '"' || current() == '\'') {
-        const char quote = current();
-        const std::size_t delimiterSize =
-            current(1) == quote && current(2) == quote ? 3 : 1;
-        const std::string_view delimiter(source_.data() + offset_, delimiterSize);
-        scanString(delimiter, delimiter);
-        return;
-    }
-
-    // Accept typographic quotation marks used in Swan examples as well.
+    // Check UTF-8 typographic quotes before the broad non-ASCII identifier
+    // fast path. The opening and closing delimiters are three bytes each.
     if (static_cast<unsigned char>(current()) == 0xE2 &&
         static_cast<unsigned char>(current(1)) == 0x80 &&
         (static_cast<unsigned char>(current(2)) == 0x9C ||
@@ -273,7 +249,25 @@ void Lexer::scanToken() {
         const bool opening = static_cast<unsigned char>(current(2)) == 0x9C;
         const std::string_view left("\xE2\x80\x9C", 3);
         const std::string_view right("\xE2\x80\x9D", 3);
-        scanString(opening ? left : right, opening ? right : left);
+        scanString(opening ? left : right, opening ? right : left, false);
+        return;
+    }
+
+    if (current() == '"' || current() == '\'') {
+        const char quote = current();
+        const bool triple = current(1) == quote && current(2) == quote;
+        const std::size_t delimiterSize = triple ? 3 : 1;
+        const std::string_view delimiter(source_.data() + offset_, delimiterSize);
+        scanString(delimiter, delimiter, triple);
+        return;
+    }
+
+    if (isIdentifierStart(c)) {
+        scanIdentifier();
+        return;
+    }
+    if (isDigit(c)) {
+        scanNumber();
         return;
     }
 
@@ -337,9 +331,9 @@ void Lexer::scanToken() {
 std::vector<Token> Lexer::tokenize() {
     tokens_.clear();
     errors_.clear();
-    // Token density is usually one token per 3–5 source bytes. Reserve once
-    // to avoid repeated vector growth while keeping the estimate conservative.
-    tokens_.reserve(source_.size() / 3 + 2);
+    // A modest estimate avoids repeated growth for ordinary code without
+    // reserving an excessive number of large Token objects for string-heavy input.
+    tokens_.reserve(source_.size() / 6 + 8);
     errors_.reserve(4);
     indentation_.reserve(16);
     offset_ = 0;
@@ -351,7 +345,7 @@ std::vector<Token> Lexer::tokenize() {
 
     emitPendingDedents(location());
     tokens_.push_back({TokenKind::EndOfFile, "", location()});
-    return tokens_;
+    return std::move(tokens_);
 }
 
 const char* tokenKindName(TokenKind kind) noexcept {
