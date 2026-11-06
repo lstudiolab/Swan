@@ -1,6 +1,11 @@
 fn add(left: int, right: int) -> int:
     return left + right
 
+fn announce() -> none:
+    log "Swan compiler ready"
+    return
+
 fn main() -> int:
     let answer = add(20, 22)
+    announce()
     return answer
