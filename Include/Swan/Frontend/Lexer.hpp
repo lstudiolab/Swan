@@ -3,6 +3,7 @@
 #include "Swan/Frontend/Token.hpp"
 
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace swan {
@@ -45,7 +46,7 @@ private:
     void applyIndentation(std::size_t width, SourceLocation where);
     void emitPendingDedents(SourceLocation where);
 
-    static TokenKind keywordKind(const std::string& text) noexcept;
+    static TokenKind keywordKind(std::string_view text) noexcept;
 };
 
 } // namespace swan
