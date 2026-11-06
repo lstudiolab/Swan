@@ -39,7 +39,7 @@ private:
     void scanToken();
     void scanIdentifier();
     void scanNumber();
-    void scanString(std::string_view opening, std::string_view closing);
+    void scanString(std::string_view opening, std::string_view closing, bool multiline);
     void scanLine();
     void emit(TokenKind kind, std::size_t start, SourceLocation where);
     void error(SourceLocation where, std::string message);
