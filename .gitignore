@@ -28,3 +28,9 @@
 vscode/node_modules/
 vscode/*.vsix
 vscode/out/
+
+# Python compiler artifacts
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
