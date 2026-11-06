@@ -28,10 +28,10 @@ enum class ASTNodeKind {
 
 struct ASTNode {
     explicit ASTNode(ASTNodeKind kind, SourceLocation location)
-        : kind(kind), location(location) {}
+        : nodeKind(kind), location(location) {}
     virtual ~ASTNode() = default;
 
-    ASTNodeKind kind;
+    ASTNodeKind nodeKind;
     SourceLocation location;
 };
 
