@@ -7,5 +7,9 @@ fn announce() -> none:
 
 fn main() -> int:
     let answer = add(20, 22)
+    if answer > 2:
+        log answer
+    else:
+        log 0
     announce()
     return answer
