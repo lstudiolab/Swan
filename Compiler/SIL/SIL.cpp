@@ -34,10 +34,12 @@ public:
     }
 
     void lower(const FunctionDecl& declaration) {
-        for (const auto& name : declaration.parameters) {
+        for (const auto& parameter : declaration.parameters) {
             const ValueID id = nextValue_++;
-            function_.parameters.push_back({name, Type::Unknown, id});
-            variables_[name] = id;
+            const Type type = parameter.typeName
+                ? typeFromName(*parameter.typeName) : Type::Unknown;
+            function_.parameters.push_back({parameter.name, type, id});
+            variables_[parameter.name] = id;
         }
         lowerStatements(declaration.body);
         if (!terminates(current())) {
