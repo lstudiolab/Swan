@@ -1,0 +1,6 @@
+fn add(left, right) -> int:
+    return left + right
+
+fn main() -> int:
+    let answer = add(20, 22)
+    return answer
