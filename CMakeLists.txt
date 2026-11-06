@@ -44,6 +44,23 @@ add_executable(swan-check
 
 target_link_libraries(swan-check PRIVATE swan_sema)
 
+add_library(swan_sil
+    Compiler/SIL/SIL.cpp
+)
+
+target_include_directories(swan_sil
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/Include
+)
+
+target_link_libraries(swan_sil PUBLIC swan_sema)
+
+add_executable(swan-sil
+    Tools/swan-sil.cpp
+)
+
+target_link_libraries(swan-sil PRIVATE swan_sil)
+
 include(CTest)
 if(BUILD_TESTING)
     add_test(
@@ -59,4 +76,8 @@ if(BUILD_TESTING)
         COMMAND swan-check ${CMAKE_CURRENT_SOURCE_DIR}/Tests/semantic-errors.swan
     )
     set_tests_properties(swan-sema-diagnostics PROPERTIES WILL_FAIL TRUE)
+    add_test(
+        NAME swan-sil-smoke
+        COMMAND swan-sil ${CMAKE_CURRENT_SOURCE_DIR}/Tests/sil-smoke.swan
+    )
 endif()
