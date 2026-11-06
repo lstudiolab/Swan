@@ -28,10 +28,13 @@ jobs:
       - name: Validate emitted LLVM IR
         run: llvm-as build/sil-smoke.ll -o /dev/null
 
+      - name: Optimize LLVM IR
+        run: opt -O2 build/sil-smoke.ll -S -o build/sil-smoke.opt.ll
+
       - name: Link and run compiled Swan program
         shell: bash
         run: |
-          clang build/sil-smoke.ll -o build/swan-smoke
+          clang build/sil-smoke.opt.ll -o build/swan-smoke
           set +e
           ./build/swan-smoke
           status=$?
