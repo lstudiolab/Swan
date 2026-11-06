@@ -312,7 +312,7 @@ ExprPtr Parser::prefixExpression() {
         check(TokenKind::Store) || check(TokenKind::Clone) ||
         check(TokenKind::Release) || check(TokenKind::Operate) ||
         check(TokenKind::Sync)) {
-        const auto op = advance();
+        const Token& op = advance();
         auto operand = parsePrecedence(8);
         if (!operand) {
             report(peek(), "Expected an operand after the prefix operator.");
