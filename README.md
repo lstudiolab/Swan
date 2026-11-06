@@ -71,7 +71,8 @@ Windows: run `install.ps1` with a C++20 compiler installed.
 - Recursive-descent parser and precedence-based expression parser.
 - Explicit AST nodes for declarations, statements, and expressions.
 - Semantic analysis for primitive types, function declarations, parameter and return types, variable scopes, mutability, calls, and control-flow conditions.
-- C11 source generation for the supported language subset.
+- Definite-return checking for non-void functions.
+- C11 generation with isolated C identifiers and dependency-ordered struct definitions.
 
 Current syntax includes functions, typed parameters, structs, local `let`/`var`/`const`, `if`/`else`, `while`, return, loop control, arithmetic, comparisons, boolean operations, calls, and `log`.
 
@@ -83,7 +84,15 @@ Recognizing a keyword does not mean its semantics are complete. Imports, `for`, 
 sh test.sh
 ```
 
-The test suite builds the native compiler, compiles every header independently to check include boundaries, transpiles sample Swan programs, compiles generated C, executes the results, and checks semantic errors.
+The test suite builds the native compiler, compiles every header independently, checks architecture boundaries and parser edge cases, transpiles sample Swan programs, compiles generated C, executes the results, and checks semantic and code-generation regressions.
+
+## Engineering documentation
+
+- [Compiler architecture](docs/ARCHITECTURE.md)
+- [Compiler correctness audit and fixes](docs/COMPILER_AUDIT.md)
+- [Performance hot paths and profiling plan](docs/PERFORMANCE.md)
+- [Testing strategy](docs/TESTING.md)
+- [Compiler roadmap](docs/ROADMAP.md)
 
 ## Project structure
 
@@ -105,5 +114,6 @@ compiler/include/swan/
 
 examples/
 tests/
+docs/
 build.sh
 ```

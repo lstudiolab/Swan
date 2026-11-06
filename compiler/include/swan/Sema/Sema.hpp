@@ -18,6 +18,7 @@ private:
     void analyzeStatement(const StmtPtr& statement);
     void analyzeBlock(const std::vector<StmtPtr>& statements);
     std::string analyzeExpression(const ExprPtr& expression);
+    bool alwaysReturns(const std::vector<StmtPtr>& statements) const;
     std::pair<std::string,bool>* lookup(const std::string& name);
     static bool numeric(const std::string& type);
     static bool compatible(const std::string& expected,const std::string& actual);

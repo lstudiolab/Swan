@@ -19,4 +19,8 @@ while IFS= read -r header; do
             -I"$INCLUDE" -x c++ -fsyntax-only -
 done
 
-printf 'PASS: one translation unit and standalone compiler headers\n'
+printf '#include "swan/Parse/Parser.hpp"\n#include <vector>\nint main() { swan::Parser parser(std::vector<swan::Token>{}); return parser.parse().empty() ? 0 : 1; }\n' |
+    "$CXX" -std=c++20 -Wall -Wextra -Wpedantic -Werror -I"$INCLUDE" -x c++ - -o "$ROOT/build/parser-empty"
+"$ROOT/build/parser-empty"
+
+printf 'PASS: one translation unit, standalone headers, and empty parser input\n'

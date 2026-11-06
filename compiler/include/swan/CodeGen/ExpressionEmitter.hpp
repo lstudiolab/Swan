@@ -27,8 +27,7 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
     case Expr::Kind::Binary:
         if (node->op == "==" || node->op == "!=" || node->op == "<" ||
             node->op == ">" || node->op == "<=" || node->op == ">=" ||
-            node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||")
-            return "bool";
+            node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||") return "bool";
         if (node->op == "/") return "float";
         return inferredType(node->left) == "float" || inferredType(node->right) == "float"
             ? "float" : inferredType(node->left);
@@ -36,7 +35,6 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
     }
     return {};
 }
-
 inline std::string CGenerator::expression(const ExprPtr& node) const {
     switch (node->kind) {
     case Expr::Kind::Literal:
@@ -45,7 +43,7 @@ inline std::string CGenerator::expression(const ExprPtr& node) const {
         if (node->literal_kind == "false") return "false";
         if (node->literal_kind == "none") return "NULL";
         return node->value;
-    case Expr::Kind::Name: return node->value;
+    case Expr::Kind::Name: return cVariableName(node->value);
     case Expr::Kind::Unary: return (node->op == "not" ? "!" : node->op) + expression(node->left);
     case Expr::Kind::Binary: {
         const auto left = expression(node->left), right = expression(node->right);
@@ -54,14 +52,15 @@ inline std::string CGenerator::expression(const ExprPtr& node) const {
         return "(" + left + " " + op + " " + right + ")";
     }
     case Expr::Kind::Call: {
-        std::string result = expression(node->left) + "(";
+        if (node->left->kind != Expr::Kind::Name) fail(node->token,"only direct function calls are supported");
+        std::string result = cFunctionName(node->left->value) + "(";
         for (std::size_t i = 0; i < node->arguments.size(); ++i) {
             if (i) result += ", ";
             result += expression(node->arguments[i]);
         }
         return result + ")";
     }
-    case Expr::Kind::Member: return expression(node->left) + "." + node->value;
+    case Expr::Kind::Member: return expression(node->left) + "." + cFieldName(node->value);
     }
     return {};
 }
