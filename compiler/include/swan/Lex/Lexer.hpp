@@ -1,5 +1,6 @@
 #pragma once
 #include "swan/Basic/Token.hpp"
+#include "swan/Basic/Diagnostic.hpp"
 #include "swan/Lex/Keywords.hpp"
 #include <string_view>
 #include <vector>
