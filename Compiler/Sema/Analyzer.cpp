@@ -60,12 +60,20 @@ void SemanticAnalyzer::predeclare() {
         }
     }
 
-    // Resolve declared return types only after all structures have been predeclared.
+    // Resolve function signatures after all top-level structures are known.
     for (const auto& statement : module_.statements) {
         const auto* function = dynamic_cast<const FunctionDecl*>(statement.get());
-        if (!function || !function->returnType) continue;
-        if (auto* symbol = globalScope_.lookup(function->name))
+        if (!function) continue;
+        auto* symbol = globalScope_.lookup(function->name);
+        if (!symbol || symbol->kind != SymbolKind::Function) continue;
+        if (function->returnType)
             symbol->returnType = resolveType(*function->returnType, function->location);
+        symbol->parameterTypes.reserve(function->parameters.size());
+        for (const auto& parameter : function->parameters) {
+            symbol->parameterTypes.push_back(parameter.typeName
+                ? resolveType(*parameter.typeName, function->location)
+                : Type::unknown());
+        }
     }
 
     const char* builtins[] = {"range", "self", "init"};
@@ -148,11 +156,15 @@ void SemanticAnalyzer::analyzeFunction(const FunctionDecl& function) {
     const auto* functionSymbol = globalScope_.lookup(function.name);
     expectedReturnType_ = functionSymbol ? functionSymbol->returnType : Type::unknown();
 
-    for (const auto& parameter : function.parameters) {
-        Symbol symbol(parameter, SymbolKind::Parameter, Type::unknown(), true);
+    for (std::size_t i = 0; i < function.parameters.size(); ++i) {
+        const auto& parameter = function.parameters[i];
+        const Type parameterType = functionSymbol &&
+            i < functionSymbol->parameterTypes.size()
+            ? functionSymbol->parameterTypes[i] : Type::unknown();
+        Symbol symbol(parameter.name, SymbolKind::Parameter, parameterType, true);
         if (!currentScope_->define(std::move(symbol))) {
             report(function.location, "S004",
-                   "Duplicate parameter name '" + parameter + "' in function '" +
+                   "Duplicate parameter name '" + parameter.name + "' in function '" +
                    function.name + "'.");
         }
     }
@@ -418,9 +430,10 @@ Type SemanticAnalyzer::analyzeExpression(const Expr& expression) {
     if (const auto* call = dynamic_cast<const CallExpr*>(&expression)) {
         const auto* name = dynamic_cast<const NameExpr*>(call->callee.get());
         const Symbol* callee = name ? currentScope_->lookup(name->name) : nullptr;
-        for (const auto& argument : call->arguments) {
-            if (argument) analyzeExpression(*argument);
-        }
+        std::vector<Type> argumentTypes;
+        argumentTypes.reserve(call->arguments.size());
+        for (const auto& argument : call->arguments)
+            argumentTypes.push_back(argument ? analyzeExpression(*argument) : Type::unknown());
         if (!callee) {
             if (name) {
                 report(name->location, "S018",
@@ -442,6 +455,19 @@ Type SemanticAnalyzer::analyzeExpression(const Expr& expression) {
                    "Function '" + name->name + "' expects " +
                    std::to_string(callee->parameterCount) + " argument(s), but got " +
                    std::to_string(call->arguments.size()) + ".");
+        }
+        if (callee->kind == SymbolKind::Function) {
+            const auto count = argumentTypes.size() < callee->parameterTypes.size()
+                ? argumentTypes.size() : callee->parameterTypes.size();
+            for (std::size_t i = 0; i < count; ++i) {
+                if (!compatible(callee->parameterTypes[i], argumentTypes[i])) {
+                    report(call->arguments[i]->location, "S022",
+                           "Argument " + std::to_string(i + 1) + " of '" +
+                           name->name + "' expects '" +
+                           callee->parameterTypes[i].toString() + "' but got '" +
+                           argumentTypes[i].toString() + "'.");
+                }
+            }
         }
         return callee->kind == SymbolKind::Function ? callee->returnType : Type::unknown();
     }
