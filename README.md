@@ -109,6 +109,10 @@ Open a `.swan` file. Use **Terminal → Run Task** and choose a task beginning w
 
 The initial extension is declarative editor support. It does **not** yet provide a language server, IntelliSense, go-to-definition, semantic highlighting, or inline compiler diagnostics. Those require a dedicated language-server implementation and a stable compiler diagnostic protocol.
 
+## Goose C transpiler (experimental)
+
+A replacement compiler is being implemented in Goose under `Compiler/Goose/`. Its target interface is `swan program.swan -o program.c`; it emits C source only and does not compile that C into an executable. The first committed vertical slice currently supports only a small `fn main():` subset with string-literal `log`, `pass`, and `return`. Unsupported statements are rejected. This implementation is not yet a replacement for the existing C++ compiler, and the normal installation/build instructions below still describe the legacy compiler until the Goose implementation has broader coverage and verified tests.
+
 ## Compiler architecture
 
 ```text
