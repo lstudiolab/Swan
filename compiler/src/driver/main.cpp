@@ -10,7 +10,7 @@ namespace {
 constexpr const char* version = "0.5.0";
 void help() {
     std::cout << "Swan " << version << "\n"
-              << "Usage: swan <source.swan> [-o output.c]\\n";
+              << "Usage: swan <source.swan> [-o output.c]\n";
 }
 }
 int main(int argc,char** argv) {
@@ -23,10 +23,10 @@ int main(int argc,char** argv) {
         }
         if (argument == "--help" || argument == "-h") { help(); return 0; }
         if (argument == "-o" || argument == "--output") {
-            if (++i >= argc) { std::cerr << "swan: missing output path\\n"; return 2; }
+            if (++i >= argc) { std::cerr << "swan: missing output path\n"; return 2; }
             output = argv[i]; hasOutput = true;
         } else if (input.empty()) input = argument;
-        else { std::cerr << "swan: unexpected argument '" << argument << "'\\n"; return 2; }
+        else { std::cerr << "swan: unexpected argument '" << argument << "'\n"; return 2; }
     }
     if (input.empty()) { help(); return 2; }
     try {
