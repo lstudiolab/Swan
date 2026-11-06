@@ -1,0 +1,16 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "swan-language-compiler"
+version = "0.2.0"
+description = "Swan programming language compiler and C transpiler"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+swan = "swan_compiler.cli:main"
+
+[tool.setuptools]
+packages = ["swan_compiler"]
