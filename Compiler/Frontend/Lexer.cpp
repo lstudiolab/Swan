@@ -151,15 +151,10 @@ void Lexer::scanNumber() {
     emit(isFloat ? TokenKind::Float : TokenKind::Integer, start, where);
 }
 
-void Lexer::scanString(char quote, bool triple) {
+void Lexer::scanString(const std::string& opening, const std::string& closing) {
     const auto start = offset_;
     const auto where = location();
-
-    advance(); // opening quote
-    if (triple) {
-        advance();
-        advance();
-    }
+    for (std::size_t i = 0; i < opening.size(); ++i) advance();
 
     bool closed = false;
     while (!atEnd()) {
@@ -169,27 +164,24 @@ void Lexer::scanString(char quote, bool triple) {
             continue;
         }
 
-        if (triple) {
-            if (current() == quote && current(1) == quote && current(2) == quote) {
-                advance();
-                advance();
-                advance();
-                closed = true;
+        bool closingMatches = true;
+        for (std::size_t i = 0; i < closing.size(); ++i) {
+            if (current(i) != closing[i]) {
+                closingMatches = false;
                 break;
             }
-        } else if (current() == quote) {
-            advance();
+        }
+        if (closingMatches) {
+            for (std::size_t i = 0; i < closing.size(); ++i) advance();
             closed = true;
             break;
         }
 
-        if (!triple && current() == '\n') break;
+        if (current() == '\n') break;
         advance();
     }
 
-    if (!closed) {
-        error(where, "Unterminated string literal.");
-    }
+    if (!closed) error(where, "Unterminated string literal.");
     emit(TokenKind::String, start, where);
 }
 
@@ -250,9 +242,20 @@ void Lexer::scanToken() {
     }
 
     if (current() == '"' || current() == '\'') {
-        const char quote = current();
-        const bool triple = current(1) == quote && current(2) == quote;
-        scanString(quote, triple);
+        const std::string quote(1, current());
+        scanString(quote, quote);
+        return;
+    }
+
+    // Accept typographic quotation marks used in Swan examples as well.
+    if (static_cast<unsigned char>(current()) == 0xE2 &&
+        static_cast<unsigned char>(current(1)) == 0x80 &&
+        (static_cast<unsigned char>(current(2)) == 0x9C ||
+         static_cast<unsigned char>(current(2)) == 0x9D)) {
+        const bool opening = static_cast<unsigned char>(current(2)) == 0x9C;
+        const std::string delimiter = opening ? "\xE2\x80\x9C" : "\xE2\x80\x9D";
+        const std::string closing = opening ? "\xE2\x80\x9D" : "\xE2\x80\x9C";
+        scanString(delimiter, closing);
         return;
     }
 
