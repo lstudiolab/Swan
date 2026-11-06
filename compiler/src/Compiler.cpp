@@ -3,6 +3,7 @@
 #include "swan/Lexer.hpp"
 #include "swan/Parser.hpp"
 #include "swan/Sema.hpp"
+#include <utility>
 
 namespace swan {
 std::string Compiler::compile(std::string_view source) const {
