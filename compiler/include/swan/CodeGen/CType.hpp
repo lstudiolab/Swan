@@ -1,5 +1,5 @@
 #pragma once
-#include "swan/Basic/Token.hpp"
+#include "swan/Basic/Diagnostic.hpp"
 #include <string>
 #include <unordered_set>
 namespace swan {
