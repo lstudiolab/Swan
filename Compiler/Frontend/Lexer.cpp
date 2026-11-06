@@ -192,7 +192,7 @@ void Lexer::scanString(std::string_view opening, std::string_view closing) {
             break;
         }
 
-        if (current() == '\n') break;
+        if (current() == '\n' && opening.size() == 1) break;
         advance();
     }
 
