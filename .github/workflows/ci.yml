@@ -1,60 +1,24 @@
 name: Swan CI
-
 on:
   push:
     branches: [main]
   pull_request:
   workflow_dispatch:
-
 jobs:
-  build-and-test:
+  python-compiler:
     runs-on: ubuntu-latest
     steps:
-      - name: Check out source
-        uses: actions/checkout@v4
-
-      - name: Install LLVM tools
-        run: sudo apt-get update && sudo apt-get install -y llvm clang
-
-      - name: Configure
-        run: cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-
-      - name: Build
-        run: cmake --build build --parallel 2
-
-      - name: Test
-        run: ctest --test-dir build --output-on-failure
-
-      - name: Validate emitted LLVM IR
-        run: llvm-as build/sil-smoke.ll -o /dev/null
-
-      - name: Optimize LLVM IR
-        run: opt -O2 build/sil-smoke.ll -S -o build/sil-smoke.opt.ll
-
-      - name: Link and run compiled Swan program
-        shell: bash
-        run: |
-          clang build/sil-smoke.opt.ll -o build/swan-smoke
-          set +e
-          ./build/swan-smoke
-          status=$?
-          set -e
-          test "$status" -eq 42
-
-      - name: Set up Node.js for VS Code extension
-        uses: actions/setup-node@v4
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
         with:
-          node-version: 20
-
-      - name: Package VS Code extension
-        working-directory: vscode
+          python-version: "3.12"
+      - name: Run compiler tests
+        run: PYTHONPATH=Compiler/Python python -m unittest discover -s Compiler/Python/tests -v
+      - name: Transpile smoke test
         run: |
-          npm install
-          npm run package
-
-      - name: Upload VS Code extension package
-        uses: actions/upload-artifact@v4
-        with:
-          name: swan-vscode-extension
-          path: vscode/*.vsix
-          if-no-files-found: error
+          mkdir -p build
+          PYTHONPATH=Compiler/Python python -m swan_compiler.cli Compiler/Python/tests/hello.swan -o build/hello.c
+      - name: Compile and run emitted C (test only)
+        run: |
+          cc -std=c11 -Wall -Wextra -Werror build/hello.c -o build/hello
+          test "$(build/hello)" = "Hello from Swan"
