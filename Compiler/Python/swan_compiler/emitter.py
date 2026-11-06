@@ -5,14 +5,14 @@ class EmitError(Exception): pass
 TYPE_MAP={"int":"int","float":"double","bool":"bool","string":"const char *","void":"void"}
 
 class CEmitter:
-    def __init__(self): self.lines=[]; self.indent=0; self.symbols={}; self.functions={}
+    def __init__(self): self.lines=[]; self.indent=0; self.symbols={}; self.functions={}; self.struct_types=set()
     def line(self,text=""): self.lines.append(("    "*self.indent+text) if text else "")
     def ctype(self,typ):
-        if typ in TYPE_MAP: return TYPE_MAP[typ]
+        if typ in TYPE_MAP: return TYPE_MAP[typ]\n        if typ in self.struct_types: return typ
         raise EmitError(f"unsupported type '{typ}'")
     def emit(self,nodes):
         self.lines=["#include <stdbool.h>","#include <stdio.h>","#include <stddef.h>",""]
-        functions=[node for node in nodes if node.kind=="function"]
+        functions=[node for node in nodes if node.kind=="function"]\n        self.struct_types={node.data["name"] for node in nodes if node.kind=="struct"}
         self.functions={node.data["name"]:node.data["return_type"] for node in functions}
         for node in nodes:
             if node.kind=="struct":
