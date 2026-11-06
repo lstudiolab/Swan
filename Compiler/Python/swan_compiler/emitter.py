@@ -5,7 +5,7 @@ class EmitError(Exception): pass
 TYPE_MAP={"int":"int","float":"double","bool":"bool","string":"const char *","void":"void"}
 
 class CEmitter:
-    def __init__(self): self.lines=[]; self.indent=0; self.symbols={}
+    def __init__(self): self.lines=[]; self.indent=0; self.symbols={}; self.functions={}
     def line(self,text=""): self.lines.append(("    "*self.indent+text) if text else "")
     def ctype(self,typ):
         if typ in TYPE_MAP: return TYPE_MAP[typ]
@@ -13,6 +13,7 @@ class CEmitter:
     def emit(self,nodes):
         self.lines=["#include <stdbool.h>","#include <stdio.h>","#include <stddef.h>",""]
         functions=[node for node in nodes if node.kind=="function"]
+        self.functions={node.data["name"]:node.data["return_type"] for node in functions}
         for node in nodes:
             if node.kind=="struct":
                 self.line(f"typedef struct {node.data['name']} {{"); self.indent+=1
@@ -43,6 +44,7 @@ class CEmitter:
         if node is None: return None
         if node.kind=="literal": return {"INT":"int","FLOAT":"float","STRING":"string","TRUE":"bool","FALSE":"bool"}.get(node.data["literal_type"])
         if node.kind=="name": return self.symbols.get(node.data["name"])
+        if node.kind=="call" and node.data["callee"].kind=="name": return self.functions.get(node.data["callee"].data["name"])
         if node.kind=="binary": return "bool" if node.data["op"] in ("==","!=","<",">","<=",">=","and","or","&&","||") else self.infer(node.data["left"])
         return None
     def statement(self,node):
