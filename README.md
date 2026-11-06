@@ -17,7 +17,15 @@ ctest --test-dir build --output-on-failure
 
 ## Compiler tools
 
-The repository currently exposes focused tools for each compiler stage:
+The unified compiler driver is the main entry point:
+
+~~~sh
+build/swan check program.swan
+build/swan emit-sil program.swan -o program.sil
+build/swan emit-llvm program.swan -o program.ll
+~~~
+
+Focused stage tools are also available for debugging:
 
 ~~~sh
 # Lex source into tokens
