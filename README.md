@@ -4,37 +4,79 @@ Swan is an indentation-based programming language with a C++17 compiler.
 
 > **Development status:** Swan is an early compiler implementation. The documented frontend and backend subset is usable for experimentation, but the language and runtime are not yet feature-complete or ABI-stable. Do not use it for production workloads yet.
 
-## Requirements
+## Install Swan
 
-- CMake 3.20 or newer
-- A C++17 compiler (GCC 10+, Clang 12+, or a supported MSVC toolchain)
-- LLVM 15+ and Clang for validating and compiling emitted LLVM IR
-- Node.js 20+ and npm only when packaging the VS Code extension
+The installer configures a Release build, compiles the compiler, runs the test suite, and installs the `swan` command. It does not require LLVM to build the compiler. A C++17 toolchain and CMake 3.20+ are required; Clang is needed separately only when compiling emitted LLVM IR into a native executable.
 
-## Build from source
+### macOS and Linux
 
-~~~sh
+Install CMake and a C++17 compiler using your system's package manager, then run:
+
+```sh
+git clone https://github.com/lstudiolab/Swan.git
+cd Swan
+sh install.sh
+```
+
+The default install location is `~/.local/bin/swan`. The installer adds `~/.local/bin` to your Bash or Zsh profile when possible. Restart your terminal after installation.
+
+Examples of prerequisites:
+
+- Ubuntu/Debian: `sudo apt install cmake g++`
+- Fedora: `sudo dnf install cmake gcc-c++`
+- macOS with Homebrew: `brew install cmake` (install Apple's Command Line Tools with `xcode-select --install` if needed)
+- Termux: `pkg install cmake clang`
+
+### Windows (PowerShell)
+
+Install CMake 3.20+ and a C++17 toolchain (Visual Studio Build Tools with the C++ workload is recommended). Then run:
+
+```powershell
+git clone https://github.com/lstudiolab/Swan.git
+cd Swan
+.\install.ps1
+```
+
+The default install location is `%USERPROFILE%\.local\bin`. The installer adds that directory to your user PATH. Open a new terminal after installation.
+
+### Custom install location
+
+Set `SWAN_INSTALL_PREFIX` before running the installer:
+
+```sh
+SWAN_INSTALL_PREFIX="$HOME/apps/swan" sh install.sh
+```
+
+PowerShell:
+
+```powershell
+$env:SWAN_INSTALL_PREFIX = "$HOME\apps\swan"
+.\install.ps1
+```
+
+The executable is installed in the prefix's `bin` directory. To use a different build directory, set `SWAN_BUILD_DIR`. To skip tests (not recommended), set `SWAN_SKIP_TESTS=1`.
+
+## Build manually
+
+If you prefer to configure the project yourself:
+
+```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build --parallel
 ctest --test-dir build --output-on-failure
-~~~
-
-To install the compiler to the configured prefix:
-
-~~~sh
 cmake --install build --prefix ~/.local
-~~~
+```
 
-Ensure `~/.local/bin` is on your `PATH`.
+Ensure the install prefix's `bin` directory is on your `PATH`.
 
 ## Compiler commands
 
-~~~sh
+```sh
 swan check program.swan
 swan emit-sil program.swan -o program.sil
 swan emit-llvm program.swan -o program.ll
 clang program.ll -o program
-~~~
+```
 
 The compiler exits non-zero when a stage reports an error. `check` performs lexer, parser, and semantic analysis. LLVM emission additionally lowers to SIL, optimizes, verifies, and emits LLVM IR.
 
@@ -52,16 +94,16 @@ Swan includes a VS Code extension under `vscode/` with:
 
 ### Install the extension from source
 
-First build and install the Swan compiler using the instructions above. The `swan` executable must be available on your shell `PATH`.
+First install the Swan compiler using the instructions above. The `swan` executable must be available on your shell `PATH`.
 
 Then package and install the extension:
 
-~~~sh
+```sh
 cd vscode
 npm install
 npm run package
 code --install-extension swan-language-0.1.0.vsix
-~~~
+```
 
 Open a `.swan` file. Use **Terminal → Run Task** and choose a task beginning with **Swan:**. The repository includes these tasks in `.vscode/tasks.json`; copy or adapt them in your own Swan project.
 
@@ -69,7 +111,7 @@ The initial extension is declarative editor support. It does **not** yet provide
 
 ## Compiler architecture
 
-~~~text
+```text
 Source
   |
   v
@@ -85,7 +127,7 @@ LLVM IR Backend
   |
   v
 LLVM toolchain -> Native executable
-~~~
+```
 
 ## Current backend coverage
 
