@@ -1,6 +1,7 @@
 #include "Swan/Backend/LLVM/LLVMEmitter.hpp"
 
 #include <cstdint>
+#include <map>
 #include <sstream>
 #include <unordered_map>
 #include <utility>
@@ -85,7 +86,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
     if (!verifier.verify(module, result.diagnostics)) return result;
 
     std::unordered_map<std::string, sil::Type> functionTypes;
-    std::unordered_map<sil::ValueID, StringGlobal> strings;
+    std::map<sil::ValueID, StringGlobal> strings;
     std::size_t stringIndex = 0;
     bool needsPrintf = false;
 
@@ -176,9 +177,9 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                         const auto length = found->second.bytes.size() + 1;
                         const auto pointer = "%strptr" + std::to_string(instruction.result);
                         output << "  " << pointer << " = getelementptr inbounds ["
-                               << length << " x i8], [" << length << " x i8]* "
+                               << length << " x i8], ptr "
                                << found->second.symbol << ", i64 0, i64 0\n";
-                        output << "  " << resultName << " = ptrtoint i8* "
+                        output << "  " << resultName << " = ptrtoint ptr "
                                << pointer << " to i64\n";
                         break;
                     }
@@ -281,13 +282,13 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                         const auto found = valueTypes.find(instruction.operands.front());
                         const bool isString = found != valueTypes.end() &&
                                               found->second == sil::Type::String;
-                        output << "  %log" << instruction.result << " = call i32 (i8*, ...) @printf(i8* "
+                        output << "  %log" << instruction.result << " = call i32 (ptr, ...) @printf(ptr "
                                << "getelementptr inbounds ("
-                               << (isString ? "[4 x i8], [4 x i8]* @swan.fmt.str"
-                                            : "[5 x i8], [5 x i8]* @swan.fmt.int")
+                               << (isString ? "[4 x i8], ptr @swan.fmt.str"
+                                            : "[5 x i8], ptr @swan.fmt.int")
                                << ", i64 0, i64 0), ";
                         if (isString)
-                            output << "i8* inttoptr (i64 " << operand(0) << " to i8*)";
+                            output << "ptr inttoptr (i64 " << operand(0) << " to ptr)";
                         else
                             output << "i64 " << operand(0);
                         output << ")\n";
