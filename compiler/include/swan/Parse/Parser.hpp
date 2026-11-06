@@ -1,5 +1,6 @@
 #pragma once
 #include "swan/AST/AST.hpp"
+#include "swan/Basic/Diagnostic.hpp"
 #include "swan/Parse/Precedence.hpp"
 #include <vector>
 
