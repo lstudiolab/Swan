@@ -25,17 +25,17 @@ private:
 
 namespace swan {
 inline Lexer::Lexer(std::string_view source) : source_(source) {}
-bool inline Lexer::eof() const { return index_ >= source_.size(); }
-char inline Lexer::peek(std::size_t offset) const {
+inline bool inline Lexer::eof() const { return index_ >= source_.size(); }
+inline char inline Lexer::peek(std::size_t offset) const {
     return index_ + offset < source_.size() ? source_[index_ + offset] : '\0';
 }
-char inline Lexer::advance() {
+inline char inline Lexer::advance() {
     const char value = source_[index_++];
     if (value == '\n') { ++line_; column_ = 1; }
     else { ++column_; }
     return value;
 }
-std::vector<Token> inline Lexer::scan() {
+inline std::vector<Token> inline Lexer::scan() {
     static const std::unordered_set<std::string> keywords = {
         "fn","let","var","const","struct","if","else","while","return",
         "break","continue","pass","log","true","false","none","int",
