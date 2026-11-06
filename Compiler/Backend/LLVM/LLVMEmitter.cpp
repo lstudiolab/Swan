@@ -125,7 +125,7 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                << "\", align 1\n";
     }
     if (needsPrintf) {
-        output << "@swan.fmt.int = private unnamed_addr constant [5 x i8] c\"%ld\\0A\\00\", align 1\n";
+        output << "@swan.fmt.int = private unnamed_addr constant [6 x i8] c\"%lld\\0A\\00\", align 1\n";
         output << "@swan.fmt.str = private unnamed_addr constant [4 x i8] c\"%s\\0A\\00\", align 1\n";
         output << "declare i32 @printf(ptr, ...)\n";
     }
@@ -279,24 +279,24 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                                    instruction.text + "'.");
                             break;
                         }
+                        if (instruction.text == "main") {
+                            report(result, "B009", "The native entry function 'main' cannot be called as a regular function.");
+                            break;
+                        }
                         const bool returnsVoid = found->second == sil::Type::Void;
-                        const bool returnsMain = instruction.text == "main";
                         if (returnsVoid)
                             output << "  ";
-                        else if (returnsMain)
-                            output << "  " << resultName << ".raw = ";
                         else
                             output << "  " << resultName << " = ";
-                        output << "call " << (returnsVoid ? "void" :
-                                     (returnsMain ? "i32" : "i64")) << ' '
+                        output << "call " << (returnsVoid ? "void" : "i64") << ' '
                                << functionSymbol(instruction.text) << '(';
                         for (std::size_t i = 0; i < instruction.operands.size(); ++i) {
                             if (i) output << ", ";
                             output << "i64 " << operand(i);
                         }
-                        output << ")\n";
+                        output << ")\\n";
                         if (returnsVoid)
-                            output << "  " << resultName << " = add i64 0, 0\n";
+                            output << "  " << resultName << " = add i64 0, 0\\n";
                         break;
                     }
                     case sil::Opcode::Log: {
@@ -336,10 +336,15 @@ EmitResult LLVMEmitter::emit(const sil::Module& module) const {
                                << blockName(instruction.falseTarget) << "\n";
                         break;
                     case sil::Opcode::Return:
-                        if (function.returnType == sil::Type::Void)
-                            output << "  ret void\n";
-                        else
-                            output << "  ret i64 " << operand(0) << "\n";
+                        if (nativeMain) {
+                            output << "  %mainret" << block.id << " = trunc i64 "
+                                   << operand(0) << " to i32\\n";
+                            output << "  ret i32 %mainret" << block.id << "\\n";
+                        } else if (function.returnType == sil::Type::Void) {
+                            output << "  ret void\\n";
+                        } else {
+                            output << "  ret i64 " << operand(0) << "\\n";
+                        }
                         break;
                 }
             }
