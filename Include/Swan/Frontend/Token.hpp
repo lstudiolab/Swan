@@ -2,7 +2,6 @@
 
 #include <cstddef>
 #include <string>
-#include <variant>
 
 namespace swan {
 
