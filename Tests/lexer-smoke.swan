@@ -1,6 +1,0 @@
-struct randomMemory:
-    var mem1 = “none”
-
-fn printMemory():
-    get.randomMemory.var.mem1
-    log “mem1”;
