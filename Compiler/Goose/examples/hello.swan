@@ -1,3 +1,0 @@
-fn main():
-    log "Hello from Swan"
-    return 0
