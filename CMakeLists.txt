@@ -44,4 +44,9 @@ if(BUILD_TESTING)
         NAME swan-sema-smoke
         COMMAND swan-check ${CMAKE_CURRENT_SOURCE_DIR}/Tests/semantic-smoke.swan
     )
+    add_test(
+        NAME swan-sema-diagnostics
+        COMMAND swan-check ${CMAKE_CURRENT_SOURCE_DIR}/Tests/semantic-errors.swan
+    )
+    set_tests_properties(swan-sema-diagnostics PROPERTIES WILL_FAIL TRUE)
 endif()
