@@ -376,7 +376,7 @@ SWAN
 "$SWAN" "$TMP/heapsort.swan" --emit-asm -o "$TMP/heapsort.s"
 cc -x assembler "$TMP/heapsort.s" -o "$TMP/heapsort"
 test "$("$TMP/heapsort")" = "1"
-printf 'PASS: in-place heapsort with unchecked u32 array indexing\\n'
+printf 'PASS: in-place heapsort with unchecked u32 array indexing\n'
 
 
 
@@ -397,9 +397,13 @@ SWAN
 "$SWAN" "$TMP/volatile-preservation.swan" --emit-asm -o "$TMP/volatile-preservation.s"
 cc -x assembler "$TMP/volatile-preservation.s" -o "$TMP/volatile-preservation"
 test "$("$TMP/volatile-preservation")" = "315"
-grep -q 'push rdi' "$TMP/volatile-preservation.s"
-grep -q 'pop rdi' "$TMP/volatile-preservation.s"
-printf 'PASS: immutable locals stay register-resident across nested and direct calls\n'
+grep -q 'mov QWORD PTR \\[rbp - .*\\], rbx' "$TMP/volatile-preservation.s"
+grep -q 'mov QWORD PTR \\[rbp - .*\\], r12' "$TMP/volatile-preservation.s"
+if grep -q 'push rdi' "$TMP/volatile-preservation.s"; then
+    echo 'FAIL: callee-saved local allocation regressed to volatile-register spills' >&2
+    exit 1
+fi
+printf 'PASS: immutable locals stay in callee-saved registers across calls\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
     log (6 * 7) + (9 - 2)
