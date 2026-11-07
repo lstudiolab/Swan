@@ -6,6 +6,7 @@
 namespace swan {
 inline std::string CGenerator::inferredType(const ExprPtr& node) const {
     if (!node) return {};
+    if (!node->resolved_type.empty()) return node->resolved_type;
     switch (node->kind) {
     case Expr::Kind::Literal:
         if (node->literal_kind == "INT") return "int";
