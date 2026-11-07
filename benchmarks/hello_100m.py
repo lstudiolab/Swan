@@ -25,6 +25,7 @@ def measured(command, label):
 goose = pathlib.Path("goose/build/goose").resolve()
 swan = pathlib.Path("swan/build/swan").resolve()
 exe = OUT / "hello-goose"
+swan_exe = OUT / "hello-swan"
 gbuild, gbuild_s, gbuild_kb = measured([goose, "build", "-o", exe, goose_src], "goose-build")
 if gbuild.returncode:
     raise SystemExit("Goose build failed:\n" + gbuild.stderr.decode(errors="replace"))
@@ -49,9 +50,26 @@ expected = N * len("Hello, World!\n".encode())
 if byte_count != expected:
     raise SystemExit(f"Output mismatch: expected {expected} bytes, got {byte_count}")
 
-sbuild, sbuild_s, sbuild_kb = measured([swan, swan_src, "--emit-asm", "-o", OUT / "hello.s"], "swan-compile")
+sbuild, sbuild_s, sbuild_kb = measured([swan, "build", swan_src, "-o", swan_exe], "swan-compile")
 swan_supported = sbuild.returncode == 0
 swan_reason = "" if swan_supported else sbuild.stderr.decode(errors="replace").strip()
+srun_s = srun_kb = swan_bytes = None
+if swan_supported:
+    swan_mem = OUT / "swan-runtime-rss.txt"
+    start = time.perf_counter()
+    sp = subprocess.Popen(["/usr/bin/time", "-f", "%M", "-o", str(swan_mem), str(swan_exe)], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    swan_bytes = 0
+    while True:
+        chunk = sp.stdout.read(1024 * 1024)
+        if not chunk: break
+        swan_bytes += len(chunk)
+    swan_stderr = sp.stderr.read()
+    src = sp.wait()
+    srun_s = time.perf_counter() - start
+    if src: raise SystemExit("Swan workload failed: " + swan_stderr.decode(errors="replace"))
+    values = [line.strip() for line in swan_mem.read_text().splitlines() if line.strip().isdigit()]
+    srun_kb = int(values[-1]) if values else None
+    if swan_bytes != expected: raise SystemExit(f"Swan output mismatch: expected {expected} bytes, got {swan_bytes}")
 result = {
     "workload": "100,000,000 lines: Hello, World! newline",
     "goose": {"compile_seconds": round(gbuild_s, 4), "compile_peak_rss_kb": gbuild_kb,
@@ -59,7 +77,7 @@ result = {
               "output_bytes": byte_count, "executable_bytes": exe.stat().st_size,
               "source_bytes": goose_src.stat().st_size, "status": "PASS"},
     "swan": {"compile_seconds": round(sbuild_s, 4), "compile_peak_rss_kb": sbuild_kb,
-             "run_seconds": None, "run_peak_rss_kb": None, "output_bytes": None,
+             "run_seconds": round(srun_s, 4) if srun_s is not None else None, "run_peak_rss_kb": srun_kb, "output_bytes": swan_bytes,
              "source_bytes": swan_src.stat().st_size,
              "status": "PASS" if swan_supported else "UNSUPPORTED", "reason": swan_reason},
     "method": "Ubuntu GitHub-hosted runner; wall-clock via perf_counter; peak RSS via /usr/bin/time in KiB; output streamed and counted without retaining it."
@@ -72,11 +90,11 @@ lines = [
     "| Compiler | Compile time (seconds) | Compile peak memory (MiB) | Run time (seconds) | Runtime peak memory (MiB) | Output data | Status |",
     "|---|---:|---:|---:|---:|---:|---|",
     f"| Goose | {gbuild_s:.2f} | {gbuild_kb/1024:.2f} | {grun_s:.2f} | {grun_kb/1024:.2f} | {byte_count:,} bytes | PASS |",
-    f"| Swan | {sbuild_s:.2f} | {sbuild_kb/1024:.2f} | N/A | N/A | N/A | {'Compile accepted; not executed' if swan_supported else 'UNSUPPORTED'} |",
+    (f"| Swan | {sbuild_s:.2f} | {sbuild_kb/1024:.2f} | {srun_s:.2f} | {srun_kb/1024:.2f} | {swan_bytes:,} bytes | PASS |" if swan_supported else f"| Swan | {sbuild_s:.2f} | {sbuild_kb/1024:.2f} | N/A | N/A | N/A | UNSUPPORTED |"),
     "", f"Expected output volume: **{expected:,} bytes** ({expected/1e9:.2f} GB decimal).",
     f"Goose executable: **{exe.stat().st_size:,} bytes**. Goose source: **{goose_src.stat().st_size:,} bytes**. Swan source: **{swan_src.stat().st_size:,} bytes**.",
     "", "## Interpretation", "",
-    "Swan's current C compiler does not implement for-loop lowering, so it cannot execute this same 100-million-iteration program. Swan compile time and memory therefore measure rejection of the equivalent source, not successful compilation. No Swan runtime number is invented.",
+    "Both compilers receive equivalent 100-million-iteration programs and must produce exactly the same output before runtime results are accepted. Compile time includes language compilation and native executable linking.",
     "", "Peak memory is process maximum resident set size. Output was streamed and counted by the harness, not saved to disk. Timings are specific to this runner.",
     "", "Raw measurements: results.json."
 ]
