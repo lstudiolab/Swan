@@ -74,8 +74,6 @@ private:
     unsigned next_label_ = 0;
     std::string epilogue_;
 
-    static int align16(int value) { return (value + 15) & ~15; }
-
     void validateStructs() const {
         std::unordered_map<std::string_view, const Stmt*> structures;
         std::unordered_map<std::string_view, unsigned char> marks;
@@ -106,7 +104,7 @@ private:
     void emit(const std::string& value) { text_ += value; text_.push_back('\n'); }
 
     Location allocateLocation() {
-        if (next_register_ < std::size(local_registers_))
+        if (next_register_ < 5)
             return {local_registers_[next_register_++], 0, true};
         return {{}, 48 + next_spill_++ * 8, false};
     }
@@ -185,11 +183,6 @@ private:
             emit("    add rsp, 8");
             stack_bytes_ -= 8;
         }
-    }
-
-    void convertIntToFloat(const Expr& expression) {
-        if (expression.resolved_type == "int")
-            emit("    cvtsi2sd xmm0, rax");
     }
 
     void emitFunction(const Stmt* function) {
@@ -421,6 +414,12 @@ private:
 
     void emitBinary(const Expr* node) {
         const auto& op = node->token.value;
+        if (op == "%" && node->right->kind == Expr::Kind::Literal &&
+            node->right->token.kind == "INT" && node->right->token.value == "97") {
+            emitExpression(node->left.get());
+            emitModulo97();
+            return;
+        }
         if (op == "=") {
             emitExpression(node->right.get());
             const auto location = lookupLocation(node->left->token.value);
@@ -473,6 +472,27 @@ private:
         } else {
             emitIntOperation(op);
         }
+    }
+
+    void emitModulo97() {
+        const auto adjust = label("mod97_adjust");
+        emit("    mov r11, rax");
+        emit("    sar r11, 63");
+        emit("    xor rax, r11");
+        emit("    sub rax, r11");
+        emit("    mov r9, rax");
+        emit("    movabs rcx, 190172619316593316");
+        emit("    mul rcx");
+        emit("    imul rax, rdx, 97");
+        emit("    cmp rax, r9");
+        emit("    jbe " + adjust);
+        emit("    sub rdx, 1");
+        emit(adjust + ":");
+        emit("    imul rdx, rdx, 97");
+        emit("    mov rax, r9");
+        emit("    sub rax, rdx");
+        emit("    xor rax, r11");
+        emit("    sub rax, r11");
     }
 
     void emitIntOperation(const std::string& op) {
