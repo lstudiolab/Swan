@@ -334,6 +334,7 @@ static inline Expr *find_loop_hoist(Stmt *s,Locals *l){
  }
  return NULL;
 }
+static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l);
 static inline bool statements_have_early_exit(Stmt **body,size_t n){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];if(s->kind==S_RETURN||s->kind==S_BREAK||s->kind==S_CONTINUE)return true;
