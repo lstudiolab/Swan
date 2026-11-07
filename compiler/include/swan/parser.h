@@ -16,16 +16,16 @@ static inline Expr *prefix(Parser *p){
  Token t=take(p);Expr *e=NULL;
  if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE||t.kind==T_NONE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
  else if(t.kind==T_IDENT){e=new_expr(p,E_NAME,t);}
- else if(t.kind==T_MINUS||t.kind==T_NOT){e=new_expr(p,E_UNARY,t);if(e)e->left=expression(p,8);}
+ else if(t.kind==T_MINUS||t.kind==T_NOT){e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
  else{swan_error(p->err,&t,"expected expression");p->failed=true;return NULL;}
  while(e&&!p->failed){
-  if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;if(!is(p,T_RP)){do{if(call->argc>=16){swan_error(p->err,pk(p),"too many call arguments");p->failed=true;break;}call->args[call->argc++]=expression(p,1);}while(eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
+  if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){do{if(call->argc>=16){swan_error(p->err,pk(p),"too many call arguments");p->failed=true;break;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
   else break;
  }
  return e;
 }
-static inline Expr *expression(Parser *p,int min){Expr *left=prefix(p);while(left&&!p->failed){int prec=precedence(pk(p)->kind);if(prec<min)break;Token op=take(p);Expr *right=expression(p,op.kind==T_ASSIGN?prec:prec+1);Expr *e=new_expr(p,E_BINARY,op);if(!e)return left;e->left=left;e->right=right;left=e;}return left;}
+static inline Expr *expression(Parser *p,int min){Expr *left=prefix(p);while(left&&!p->failed){int prec=precedence(pk(p)->kind);if(prec<min)break;Token op=take(p);Expr *right=expression(p,op.kind==T_ASSIGN?prec:prec+1);Expr *e=new_expr(p,E_BINARY,op);if(!e)return left;e->left=left;e->right=right;e->contains_call=(left&&left->contains_call)||(right&&right->contains_call);left=e;}return left;}
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
 static inline Stmt *statement(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
