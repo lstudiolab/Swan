@@ -9,7 +9,7 @@ namespace swan {
 inline StmtPtr Parser::declaration() {
     if (check("fn")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::Function; node->token = advance();
+        node->kind = Stmt::Kind::Function; node->token = advance().location();
         node->name = expect("IDENT","expected function name").value;
         expect("(");
         if (!check(")")) {
@@ -17,7 +17,7 @@ inline StmtPtr Parser::declaration() {
                 const auto& parameter = expect("IDENT","expected parameter name");
                 std::string type;
                 if (match(":")) type = typeName();
-                node->parameters.push_back({parameter.value,type,parameter});
+                node->parameters.push_back({parameter.value,type,parameter.location()});
             } while (match(","));
         }
         expect(")");
@@ -34,7 +34,7 @@ inline StmtPtr Parser::declaration() {
             if (check("var") || check("let")) advance();
             const auto& field = expect("IDENT","expected field name");
             expect(":");
-            node->fields.push_back({field.value,typeName(),field});
+            node->fields.push_back({field.value,typeName(),field.location()});
             separators();
         }
         expect("}");
