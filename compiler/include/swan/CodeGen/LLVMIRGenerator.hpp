@@ -2,6 +2,7 @@
 #include "swan/AST/AST.hpp"
 #include "swan/Basic/Diagnostic.hpp"
 #include <cstdint>
+#include <cstdio>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -13,6 +14,7 @@ class LLVMIRGenerator {
     struct Value { std::string type, value; };
     const Program& program_;
     std::string out_;
+    std::string globals_;
     std::vector<std::string> allocas_;
     std::unordered_map<const Stmt*, std::string> slots_;
     std::vector<std::unordered_map<std::string, std::string>> scopes_;
@@ -50,7 +52,7 @@ class LLVMIRGenerator {
             name = "@.s" + std::to_string(string_++);
             strings_.emplace(s, name);
             std::string encoded = bytes(s);
-            out_ = "@.s" + std::to_string(string_ - 1) + " = private unnamed_addr constant [" +
+            globals_ += name + " = private unnamed_addr constant [" +
                 std::to_string(s.size() + 1) + " x i8] c\"" + encoded + "\\00\", align 1\n" + out_;
         } else name = it->second;
         auto p = tmp();
@@ -80,6 +82,7 @@ class LLVMIRGenerator {
         if (v.type == "i64" && wanted == "double") {
             auto r = tmp(); line(r + " = sitofp i64 " + v.value + " to double"); return {wanted, r};
         }
+        if (v.type == "i64" && wanted == "i32") { auto r = tmp(); line(r + " = trunc i64 " + v.value + " to i32"); return {wanted, r}; }
         if (v.type == "i1" && wanted == "i64") {
             auto r = tmp(); line(r + " = zext i1 " + v.value + " to i64"); return {wanted, r};
         }
@@ -181,7 +184,7 @@ class LLVMIRGenerator {
             if (terminated_) break;
             if (s->kind == Stmt::Kind::Variable) {
                 auto p = slots_.at(s.get()); scopes_.back()[s->name] = p;
-                auto t = ty(s->type.empty() ? s->value->resolved_type : s->type);
+                auto t = ty(s->type.empty() ? (s->value ? s->value->resolved_type : "int") : s->type);
                 auto a = s->value ? cast(emitExpr(s->value.get()), t) : Value{t, t == "ptr" ? "null" : "0"};
                 line("store " + t + " " + a.value + ", ptr " + p);
             } else if (s->kind == Stmt::Kind::Log) {
@@ -241,12 +244,6 @@ public:
         }
         out_ += "declare i32 @printf(ptr, ...)\ndeclare i32 @puts(ptr)\ndeclare ptr @calloc(i64, i64)\n";
         for (const auto& s : program_) if (s->kind == Stmt::Kind::Function) {
-            auto ret = s->name == "main" ? "i32" : ty(s->return_type);
-            out_ += "declare " + std::string(ret) + " @" + (s->name == "main" ? "main" : "swan_fn_" + s->name) + "(";
-            for (std::size_t i = 0; i < s->parameters.size(); ++i) { if (i) out_ += ", "; out_ += ty(s->parameters[i].type); }
-            out_ += ")\n";
-        }
-        for (const auto& s : program_) if (s->kind == Stmt::Kind::Function) {
             temp_ = label_ = 0; slots_.clear(); allocas_.clear(); scopes_.clear(); loops_.clear(); terminated_ = false;
             currentReturn_ = s->name == "main" ? "i32" : ty(s->return_type);
             std::vector<std::string> params;
@@ -262,12 +259,11 @@ public:
                 out_ += "  " + p + " = alloca " + t + "\n  store " + t + " " + params[i] + ", ptr " + p + "\n";
                 scopes_.back()[s->parameters[i].name] = p;
             }
-            scopes_.clear();
             bool done = emitBlock(s->body);
             if (!done) out_ += "  ret " + currentReturn_ + (currentReturn_ == "void" ? "" : " 0") + "\n";
             out_ += "}\n";
         }
-        return out_;
+        return out_ + globals_;
     }
 };
 
