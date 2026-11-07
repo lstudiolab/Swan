@@ -293,7 +293,7 @@ public:
             for (std::size_t i = 0; i < s->fields.size(); ++i) { if (i) out_ += ", "; out_ += ty(s->fields[i].type); }
             out_ += " }\n";
         }
-        out_ += "declare i32 @printf(ptr, ...)\ndeclare i32 @puts(ptr)\ndeclare ptr @calloc(i64, i64)\n";
+        out_ += "declare i32 @printf(ptr, ...)\ndeclare i32 @puts(ptr)\ndeclare ptr @calloc(" + sizeType_ + ", " + sizeType_ + ")\n";
         for (const auto& s : program_) if (s->kind == Stmt::Kind::Function) {
             temp_ = label_ = 0; slots_.clear(); allocas_.clear(); scopes_.clear(); loops_.clear(); terminated_ = false;
             currentReturn_ = s->name == "main" ? "i32" : ty(s->return_type);
