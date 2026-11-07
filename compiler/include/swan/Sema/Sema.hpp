@@ -36,7 +36,7 @@ private:
     static bool compatible(std::string_view expected, std::string_view actual);
     const Program& program_;
     std::unordered_set<std::string> types_{"int","float","bool","string","void"};
-    std::unordered_map<std::string,StmtPtr> functions_;
+    std::unordered_map<std::string,const Stmt*> functions_;
     std::vector<Scope> scopes_;
     std::unordered_map<std::string_view, Symbol*, StringViewHash, std::equal_to<>> active_symbols_;
     std::string return_type_;
