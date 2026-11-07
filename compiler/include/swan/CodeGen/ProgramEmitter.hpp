@@ -2,6 +2,7 @@
 #include "swan/CodeGen/CGenerator.hpp"
 #include <functional>
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -19,7 +20,7 @@ inline std::string CGenerator::generate() {
     output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
     std::vector<const Stmt*> structures;
     structures.reserve(program_.size());
-    std::unordered_map<std::string,const Stmt*> structureByName;
+    std::unordered_map<std::string_view,const Stmt*> structureByName;
     structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
@@ -32,7 +33,7 @@ inline std::string CGenerator::generate() {
     for (const auto* structure : structures)
         line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
     if (!structures.empty()) line();
-    std::unordered_map<std::string,unsigned char> state;
+    std::unordered_map<std::string_view,unsigned char> state;
     state.reserve(structures.size());
     std::vector<const Stmt*> ordered;
     ordered.reserve(structures.size());
