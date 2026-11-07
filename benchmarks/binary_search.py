@@ -61,6 +61,8 @@ fn main(){
 }
 """
 GOOSE_SRC = r"""
+import std;
+
 fn main() {
  let n=20000000;
  var values:i64[]=[0;n];
@@ -86,9 +88,10 @@ def run(command):
     start=time.perf_counter()
     p=subprocess.run([TIME,"-f","%M","-o",str(rss),*command],cwd=ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
     elapsed=time.perf_counter()-start
-    peak=int(rss.read_text().strip() or "0")/1024
+    rss_lines=rss.read_text().strip().splitlines()
+    peak=int(rss_lines[-1] if rss_lines else "0")/1024
     rss.unlink(missing_ok=True)
-    if p.returncode: raise RuntimeError(f"{command} failed\n{p.stdout}\n{p.stderr}")
+    if p.returncode: raise RuntimeError(f"{command} failed (exit {p.returncode})\n{p.stdout}\n{p.stderr}")
     return elapsed,peak,p.stdout.strip()
 
 def main():
