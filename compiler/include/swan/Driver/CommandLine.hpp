@@ -8,8 +8,8 @@ enum class Action { Run, Build };
 struct CommandLine {
     std::filesystem::path input, output;
     Action action = Action::Run;
-    bool hasOutput = false, emitAssembly = false, emitObject = false, optimize = false, fastCompile = false;
-    std::string target = "native", cpu, features;
+    bool hasOutput = false, emitAssembly = false, emitObject = false;
+    std::string target = "native";
     bool showHelp = false, showVersion = false;
 };
 inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
@@ -22,13 +22,6 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
         if (arg == "--help" || arg == "-h") { options.showHelp = true; return true; }
         if (arg == "--emit-asm") { options.emitAssembly = true; continue; }
         if (arg == "--emit-obj") { options.emitObject = true; continue; }
-        if (arg == "--optimize" || arg == "-O" || arg == "-O3") { options.optimize = true; continue; }
-        if (arg == "--fast-compile" || arg == "-O0") { options.fastCompile = true; continue; }
-        if (arg == "--cpu" || arg == "--features") {
-            if (++i >= argc) { std::cerr << "swan: missing value for " << arg << "\\n"; return false; }
-            if (arg == "--cpu") options.cpu = argv[i]; else options.features = argv[i];
-            continue;
-        }
         if (arg == "--target") {
             if (++i >= argc) { std::cerr << "swan: missing target name\n"; return false; }
             options.target = argv[i]; continue;
@@ -50,7 +43,7 @@ inline void printHelp() {
               << "       swan <file.swan> --emit-asm  Emit target assembly\n"
               << "       swan <file.swan> --emit-obj  Emit target object file\n"
               << "       swan <file.swan> --target TRIPLE --emit-asm\n"
-              << "Targets: native, x86_64, aarch64, armv7, riscv64, wasm32, or LLVM target triple\n"
-              << "Options: -O / --optimize, --fast-compile, --cpu CPU, --features +feature,-feature, -o PATH\n";
+              << "Targets: native, x86_64 (initial Swan-owned backend)\n"
+              << "Options: -o PATH\n";
 }
 } // namespace swan::driver
