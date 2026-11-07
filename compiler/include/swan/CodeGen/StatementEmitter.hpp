@@ -40,7 +40,7 @@ inline void CGenerator::statement(const StmtPtr& node) {
         }
         symbols_[node->name] = type;
         beginLine();
-        appendCType(output_, std::string(type));
+        appendCType(output_, type);
         output_ += node->mutable_value ? " " : " const ";
         output_ += "swan_var_";
         output_ += node->name;
