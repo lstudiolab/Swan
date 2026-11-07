@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Ten-way native/JVM runtime comparison on a shared branch-and-call workload."""
-# Benchmark runner revision 2: Goose checkout is a sibling of the Swan checkout.
+# Benchmark runner revision 3: GNU Objective-C mode permits C11 loop declarations.
 import json, os, pathlib, platform, re, statistics, subprocess, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
