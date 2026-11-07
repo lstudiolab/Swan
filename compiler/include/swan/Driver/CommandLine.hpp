@@ -6,91 +6,44 @@
 namespace swan::driver {
 enum class Action { Run, Build };
 struct CommandLine {
-    std::filesystem::path input;
-    std::filesystem::path output;
+    std::filesystem::path input, output;
     Action action = Action::Run;
-    bool hasOutput = false;
-    bool emitAssembly = false;
-    bool emitC = false;
-    bool optimize = false;
-    bool fastCompile = false;
+    bool hasOutput = false, emitAssembly = false, optimize = false, fastCompile = false;
     std::string target = "native";
-    bool showHelp = false;
-    bool showVersion = false;
+    bool showHelp = false, showVersion = false;
 };
 inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
-    int index = 1;
-    if (index < argc && std::string(argv[index]) == "build") {
-        options.action = Action::Build;
-        ++index;
-    } else if (index < argc && std::string(argv[index]) == "run") {
-        options.action = Action::Run;
-        ++index;
-    }
-    for (; index < argc; ++index) {
-        const std::string argument = argv[index];
-        if (argument == "--version" || argument == "-v") {
-            options.showVersion = true;
-            return true;
+    int i = 1;
+    if (i < argc && std::string(argv[i]) == "build") { options.action = Action::Build; ++i; }
+    else if (i < argc && std::string(argv[i]) == "run") ++i;
+    for (; i < argc; ++i) {
+        const std::string arg = argv[i];
+        if (arg == "--version" || arg == "-v") { options.showVersion = true; return true; }
+        if (arg == "--help" || arg == "-h") { options.showHelp = true; return true; }
+        if (arg == "--emit-asm") { options.emitAssembly = true; continue; }
+        if (arg == "--optimize" || arg == "-O" || arg == "-O3") { options.optimize = true; continue; }
+        if (arg == "--fast-compile" || arg == "-O0") { options.fastCompile = true; continue; }
+        if (arg == "--target") {
+            if (++i >= argc) { std::cerr << "swan: missing target name\n"; return false; }
+            options.target = argv[i]; continue;
         }
-        if (argument == "--help" || argument == "-h") {
-            options.showHelp = true;
-            return true;
+        if (arg == "-o" || arg == "--output") {
+            if (++i >= argc) { std::cerr << "swan: missing output path\n"; return false; }
+            options.output = argv[i]; options.hasOutput = true; continue;
         }
-        if (argument == "--emit-asm") {
-            options.emitAssembly = true;
-            continue;
-        }
-        if (argument == "--emit-c") {
-            options.emitC = true;
-            continue;
-        }
-        if (argument == "--optimize" || argument == "-O") {
-            options.optimize = true;
-            continue;
-        }
-        if (argument == "--fast-compile") {
-            options.fastCompile = true;
-            continue;
-        }
-        if (argument == "--target") {
-            if (++index >= argc) {
-                std::cerr << "swan: missing target name\\n";
-                return false;
-            }
-            options.target = argv[index];
-            continue;
-        }
-        if (argument == "-o" || argument == "--output") {
-            if (++index >= argc) {
-                std::cerr << "swan: missing output path\n";
-                return false;
-            }
-            options.output = argv[index];
-            options.hasOutput = true;
-            continue;
-        }
-        if (options.input.empty()) {
-            options.input = argument;
-            continue;
-        }
-        std::cerr << "swan: unexpected argument '" << argument << "'\n";
-        return false;
+        if (options.input.empty()) { options.input = arg; continue; }
+        std::cerr << "swan: unexpected argument '" << arg << "'\n"; return false;
     }
     if (options.input.empty()) options.showHelp = true;
     return true;
 }
 inline void printHelp() {
     std::cout << "Swan " << versionString() << "\n"
-              << "Usage: swan <file.swan>          Compile and run\n"
-              << "       swan run <file.swan>      Compile and run\n"
-              << "       swan build <file.swan>    Build a native executable\n"
-              << "       swan <file.swan> --emit-asm [-o output.s]\n"
-              << "       swan <file.swan> --emit-c [-o output.c]\n"
-              << "       swan <file.swan> --target TARGET --emit-asm\n"
-              << "       swan <file.swan> --optimize  Optimized portable backend\n"
-              << "       swan <file.swan> --fast-compile  Direct native backend\n"
-              << "Targets: native, x86_64, aarch64, armv7, riscv64, wasm32, or Clang triple\n"
-              << "Options: -o, --output PATH  Output executable or assembly file\n";
+              << "Usage: swan <file.swan> [options]  Compile and run\n"
+              << "       swan build <file.swan>      Build native executable\n"
+              << "       swan <file.swan> --emit-asm  Emit target assembly\n"
+              << "       swan <file.swan> --target TRIPLE --emit-asm\n"
+              << "Targets: native, x86_64, aarch64, armv7, riscv64, wasm32, or LLVM target triple\n"
+              << "Options: -O / --optimize, --fast-compile, -o PATH\n";
 }
 } // namespace swan::driver
