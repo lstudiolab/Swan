@@ -193,12 +193,12 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!strcmp(name,"array_u32")){
   if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return;}
   emit_expr(o,e->args[0],l,err);
-  text_add(o,"    test rax, rax\\n    js .Lswan_array_bounds_fail\\n");
+  text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n");
   cg_push(o,"rax");
-  text_add(o,"    add rax, 2\\n    mov rdi, rax\\n    mov esi, 4\\n");
+  text_add(o,"    add rax, 2\n    mov rdi, rax\n    mov esi, 4\n");
   cg_call(o,"calloc@PLT");
   cg_pop(o,"rcx");
-  text_add(o,"    test rax, rax\\n    jz .Lswan_array_bounds_fail\\n    mov QWORD PTR [rax], rcx\\n    add rax, 8\\n");
+  text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], rcx\n    add rax, 8\n");
   o->uses_array_bounds=true;
   return;
  }
@@ -275,10 +275,10 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   Local *array=local_find(l,e->left->token.text);
   if(!array||!array->array_u32){swan_error(err,&e->token,"indexing currently requires an array_u32 value");break;}
   emit_expr(o,e->right,l,err);cg_push(o,"rax");
-  if(array->reg>=0)text_add(o,"    mov r11, %s\\n",cg_reg_name(array->reg));
-  else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\\n",array->slot*8);
+  if(array->reg>=0)text_add(o,"    mov r11, %s\n",cg_reg_name(array->reg));
+  else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);
   cg_pop(o,"rcx");
-  text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\\n    jae .Lswan_array_bounds_fail\\n    mov eax, DWORD PTR [r11 + rcx*4]\\n");
+  text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n    mov eax, DWORD PTR [r11 + rcx*4]\n");
   o->uses_array_bounds=true;
   break;
  }
@@ -297,9 +297,9 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
     emit_expr(o,e->left->right,l,err);cg_push(o,"rax");
     emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
-    if(array->reg>=0)text_add(o,"    mov r11, %s\\n",cg_reg_name(array->reg));
-    else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\\n",array->slot*8);
-    text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\\n    jae .Lswan_array_bounds_fail\\n    mov DWORD PTR [r11 + rcx*4], eax\\n");
+    if(array->reg>=0)text_add(o,"    mov r11, %s\n",cg_reg_name(array->reg));
+    else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);
+    text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n    mov DWORD PTR [r11 + rcx*4], eax\n");
     o->uses_array_bounds=true;break;
    }
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");break;}
@@ -601,7 +601,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);
      for(const unsigned char *q=(const unsigned char*)s->value->token.text;*q;q++){
       if(*q==34||*q==92)text_add(o,"\\%c",*q);
-      else if(*q==10)text_add(o,"\\n");
+      else if(*q==10)text_add(o,"\n");
       else if(*q==9)text_add(o,"\\t");
       else if(*q==13)text_add(o,"\\r");
       else if(*q<32)text_add(o,"\\%03o",*q);
@@ -665,8 +665,8 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){size_t index=a-1;Local *v=local_find(&l,fn->params[index]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);}}
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
  }
- if(o->uses_array_bounds)text_add(o,".text\\n.Lswan_array_bounds_fail:\\n    call abort@PLT\\n    ud2\\n");
- text_add(o,".section .rodata\\n.Lswan_fmt:\\n    .string \"%%ld\\n\"\\n.section .note.GNU-stack,\"\",@progbits\\n");
+ if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
+ text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  return err->message[0]==0;
 }
 #endif
