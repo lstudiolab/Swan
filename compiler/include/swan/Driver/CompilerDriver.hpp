@@ -110,7 +110,7 @@ inline int runCompiler(int argc, char** argv) {
             );
         const char* envFast = std::getenv("SWAN_FAST_COMPILE");
         const bool fast = options.fastCompile || (envFast && *envFast && std::string(envFast) != "0");
-        const auto ir = Compiler().compileIR(source);
+        const auto ir = Compiler().compileIR(source, options.target);
         const int status = driver::compileLLVM(ir, output, options.target, assembly, execute, fast);
         if (!options.hasOutput && !assembly) { std::error_code e; std::filesystem::remove(output, e); }
         if (!execute && !assembly && status == 0) std::cout << "Built " << output.string() << '\n';
