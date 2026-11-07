@@ -6,7 +6,7 @@
 #include <vector>
 namespace swan {
 struct Expr;
-using ExprPtr = std::shared_ptr<Expr>;
+using ExprPtr = std::unique_ptr<Expr>;
 struct Expr {
     enum class Kind { Literal, Name, Unary, Binary, Call, Member };
     enum class ResolvedType : std::uint8_t { Unknown, Int, Float, Bool, String, None, Void };
