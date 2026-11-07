@@ -2,7 +2,6 @@
 #include "swan/AST/AST.hpp"
 #include "swan/CodeGen/CType.hpp"
 #include "swan/CodeGen/StringLiteral.hpp"
-#include <sstream>
 #include <string>
 #include <unordered_map>
 #include <unordered_set>
@@ -23,7 +22,7 @@ private:
     void block(const std::vector<StmtPtr>& statements);
     void statement(const StmtPtr& statement);
     const Program& program_;
-    std::ostringstream output_;
+    std::string output_;
     unsigned indent_ = 0;
     std::unordered_set<std::string> structs_;
     std::unordered_map<std::string,StmtPtr> functions_;
