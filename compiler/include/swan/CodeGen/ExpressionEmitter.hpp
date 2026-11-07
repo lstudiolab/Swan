@@ -1,10 +1,11 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace swan {
-inline std::string CGenerator::inferredType(const ExprPtr& node) const {
+inline std::string_view CGenerator::inferredType(const ExprPtr& node) const {
     if (!node) return {};
     switch (node->resolved_type) {
     case Expr::ResolvedType::Int: return "int";
@@ -23,12 +24,12 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
         if (node->literal_kind == "true" || node->literal_kind == "false") return "bool";
         return "none";
     case Expr::Kind::Name: {
-        auto found = symbols_.find(node->value);
-        return found == symbols_.end() ? "" : found->second;
+        const auto found = symbols_.find(node->value);
+        return found == symbols_.end() ? std::string_view{} : std::string_view(found->second);
     }
     case Expr::Kind::Call:
         if (node->left->kind == Expr::Kind::Name) {
-            auto found = functions_.find(node->left->value);
+            const auto found = functions_.find(node->left->value);
             if (found != functions_.end()) return found->second->return_type;
         }
         return {};
@@ -57,7 +58,7 @@ inline std::string CGenerator::expression(const ExprPtr& node) const {
 inline void CGenerator::appendExpression(std::string& output, const ExprPtr& node) const {
     switch (node->kind) {
     case Expr::Kind::Literal:
-        if (node->literal_kind == "STRING") output += quote(node->value);
+        if (node->literal_kind == "STRING") appendEscapedCString(output, node->value);
         else if (node->literal_kind == "true") output += "true";
         else if (node->literal_kind == "false") output += "false";
         else if (node->literal_kind == "none") output += "NULL";
@@ -113,5 +114,4 @@ inline void CGenerator::appendExpression(std::string& output, const ExprPtr& nod
         return;
     }
 }
-
 }
