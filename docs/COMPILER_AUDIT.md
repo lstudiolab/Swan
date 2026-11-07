@@ -1,44 +1,36 @@
 # Compiler Correctness Audit
 
-This document records correctness properties and regression coverage for Swan's native LLVM IR backend.
+## Current state
 
-## Correctness coverage
+The compiler now emits assembly directly from the checked Swan AST through a Swan-owned x86-64 System V backend. The LLVM IR generator has been removed. The build and CI no longer require LLVM or Clang.
 
-| Area | Failure mode | Resolution |
-|---|---|---|
-| Definite returns | Non-void functions could fall through without returning | Semantic analysis requires a return on every statically visible path; an `if` counts only when both branches return |
-| Void values | Void-returning calls could be inferred as variable values | Variables, parameters, and struct fields reject `void`; void remains valid as a function return type |
-| Struct cycles | By-value recursive struct dependencies are invalid | The native IR backend detects dependency cycles and reports a compiler diagnostic |
-| Native symbol collisions | User function names could collide with runtime or platform symbols | Non-entry Swan functions use the `swan_fn_` symbol prefix; `main` remains the process entry point |
-| Empty parser input | `peek()` could underflow when the parser received an empty token vector | The parser constructor guarantees a terminal EOF token |
-| Target ABI width | 32-bit targets use 32-bit `size_t` for allocation calls | The IR lowering selects the allocation size type from the requested target triple |
+The system assembler/linker is used only after Swan emits assembly. It does not perform Swan instruction selection or optimization.
 
-## Backend coverage
+## Implemented in the initial x86-64 backend
 
-The checked Swan AST lowers directly to LLVM IR. The LLVM target backend emits assembly for the targets exercised by CI:
+- Integer and boolean literals.
+- Local variables and function parameters.
+- Integer arithmetic and signed comparisons.
+- Function calls with up to six arguments.
+- If/else and while control flow.
+- Break and continue.
+- String literals and basic console logging.
+- Heap integer arrays using the platform C runtime allocator.
+- GNU assembler Intel syntax output.
 
-- x86-64
-- AArch64
-- ARMv7
-- RISC-V 64
-- WebAssembly 32
-- Apple iOS/macOS, Android, and Windows target triples
+## Known limitations
 
-The installed LLVM build determines the complete set of available target triples. Cross-target linking additionally requires the platform linker, runtime, and sysroot.
+- Floating-point lowering is not implemented.
+- Struct member lowering is not implemented.
+- More than six call arguments are rejected.
+- Only the x86-64 System V ABI backend is implemented.
+- AArch64, ARM, RISC-V, and WebAssembly backends do not exist yet.
+- Register allocation is currently stack-based and not optimized.
+- CPU-specific instruction tuning and mature Swan-owned optimization passes are not implemented.
+- Platform-specific ABIs beyond the initial x86-64 System V target are not yet validated.
 
-## Regression coverage
+These limitations are deliberate and must not be hidden behind external compiler fallbacks.
 
-`tests/regressions.sh` exercises invalid return and void-type cases, return branches, forward struct references, struct cycle diagnostics, and string parameter behavior.
+## Required next tests
 
-`tests/architecture.sh` generates and validates assembly for the supported architecture matrix and runs a native array/function workload.
-
-## Scope and limitations
-
-This is a targeted correctness pass, not a proof of compiler correctness. In particular:
-
-- Return analysis is conservative: loops are not assumed to execute, even when their condition is a compile-time true value.
-- Struct declarations and cycle diagnostics are supported; member access is still rejected by semantic analysis.
-- The current typed AST-to-LLVM IR lowering is an initial implementation and still needs complete language-feature conformance.
-- The compiler has not yet been subjected to a full fuzzing campaign or sanitizer matrix.
-
-Every future language feature must include positive tests, negative tests, diagnostics, and generated-code execution tests where runtime behavior is involved.
+Add positive and negative tests for each newly implemented language construct, ABI edge cases, stack alignment, register preservation, recursion, aggregate layout, and generated-code execution. Add a dedicated test suite for each new architecture backend before advertising support.
