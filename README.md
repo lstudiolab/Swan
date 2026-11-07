@@ -1,30 +1,55 @@
 # Swan
 
-Swan is a compiled language. The active compiler is being migrated to standalone C11 and emits native assembly directly; it does not generate C as an intermediate representation.
+Swan is a compiled language. Its native compiler emits x86-64 System V assembly directly and links a native executable; it does not transpile programs to C.
 
 ## Build
 
     sh build.sh
-    ./build/swan examples/hello.swan --target native
-    ./build/swan examples/hello.swan --target native --emit-asm -o hello.s
+    ./build/swan examples/hello.swan
+    ./build/swan build benchmarks/binary_search.swan -o binary-search
 
+The build currently produces two compiler binaries:
 
-Supported assembly targets:
+- `build/swan` — full native compiler, with variables, expressions, functions, conditionals, loops, and heap integer arrays.
+- `build/swan-c` — standalone C11 compiler subset, retained for the C migration and cross-target assembly work.
 
-- `x86_64` — GNU assembler, System V ELF.
-- `aarch64` — GNU assembler, AArch64 ELF.
-- `armv7` — GNU assembler, ARMv7 ELF.
+The full native assembly backend currently targets x86-64 Linux (System V ELF). The standalone C subset can emit x86-64, AArch64, and ARMv7 assembly.
 
-`native` selects the architecture on which the C compiler was built. The selected target controls assembly syntax and instruction selection. Emitting a non-host target's assembly does not require a cross toolchain; assembling/linking it does.
+## Arrays and integer division
 
-## Current C migration status
+`array(size)` allocates a zero-initialized heap array of signed 64-bit integers. Indexing is zero-based. Indexed reads and writes use `values[index]`. Array indexing is currently unchecked, so callers must keep indices within the allocated range.
 
-The C11 compiler is active in `compiler-c/swan.c`. It supports `fn main()`, string and loop-variable `log`, integer-literal `return`, `pass`, nested ascending `for name in START..END` ranges (exclusive end), and `break`/`continue` within nested loops. Loop counters are stored in stack slots, so nested iterations and calls do not overwrite counter state. It emits target-specific assembly for x86-64, AArch64, and ARMv7. Native executable creation uses `CC` (default `cc`).
+`/` performs floating-point division. `//` performs signed integer division and returns an integer.
 
-The previous C++ compiler and its frontend remain in the repository as migration reference material, but are no longer part of `build.sh` or CI. The language frontend and backend are not yet fully ported: general variables, expressions, user-defined functions, `if`/`while`, semantic analysis, and the standard library are pending. Unsupported syntax is rejected rather than silently ignored.
+Example:
+
+    fn main() -> int:
+        let values = array(8)
+        var i = 0
+        while i < 8
+            values[i] = i * 3
+            i = i + 1
+
+        var middle = values[4]
+        log middle
+        return 0
+
+## Binary-search workload
+
+`benchmarks/binary_search.swan` contains the requested workload: it allocates and initializes a sorted 20,000,000-element array, then performs 20,000,000 deterministic binary searches. The query multiplier is coprime to the array length, so the workload searches every array value once. The expected checksum is:
+
+    199999990000000
+
+Build it with:
+
+    ./build/swan build benchmarks/binary_search.swan -o binary-search
+
+Run it with:
+
+    ./binary-search
 
 ## Tests
 
     sh test.sh
 
-The active tests build the C compiler, run a native hello program, verify emitted assembly for x86-64/AArch64/ARMv7, and check invalid-target rejection.
+CI verifies heap allocation, indexed loads and stores, integer division, a small binary-search correctness case, and compilation of the full 20M-by-20M workload. It also runs the standalone C compiler's native and cross-target assembly tests.
