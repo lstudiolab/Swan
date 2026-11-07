@@ -59,4 +59,23 @@ grep -q 'jge .Lswan_end_' "$TMP/loops-x86_64.s"
 grep -q 'b.ge .Lswan_end_' "$TMP/loops-aarch64.s"
 "$SWAN" "$TMP/loops.swan" --target armv7 --emit-asm -o "$TMP/loops-armv7.s"
 grep -q 'bge .Lswan_end_' "$TMP/loops-armv7.s"
-printf 'PASS: native range loops and C compiler execution and x86-64/AArch64/ARMv7 assembly emission\n'
+cat > "$TMP/loop-control.swan" <<'SWAN'
+fn main() -> int:
+    for i in 0..5
+        continue
+        log "unreachable"
+    log "continued"
+    for j in 0..5
+        break
+        log "unreachable"
+    log "broken"
+    return 0
+SWAN
+"$SWAN" build "$TMP/loop-control.swan" --target native -o "$TMP/loop-control"
+test "$("$TMP/loop-control")" = "continued
+broken"
+if "$SWAN" build "$TMP/bad-break.swan" -o "$TMP/bad-break" 2>/dev/null; then
+  echo "FAIL: break outside loop accepted" >&2
+  exit 1
+fi
+printf 'PASS: native nested loops, loop variables, break/continue, and architecture assembly\n'
