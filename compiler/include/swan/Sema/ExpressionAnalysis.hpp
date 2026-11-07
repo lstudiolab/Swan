@@ -37,7 +37,6 @@ inline std::string_view Sema::analyzeExpression(const ExprPtr& node) {
         return finish(type);
     }
     case Expr::Kind::Binary: {
-        const auto left = analyzeExpression(node->left);
         if (node->op == "=") {
             if (node->left->kind != Expr::Kind::Name) fail(node->token,"assignment target must be a variable");
             auto* symbol = lookup(node->left->value);
@@ -47,6 +46,7 @@ inline std::string_view Sema::analyzeExpression(const ExprPtr& node) {
             if (!compatible(symbol->first,right)) fail(node->token,"cannot assign " + std::string(right) + " to " + symbol->first);
             return finish(symbol->first);
         }
+        const auto left = analyzeExpression(node->left);
         const auto right = analyzeExpression(node->right);
         if (node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||") {
             if (left != "bool" || right != "bool") fail(node->token,"logical operators require bool operands");
