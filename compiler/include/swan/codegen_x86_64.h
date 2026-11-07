@@ -157,12 +157,13 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   Stmt *fn=cg_find_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
    const char *parameter=fn->params[0];Expr *body=fn->body[0]->value;
-   if(!expr_inline_pure(body,parameter,true))continue;
-   Expr *saved_arg=o->inline_arg;const char *saved_param=o->inline_param;
-   o->inline_arg=e->args[0];o->inline_param=parameter;
-   emit_expr(o,body,l,err);
-   o->inline_arg=saved_arg;o->inline_param=saved_param;
-   return;
+   if(expr_inline_pure(body,parameter,true)){
+    Expr *saved_arg=o->inline_arg;const char *saved_param=o->inline_param;
+    o->inline_arg=e->args[0];o->inline_param=parameter;
+    emit_expr(o,body,l,err);
+    o->inline_arg=saved_arg;o->inline_param=saved_param;
+    return;
+   }
   }
  }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
