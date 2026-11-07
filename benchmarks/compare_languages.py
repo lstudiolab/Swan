@@ -113,15 +113,14 @@ def main():
         results = []
         results.append(compile_pipeline("Swan", [
             [SWAN, swan_src, "-o", swan_c],
-            [CC, "-std=c11", "-O3", "-DNDEBUG", "-march=native", swan_c, "-o", swan_bin],
+            [CC, "-std=c11", "-O2", "-DNDEBUG", "-march=native", swan_c, "-o", swan_bin],
         ]))
         results.append(compile_pipeline("Rust", [
             [RUSTC, "-C", "opt-level=3", "-C", "target-cpu=native",
              rust_src, "-o", rust_bin],
         ]))
         results.append(compile_pipeline("Goose", [
-            [GOOSE, "-o", goose_c, goose_src],
-            [CC, "-std=c11", "-O3", "-DNDEBUG", "-march=native", goose_c, "-o", goose_bin],
+            [GOOSE, "build", "--cc", CC, "-o", goose_bin, goose_src],
         ]))
 
         checksums = {}
