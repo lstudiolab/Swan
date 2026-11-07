@@ -10,7 +10,7 @@ struct CommandLine {
     std::filesystem::path output;
     Action action = Action::Run;
     bool hasOutput = false;
-    bool emitC = false;
+    bool emitAssembly = false;
     bool showHelp = false;
     bool showVersion = false;
 };
@@ -33,8 +33,8 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
             options.showHelp = true;
             return true;
         }
-        if (argument == "--emit-c") {
-            options.emitC = true;
+        if (argument == "--emit-asm") {
+            options.emitAssembly = true;
             continue;
         }
         if (argument == "-o" || argument == "--output") {
@@ -61,7 +61,7 @@ inline void printHelp() {
               << "Usage: swan <file.swan>          Compile and run\n"
               << "       swan run <file.swan>      Compile and run\n"
               << "       swan build <file.swan>    Build a native executable\n"
-              << "       swan <file.swan> --emit-c [-o output.c]\n"
-              << "Options: -o, --output PATH  Output executable or C file\n";
+              << "       swan <file.swan> --emit-asm [-o output.s]\n"
+              << "Options: -o, --output PATH  Output executable or assembly file\n";
 }
 } // namespace swan::driver
