@@ -1,7 +1,6 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
 #include <algorithm>
-#include <functional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -47,7 +46,7 @@ inline std::string CGenerator::generate() {
     state.reserve(structures.size());
     std::vector<StmtPtr> ordered;
     ordered.reserve(structures.size());
-    std::function<void(const StmtPtr&)> visit = [&](const StmtPtr& structure) {
+    const auto visit = [&](const auto& self, const StmtPtr& structure) -> void {
         auto& mark = state[structure->name];
         if (mark == 2) return;
         if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
@@ -55,12 +54,12 @@ inline std::string CGenerator::generate() {
         for (const auto& field : structure->fields) {
             if (!structs_.contains(field.type)) continue;
             const auto dependency = structureByName.find(field.type);
-            if (dependency != structureByName.end()) visit(dependency->second);
+            if (dependency != structureByName.end()) self(self, dependency->second);
         }
         mark = 2;
         ordered.push_back(structure);
     };
-    for (const auto& structure : structures) visit(structure);
+    for (const auto& structure : structures) visit(visit, structure);
 
     for (const auto& node : ordered) {
         beginLine();
