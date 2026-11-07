@@ -88,6 +88,54 @@ SWAN
 cc -x assembler "$TMP/unroll.s" -o "$TMP/unroll"
 test "$("$TMP/unroll")" = "45"
 printf 'PASS: loop condition and induction-variable fast paths preserve iteration counts\n'
+printf 'PASS: bottom-tested loop branches preserve iteration counts\n'
+cat > "$TMP/nested-loops.swan" <<'SWAN'
+fn main():
+    var i = 0
+    var total = 0
+    while i < 3
+        var j = 0
+        while j < 4
+            total = total + 1
+            j = j + 1
+        i = i + 1
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/nested-loops.swan" --emit-asm -o "$TMP/nested-loops.s"
+cc -x assembler "$TMP/nested-loops.s" -o "$TMP/nested-loops"
+test "$("$TMP/nested-loops")" = "12"
+printf 'PASS: nested bottom-tested loops\n'
+cat > "$TMP/zero-loop.swan" <<'SWAN'
+fn main():
+    var i = 0
+    var total = 0
+    while i < 0
+        total = total + 1
+        i = i + 1
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/zero-loop.swan" --emit-asm -o "$TMP/zero-loop.s"
+cc -x assembler "$TMP/zero-loop.s" -o "$TMP/zero-loop"
+test "$("$TMP/zero-loop")" = "0"
+printf 'PASS: bottom-tested loop zero-iteration guard\n'
+cat > "$TMP/loop-fallback.swan" <<'SWAN'
+fn main():
+    var i = 0
+    var total = 0
+    while i < 4
+        if i == 1
+            i = i + 1
+        total = total + 1
+        i = i + 1
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/loop-fallback.swan" --emit-asm -o "$TMP/loop-fallback.s"
+cc -x assembler "$TMP/loop-fallback.s" -o "$TMP/loop-fallback"
+test "$("$TMP/loop-fallback")" = "3"
+printf 'PASS: loops with noncanonical induction updates retain top-tested control flow\n'
 cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
     log missing_name
