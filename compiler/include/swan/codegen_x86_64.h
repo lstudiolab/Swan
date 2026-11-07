@@ -142,12 +142,24 @@ static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError
  if(rhs->right->kind==E_INT){
   char *end=NULL;long long imm=strtoll(rhs->right->token.text,&end,10);
   if(end&&!*end&&imm>=INT32_MIN&&imm<=INT32_MAX){
-   if(dst->reg>=0){
-    if(rhs->token.kind==T_STAR)text_add(o,"    imul %s, %s, %lld\n",cg_reg_name(dst->reg),cg_reg_name(dst->reg),imm);
-    else text_add(o,"    %s %s, %lld\n",op,cg_reg_name(dst->reg),imm);
-   }else if(rhs->token.kind==T_STAR){
-    text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n    imul rax, rax, %lld\n    mov QWORD PTR [rbp - %d], rax\n",dst->slot*8,imm,dst->slot*8);
-   }else text_add(o,"    %s QWORD PTR [rbp - %d], %lld\n",op,dst->slot*8,imm);
+   if(rhs->token.kind==T_STAR){
+    uint64_t magnitude=imm<0?(uint64_t)(-(imm+1))+1:(uint64_t)imm;
+    bool power_of_two=magnitude&&!(magnitude&(magnitude-1));
+    unsigned shift=0;while(power_of_two&&(UINT64_C(1)<<shift)!=magnitude&&shift<63)shift++;
+    if(imm==0){
+     if(dst->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(dst->reg),cg_reg_low_name(dst->reg));
+     else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",dst->slot*8);
+    }else if(imm==1){}
+    else if(power_of_two){
+     const char *target=dst->reg>=0?cg_reg_name(dst->reg):"rax";
+     if(dst->reg<0)text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",dst->slot*8);
+     text_add(o,"    shl %s, %u\n",target,shift);
+     if(imm<0)text_add(o,"    neg %s\n",target);
+     if(dst->reg<0)text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",dst->slot*8);
+    }else if(dst->reg>=0)text_add(o,"    imul %s, %s, %lld\n",cg_reg_name(dst->reg),cg_reg_name(dst->reg),imm);
+    else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n    imul rax, rax, %lld\n    mov QWORD PTR [rbp - %d], rax\n",dst->slot*8,imm,dst->slot*8);
+   }else if(dst->reg>=0)text_add(o,"    %s %s, %lld\n",op,cg_reg_name(dst->reg),imm);
+   else text_add(o,"    %s QWORD PTR [rbp - %d], %lld\n",op,dst->slot*8,imm);
    return true;
   }
  }
