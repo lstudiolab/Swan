@@ -6,16 +6,23 @@ namespace swan {
 inline Token Lexer::scanNumber() {
     const auto line = line_;
     const auto column = column_;
-    std::string value;
-    while (!eof() && isDecimalDigit(peek()))
-        value += advance();
-    std::string kind = "INT";
-    if (!eof() && peek() == '.' && isDecimalDigit(peek(1))) {
-        kind = "FLOAT";
-        value += advance();
-        while (!eof() && isDecimalDigit(peek()))
-            value += advance();
+    const auto start = index_;
+    while (index_ < source_.size() && isDecimalDigit(source_[index_])) {
+        ++index_;
+        ++column_;
     }
-    return {kind, value, line, column};
+    bool floating = false;
+    if (index_ + 1 < source_.size() && source_[index_] == '.' &&
+        isDecimalDigit(source_[index_ + 1])) {
+        floating = true;
+        ++index_;
+        ++column_;
+        while (index_ < source_.size() && isDecimalDigit(source_[index_])) {
+            ++index_;
+            ++column_;
+        }
+    }
+    return {floating ? "FLOAT" : "INT",
+            std::string(source_.substr(start, index_ - start)), line, column - (index_ - start)};
 }
 } // namespace swan
