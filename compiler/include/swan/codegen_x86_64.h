@@ -96,6 +96,39 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   break;
  }
 }
+static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,const char *target,bool when_true){
+ if(e&&e->kind==E_UNARY&&e->token.kind==T_NOT){emit_condition_jump(o,e->left,l,err,target,!when_true);return;}
+ if(e&&e->kind==E_BINARY){
+  const char *cc=NULL;
+  switch(e->token.kind){
+   case T_EQ:cc=when_true?"je":"jne";break;case T_NE:cc=when_true?"jne":"je";break;
+   case T_LT:cc=when_true?"jl":"jge";break;case T_GT:cc=when_true?"jg":"jle";break;
+   case T_LE:cc=when_true?"jle":"jg";break;case T_GE:cc=when_true?"jge":"jl";break;default:break;
+  }
+  if(cc){
+   emit_expr(o,e->left,l,err);
+   if(e->right&&e->right->kind==E_INT){
+    char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
+    if(end&&!*end&&imm>=INT32_MIN&&imm<=INT32_MAX){text_add(o,"    cmp rax, %lld\n    %s %s\n",imm,cc,target);return;}
+   }
+   cg_push(o,"rax");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n");cg_pop(o,"rax");
+   text_add(o,"    cmp rax, rcx\n    %s %s\n",cc,target);return;
+  }
+ }
+ emit_expr(o,e,l,err);text_add(o,"    test rax, rax\n    %s %s\n",when_true?"jnz":"jz",target);
+}
+static inline bool emit_increment_statement(Text *o,Expr *e,Locals *l){
+ if(!e||e->kind!=E_BINARY||e->token.kind!=T_ASSIGN||!e->left||e->left->kind!=E_NAME)return false;
+ Expr *rhs=e->right;
+ if(!rhs||rhs->kind!=E_BINARY||(rhs->token.kind!=T_PLUS&&rhs->token.kind!=T_MINUS)||!rhs->left||rhs->left->kind!=E_NAME||strcmp(rhs->left->token.text,e->left->token.text)||!rhs->right||rhs->right->kind!=E_INT)return false;
+ char *end=NULL;long long imm=strtoll(rhs->right->token.text,&end,10);
+ if(!end||*end||imm<INT32_MIN||imm>INT32_MAX)return false;
+ if(rhs->token.kind==T_MINUS){if(imm==INT32_MIN)return false;imm=-imm;}
+ Local *v=local_find(l,e->left->token.text);if(!v)return false;
+ if(v->reg>=0)text_add(o,"    add %s, %lld\n",cg_saved_regs[v->reg],imm);
+ else text_add(o,"    add QWORD PTR [rbp - %d], %lld\n",v->slot*8,imm);
+ return true;
+}
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
@@ -116,17 +149,16 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     }else{emit_expr(o,s->value,l,err);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");}
     break;
    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");emit_restore_regs(o,l);text_add(o,"    leave\n    ret\n");break;
-   case S_EXPR:emit_expr(o,s->value,l,err);break;
+   case S_EXPR:if(!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
    case S_BREAK:case S_CONTINUE:swan_error(err,&s->token,"loop control lowering is not yet supported");break;
    case S_IF:{
-    int id=(*label)++;emit_expr(o,s->condition,l,err);text_add(o,"    test rax, rax\n    jz .Lswan_else_%d\n",id);
+    int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_else_%d",id);emit_condition_jump(o,s->condition,l,err,target,false);
     emit_block(o,s->body,s->body_count,l,label,err);text_add(o,"    jmp .Lswan_end_%d\n.Lswan_else_%d:\n",id,id);
     emit_block(o,s->alternate,s->alt_count,l,label,err);text_add(o,".Lswan_end_%d:\n",id);break;
    }
    case S_WHILE:{
-    int id=(*label)++;text_add(o,".Lswan_loop_%d:\n",id);emit_expr(o,s->condition,l,err);
-    text_add(o,"    test rax, rax\n    jz .Lswan_loop_end_%d\n",id);emit_block(o,s->body,s->body_count,l,label,err);
+    int id=(*label)++;text_add(o,".Lswan_loop_%d:\n",id);char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);emit_condition_jump(o,s->condition,l,err,target,false);emit_block(o,s->body,s->body_count,l,label,err);
     text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);break;
    }
    default:break;
