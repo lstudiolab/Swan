@@ -2,7 +2,6 @@
 #include "swan/Sema/Sema.hpp"
 #include <string>
 #include <utility>
-
 namespace swan {
 inline void Sema::analyze() {
     types_.reserve(types_.size() + program_.size());
@@ -11,7 +10,7 @@ inline void Sema::analyze() {
         if (node->kind == Stmt::Kind::Struct && !types_.insert(node->name).second)
             fail(node->token,"type '" + node->name + "' is already defined");
         if (node->kind == Stmt::Kind::Function &&
-            !functions_.emplace(node->name,node).second)
+            !functions_.emplace(node->name,node.get()).second)
             fail(node->token,"function '" + node->name + "' is already declared");
     }
     for (const auto& node : program_) {
@@ -27,7 +26,6 @@ inline void Sema::analyze() {
         else fail(node->token,"only function and struct declarations are allowed at file scope");
     }
 }
-
 inline void Sema::analyzeFunction(const StmtPtr& function) {
     scopes_.clear();
     scopes_.reserve(8);
