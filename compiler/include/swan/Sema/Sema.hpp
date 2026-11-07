@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
 namespace swan {
 class Sema {
 public:
@@ -24,13 +23,12 @@ private:
     static bool compatible(const std::string& expected,const std::string& actual);
     const Program& program_;
     std::unordered_set<std::string> types_{"int","float","bool","string","void"};
-    std::unordered_map<std::string,StmtPtr> functions_;
+    std::unordered_map<std::string,const Stmt*> functions_;
     std::vector<Scope> scopes_;
     std::string return_type_;
     unsigned loop_depth_ = 0;
 };
 }
-
 #include "swan/Sema/ScopeAnalysis.hpp"
 #include "swan/Sema/DeclarationAnalysis.hpp"
 #include "swan/Sema/StatementAnalysis.hpp"
