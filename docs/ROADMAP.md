@@ -44,7 +44,7 @@ The C transpilation path and legacy standalone compiler have been removed. Swan 
 ## Phase 5 — Native backend expansion
 
 - Validate additional LLVM target triples and platform ABIs.
-- Add cross-target object generation and sysroot-aware executable linking.
+- Expand target-triple coverage and sysroot-aware executable linking.
 - Add target-specific runtime libraries and platform support.
 - Add reproducible builds and architecture-specific CI runners.
 - Add WebAssembly WASI and browser runtime integration.
