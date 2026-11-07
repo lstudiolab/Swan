@@ -17,18 +17,18 @@ inline std::string CGenerator::quote(const std::string& value) const { return es
 inline std::string CGenerator::generate() {
     output_.reserve(std::max<std::size_t>(4096, program_.size() * 96));
     output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
-    std::vector<StmtPtr> structures;
+    std::vector<const Stmt*> structures;
     structures.reserve(program_.size());
     functions_.reserve(program_.size());
-    StringViewMap<StmtPtr> structureByName;
+    StringViewMap<const Stmt*> structureByName;
     structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             structs_.insert(node->name);
-            structures.push_back(node);
-            structureByName.emplace(node->name, node);
+            structures.push_back(node.get());
+            structureByName.emplace(node->name, node.get());
         }
-        if (node->kind == Stmt::Kind::Function) functions_.emplace(node->name, node);
+        if (node->kind == Stmt::Kind::Function) functions_.emplace(node->name, node.get());
     }
 
     for (const auto& structure : structures) {
@@ -44,9 +44,9 @@ inline std::string CGenerator::generate() {
 
     StringViewMap<unsigned char> state;
     state.reserve(structures.size());
-    std::vector<StmtPtr> ordered;
+    std::vector<const Stmt*> ordered;
     ordered.reserve(structures.size());
-    const auto visit = [&](const auto& self, const StmtPtr& structure) -> void {
+    const auto visit = [&](const auto& self, const Stmt* structure) -> void {
         auto& mark = state[structure->name];
         if (mark == 2) return;
         if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
