@@ -13,5 +13,9 @@ jobs:
         run: sh build.sh
       - name: Run compiler tests
         run: sh test.sh
+      - name: Verify fast native build
+        run: |
+          sh compile.sh examples/hello.swan build/hello-fast
+          test "$(./build/hello-fast)" = "Hello from Swan"
       - name: Verify CLI version
         run: ./build/swan --version
