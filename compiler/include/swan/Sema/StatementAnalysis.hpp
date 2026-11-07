@@ -30,13 +30,13 @@ inline void Sema::analyzeStatement(const StmtPtr& node) {
     case Stmt::Kind::Variable: {
         if (scopes_.back().contains(node->name))
             fail(node->token,"'" + node->name + "' is already declared in this scope");
-        std::string actual = node->value ? analyzeExpression(node->value) : "";
-        std::string type = node->type.empty() ? actual : node->type;
+        const std::string_view actual = node->value ? analyzeExpression(node->value) : std::string_view{};
+        std::string type = node->type.empty() ? std::string(actual) : node->type;
         if (type.empty()) fail(node->token,"cannot infer type for '" + node->name + "'");
         if (!types_.contains(type)) fail(node->token,"unknown type '" + type + "'");
         if (type == "void") fail(node->token,"variables cannot have type void");
         if (!actual.empty() && !compatible(type,actual))
-            fail(node->token,"cannot initialize " + type + " with " + actual);
+            fail(node->token,"cannot initialize " + type + " with " + std::string(actual));
         scopes_.back()[node->name] = {type,node->mutable_value};
         break;
     }
@@ -49,7 +49,7 @@ inline void Sema::analyzeStatement(const StmtPtr& node) {
     case Stmt::Kind::Return: {
         const auto actual = node->value ? analyzeExpression(node->value) : "void";
         if (!compatible(return_type_,actual))
-            fail(node->token,"function returns " + return_type_ + ", but this return has type " + actual);
+            fail(node->token,"function returns " + return_type_ + ", but this return has type " + std::string(actual));
         break;
     }
     case Stmt::Kind::Expression: analyzeExpression(node->value); break;
