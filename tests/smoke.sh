@@ -220,3 +220,8 @@ SWAN
 ${CC:-cc} -x assembler "$TMP/binary-search.s" -o "$TMP/binary-search"
 test "$("$TMP/binary-search")" = "120"
 printf 'PASS: binary search over heap arrays\\n'
+
+# The full 20M-element / 20M-query benchmark must compile without executing in CI.
+"$SWAN" build "$ROOT/benchmarks/binary_search.swan" -o "$TMP/binary-search-20m"
+test -x "$TMP/binary-search-20m"
+printf 'PASS: full 20M x 20M binary-search workload compiles\n'
