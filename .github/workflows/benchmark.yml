@@ -1,0 +1,196 @@
+name: Cross-language benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - ".github/workflows/benchmark.yml"
+      - "benchmarks/**"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build
+      - uses: swift-actions/setup-swift@v2
+        with:
+          swift-version: "6.2"
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: "0.14.1"
+
+      - name: Build Swan compiler
+        run: sh build.sh
+
+      - name: Build Goose compiler
+        run: |
+          git clone --depth 1 https://github.com/aardappel/goose.git /tmp/goose
+          cmake -S /tmp/goose -B /tmp/goose-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build /tmp/goose-build --config Release --parallel 2
+          echo "/tmp/goose-build" >> "$GITHUB_PATH"
+
+      - name: Generate identical workload
+        run: |
+          mkdir -p benchmarks/work
+          cat > benchmarks/work/main.c <<'EOF'
+          #include <stdint.h>
+          #include <stdio.h>
+          int main(void) {
+              int64_t i = 0, acc = 0;
+              while (i < 50000000LL) {
+                  acc = (acc + i * 31) % 1000000007LL;
+                  ++i;
+              }
+              printf("%lld\\n", (long long)acc);
+              return 0;
+          }
+          EOF
+          cp benchmarks/work/main.c /tmp/reference.c
+          cat > benchmarks/work/main.cpp <<'EOF'
+          #include <cstdint>
+          #include <cstdio>
+          int main() {
+              std::int64_t i = 0, acc = 0;
+              while (i < 50000000LL) {
+                  acc = (acc + i * 31) % 1000000007LL;
+                  ++i;
+              }
+              std::printf("%lld\\n", static_cast<long long>(acc));
+          }
+          EOF
+          cat > benchmarks/work/main.rs <<'EOF'
+          fn main() {
+              let mut i: i64 = 0;
+              let mut acc: i64 = 0;
+              while i < 50_000_000 {
+                  acc = (acc + i * 31) % 1_000_000_007;
+                  i += 1;
+              }
+              println!("{acc}");
+          }
+          EOF
+          cat > benchmarks/work/main.go <<'EOF'
+          package main
+          import "fmt"
+          func main() {
+              var i, acc int64
+              for i < 50000000 {
+                  acc = (acc + i*31) % 1000000007
+                  i++
+              }
+              fmt.Println(acc)
+          }
+          EOF
+          cat > benchmarks/work/main.swift <<'EOF'
+          var i: Int64 = 0
+          var acc: Int64 = 0
+          while i < 50_000_000 {
+              acc = (acc + i * 31) % 1_000_000_007
+              i += 1
+          }
+          print(acc)
+          EOF
+          cat > benchmarks/work/main.zig <<'EOF'
+          const std = @import("std");
+          pub fn main() void {
+              var i: i64 = 0;
+              var acc: i64 = 0;
+              while (i < 50_000_000) : (i += 1) {
+                  acc = @mod(acc + i * 31, 1_000_000_007);
+              }
+              std.debug.print("{d}\\n", .{acc});
+          }
+          EOF
+          cat > benchmarks/work/main.swan <<'EOF'
+          fn main():
+              var i: int = 0
+              var acc: int = 0
+              while i < 50000000:
+                  acc = (acc + i * 31) % 1000000007
+                  i = i + 1
+              log acc
+          EOF
+          cat > benchmarks/work/main.goose <<'EOF'
+          fn main() {
+              var i: i64 = 0;
+              var acc: i64 = 0;
+              while i < 50000000 {
+                  acc = (acc + i * 31) % 1000000007;
+                  i += 1;
+              }
+              print(acc);
+          }
+          EOF
+
+      - name: Compile all implementations
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd benchmarks/work
+          timed_build() {
+            local name="$1"; shift
+            local start end
+            start=$(date +%s%N)
+            "$@"
+            end=$(date +%s%N)
+            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_ms %.3f\\n", n, t/1000000 }' | tee -a ../results.txt
+          }
+          timed_build C cc -O2 -DNDEBUG main.c -o c
+          timed_build C++ c++ -std=c++20 -O2 -DNDEBUG main.cpp -o cpp
+          timed_build Rust rustc -C opt-level=2 main.rs -o rust
+          timed_build Go go build -trimpath -o go main.go
+          timed_build Swift swiftc -O main.swift -o swift
+          timed_build Zig zig build-exe -O ReleaseFast main.zig -femit-bin=zig
+          timed_build Swan bash -c '../../build/swan main.swan -o main.swan.c && cc -O2 -DNDEBUG main.swan.c -o swan'
+          timed_build Goose goose build main.goose
+          mv main main-goose
+
+      - name: Verify checksums and measure runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          cd benchmarks/work
+          expected=$(./c)
+          printf "expected_checksum %s\\n" "$expected" | tee -a ../results.txt
+          for name in c cpp rust go swift zig swan main-goose; do
+            file="./$name"
+            [[ -x "$file" ]] || { echo "Missing executable: $file"; exit 1; }
+            actual=$("$file")
+            [[ "$actual" == "$expected" ]] || { echo "$name checksum mismatch: $actual != $expected"; exit 1; }
+            for run in 1 2 3 4 5 6 7; do
+              /usr/bin/time -f "$name runtime_sec %e peak_rss_kb %M" "$file" >/tmp/out 2>>../results.txt
+              [[ "$(cat /tmp/out)" == "$expected" ]]
+            done
+          done
+          cat ../results.txt
+
+      - name: Record environment and tool versions
+        if: always()
+        run: |
+          {
+            echo "commit $(git rev-parse HEAD)"
+            echo "cpu $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
+            echo "kernel $(uname -sr)"
+            c++ --version | head -1
+            rustc --version
+            go version
+            swift --version | head -1
+            zig version
+            /tmp/goose-build/goose --version || true
+            ./build/swan --version || true
+          } | tee -a benchmarks/results.txt
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cross-language-benchmark
+          path: benchmarks/results.txt
