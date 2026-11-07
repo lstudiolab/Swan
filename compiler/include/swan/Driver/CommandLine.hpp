@@ -86,6 +86,11 @@ inline void printHelp() {
               << "       swan run <file.swan>      Compile and run\n"
               << "       swan build <file.swan>    Build a native executable\n"
               << "       swan <file.swan> --emit-asm [-o output.s]\n"
+              << "       swan <file.swan> --emit-c [-o output.c]\n"
+              << "       swan <file.swan> --target TARGET --emit-asm\n"
+              << "       swan <file.swan> --optimize  Optimized portable backend\n"
+              << "       swan <file.swan> --fast-compile  Direct native backend\n"
+              << "Targets: native, x86_64, aarch64, armv7, riscv64, wasm32, or Clang triple\n"
               << "Options: -o, --output PATH  Output executable or assembly file\n";
 }
 } // namespace swan::driver
