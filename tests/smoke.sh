@@ -185,6 +185,25 @@ ${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
 test "$("$TMP/arrays")" = "84"
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
 
+# Power-of-two integer division preserves signed truncation toward zero.
+cat > "$TMP/power-two-division.swan" <<'SWAN'
+fn main():
+    log 3 // 2
+    log -3 // 2
+    log -1 // 2
+    log -5 // 4
+    log 5 // 4
+    return 0
+SWAN
+"$SWAN" "$TMP/power-two-division.swan" -o "$TMP/power-two-division.s"
+${CC:-cc} -x assembler "$TMP/power-two-division.s" -o "$TMP/power-two-division"
+test "$("$TMP/power-two-division")" = "1
+-1
+0
+-1
+1"
+printf 'PASS: signed power-of-two integer division\n'
+
 # Binary search exercises allocation, indexed memory, arithmetic, and nested control flow.
 cat > "$TMP/binary-search.swan" <<'SWAN'
 fn main():
