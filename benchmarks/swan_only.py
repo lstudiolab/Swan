@@ -70,7 +70,7 @@ def measured(command: list[str], expected: str | None = None) -> tuple[dict, str
         [TIME_BIN, "-f", fmt, *command],
         cwd=ROOT, text=True, capture_output=True,
     )
-    match = re.search(r"SWAN_TIME_JSON:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", result.stderr)
+    high_resolution_wall = time.perf_counter() - wall_start\n    match = re.search(r"SWAN_TIME_JSON:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", result.stderr)
     if result.returncode:
         raise RuntimeError(f"{command} failed ({result.returncode}):\n{result.stderr}")
     if not match:
@@ -80,7 +80,7 @@ def measured(command: list[str], expected: str | None = None) -> tuple[dict, str
     if expected is not None and output != expected:
         raise RuntimeError(f"wrong result: expected {expected}, got {output!r}")
     metrics = {
-        "wall_seconds": float(wall),
+        "wall_seconds": high_resolution_wall,\n        "gnu_time_wall_seconds_rounded": float(wall),
         "user_cpu_seconds": float(user),
         "system_cpu_seconds": float(system),
         "total_cpu_seconds": float(user) + float(system),
@@ -191,7 +191,7 @@ def main() -> None:
             "measurement_notes": [
                 "Wall time, user CPU time, system CPU time and peak resident memory are measured per process with GNU time.",
                 "Compilation, assembly/linking and execution are timed separately.",
-                "Build time is reported separately and excluded from per-source compile time.",
+                "Build time is reported separately and excluded from per-source compile time. Python perf_counter supplies high-resolution wall time; GNU time reports CPU times rounded to centiseconds on this runner.",
                 "Peak RSS is process maximum resident set size, not total machine memory consumption.",
                 "The benchmark uses a GitHub-hosted runner; CPU model and RAM availability are recorded because hosted hardware can vary.",
                 "No other language is compiled or run in this benchmark.",
