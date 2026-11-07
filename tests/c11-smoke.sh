@@ -302,5 +302,23 @@ if grep -Eq 'imul|add rax|sub rax' "$TMP/constant-fold.s"; then
     exit 1
 fi
 printf 'PASS: integer constant folding removes runtime arithmetic\n'
+cat > "$TMP/local-compare.swan" <<'SWAN'
+fn main():
+    var index = 0
+    let limit = 5
+    while index < limit
+        index = index + 1
+    log index
+    return 0
+SWAN
+"$SWAN" "$TMP/local-compare.swan" --emit-asm -o "$TMP/local-compare.s"
+cc -x assembler "$TMP/local-compare.s" -o "$TMP/local-compare"
+test "$("$TMP/local-compare")" = "5"
+if ! grep -Eq 'cmp (rbx|r12|r13|r14|r15), (rbx|r12|r13|r14|r15)' "$TMP/local-compare.s"; then
+    echo 'FAIL: local-to-local loop comparison did not use register operands' >&2
+    cat "$TMP/local-compare.s" >&2
+    exit 1
+fi
+printf 'PASS: local-to-local loop comparisons avoid stack temporaries\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
