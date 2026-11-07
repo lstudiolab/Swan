@@ -2,17 +2,15 @@
 #include "swan/Parse/Parser.hpp"
 #include <memory>
 #include <utility>
-
 namespace swan {
 inline int Parser::precedence(std::string_view op) { return operatorPrecedence(op); }
-
 inline ExprPtr Parser::expression(int minimum) {
     auto left = prefix();
     while (precedence(peek().kind) >= minimum) {
         const auto& op = advance();
         const int level = precedence(op.kind);
         auto right = expression(op.kind == "=" ? level : level + 1);
-        auto node = std::make_shared<Expr>();
+        auto node = std::make_unique<Expr>();
         node->kind = Expr::Kind::Binary;
         node->token = op;
         node->left = std::move(left);
@@ -21,32 +19,30 @@ inline ExprPtr Parser::expression(int minimum) {
     }
     return left;
 }
-
 inline ExprPtr Parser::prefix() {
     if (check("!") || check("-") || check("not")) {
         const auto& op = advance();
-        auto node = std::make_shared<Expr>();
+        auto node = std::make_unique<Expr>();
         node->kind = Expr::Kind::Unary;
         node->token = op;
         node->left = expression(8);
         return node;
     }
     const auto& token = advance();
-    auto node = std::make_shared<Expr>();
+    auto node = std::make_unique<Expr>();
     node->token = token;
     if (token.kind == "INT" || token.kind == "FLOAT" || token.kind == "STRING" ||
-        token.kind == "true" || token.kind == "false" || token.kind == "none") {
+        token.kind == "true" || token.kind == "false" || token.kind == "none")
         node->kind = Expr::Kind::Literal;
-    } else if (token.kind == "IDENT") {
+    else if (token.kind == "IDENT")
         node->kind = Expr::Kind::Name;
-    } else if (token.kind == "(") {
+    else if (token.kind == "(") {
         node = expression();
         expect(")","expected ')' after expression");
     } else fail(token,"expected expression");
-
     while (true) {
         if (match("(")) {
-            auto call = std::make_shared<Expr>();
+            auto call = std::make_unique<Expr>();
             call->kind = Expr::Kind::Call;
             call->token = node->token;
             call->left = std::move(node);
@@ -57,7 +53,7 @@ inline ExprPtr Parser::prefix() {
             node = std::move(call);
         } else if (match(".")) {
             const auto& member = expect("IDENT","expected member name");
-            auto access = std::make_shared<Expr>();
+            auto access = std::make_unique<Expr>();
             access->kind = Expr::Kind::Member;
             access->token = member;
             access->left = std::move(node);
