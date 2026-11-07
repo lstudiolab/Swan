@@ -41,7 +41,7 @@ def median_build(command_factory, env: dict[str, str], work: pathlib.Path,
         source = work / f"{language}_{mode}_{index}{'.swan' if language == 'swan' else '.goose'}"
         source.write_text(SWAN_SOURCE if language == "swan" else GOOSE_SOURCE,
                           encoding="utf-8")
-        output = work / f"{language}_{mode}_{index}"
+        output = work / f"{language}_{mode}_{index}{'.s' if language == 'swan' else '.c'}"
         samples.append(timed(command_factory(source, output), env))
     return statistics.median(samples)
 
@@ -87,7 +87,7 @@ def main() -> None:
         work = pathlib.Path(directory)
 
         def swan_emit(source: pathlib.Path, output: pathlib.Path) -> list[str]:
-            return [str(SWAN), str(source), "--emit-c", "-o", str(output)]
+            return [str(SWAN), str(source), "--emit-asm", "-o", str(output)]
 
         def goose_emit(source: pathlib.Path, output: pathlib.Path) -> list[str]:
             return [str(GOOSE), "-o", str(output), str(source)]
@@ -149,13 +149,13 @@ def main() -> None:
 
         print("Swan vs Goose — identical native benchmark")
         print(f"Workload: {I_LIMIT:,} x {J_LIMIT:,} = {I_LIMIT * J_LIMIT:,} loop iterations")
-        print("Compiler C backend: cc -O2 for both; Goose optimizer: default -O2")
+        print("Swan: direct x86-64 assembly; Goose: native build with its default backend")
         print(f"Verified checksum: {expected}")
         print(f"Samples: {REPEATS} compile samples, {RUNTIME_REPEATS} runtime samples (median)")
         print()
         print(f"{'Measurement':<30}{'Swan':>14}{'Goose':>14}")
         print("-" * 58)
-        print(f"{'Frontend + C emission':<30}{swan_frontend:>13.2f}s{goose_frontend:>13.2f}s")
+        print(f"{'Frontend + native-code emission':<30}{swan_frontend:>13.2f}s{goose_frontend:>13.2f}s")
         print(f"{'Source to native executable':<30}{swan_build_time:>13.2f}s{goose_build_time:>13.2f}s")
         print(f"{'Prebuilt executable runtime':<30}{runtime_times['swan']:>13.2f}s{runtime_times['goose']:>13.2f}s")
         print()
