@@ -63,14 +63,15 @@ fn main(){
 GOOSE_SRC = r"""
 import std;
 
+let N = 20000000;
+
 fn main() {
- let n=20000000;
- var values:i64[]=[0;n];
- for i in 0..n { values[i]=i; }
+ var values:i64[]=[0;N];
+ for i in 0..N { values[i]=i; }
  var sum:i64=0;
- for query in 0..n {
-  let target=(query*7919)%n;
-  var low=0; var high=n-1; var found=-1;
+ for query in 0..N {
+  let target=(query*7919)%N;
+  var low=0; var high=N-1; var found=-1;
   while low<=high {
    let middle=low+(high-low)/2;
    let value=values[middle];
