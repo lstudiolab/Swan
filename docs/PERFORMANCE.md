@@ -10,13 +10,13 @@ Swan currently emits C11. It does not invoke a C compiler as part of its own com
 
 ### 1. Lexing
 
-The scanner visits each source character and creates token values. Token kinds are non-owning views into canonical static spellings, so they do not allocate or duplicate keyword and punctuation strings. Identifier and numeric lexemes are scanned directly from the source and copied once into owned token values; the parser later moves those values into the AST. The scanner uses binary search for keyword classification, avoids temporary two-character strings for punctuation, and caps its initial token-vector reservation.
+The scanner uses ASCII range checks instead of locale-sensitive `std::cctype` calls, dispatches keywords by their first character, and dispatches punctuation with switches rather than a linear character-set search. Whitespace runs are skipped in tight loops and comments jump directly to the next newline. The token vector reserves a bounded source-size estimate to avoid repeated growth without making huge up-front allocations. Identifier and numeric lexemes are copied once into owned token values; token kinds always refer to static spellings. Identifier and number scanners also maintain the lexer's column counter, keeping subsequent diagnostic locations accurate.
 
 Potential future improvements:
 
-- Consider compact token-kind IDs if comparisons remain measurable after removing token-kind allocations.
 - Store source offsets and lengths for identifier and numeric tokens if source-lifetime ownership can be made explicit.
-- Keep decoded string-literal storage only where escape processing requires it.
+- Optimize string decoding only if string-heavy profiles show it is still material.
+- Consider compact token-kind IDs only if token comparisons remain measurable.
 
 ### 2. Parsing and AST allocation
 
@@ -66,13 +66,15 @@ The compiler benchmark suite exercises declaration-heavy input, repeated express
 The focused benchmark runs seven CLI trials and nine in-process phase trials,
 reporting medians. On the recorded runner:
 
-| Workload | Frontend total | CLI total |
-|---|---:|---:|
-| 2,500 declarations | 1.82 ms | 5.15 ms |
-| 1,500 repeated expressions | 1.29 ms | 3.60 ms |
-| 1,000 function calls | 0.46 ms | 2.54 ms |
-| 1,200 string literals | 0.40 ms | 2.21 ms |
-| 48 nested scopes | 0.03 ms | 1.13 ms |
+| Workload | Frontend total | Lexer | Parser | Sema | Codegen | CLI total |
+|---|---:|---:|---:|---:|---:|---:|
+| 2,500 declarations | 2.51 ms | 0.44 ms | 0.43 ms | 0.71 ms | 0.93 ms | 6.05 ms |
+| 1,500 repeated expressions | 1.18 ms | 0.16 ms | 0.56 ms | 0.21 ms | 0.18 ms | 4.39 ms |
+| 1,000 function calls | 0.72 ms | 0.13 ms | 0.43 ms | 0.08 ms | 0.09 ms | 3.33 ms |
+| 1,200 string literals | 0.58 ms | 0.22 ms | 0.16 ms | 0.04 ms | 0.15 ms | 2.68 ms |
+| 48 nested scopes | 0.04 ms | 0.02 ms | 0.01 ms | 0.01 ms | 0.00 ms | 1.44 ms |
+
+The declaration-heavy lexer measurement fell from 2.66 ms to 0.44 ms on the same benchmark harness and runner family (about 83.5%). The frontend total in the earlier recorded run was 5.52 ms; the optimized run measured 2.51 ms. These are medians from separate CI runs, so treat the percentage as a useful indication rather than a universal guarantee.
 
 The separate native-backend experiment compiles the same generated C seven
 times per optimization level and checks the output checksum:
@@ -93,10 +95,10 @@ as an explicit compile-time-first setting. An equivalent cross-language run
 measured Swan's complete frontend-plus-Clang pipeline at 54.7 ms with `-O0`,
 versus 1.2712 s for Rust and 1.1860 s for Goose. All executables produced the
 same checksum. These measurements are workload- and runner-specific.
-The compiler frontend itself is already in the low-millisecond range, so
-rewriting lexer/parser algorithms is not justified by these measurements.
-The remaining compile cost is primarily launching and running the external C
-compiler, which Swan intentionally does not invoke.
+The lexer is now below half a millisecond on the declaration-heavy fixture.
+The remaining frontend time is spread across parsing, semantic analysis, and
+code generation; the CLI's remaining cost includes process startup and file I/O.
+The native executable build still launches the external C compiler.
 
 These are single-runner measurements, not universal performance guarantees.
 Re-run `benchmarks/backend_flags.py` on the target machine before choosing
@@ -114,10 +116,13 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 
 ## Implemented low-risk optimizations
 
-- Keyword classification uses binary search over a sorted, compile-time keyword table.
-- Punctuation scanning checks operator characters directly and avoids a temporary two-character string.
+- Keyword classification dispatches by first character and returns canonical static token-kind spellings.
+- ASCII identifier and digit checks use direct range comparisons instead of locale-sensitive character classification.
+- Whitespace runs are consumed in one tight loop, and comments jump directly to the next newline.
+- Punctuation scanning uses direct operator and single-character switches rather than a linear character-set search.
 - The lexer scans identifiers and numeric literals directly from the source and constructs each token value once.
-- Initial token-vector reservation is capped to avoid oversized allocations for whitespace-heavy or unusually large source files.
+- Initial token-vector reservation uses a bounded source-size estimate to avoid repeated growth without allocating an excessive token buffer for very large sources.
+- Identifier and numeric scanners update the shared column counter and report the token's starting column.
 - Parser token access returns references to avoid copying complete token objects.
 - Token kinds use canonical static `string_view` spellings; the parser moves consumed lexemes into AST strings instead of copying them from the token buffer.
 - AST nodes use `unique_ptr` ownership rather than reference-counted shared pointers, since the syntax tree has no shared child nodes.
