@@ -85,10 +85,12 @@ fn main() {
 }
 """
 
-def run(command):
+def run(command, extra_env=None):
     with tempfile.NamedTemporaryFile(mode="w+", delete=False) as f: rss=pathlib.Path(f.name)
+    env=os.environ.copy()
+    if extra_env: env.update(extra_env)
     start=time.perf_counter()
-    p=subprocess.run([TIME,"-f","%M","-o",str(rss),*command],cwd=ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE)
+    p=subprocess.run([TIME,"-f","%M","-o",str(rss),*command],cwd=ROOT,text=True,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
     elapsed=time.perf_counter()-start
     rss_lines=rss.read_text().strip().splitlines()
     peak=int(rss_lines[-1] if rss_lines else "0")/1024
@@ -105,6 +107,7 @@ def main():
   exe={name:d/name.lower().replace("+","p") for name in src}
   exe["Swan"]=d/"swan-search"
   exe["Swan-fast"]=d/"swan-fast-search"
+  exe["Swan-clang"]=d/"swan-clang-search"
   commands={
    "C":["cc","-O3","-march=native","-DNDEBUG",str(src["C"]),"-o",str(exe["C"])],
    "C++":["c++","-O3","-march=native","-DNDEBUG","-std=c++17",str(src["C++"]),"-o",str(exe["C++"])],
@@ -112,11 +115,12 @@ def main():
    "Goose":[GOOSE,"build","-o",str(exe["Goose"]),str(src["Goose"])],
    "Swan":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan"])],
    "Swan-fast":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"--fast-compile","-o",str(exe["Swan-fast"])],
+   "Swan-clang":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan-clang"])],
   }
   results={}
-  for name in ("Swan","Swan-fast","Goose","Rust","C","C++"):
+  for name in ("Swan","Swan-clang","Swan-fast","Goose","Rust","C","C++"):
    print(f"COMPILING {name}",flush=True)
-   ct,cm,_=run(commands[name])
+   ct,cm,_=run(commands[name], {"SWAN_OPT_CC":"clang"} if name=="Swan-clang" else None)
    if not exe[name].is_file(): raise RuntimeError(f"{name} executable missing")
    print(f"RUNNING {name} ({RUNS} measured repetitions)",flush=True)
    runtime_samples=[]; memory_samples=[]
