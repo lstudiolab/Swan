@@ -18,7 +18,7 @@ Swan uses indentation to define code blocks. Curly braces are not block delimite
     while false
         log "Running"
 
-Use consistent indentation (four spaces are recommended). Increasing indentation opens a block; returning to the previous level closes it. No end keyword is needed.
+Use consistent indentation (four spaces are recommended). Increasing indentation opens a block; decreasing indentation closes blocks. A single decrease can close several nested blocks at once: the lexer emits one dedent token for every indentation level crossed, and the parser consumes those tokens as enclosing blocks return. No closing brace or end keyword is needed.
 
 Functions may declare typed parameters and return types, for example: fn add(left: int, right: int) -> int:
 
