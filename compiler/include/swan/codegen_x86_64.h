@@ -28,7 +28,32 @@ static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
+static inline bool expr_has_call(Expr *e){
+ if(!e)return false;if(e->kind==E_CALL)return true;
+ if(expr_has_call(e->left)||expr_has_call(e->right))return true;
+ for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))return true;
+ return false;
+}
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
+static inline void emit_add_terms(Text *o,Expr *e,Locals *l,SwanError *err,bool *first){
+ if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
+  emit_add_terms(o,e->left,l,err,first);emit_add_terms(o,e->right,l,err,first);return;
+ }
+ emit_expr(o,e,l,err);
+ if(*first){text_add(o,"    mov r10, rax\n");*first=false;}
+ else text_add(o,"    add r10, rax\n");
+}
+static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError *err){
+ if(!e||e->kind!=E_BINARY||e->token.kind!=T_ASSIGN||!e->left||e->left->kind!=E_NAME)return false;
+ Expr *rhs=e->right;
+ if(!rhs||rhs->kind!=E_BINARY||rhs->token.kind!=T_PLUS||!rhs->left||rhs->left->kind!=E_NAME||strcmp(rhs->left->token.text,e->left->token.text)||expr_has_call(rhs->right))return false;
+ Local *v=local_find(l,e->left->token.text);if(!v)return false;
+ emit_expr(o,rhs->right,l,err);
+ if(v->reg>=0)text_add(o,"    add %s, rax\n",cg_saved_regs[v->reg]);
+ else text_add(o,"    add QWORD PTR [rbp - %d], rax\n",v->slot*8);
+ (void)err;return true;
+}
+
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
  if(!strcmp(name,"array")){swan_error(err,&e->token,"array lowering is not ported to the C backend yet");return;}
@@ -53,6 +78,9 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
  case E_CALL:emit_call(o,e,l,err);break;
  case E_BINARY:
+  if(e->token.kind==T_PLUS&&!expr_has_call(e)){
+   bool first=true;emit_add_terms(o,e,l,err,&first);if(!first)text_add(o,"    mov rax, r10\n");break;
+  }
   if(e->token.kind==T_ASSIGN){
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable");break;}
    Local *v=local_find(l,e->left->token.text);
@@ -149,7 +177,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     }else{emit_expr(o,s->value,l,err);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");}
     break;
    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");emit_restore_regs(o,l);text_add(o,"    leave\n    ret\n");break;
-   case S_EXPR:if(!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
+   case S_EXPR:if(!emit_accumulate_statement(o,s->value,l,err)&&!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
    case S_BREAK:case S_CONTINUE:swan_error(err,&s->token,"loop control lowering is not yet supported");break;
    case S_IF:{
