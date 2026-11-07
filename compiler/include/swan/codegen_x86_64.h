@@ -108,10 +108,11 @@ static inline void emit_add_terms(Text *o,Expr *e,Locals *l,SwanError *err,bool 
  if(*first){text_add(o,"    mov r10, rax\n");*first=false;}
  else text_add(o,"    add r10, rax\n");
 }
+static inline bool expr_writes_local(Expr *e,const char *name);
 static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e||e->kind!=E_BINARY||e->token.kind!=T_ASSIGN||!e->left||e->left->kind!=E_NAME)return false;
  Expr *rhs=e->right;
- if(!rhs||rhs->kind!=E_BINARY||rhs->token.kind!=T_PLUS||!rhs->left||rhs->left->kind!=E_NAME||strcmp(rhs->left->token.text,e->left->token.text))return false;
+ if(!rhs||rhs->kind!=E_BINARY||rhs->token.kind!=T_PLUS||!rhs->left||rhs->left->kind!=E_NAME||strcmp(rhs->left->token.text,e->left->token.text)||expr_writes_local(rhs->right,e->left->token.text))return false;
  Local *v=local_find(l,e->left->token.text);if(!v)return false;
  if(rhs->right->kind==E_INT){
   char *end=NULL;long long imm=strtoll(rhs->right->token.text,&end,10);
