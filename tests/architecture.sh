@@ -48,7 +48,7 @@ for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc aarch6
     test -s "$TMP/$safe.s"
 done
 
-test "$("$SWAN" "$TMP/targets.swan")" = "56"
+test "$("$SWAN" "$TMP/targets.swan")" = "91"
 printf 'PASS: native LLVM IR lowering and execution\n'
 printf 'PASS: x86-64, AArch64, ARMv7, RISC-V 64, and WebAssembly assembly\n'
 printf 'PASS: Apple, Android, and Windows target triples\n'
