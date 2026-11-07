@@ -288,6 +288,28 @@ if grep -q 'push rax' "$TMP/local-operands.s"; then
     exit 1
 fi
 printf 'PASS: register/memory local operands avoid expression stack temporaries\n'
+cat > "$TMP/array-u32.swan" <<'SWAN'
+fn main():
+    let values = array_u32(4)
+    values[0] = 4294967295
+    values[1] = 42
+    values[2] = 7
+    values[3] = 99
+    log values[0]
+    log values[1]
+    log values[2]
+    log values[3]
+    return 0
+SWAN
+"$SWAN" "$TMP/array-u32.swan" --emit-asm -o "$TMP/array-u32.s"
+cc -x assembler "$TMP/array-u32.s" -o "$TMP/array-u32"
+test "$("$TMP/array-u32")" = "4294967295
+42
+7
+99"
+printf 'PASS: zero-initialized u32 arrays, indexed loads/stores, and unsigned value preservation\n'
+
+
 cat > "$TMP/volatile-preservation.swan" <<'SWAN'
 fn combine(a: int, b: int) -> int:
     return a + b
@@ -372,24 +394,3 @@ test "$("$TMP/compound-arithmetic")" = "41
 grep -q 'imul rbx, r12' "$TMP/compound-arithmetic.s"
 grep -q 'shl rbx, 3' "$TMP/compound-arithmetic.s"
 printf 'PASS: compound arithmetic updates register and spilled locals in place\n'
-
-cat > "$TMP/array-u32.swan" <<'SWAN'
-fn main():
-    let values = array_u32(4)
-    values[0] = 4294967295
-    values[1] = 42
-    values[2] = 7
-    values[3] = 99
-    log values[0]
-    log values[1]
-    log values[2]
-    log values[3]
-    return 0
-SWAN
-"$SWAN" "$TMP/array-u32.swan" --emit-asm -o "$TMP/array-u32.s"
-cc -x assembler "$TMP/array-u32.s" -o "$TMP/array-u32"
-test "$("$TMP/array-u32")" = "4294967295
-42
-7
-99"
-printf 'PASS: zero-initialized u32 arrays, indexed loads/stores, and unsigned value preservation\n'
