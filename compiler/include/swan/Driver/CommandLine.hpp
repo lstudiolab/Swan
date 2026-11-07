@@ -4,15 +4,26 @@
 #include <iostream>
 #include <string>
 namespace swan::driver {
+enum class Action { Run, Build };
 struct CommandLine {
     std::filesystem::path input;
     std::filesystem::path output;
+    Action action = Action::Run;
     bool hasOutput = false;
+    bool emitC = false;
     bool showHelp = false;
     bool showVersion = false;
 };
 inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
-    for (int index = 1; index < argc; ++index) {
+    int index = 1;
+    if (index < argc && std::string(argv[index]) == "build") {
+        options.action = Action::Build;
+        ++index;
+    } else if (index < argc && std::string(argv[index]) == "run") {
+        options.action = Action::Run;
+        ++index;
+    }
+    for (; index < argc; ++index) {
         const std::string argument = argv[index];
         if (argument == "--version" || argument == "-v") {
             options.showVersion = true;
@@ -21,6 +32,10 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
         if (argument == "--help" || argument == "-h") {
             options.showHelp = true;
             return true;
+        }
+        if (argument == "--emit-c") {
+            options.emitC = true;
+            continue;
         }
         if (argument == "-o" || argument == "--output") {
             if (++index >= argc) {
@@ -38,12 +53,15 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
         std::cerr << "swan: unexpected argument '" << argument << "'\n";
         return false;
     }
-    if (options.input.empty())
-        options.showHelp = true;
+    if (options.input.empty()) options.showHelp = true;
     return true;
 }
 inline void printHelp() {
     std::cout << "Swan " << versionString() << "\n"
-              << "Usage: swan <source.swan> [-o output.c]\n";
+              << "Usage: swan <file.swan>          Compile and run\n"
+              << "       swan run <file.swan>      Compile and run\n"
+              << "       swan build <file.swan>    Build a native executable\n"
+              << "       swan <file.swan> --emit-c [-o output.c]\n"
+              << "Options: -o, --output PATH  Output executable or C file\n";
 }
 } // namespace swan::driver
