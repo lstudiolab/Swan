@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless; Expr *hoist_expr,*recurrence_expr; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
 static inline void text_add(Text *t,const char *fmt,...){
  va_list ap;va_start(ap,fmt);va_list cp;va_copy(cp,ap);int n=vsnprintf(NULL,0,fmt,cp);va_end(cp);
  if(n<0){va_end(ap);return;}size_t need=t->len+(size_t)n+1;
@@ -128,10 +128,34 @@ static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError
  (void)err;return true;
 }
 
+static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_parameter){
+ if(!e)return false;
+ if(e->kind==E_INT||e->kind==E_BOOL)return true;
+ if(e->kind==E_NAME)return !only_parameter||!strcmp(e->token.text,parameter);
+ if(e->kind==E_UNARY)return (e->token.kind==T_MINUS||e->token.kind==T_NOT)&&expr_inline_pure(e->left,parameter,only_parameter);
+ if(e->kind==E_BINARY){
+  if(e->token.kind==T_ASSIGN||e->token.kind==T_AND||e->token.kind==T_OR)return false;
+  return expr_inline_pure(e->left,parameter,only_parameter)&&expr_inline_pure(e->right,parameter,only_parameter);
+ }
+ return false;
+}
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
  if(!strcmp(name,"array")){swan_error(err,&e->token,"array lowering is not ported to the C backend yet");return;}
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
+ if(o->program&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
+  for(size_t i=0;i<o->program->count;i++){
+   Stmt *fn=o->program->functions[i];
+   if(strcmp(fn->name,name)||fn->param_count!=1||fn->body_count!=1||fn->body[0]->kind!=S_RETURN||!fn->body[0]->value)continue;
+   const char *parameter=fn->params[0];Expr *body=fn->body[0]->value;
+   if(!expr_inline_pure(body,parameter,true))continue;
+   Expr *saved_arg=o->inline_arg;const char *saved_param=o->inline_param;
+   o->inline_arg=e->args[0];o->inline_param=parameter;
+   emit_expr(o,body,l,err);
+   o->inline_arg=saved_arg;o->inline_param=saved_param;
+   return;
+  }
+ }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
  char symbol[SWAN_MAX_TEXT+16];if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
@@ -156,7 +180,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_BOOL:text_add(o,"    mov eax, %d\n",e->token.kind==T_TRUE);break;
  case E_FLOAT:swan_error(err,&e->token,"floating point is not yet supported by the C backend");break;
  case E_STRING:swan_error(err,&e->token,"string values are not yet supported outside log statements");break;
- case E_NAME:{Local *v=local_find(l,e->token.text);if(!v)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else if(v->reg>=0)text_add(o,"    mov rax, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",v->slot*8);break;}
+ case E_NAME:{if(o->inline_param&&!strcmp(e->token.text,o->inline_param)){Expr *arg=o->inline_arg;const char *param=o->inline_param;o->inline_arg=NULL;o->inline_param=NULL;emit_expr(o,arg,l,err);o->inline_arg=arg;o->inline_param=param;break;}Local *v=local_find(l,e->token.text);if(!v)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else if(v->reg>=0)text_add(o,"    mov rax, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",v->slot*8);break;}
  case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
  case E_CALL:emit_call(o,e,l,err);break;
  case E_BINARY:
@@ -481,7 +505,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  }
 }
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
- text_add(o,".intel_syntax noprefix\n.text\n");int strid=0;
+ text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];Locals l={0};o->stack_depth=0;
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
