@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; Expr *hoist_expr; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; Expr *hoist_expr,*recurrence_expr; } Text;
 static inline void text_add(Text *t,const char *fmt,...){
  va_list ap;va_start(ap,fmt);va_list cp;va_copy(cp,ap);int n=vsnprintf(NULL,0,fmt,cp);va_end(cp);
  if(n<0){va_end(ap);return;}size_t need=t->len+(size_t)n+1;
@@ -55,6 +55,7 @@ static inline bool add_chain_supported(Expr *e,Locals *l){
 }
 static inline void emit_term_r10(Text *o,Expr *e,Locals *l){
  if(o->hoist_expr==e){text_add(o,"    mov r10, r11\n");return;}
+ if(o->recurrence_expr==e){text_add(o,"    mov r10, r15\n");return;}
  if(e->kind==E_INT)text_add(o,"    mov r10, %s\n",e->token.text);
  else if(e->kind==E_BOOL)text_add(o,"    mov r10, %d\n",e->token.kind==T_TRUE);
  else if(e->kind==E_NAME){
@@ -73,6 +74,11 @@ static inline void emit_add_terms_rax(Text *o,Expr *e,Locals *l,SwanError *err,b
   else text_add(o,"    mov r10, r11\n    add rax, r10\n");
   return;
  }
+ if(o->recurrence_expr==e){
+  if(*first){text_add(o,"    mov rax, r15\n");*first=false;}
+  else text_add(o,"    add rax, r15\n");
+  return;
+ }
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
   emit_add_terms_rax(o,e->left,l,err,first);emit_add_terms_rax(o,e->right,l,err,first);return;
  }
@@ -83,6 +89,11 @@ static inline void emit_add_terms(Text *o,Expr *e,Locals *l,SwanError *err,bool 
  if(o->hoist_expr==e){
   if(*first){text_add(o,"    mov r10, r11\n");*first=false;}
   else text_add(o,"    add r10, r11\n");
+  return;
+ }
+ if(o->recurrence_expr==e){
+  if(*first){text_add(o,"    mov r10, r15\n");*first=false;}
+  else text_add(o,"    add r10, r15\n");
   return;
  }
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
@@ -127,6 +138,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
  if(o->hoist_expr==e){text_add(o,"    mov rax, r11\n");return;}
+ if(o->recurrence_expr==e){text_add(o,"    mov rax, r15\n");return;}
  switch(e->kind){
  case E_INT:text_add(o,"    mov rax, %s\n",e->token.text);break;
  case E_BOOL:text_add(o,"    mov eax, %d\n",e->token.kind==T_TRUE);break;
@@ -322,6 +334,39 @@ static inline Expr *find_loop_hoist(Stmt *s,Locals *l){
  }
  return NULL;
 }
+static inline bool statements_have_early_exit(Stmt **body,size_t n){
+ for(size_t i=0;i<n;i++){
+  Stmt *s=body[i];if(s->kind==S_RETURN||s->kind==S_BREAK||s->kind==S_CONTINUE)return true;
+  if(statements_have_early_exit(s->body,s->body_count)||statements_have_early_exit(s->alternate,s->alt_count))return true;
+ }
+ return false;
+}
+static inline Expr *find_induction_product(Expr *e,const char *name,long long *coefficient){
+ if(!e)return NULL;
+ if(e->kind==E_BINARY&&e->token.kind==T_STAR&&e->left&&e->left->kind==E_NAME&&!strcmp(e->left->token.text,name)&&e->right&&e->right->kind==E_INT){
+  char *end=NULL;long long value=strtoll(e->right->token.text,&end,10);
+  if(end&&!*end&&value>=INT32_MIN&&value<=INT32_MAX&&value!=0){*coefficient=value;return e;}
+ }
+ Expr *found=find_induction_product(e->left,name,coefficient);if(found)return found;
+ found=find_induction_product(e->right,name,coefficient);if(found)return found;
+ for(size_t i=0;i<e->argc;i++){found=find_induction_product(e->args[i],name,coefficient);if(found)return found;}
+ return NULL;
+}
+static inline Expr *find_loop_recurrence(Stmt *s,Locals *l,long long *coefficient){
+ if(!loop_bottom_test_candidate(s,l)||l->reg_count>=5||statements_have_loop(s->body,s->body_count)||statements_have_call(s->body,s->body_count)||statements_have_early_exit(s->body,s->body_count))return NULL;
+ const char *name=s->condition->left->token.text;
+ for(size_t i=0;i<s->body_count;i++){
+  Stmt *item=s->body[i];
+  Expr *found=find_induction_product(item->value,name,coefficient);if(found)return found;
+  found=find_induction_product(item->condition,name,coefficient);if(found)return found;
+ }
+ return NULL;
+}
+static inline void emit_recurrence_init(Text *o,Locals *l,const char *name,long long coefficient){
+ Local *v=local_find(l,name);
+ if(v->reg>=0)text_add(o,"    imul r15, %s, %lld\n",cg_saved_regs[v->reg],coefficient);
+ else text_add(o,"    imul r15, QWORD PTR [rbp - %d], %lld\n",v->slot*8,coefficient);
+}
 static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
  if(!s||s->kind!=S_WHILE||!s->condition||s->condition->kind!=E_BINARY)return false;
  Expr *cond=s->condition;
@@ -384,13 +429,21 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
    }
    case S_WHILE:{
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
-    Expr *saved_hoist=o->hoist_expr;
+    Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr;
     Expr *hoist=saved_hoist?NULL:find_loop_hoist(s,l);
     if(hoist){emit_expr(o,hoist,l,err);text_add(o,"    mov r11, rax\n");o->hoist_expr=hoist;}
+    long long recurrence_step=0;
+    Expr *recurrence=saved_recurrence?NULL:find_loop_recurrence(s,l,&recurrence_step);
+    if(recurrence){
+     cg_push(o,"r15");
+     emit_recurrence_init(o,l,s->condition->left->token.text,recurrence_step);
+     o->recurrence_expr=recurrence;
+    }
     if(loop_bottom_test_candidate(s,l)){
      emit_condition_jump(o,s->condition,l,err,target,false);
      text_add(o,".Lswan_loop_%d:\n",id);
      emit_block(o,s->body,s->body_count,l,label,err);
+     if(recurrence)text_add(o,"    add r15, %lld\n",recurrence_step);
      snprintf(target,sizeof(target),".Lswan_loop_%d",id);
      emit_condition_jump(o,s->condition,l,err,target,true);
      text_add(o,".Lswan_loop_end_%d:\n",id);
@@ -398,7 +451,8 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      text_add(o,".Lswan_loop_%d:\n",id);emit_condition_jump(o,s->condition,l,err,target,false);emit_block(o,s->body,s->body_count,l,label,err);
      text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);
     }
-    o->hoist_expr=saved_hoist;
+    o->hoist_expr=saved_hoist;o->recurrence_expr=saved_recurrence;
+    if(recurrence)cg_pop(o,"r15");
     break;
    }
    default:break;
