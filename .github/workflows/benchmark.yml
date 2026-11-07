@@ -222,7 +222,7 @@ jobs:
           cat > main.lua <<'EOF'
           local i, acc = 0, 0
           while i < 50000000 do
-              acc = (acc + i * 31) % 1000000007
+              acc = (acc + (i * 31) % 1000000007) % 1000000007
               i = i + 1
           end
           print(acc)
