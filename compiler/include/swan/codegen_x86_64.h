@@ -54,7 +54,7 @@ static inline bool add_chain_supported(Expr *e,Locals *l){
  return add_term_to_r10_supported(e,l);
 }
 static inline void emit_term_r10(Text *o,Expr *e,Locals *l){
- if(o->hoist_expr==e){text_add(o,"    mov r10, r11\\n");return;}
+ if(o->hoist_expr==e){text_add(o,"    mov r10, r11\n");return;}
  if(e->kind==E_INT)text_add(o,"    mov r10, %s\n",e->token.text);
  else if(e->kind==E_BOOL)text_add(o,"    mov r10, %d\n",e->token.kind==T_TRUE);
  else if(e->kind==E_NAME){
@@ -116,7 +116,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
- if(o->hoist_expr==e){text_add(o,"    mov rax, r11\\n");return;}
+ if(o->hoist_expr==e){text_add(o,"    mov rax, r11\n");return;}
  switch(e->kind){
  case E_INT:text_add(o,"    mov rax, %s\n",e->token.text);break;
  case E_BOOL:text_add(o,"    mov eax, %d\n",e->token.kind==T_TRUE);break;
