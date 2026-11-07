@@ -26,7 +26,7 @@ typedef struct Expr Expr;
 struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t argc; bool contains_call; };
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
 typedef struct Stmt Stmt;
-struct Stmt { StmtKind kind; Token token; char name[SWAN_MAX_TEXT]; char type[SWAN_MAX_TEXT]; bool mutable_value; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; char params[16][SWAN_MAX_TEXT]; size_t param_count; Stmt *next; };
+struct Stmt { StmtKind kind; Token token; const char *name,*type; bool mutable_value; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; size_t param_count; Stmt *next; };
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
 typedef struct { Stmt *functions[1024]; size_t count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; } Program;
 static inline void *swan_arena_alloc(Program *p,size_t size){
