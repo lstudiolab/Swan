@@ -87,7 +87,7 @@ SWAN
 "$SWAN" "$TMP/unroll.swan" --emit-asm -o "$TMP/unroll.s"
 cc -x assembler "$TMP/unroll.s" -o "$TMP/unroll"
 test "$("$TMP/unroll")" = "45"
-printf 'PASS: four-way loop unrolling preserves loop tails\n'
+printf 'PASS: loop condition and induction-variable fast paths preserve iteration counts\n'
 cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
     log missing_name
