@@ -1,4 +1,5 @@
 name: Binary Search Benchmark
+# Re-run on every benchmark harness correction.
 on:
   push:
     paths:
