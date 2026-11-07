@@ -1,0 +1,86 @@
+name: Ten-language runtime benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/ten-language-runtime.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: swan
+      - uses: actions/checkout@v4
+        with:
+          repository: aardappel/goose
+          path: goose
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - name: Install Objective-C and Kotlin toolchains
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake gobjc kotlin python3 time xz-utils
+      - name: Install Zig
+        shell: bash
+        run: |
+          curl -fsSL https://ziglang.org/download/0.14.1/zig-x86_64-linux-0.14.1.tar.xz -o /tmp/zig.tar.xz
+          mkdir -p /tmp/zig
+          tar -xJf /tmp/zig.tar.xz -C /tmp/zig --strip-components=1
+          echo "/tmp/zig" >> "$GITHUB_PATH"
+          echo "ZIG=/tmp/zig/zig" >> "$GITHUB_ENV"
+      - name: Locate Kotlin compiler
+        shell: bash
+        run: |
+          KOTLINC="$(command -v kotlinc)"
+          test -n "$KOTLINC"
+          echo "KOTLINC=$KOTLINC" >> "$GITHUB_ENV"
+          kotlinc -version
+      - name: Record machine and toolchain
+        run: |
+          lscpu
+          free -h
+          uname -a
+          cc --version
+          rustc --version
+          go version
+          zig version
+          kotlinc -version
+      - name: Build Swan compiler
+        working-directory: swan
+        run: sh build.sh
+      - name: Build Goose compiler
+        run: |
+          cmake -S goose -B goose/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build goose/build --parallel 2
+      - name: Run ten-language benchmark
+        working-directory: swan
+        run: python3 benchmarks/ten_language_runtime.py
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [ -f swan/ten-language-benchmark/results.md ]; then
+            cat swan/ten-language-benchmark/results.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Benchmark did not produce a report. Inspect build and benchmark logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload raw measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-ten-language-benchmark
+          path: swan/ten-language-benchmark/
+          if-no-files-found: warn
