@@ -16,7 +16,6 @@ inline std::string CGenerator::generate() {
     output_.reserve(program_.size() * 64 + 64);
     structs_.clear();
     functions_.clear();
-    symbols_.clear();
     scopes_.clear();
     indent_ = 0;
     output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
