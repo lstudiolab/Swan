@@ -216,7 +216,7 @@ inline int runCompiler(int argc, char** argv) {
                 std::filesystem::remove(executable, error);
             }
             if (!execute && status == 0)
-                std::cout << "Built " << executable.string() << '\\n';
+                std::cout << "Built " << executable.string() << '\n';
             return status;
         }
 
