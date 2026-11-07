@@ -1,10 +1,6 @@
 name: Ten-language runtime benchmark
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - 'benchmarks/ten_language_runtime.py'
   workflow_dispatch:
 
 permissions:
