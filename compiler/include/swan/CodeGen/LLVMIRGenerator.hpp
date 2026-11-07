@@ -3,6 +3,7 @@
 #include "swan/Basic/Diagnostic.hpp"
 #include <cstdint>
 #include <cstdio>
+#include <algorithm>
 #include <string>
 #include <unordered_map>
 #include <vector>
@@ -75,6 +76,21 @@ class LLVMIRGenerator {
             line(p + " = getelementptr i64, ptr " + base.value + ", i64 " + index.value);
             return p;
         }
+        if (e->kind == Expr::Kind::Member) {
+            const auto structName = e->left->resolved_type;
+            const Stmt* structure = nullptr;
+            for (const auto& n : program_)
+                if (n->kind == Stmt::Kind::Struct && n->name == structName) { structure = n.get(); break; }
+            if (!structure) throw CompileError("unknown struct type '" + structName + "'");
+            std::size_t index = 0;
+            for (; index < structure->fields.size(); ++index)
+                if (structure->fields[index].name == e->token.value) break;
+            if (index == structure->fields.size()) throw CompileError("unknown struct field '" + e->token.value + "'");
+            auto base = emitExpr(e->left.get()), p = tmp();
+            line(p + " = getelementptr inbounds %swan." + structName + ", ptr " + base.value +
+                 ", i32 0, i32 " + std::to_string(index));
+            return p;
+        }
         throw CompileError("unsupported assignment target in native IR backend");
     }
     Value cast(Value v, const std::string& wanted) {
@@ -114,6 +130,20 @@ class LLVMIRGenerator {
             auto p = address(e), r = tmp();
             line(r + " = load i64, ptr " + p);
             return {"i64", r};
+        }
+        case Expr::Kind::Member: {
+            auto p = address(e), r = tmp();
+            const auto structName = e->left->resolved_type;
+            const Stmt* structure = nullptr;
+            for (const auto& n : program_)
+                if (n->kind == Stmt::Kind::Struct && n->name == structName) { structure = n.get(); break; }
+            if (!structure) throw CompileError("unknown struct type '" + structName + "'");
+            auto field = std::find_if(structure->fields.begin(), structure->fields.end(),
+                [&](const Field& f) { return f.name == e->token.value; });
+            if (field == structure->fields.end()) throw CompileError("unknown struct field '" + e->token.value + "'");
+            auto t = ty(field->type);
+            line(r + " = load " + t + ", ptr " + p);
+            return {t, r};
         }
         case Expr::Kind::Call: {
             if (e->left->token.value == "array") {
