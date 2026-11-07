@@ -41,11 +41,10 @@ Potential future improvements:
 
 ### 4. C generation
 
-The C emitter appends expression fragments into one string per expression tree and writes statements, declarations, and function signatures directly into the final output buffer. It avoids recursively allocating intermediate expression strings and line-sized concatenation chains. String literal escaping writes directly into a reserved string rather than using an `ostringstream`. Semantic analysis records built-in expression types in a compact enum, and code generation reuses that metadata.
+The C emitter appends expression fragments into one string per expression tree and writes statements, declarations, and function signatures directly into the final output buffer. It avoids recursively allocating intermediate expression strings and line-sized concatenation chains. String literal escaping appends directly into the final expression buffer rather than allocating an intermediate string or using an `ostringstream`. Semantic analysis records built-in expression types in a compact enum, and code generation reuses that metadata.
 
 Potential future improvements:
 
-- Reduce remaining temporary strings in type mapping and structure declaration emission.
 - Reuse resolved symbol and type information throughout the backend.
 - Measure generated output size and emission time independently.
 
@@ -87,7 +86,8 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 - Semantic name lookup uses one active-symbol hash index. Scope exit restores shadowed bindings, avoiding a reverse scan through every enclosing scope.
 - Assignment analysis resolves the target once instead of recursively analyzing and looking it up a second time.
 - C expression emission appends into a shared expression buffer rather than building a tree of temporary strings.
-- C statement and declaration emission writes directly to the final output buffer.
-- C string escaping and output generation use reserved string buffers rather than stream formatting.
+- C statement, function, struct, and typedef emission writes directly to the final output buffer.
+- Struct type membership uses transparent `string_view` lookup, avoiding a temporary string for every struct-typed field.
+- C string escaping and output generation append directly to reserved buffers rather than stream formatting.
 
 These changes reduce known repeated work and avoid selected allocations. They are not a claim of a measured percentage improvement. Use the benchmark harness on the same machine before and after changes to quantify end-to-end impact.
