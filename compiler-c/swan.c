@@ -24,7 +24,6 @@ static void append_n(Buffer *b,const char *s,size_t n) {
     memcpy(b->data+b->len,s,n);b->len+=n;b->data[b->len]=0;
 }
 static void append(Buffer *b,const char *s){append_n(b,s,strlen(s));}
-static void emitf(Buffer *b,const char *fmt,long long a,long long c){char s[256];snprintf(s,sizeof s,fmt,a,c);append(b,s);}
 static char *trim(char *s) {
     while(isspace((unsigned char)*s))s++;
     size_t n=strlen(s);
@@ -72,14 +71,6 @@ static int loop_slot(const Loop *l,const char *name){
 static int find_loop(Loop *loops,int depth,const char *name){
     for(int i=depth-1;i>=0;i--)if(loop_slot(&loops[i],name))return loops[i].index_slot;
     return 0;
-}
-static void slot_addr(Buffer *b,Target t,int slot,const char *reg){
-    char s[128];
-    if(t==X86_64)snprintf(s,sizeof s,"[rbp - %d]",slot);
-    else if(t==AARCH64)snprintf(s,sizeof s,"x29, #%d",slot);
-    else snprintf(s,sizeof s,"r11, #%d",slot);
-    (void)reg;
-    if(t==X86_64)append(b,s);
 }
 static void emit_store_const(Buffer *b,Target t,int slot,long long value){
     char s[256];
