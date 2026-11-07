@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Install AArch64 GNU assembler
+        run: sudo apt-get update && sudo apt-get install -y binutils-aarch64-linux-gnu
       - name: Build Swan compiler
         run: sh build.sh
       - name: Verify standalone headers
