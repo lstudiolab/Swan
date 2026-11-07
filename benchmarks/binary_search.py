@@ -106,8 +106,6 @@ def main():
    src[name]=d/f"search.{suffix}";src[name].write_text(body)
   exe={name:d/name.lower().replace("+","p") for name in src}
   exe["Swan"]=d/"swan-search"
-  exe["Swan-fast"]=d/"swan-fast-search"
-  exe["Swan-clang"]=d/"swan-clang-search"
   commands={
    "C":["cc","-O3","-march=native","-DNDEBUG",str(src["C"]),"-o",str(exe["C"])],
    "C++":["c++","-O3","-march=native","-DNDEBUG","-std=c++17",str(src["C++"]),"-o",str(exe["C++"])],
@@ -118,10 +116,10 @@ def main():
    "Swan-clang":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan-clang"])],
   }
   results={}
-  names=("Swan","Swan-clang","Swan-fast","Goose","Rust","C","C++")
+  names=("Swan","Goose","Rust","C","C++")
   for name in names:
    print(f"COMPILING {name}",flush=True)
-   ct,cm,_=run(commands[name], {"SWAN_OPT_CC":"clang"} if name=="Swan-clang" else None)
+   ct,cm,_=run(commands[name])
    if not exe[name].is_file(): raise RuntimeError(f"{name} executable missing")
    results[name]={"compile_seconds":round(ct,3),"compile_peak_mib":round(cm,2),
                   "runtime_samples_seconds":[],"runtime_samples_peak_mib":[],
