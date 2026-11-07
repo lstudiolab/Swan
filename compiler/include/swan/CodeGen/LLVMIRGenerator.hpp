@@ -109,9 +109,9 @@ class LLVMIRGenerator {
         switch (e->kind) {
         case Expr::Kind::Literal:
             if (e->token.kind == "STRING") return stringValue(v);
-            if (v == "true") return {"i1", "true"};
-            if (v == "false") return {"i1", "false"};
-            if (v == "none") return {"ptr", "null"};
+            if (e->token.kind == "true") return {"i1", "true"};
+            if (e->token.kind == "false") return {"i1", "false"};
+            if (e->token.kind == "none") return {"ptr", "null"};
             if (e->resolved_type == "float") return {"double", v};
             return {"i64", v};
         case Expr::Kind::Name: {
