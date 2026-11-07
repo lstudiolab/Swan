@@ -1,5 +1,6 @@
 #pragma once
 #include "swan/CodeGen/AssemblyGenerator.hpp"
+#include "swan/CodeGen/CSourceGenerator.hpp"
 #include "swan/Frontend/Frontend.hpp"
 #include <string>
 #include <string_view>
@@ -10,6 +11,11 @@ public:
     std::string compile(std::string_view source) const {
         auto program = Frontend().build(source);
         return AssemblyGenerator(program).generate();
+    }
+
+    std::string compilePortable(std::string_view source) const {
+        auto program = Frontend().build(source);
+        return CSourceGenerator(program).generate();
     }
 };
 }
