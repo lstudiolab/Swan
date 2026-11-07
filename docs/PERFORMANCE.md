@@ -61,6 +61,42 @@ No performance improvement is claimed without a reproducible baseline. Before op
 
 The compiler benchmark suite exercises declaration-heavy input, repeated expressions, function calls, string literals, nested scopes, and struct dependency ordering. A dedicated C++ harness measures lexer, parser, semantic-analysis, and code-generation phases separately over nine runs and reports each median. The CLI benchmark reports median end-to-end time and range over seven runs. A separate 50-million-iteration scalar workload compares Swan, Rust, and Goose, checks output equality, and reports compile-pipeline time, runtime, and peak RSS. These measurements are workload- and runner-specific.
 
+## Measured hot paths (Ubuntu 26.04, Clang 21.1.8)
+
+The focused benchmark runs seven CLI trials and nine in-process phase trials,
+reporting medians. On the recorded runner:
+
+| Workload | Frontend total | CLI total |
+|---|---:|---:|
+| 2,500 declarations | 1.82 ms | 5.15 ms |
+| 1,500 repeated expressions | 1.29 ms | 3.60 ms |
+| 1,000 function calls | 0.46 ms | 2.54 ms |
+| 1,200 string literals | 0.40 ms | 2.21 ms |
+| 48 nested scopes | 0.03 ms | 1.13 ms |
+
+The separate native-backend experiment compiles the same generated C seven
+times per optimization level and checks the output checksum:
+
+| Clang level | Backend compile | Program runtime |
+|---|---:|---:|
+| `-O0` | 49.86 ms | 144.65 ms |
+| `-O1` | 52.25 ms | 129.83 ms |
+| `-O2` | 53.61 ms | 129.95 ms |
+| `-O3` | 56.18 ms | 131.05 ms |
+| `-Os` | 51.87 ms | 132.95 ms |
+
+For this workload, `-O1` is the best compile/runtime balance: it compiles
+slightly faster than `-O2` and its runtime is within measurement noise of
+`-O2`. `-O0` is not recommended because the runtime regresses by about 11%.
+The compiler frontend itself is already in the low-millisecond range, so
+rewriting lexer/parser algorithms is not justified by these measurements.
+The remaining compile cost is primarily launching and running the external C
+compiler, which Swan intentionally does not invoke.
+
+These are single-runner measurements, not universal performance guarantees.
+Re-run `benchmarks/backend_flags.py` on the target machine before choosing
+different flags.
+
 ## Optimization order
 
 1. Profile and reduce lexer allocations.
