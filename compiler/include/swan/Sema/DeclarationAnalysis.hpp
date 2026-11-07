@@ -11,7 +11,7 @@ inline void Sema::analyze() {
         if (node->kind == Stmt::Kind::Struct && !types_.insert(node->name).second)
             fail(node->token,"type '" + node->name + "' is already defined");
         if (node->kind == Stmt::Kind::Function &&
-            !functions_.emplace(node->name,node).second)
+            !functions_.emplace(node->name,node.get()).second)
             fail(node->token,"function '" + node->name + "' is already declared");
     }
     for (const auto& node : program_) {
