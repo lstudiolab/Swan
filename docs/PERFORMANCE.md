@@ -8,17 +8,16 @@ The current implementation is a correctness-first baseline. It uses a simple sta
 
 ## Implemented optimizations
 
-The current main branch includes:
-- Arena-backed AST nodes and block-pointer arrays, avoiding one heap allocation per AST node and repeated block-array reallocations.
-- Hash-indexed semantic symbols, functions, and backend locals, with scope-chain removal for nested semantic blocks.
-- Cached call-presence metadata on expressions, avoiding repeated recursive call scans during code generation.
-- Direct ASCII identifier/digit classification in the lexer, avoiding locale-sensitive character-table calls.
-- Span-based keyword classification without an intermediate identifier copy.
-- Single-pass assembly formatting in the common case; the output buffer grows and retries only when a formatted line does not fit.
-- Integer constant folding during native code generation, including wrapping add/subtract/multiply and signed comparisons.
-- Register-backed locals, leaf-function frame elimination, safe small-function inlining, direct ABI argument placement, and loop strength reduction.
+The current compiler hot paths use:
+- **Arena-backed AST storage:** expression nodes, statement nodes, and parsed block vectors are allocated from 64 KiB chunks and released together.
+- **Compact tokens:** token records store text pointers into a shared token-text buffer instead of embedding a 512-byte character array in every token.
+- **Indexed semantic lookup:** function declarations and scoped local symbols use hash buckets rather than repeated linear scans. Scope rollback restores prior bucket heads without copying entire symbol tables.
+- **Indexed backend locals:** compact local records and hash lookup replace repeated reverse scans through large fixed-size local arrays.
+- **Cached AST call metadata:** expression trees carry call-presence metadata so call analysis does not repeatedly walk subtrees.
+- **Low-overhead assembly emission:** literal instruction strings bypass the formatting library; formatted output uses a single formatting pass unless the output buffer must grow.
+- **Reduced runtime instruction count:** local-to-local arithmetic and comparisons avoid push/pop stack temporaries; existing constant folding, small-function inlining, register locals, leaf-frame elimination, parity checks, and loop strength reduction remain enabled.
 
-These changes target known allocation, formatting, and generated-instruction overhead. Their speed impact is **not quantified** until a separately authorized benchmark is run.
+These changes remove known allocation, lookup, formatting, and instruction-generation overhead. Their speed impact is **not quantified** until a separately authorized benchmark is run.
 
 ## Required measurements
 
