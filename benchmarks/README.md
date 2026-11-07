@@ -16,12 +16,12 @@ the same checksum. This isolates the native C backend from Swan's own
 lexer/parser/sema/codegen time.
 
 On the recorded Ubuntu 26.04 / Clang 21.1.8 runner, the latest run measured
-`-O1` at 52.76 ms versus 55.96 ms for `-O2`; runtime was 191.22 ms versus
-193.06 ms. An earlier run showed the same ordering. Treat the absolute times
-as runner-specific.
-That makes `-O1` the recommended fast-build setting for this workload. The
-difference is small, so treat it as a measured default, not a universal
-speedup guarantee.
+`-O0` at 48.33 ms versus 51.27 ms for `-O1` and 54.84 ms for `-O2`. Runtime
+was 151.06 ms at `-O0`, versus 157.93 ms at `-O1` and 157.88 ms at `-O2`.
+A separate run showed the same ordering. Swan's native build wrapper and the
+cross-language benchmark therefore use `-O0` for fastest compilation. Set
+`SWAN_OPT_LEVEL=1` when optimizing a different workload for runtime. Results
+are workload- and runner-specific.
 
 ## Cross-language baseline
 
