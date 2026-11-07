@@ -15,10 +15,15 @@ inline std::string CGenerator::quote(const std::string& value) const { return es
 inline std::string CGenerator::generate() {
     output_ << "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
     std::vector<StmtPtr> structures;
+    structures.reserve(program_.size());
+    functions_.reserve(program_.size());
+    std::unordered_map<std::string, StmtPtr> structureByName;
+    structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             structs_.insert(node->name);
             structures.push_back(node);
+            structureByName.emplace(node->name, node);
         }
         if (node->kind == Stmt::Kind::Function) functions_[node->name] = node;
     }
@@ -28,7 +33,9 @@ inline std::string CGenerator::generate() {
     if (!structures.empty()) line();
 
     std::unordered_map<std::string, int> state;
+    state.reserve(structures.size());
     std::vector<StmtPtr> ordered;
+    ordered.reserve(structures.size());
     std::function<void(const StmtPtr&)> visit = [&](const StmtPtr& structure) {
         int& mark = state[structure->name];
         if (mark == 2) return;
@@ -36,9 +43,8 @@ inline std::string CGenerator::generate() {
         mark = 1;
         for (const auto& field : structure->fields) {
             if (!structs_.contains(field.type)) continue;
-            auto dependency = std::find_if(structures.begin(), structures.end(),
-                [&](const StmtPtr& candidate) { return candidate->name == field.type; });
-            if (dependency != structures.end()) visit(*dependency);
+            const auto dependency = structureByName.find(field.type);
+            if (dependency != structureByName.end()) visit(dependency->second);
         }
         mark = 2;
         ordered.push_back(structure);
