@@ -1,11 +1,6 @@
 # Compiler Architecture
 
-Swan uses a layered, header-oriented C++20 compiler architecture. Its organization takes two useful ideas from established compilers:
-
-- **Goose:** focused headers for concrete compiler responsibilities and a small central driver.
-- **Swift:** domain-oriented subsystem boundaries, with compiler infrastructure, syntax, semantic analysis, frontend orchestration, and backend work kept distinct.
-
-This is an architectural adaptation, not copied Goose or Swift source code.
+Swan uses a layered, header-oriented C++20 compiler architecture.
 
 ## Repository layout
 
@@ -13,70 +8,54 @@ This is an architectural adaptation, not copied Goose or Swift source code.
 main.cpp
 compiler/include/swan/
 ├── Basic/       Source locations, tokens, and diagnostics
-├── Support/     Version and filesystem utilities
-├── Lex/         Keyword classification and focused token scanners
+├── Support/     File and version utilities
+├── Lex/         Token scanners and keyword classification
 ├── AST/         Expression, declaration, statement, and program nodes
-├── Parse/       Parser core, declarations, statements, expressions
-├── Sema/        Type rules, scopes, declarations, statements, expressions
+├── Parse/       Parser and grammar routines
+├── Sema/        Type, scope, declaration, and statement analysis
 ├── Frontend/    Lexing, parsing, and semantic-analysis orchestration
-├── CodeGen/     C types, literal escaping, expression/statement/program emission
-├── Compiler/    Whole-compilation orchestration and backend selection
-└── Driver/      Command-line options and executable driver
+├── CodeGen/     Direct x86-64 assembly generation
+├── Compiler/    Whole-compilation orchestration
+└── Driver/      Command-line options and native linking
 ```
 
-Top-level headers such as `swan/Parser.hpp` and `swan/Compiler.hpp` remain thin compatibility facades. The old `swan/Driver/Compiler.hpp` path is also retained as a forwarding header. New compiler code should include the subsystem header that owns the component.
-
-## Subsystem responsibilities
-
-- **Basic** owns source locations, tokens, and diagnostics. It must not depend on compiler phases.
-- **Support** owns small utilities such as file reading, file writing, and version information.
-- **Lex** converts source characters into tokens. Identifier, number, string, and punctuation scanning are separate responsibilities.
-- **AST** defines the syntax representation. It does not depend on the parser or semantic analyzer.
-- **Parse** consumes tokens and constructs the AST. Expression precedence and grammar routines are separated from parser state management.
-- **Sema** validates declarations, scopes, types, statements, and expressions. It does not emit target code.
-- **Frontend** coordinates the language-analysis stages and returns a checked program.
-- **CodeGen** consumes a semantically checked program and emits C11. Type mapping, literal escaping, and expression/statement/program emission are separated.
-- **Compiler** coordinates the frontend and the currently supported C backend.
-- **Driver** handles command-line input/output and process-level behavior. It does not own language semantics or backend implementation.
-
-## Dependency direction
-
-The dependency direction is intentionally one-way:
-
-1. Basic and Support provide low-level facilities.
-2. Lex, AST, Parse, and Sema implement language representation and analysis.
-3. Frontend composes those language stages.
-4. CodeGen consumes the checked AST.
-5. Compiler composes Frontend and CodeGen.
-6. Driver handles process arguments and file I/O through Compiler.
-
-A lower-level subsystem must not depend on Driver. Frontend must not depend on CodeGen. This keeps semantic analysis reusable by future tools such as a formatter, language server, or alternate backend.
-
-## Translation-unit policy
-
-The executable has one checked-in C++ translation unit: `main.cpp`. Implementations are provided by inline definitions in subsystem headers and included through their owning component headers. This preserves the requested single-translation-unit build without CMake.
-
-The build uses the system C++ compiler directly through `build.sh`; the project targets C++20 and treats compiler warnings as errors.
-
-## Header rules
-
-1. Each header has one primary responsibility and lives in its owning subsystem.
-2. Public component headers declare the component; focused headers define related implementation routines.
-3. Headers include their direct dependencies and use `#pragma once`.
-4. The header smoke test compiles every header as the only include in a temporary translation unit.
-5. Do not add placeholder headers for future features.
-6. Keep compatibility facades thin while existing examples and tools still use them.
-7. Add a focused regression test for every language or compiler behavior change.
-
-## Current compilation pipeline
+## Compilation pipeline
 
 ```text
-Source text
+.swan source
   -> Lexer
   -> Parser
   -> AST
   -> Semantic analysis
-  -> C source generation
+  -> x86-64 GNU assembly
+  -> assembler + system linker
+  -> native executable
 ```
 
-SIL generation, demand analysis, and SIL optimization are future phases. They must not be represented by empty or pretend implementations before Swan's language semantics are stable.
+The compiler does not emit C as an intermediate representation. The assembly backend emits GNU assembler syntax for the x86-64 System V ELF ABI. The driver invokes the configured `CC` tool (normally `cc`) in assembler mode to assemble and link the generated source.
+
+## Backend responsibilities
+
+- Semantic analysis resolves and annotates expression types before code generation.
+- `AssemblyGenerator` lowers checked AST nodes into x86-64 instructions.
+- Stack slots hold source-level locals and parameters; expression temporaries use the machine stack.
+- Swan-to-Swan calls use a compiler-defined scalar calling convention. External libc calls follow System V ABI rules.
+- String and floating-point constants are emitted into read-only data.
+- The driver owns temporary files, tool invocation, executable output, and process execution.
+
+## Target limitations
+
+The initial backend targets x86-64 Linux ELF. It does not yet implement other architectures, aggregate-value ABI lowering, debug information, register allocation, or a target-independent intermediate representation. Unsupported constructs must fail with diagnostics rather than silently produce incorrect code.
+
+## Translation-unit policy
+
+The executable has one checked-in C++ translation unit: `main.cpp`. Implementations are provided by inline definitions in subsystem headers. The build uses C++20 directly through `build.sh`; CMake is not required.
+
+## Engineering rules
+
+1. Basic and Support remain independent of compiler phases.
+2. Frontend owns language analysis and does not depend on code generation.
+3. Code generation consumes a semantically checked AST.
+4. Driver owns process-level behavior, not language semantics.
+5. Every backend behavior requires a regression test.
+6. Performance claims require reproducible benchmarks and verified output.
