@@ -35,7 +35,7 @@ inline ExprPtr Parser::prefix() {
     if (token.kind == "INT" || token.kind == "FLOAT" || token.kind == "STRING" ||
         token.kind == "true" || token.kind == "false" || token.kind == "none") {
         node->kind = Expr::Kind::Literal; node->value = std::move(token.value);
-        node->literal_kind = std::move(token.kind);
+        node->literal_kind = token.kind;
     } else if (token.kind == "IDENT") {
         node->kind = Expr::Kind::Name; node->value = std::move(token.value);
     } else if (token.kind == "(") {
