@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """20M-element, 20M-query native binary-search benchmark with checksum checks."""
 from __future__ import annotations
-import json, os, pathlib, subprocess, tempfile, time
+import json, os, pathlib, statistics, subprocess, tempfile, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 N = 20_000_000
+RUNS = 3
 EXPECTED = N * (N - 1) // 2
 GOOSE = os.environ.get("GOOSE", "goose")
 TIME = "/usr/bin/time"
@@ -115,13 +116,17 @@ def main():
    print(f"COMPILING {name}",flush=True)
    ct,cm,_=run(commands[name])
    if not exe[name].is_file(): raise RuntimeError(f"{name} executable missing")
-   print(f"RUNNING {name}",flush=True)
-   rt,rm,out=run([str(exe[name])])
-   try: checksum=int(out.splitlines()[-1])
-   except Exception: raise RuntimeError(f"{name} invalid output: {out!r}")
-   if checksum!=EXPECTED: raise RuntimeError(f"{name} checksum {checksum}; expected {EXPECTED}")
-   results[name]={"compile_seconds":round(ct,3),"compile_peak_mib":round(cm,2),"runtime_seconds":round(rt,3),"runtime_peak_mib":round(rm,2),"checksum":checksum,"executable_bytes":exe[name].stat().st_size}
-   print(f"PASS {name}: compile {ct:.3f}s, runtime {rt:.3f}s, peak RSS {rm:.2f} MiB",flush=True)
+   print(f"RUNNING {name} ({RUNS} measured repetitions)",flush=True)
+   runtime_samples=[]; memory_samples=[]
+   for attempt in range(RUNS):
+    rt,rm,out=run([str(exe[name])])
+    try: checksum=int(out.splitlines()[-1])
+    except Exception: raise RuntimeError(f"{name} invalid output: {out!r}")
+    if checksum!=EXPECTED: raise RuntimeError(f"{name} checksum {checksum}; expected {EXPECTED}")
+    runtime_samples.append(rt); memory_samples.append(rm)
+   rt=statistics.median(runtime_samples); rm=statistics.median(memory_samples)
+   results[name]={"compile_seconds":round(ct,3),"compile_peak_mib":round(cm,2),"runtime_seconds":round(rt,3),"runtime_samples_seconds":[round(x,3) for x in runtime_samples],"runtime_peak_mib":round(rm,2),"checksum":EXPECTED,"executable_bytes":exe[name].stat().st_size}
+   print(f"PASS {name}: compile {ct:.3f}s, median runtime {rt:.3f}s, samples {runtime_samples}, peak RSS {rm:.2f} MiB",flush=True)
   report={"array_elements":N,"queries":N,"query_formula":"(q * 7919) % 20000000","expected_checksum":EXPECTED,"all_checksums_valid":True,"languages":results}
   out=ROOT/"binary-search-benchmark.json";out.write_text(json.dumps(report,indent=2)+"\n")
   print("\n| Language | Compile s | Compile RAM MiB | Runtime s | Runtime RAM MiB | Binary B |")
