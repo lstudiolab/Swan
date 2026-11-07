@@ -59,7 +59,7 @@ No performance improvement is claimed without a reproducible baseline. Before op
 5. Run repeated trials and report median and spread.
 6. Verify generated program output before comparing timings.
 
-The compiler benchmark suite exercises declaration-heavy input, repeated expression analysis, function calls, string literals, and nested scopes. It reports median end-to-end compiler time and the observed range over seven runs. A separate 50-million-iteration scalar workload compares Swan, Rust, and Goose, checks output equality, and reports compile-pipeline time, runtime, and peak RSS. These end-to-end workloads do not replace phase-level profiling.
+The compiler benchmark suite exercises declaration-heavy input, repeated expressions, function calls, string literals, nested scopes, and struct dependency ordering. A dedicated C++ harness measures lexer, parser, semantic-analysis, and code-generation phases separately over nine runs and reports each median. The CLI benchmark reports median end-to-end time and range over seven runs. A separate 50-million-iteration scalar workload compares Swan, Rust, and Goose, checks output equality, and reports compile-pipeline time, runtime, and peak RSS. These measurements are workload- and runner-specific.
 
 ## Optimization order
 
