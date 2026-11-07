@@ -1,17 +1,47 @@
 name: Swan CI
+
 on:
   push:
-    branches: [main]
   pull_request:
   workflow_dispatch:
+
 jobs:
   compiler:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+
       - name: Build native C++20 compiler
         run: sh build.sh
+
+      - name: Compile every Swan source file
+        shell: bash
+        run: |
+          set -euo pipefail
+          output_dir="build/swan-ci"
+          mapfile -d '' sources < <(find . -type f -name '*.swan' -not -path './.git/*' -not -path './build/*' -print0)
+
+          if (("${#sources[@]}" == 0)); then
+            echo "No .swan files found."
+            exit 0
+          fi
+
+          for source in "${sources[@]}"; do
+            relative="${source#./}"
+            generated="$output_dir/${relative%.swan}.c"
+            object="${output_dir}/${relative%.swan}.o"
+
+            mkdir -p "$(dirname "$generated")"
+            echo "::group::Compile $source"
+            ./build/swan "$source" -o "$generated"
+            cc -std=c11 -c "$generated" -o "$object"
+            echo "::endgroup::"
+          done
+
+          echo "Successfully compiled ${#sources[@]} Swan source file(s)."
+
       - name: Run compiler tests
         run: sh test.sh
+
       - name: Verify CLI version
         run: ./build/swan --version
