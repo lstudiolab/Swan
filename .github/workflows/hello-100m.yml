@@ -50,7 +50,7 @@ jobs:
       - name: Publish benchmark summary
         if: always()
         run: |
-          if [ -f swan/benchmark-results/results.md ]; then
+          if [ -f benchmark-results/results.md ]; then
             cat swan/benchmark-results/results.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Benchmark did not produce results. Inspect the preceding build or run step." >> "$GITHUB_STEP_SUMMARY"
@@ -63,5 +63,5 @@ jobs:
           name: swan-goose-hello-100m-results
           path: |
             swan/benchmark-results/results.md
-            swan/benchmark-results/results.json
+            benchmark-results/results.json
           if-no-files-found: warn
