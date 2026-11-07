@@ -94,3 +94,15 @@ if "$SWAN" "$TMP/identifier-location.swan" -o "$TMP/identifier-location.c" 2>"$T
 fi
 grep -q "2:9: unknown name 'missing'" "$TMP/identifier-location.err"
 printf 'PASS: identifier source columns\n'
+
+cat > "$TMP/keyword-operators.swan" <<'SWAN'
+fn main():
+    var enabled: bool = true
+    if enabled and not false or false
+        log "keyword operators preserved"
+    return 0
+SWAN
+"$SWAN" "$TMP/keyword-operators.swan" -o "$TMP/keyword-operators.c"
+${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/keyword-operators.c" -o "$TMP/keyword-operators"
+test "$("$TMP/keyword-operators")" = "keyword operators preserved"
+printf 'PASS: keyword operators and primitive types\n'
