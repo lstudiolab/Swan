@@ -1,0 +1,37 @@
+name: Language Benchmarks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang build-essential time python3
+      - name: Build Swan
+        run: sh build.sh
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build Goose compiler
+        run: |
+          git clone --depth 1 https://github.com/aardappel/goose.git "$RUNNER_TEMP/goose"
+          cmake -S "$RUNNER_TEMP/goose" -B "$RUNNER_TEMP/goose-build" \
+            -DCMAKE_BUILD_TYPE=Release -DGOOSE_BUILTIN_LIBS=
+          cmake --build "$RUNNER_TEMP/goose-build" --parallel 2
+          echo "GOOSE_BIN=$RUNNER_TEMP/goose-build/goose" >> "$GITHUB_ENV"
+          git -C "$RUNNER_TEMP/goose" rev-parse HEAD
+      - name: Run equivalent native benchmarks
+        run: python3 benchmarks/compare_languages.py
+      - name: Record machine and toolchain
+        if: always()
+        run: |
+          uname -a
+          clang --version
+          rustc --version
+          "$GOOSE_BIN" --version || true
