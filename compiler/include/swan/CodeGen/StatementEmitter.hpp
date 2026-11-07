@@ -5,8 +5,9 @@
 
 namespace swan {
 inline void CGenerator::line(const std::string& value) {
-    if (!value.empty()) output_ << std::string(indent_ * 4,' ') << value;
-    output_ << '\n';
+    output_.append(indent_ * 4, ' ');
+    output_.append(value);
+    output_.push_back('\n');
 }
 inline void CGenerator::block(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
@@ -57,6 +58,7 @@ inline void CGenerator::statement(const StmtPtr& node) {
 inline void CGenerator::function(const StmtPtr& node) {
     symbols_.clear(); scopes_.clear(); scopes_.emplace_back();
     std::string parameters;
+    parameters.reserve(node->parameters.size() * 32);
     for (const auto& parameter : node->parameters) {
         if (!parameters.empty()) parameters += ", ";
         parameters += cType(parameter.type) + " const " + cVariableName(parameter.name);
