@@ -170,6 +170,8 @@ inline int runCompiler(int argc, char** argv) {
         if (!readTextFile(options.input, source))
             throw CompileError("cannot open '" + options.input.string() + "'");
 
+        const bool emitC = options.emitC ||
+            (options.hasOutput && options.output.extension() == ".c");
         const bool emitAssembly = options.emitAssembly ||
             (options.hasOutput && options.output.extension() == ".s");
 #if defined(__linux__) && defined(__x86_64__)
@@ -178,7 +180,7 @@ inline int runCompiler(int argc, char** argv) {
         constexpr bool directNativeSupported = false;
 #endif
         const bool portable = options.optimize || options.target != "native" ||
-            !directNativeSupported;
+            !directNativeSupported || emitC;
         if (portable) {
             const auto output = options.hasOutput ? options.output
                 : std::filesystem::path(options.input.stem().string() + (emitC ? ".c" : ".s"));
