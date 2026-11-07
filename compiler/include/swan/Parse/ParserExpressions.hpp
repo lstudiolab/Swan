@@ -13,10 +13,10 @@ inline ExprPtr Parser::expression(int minimum) {
     while (true) {
         const int level = precedence(peek().kind);
         if (level < minimum) break;
-        const auto& op = advance();
+        auto& op = advance();
         auto right = expression(op.kind == "=" ? level : level + 1);
         auto node = std::make_shared<Expr>();
-        node->kind = Expr::Kind::Binary; node->token = op.location(); node->op = op.value;
+        node->kind = Expr::Kind::Binary; node->token = op.location(); node->op = std::move(op.value);
         node->left = left; node->right = right; left = node;
     }
     return left;
@@ -30,12 +30,12 @@ inline ExprPtr Parser::prefix() {
         node->left = expression(8);
         return node;
     }
-    const auto& token = advance();
+    auto& token = advance();
     auto node = std::make_shared<Expr>(); node->token = token.location();
     if (token.kind == "INT" || token.kind == "FLOAT" || token.kind == "STRING" ||
         token.kind == "true" || token.kind == "false" || token.kind == "none") {
-        node->kind = Expr::Kind::Literal; node->value = token.value;
-        node->literal_kind = token.kind;
+        node->kind = Expr::Kind::Literal; node->value = std::move(token.value);
+        node->literal_kind = std::move(token.kind);
     } else if (token.kind == "IDENT") {
         node->kind = Expr::Kind::Name; node->value = token.value;
     } else if (token.kind == "(") {
@@ -52,10 +52,10 @@ inline ExprPtr Parser::prefix() {
             expect(")","expected ')' after arguments");
             node = call;
         } else if (match(".")) {
-            const auto& member = expect("IDENT","expected member name");
+            auto& member = expect("IDENT","expected member name");
             auto access = std::make_shared<Expr>();
             access->kind = Expr::Kind::Member; access->token = member.location();
-            access->left = node; access->value = member.value; node = access;
+            access->left = node; access->value = std::move(member.value); node = access;
         } else break;
     }
     return node;
