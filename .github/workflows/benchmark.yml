@@ -1,4 +1,4 @@
-name: Cross-language benchmark
+name: Native compiled-language benchmark
 
 on:
   workflow_dispatch:
@@ -15,23 +15,16 @@ permissions:
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 45
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install base toolchains
+      - name: Install toolchains
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build lua5.4 unzip
-
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "8.0.x"
+          sudo apt-get install -y build-essential cmake ninja-build
+          rustup update stable
+          go version
 
       - uses: swift-actions/setup-swift@v2
         with:
@@ -40,12 +33,6 @@ jobs:
       - uses: mlugg/setup-zig@v2
         with:
           version: "0.14.1"
-
-      - name: Install Kotlin compiler
-        run: |
-          curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v2.1.20/kotlin-compiler-2.1.20.zip -o /tmp/kotlin.zip
-          sudo unzip -q /tmp/kotlin.zip -d /opt
-          echo "/opt/kotlinc/bin" >> "$GITHUB_PATH"
 
       - name: Build Swan compiler
         run: sh build.sh
@@ -57,7 +44,7 @@ jobs:
           cmake --build /tmp/goose-build --config Release --parallel 2
           echo "/tmp/goose-build" >> "$GITHUB_PATH"
 
-      - name: Generate 1-billion-iteration nested-loop workload
+      - name: Generate identical 1-billion-iteration workload
         shell: bash
         run: |
           set -euo pipefail
@@ -72,7 +59,7 @@ jobs:
               for (int64_t i = 0; i < 1000; ++i)
                   for (int64_t j = 0; j < 1000000; ++j)
                       acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              printf("%lld\n", (long long)acc);
+              printf("%lld\\n", (long long)acc);
               return 0;
           }
           EOF
@@ -85,7 +72,7 @@ jobs:
               for (std::int64_t i = 0; i < 1000; ++i)
                   for (std::int64_t j = 0; j < 1000000; ++j)
                       acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              std::printf("%lld\n", static_cast<long long>(acc));
+              std::printf("%lld\\n", static_cast<long long>(acc));
           }
           EOF
 
@@ -136,7 +123,7 @@ jobs:
                       acc = @mod(acc + @mod(i * 1_000_003 + j * 97, 65_536), 65_521);
                   }
               }
-              std.debug.print("{d}\n", .{acc});
+              std.debug.print("{d}\\n", .{acc});
           }
           EOF
 
@@ -170,82 +157,7 @@ jobs:
           }
           EOF
 
-          cat > Main.cs <<'EOF'
-          using System;
-          class Program {
-              static void Main() {
-                  long acc = 0;
-                  for (long i = 0; i < 1000; i++)
-                      for (long j = 0; j < 1000000; j++)
-                          acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-                  Console.WriteLine(acc);
-              }
-          }
-          EOF
-          cat > Bench.csproj <<'EOF'
-          <Project Sdk="Microsoft.NET.Sdk">
-            <PropertyGroup>
-              <OutputType>Exe</OutputType>
-              <TargetFramework>net8.0</TargetFramework>
-              <Optimize>true</Optimize>
-              <ImplicitUsings>disable</ImplicitUsings>
-            </PropertyGroup>
-          </Project>
-          EOF
-
-          cat > Main.java <<'EOF'
-          public class Main {
-              public static void main(String[] args) {
-                  long acc = 0;
-                  for (long i = 0; i < 1000; i++)
-                      for (long j = 0; j < 1000000; j++)
-                          acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-                  System.out.println(acc);
-              }
-          }
-          EOF
-
-          cat > Main.kt <<'EOF'
-          fun main() {
-              var acc = 0L
-              for (i in 0L until 1000L) {
-                  for (j in 0L until 1_000_000L) {
-                      acc = (acc + (i * 1_000_003L + j * 97L) % 65_536L) % 65_521L
-                  }
-              }
-              println(acc)
-          }
-          EOF
-
-          cat > main.js <<'EOF'
-          let acc = 0;
-          for (let i = 0; i < 1000; i++) {
-              for (let j = 0; j < 1000000; j++) {
-                  acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              }
-          }
-          console.log(acc);
-          EOF
-
-          cat > main.lua <<'EOF'
-          local acc = 0
-          for i = 0, 999 do
-              for j = 0, 999999 do
-                  acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521
-              end
-          end
-          print(acc)
-          EOF
-
-          cat > main.py <<'EOF'
-          acc = 0
-          for i in range(1000):
-              for j in range(1000000):
-                  acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521
-          print(acc)
-          EOF
-
-      - name: Compile implementations
+      - name: Compile native executables and measure compile time
         shell: bash
         run: |
           set -euo pipefail
@@ -257,45 +169,44 @@ jobs:
             start=$(date +%s%N)
             "$@"
             end=$(date +%s%N)
-            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_ms %.3f\n", n, t/1000000 }' | tee -a ../results.txt
+            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_s %.6f\\n", n, t/1000000000 }' | tee -a ../results.txt
           }
 
-          timed_build C cc -O2 -DNDEBUG main.c -o c
-          timed_build C++ c++ -std=c++20 -O2 -DNDEBUG main.cpp -o cpp
-          timed_build Rust rustc -C opt-level=2 main.rs -o rust
+          timed_build C cc -O3 -DNDEBUG main.c -o c
+          timed_build C++ c++ -std=c++20 -O3 -DNDEBUG main.cpp -o cpp
+          timed_build Rust rustc -C opt-level=3 main.rs -o rust
           timed_build Go go build -trimpath -o go main.go
-          timed_build CSharp dotnet build Bench.csproj -c Release --nologo
-          timed_build Java javac Main.java
-          timed_build Kotlin kotlinc Main.kt -include-runtime -d kotlin.jar
           timed_build Swift swiftc -O main.swift -o swift
           timed_build Zig zig build-exe -O ReleaseFast main.zig -femit-bin=zig
-          timed_build Swan bash -c '../../build/swan main.swan -o main.swan.c && cc -O2 -DNDEBUG main.swan.c -o swan'
+          timed_build Swan bash -c '../../build/swan main.swan -o main.swan.c && cc -O3 -DNDEBUG main.swan.c -o swan'
           timed_build Goose goose build main.goose
           mv main main-goose
-          timed_build JavaScript node --check main.js
-          timed_build Lua luac5.4 -p main.lua
-          timed_build Python python3 -m py_compile main.py
 
-      - name: Verify checksums and measure runtime
+      - name: Verify and benchmark each native executable
         shell: bash
         run: |
           set -euo pipefail
           cd benchmarks/work
           expected=$(./c)
-          printf "expected_checksum %s\n" "$expected" | tee -a ../results.txt
+          printf "expected_checksum %s\\n" "$expected" | tee -a ../results.txt
 
           run_case() {
             local name="$1"; shift
-            for run in 1 2 3; do
+            local run start end elapsed rss
+            # One checksum-verified warm-up, then three measured runs.
+            for run in 0 1 2 3; do
               start=$(date +%s%N)
               /usr/bin/time -o /tmp/rss -f "%M" "$@" >/tmp/out 2>&1
               end=$(date +%s%N)
-              [[ "$(cat /tmp/out)" == "$expected" ]] || {
+              if [[ "$(cat /tmp/out)" != "$expected" ]]; then
                 echo "$name checksum mismatch on run $run: $(cat /tmp/out) != $expected" >&2
                 exit 1
-              }
-              elapsed=$((end-start))
-              awk -v n="$name" -v t="$elapsed" -v m="$(cat /tmp/rss)" 'BEGIN { printf "%s runtime_ms %.3f peak_rss_kb %s\n", n, t/1000000, m }' >>../results.txt
+              fi
+              if [[ "$run" -gt 0 ]]; then
+                elapsed=$((end-start))
+                rss=$(cat /tmp/rss)
+                awk -v n="$name" -v t="$elapsed" -v m="$rss" 'BEGIN { printf "%s runtime_s %.6f peak_rss_kb %s\\n", n, t/1000000000, m }' >>../results.txt
+              fi
             done
           }
 
@@ -303,35 +214,33 @@ jobs:
           run_case C++ ./cpp
           run_case Rust ./rust
           run_case Go ./go
-          run_case CSharp dotnet bin/Release/net8.0/Bench.dll
-          run_case Java java Main
-          run_case Kotlin java -jar kotlin.jar
           run_case Swift ./swift
           run_case Zig ./zig
           run_case Swan ./swan
           run_case Goose ./main-goose
-          run_case JavaScript node main.js
-          run_case Lua lua5.4 main.lua
-          run_case Python python3 main.py
+
           python3 - <<'PY'
           from collections import defaultdict
           from statistics import median
-          values = defaultdict(list)
+          times = defaultdict(list)
           memory = defaultdict(list)
-          with open("../results.txt", encoding="utf-8") as f:
-              for line in f:
-                  parts = line.split()
-                  if len(parts) == 5 and parts[1] == "runtime_ms" and parts[3] == "peak_rss_kb":
-                      values[parts[0]].append(float(parts[2]))
-                      memory[parts[0]].append(int(parts[4]))
-          with open("../results.txt", "a", encoding="utf-8") as f:
-              f.write("\nmedian_runtime_ms (3 measured runs; each run checksum-verified)\n")
-              for name, samples in values.items():
-                  f.write(f"{name} median_ms {median(samples):.3f} median_peak_rss_kb {median(memory[name]):.0f}\n")
+          with open("../results.txt", encoding="utf-8") as source:
+              for line in source:
+                  fields = line.split()
+                  if len(fields) == 5 and fields[1] == "runtime_s":
+                      times[fields[0]].append(float(fields[2]))
+                      memory[fields[0]].append(int(fields[4]))
+          with open("../results.txt", "a", encoding="utf-8") as output:
+              output.write("\\nmedian_runtime_s (3 measured runs; each run checksum-verified)\\n")
+              for name, samples in times.items():
+                  output.write(
+                      f"{name} median_s {median(samples):.6f} "
+                      f"median_peak_rss_kb {median(memory[name]):.0f}\\n"
+                  )
           PY
           cat ../results.txt
 
-      - name: Record environment and tool versions
+      - name: Record benchmark environment
         if: always()
         run: |
           {
@@ -342,20 +251,14 @@ jobs:
             echo "cpp $(c++ --version | head -1)"
             echo "rust $(rustc --version)"
             echo "go $(go version)"
-            echo "csharp $(dotnet --version)"
-            echo "java $(java -version 2>&1 | head -1)"
-            echo "kotlin $(kotlinc -version 2>&1 | head -1)"
             echo "swift $(swift --version | head -1)"
             echo "zig $(zig version)"
             echo "goose $(/tmp/goose-build/goose --version)"
-            echo "node $(node --version)"
-            echo "lua $(lua5.4 -v 2>&1)"
-            echo "python $(python3 --version)"
             echo "swan $(./build/swan --version)"
           } | tee -a benchmarks/results.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: cross-language-benchmark
+          name: native-benchmark-results
           path: benchmarks/results.txt
