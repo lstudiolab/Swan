@@ -4,7 +4,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 INCLUDE="$ROOT/compiler/include/swan"
 
-cpp_files=$(find "$ROOT" -type f -name '*.cpp' ! -path "$ROOT/build/*" -print | sort)
+cpp_files=$(find "$ROOT" -type f -name '*.cpp' ! -path "$ROOT/build/*" ! -path "$ROOT/benchmarks/*" -print | sort)
 if [ "$cpp_files" != "$ROOT/main.cpp" ]; then
     echo "FAIL: expected main.cpp to be the only C++ translation unit" >&2
     printf '%s\n' "$cpp_files" >&2
