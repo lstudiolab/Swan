@@ -88,4 +88,5 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  return err->message[0]==0;
 }
-#endif
+#endif  case S_IF:{int id=(*label)++;emit_expr(o,s->condition,l,err);text_add(o,"    test rax, rax\n    jz .Lswan_else_%d\n",id);emit_block(o,s->body,s->body_count,l,label,err);text_add(o,"    jmp .Lswan_end_%d\n.Lswan_else_%d:\n",id,id);emit_block(o,s->alternate,s->alt_count,l,label,err);text_add(o,".Lswan_end_%d:\n",id);break;}
+  case S_WHILE:{int id=(*label)++;text_add(o,".Lswan_loop_%d:\n",id);emit_expr(o,s->condition,l,err);text_add(o,"    test rax, rax\n    jz .Lswan_loop_end_%d\n",id);emit_block(o,s->body,s->body_count,l,label,err);text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);break;}
