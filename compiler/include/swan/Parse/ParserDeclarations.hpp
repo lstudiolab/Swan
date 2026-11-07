@@ -24,6 +24,16 @@ inline StmtPtr Parser::declaration() {
         if (match("->")) node->return_type = typeName();
         expect(":","expected ':' after function declaration");
         node->body = block();
+        if (node->return_type == "void") {
+            const auto has_value_return = [&](const auto& self, const std::vector<StmtPtr>& body) -> bool {
+                for (const auto& item : body) {
+                    if (item->kind == Stmt::Kind::Return && item->value) return true;
+                    if (self(self, item->body) || self(self, item->alternate)) return true;
+                }
+                return false;
+            };
+            if (has_value_return(has_value_return, node->body)) node->return_type = "int";
+        }
         return node;
     }
     if (check("struct")) {
