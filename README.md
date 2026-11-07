@@ -26,12 +26,27 @@ An unannotated function with a value-returning body currently infers an integer 
 
 ## Build and run
 
+Build the Swan compiler, then run a source file directly:
+
     sh build.sh
-    ./build/swan examples/hello.swan -o hello.c
-    cc -std=c11 hello.c -o hello
+    ./build/swan examples/hello.swan
+
+The compiler recognizes `.swan` files, emits C11 internally, invokes the configured C compiler, and runs the resulting native executable. Set `CC` to select the C compiler (defaults to `cc`).
+
+Build a reusable native executable without running it:
+
+    ./build/swan build examples/hello.swan -o hello
     ./hello
 
-Swan emits C source; it does not invoke the C compiler. Requirements: a C++20 compiler. Python and CMake are not required.
+The explicit run command is equivalent to the shorthand:
+
+    ./build/swan run examples/hello.swan
+
+To inspect or save generated C instead:
+
+    ./build/swan examples/hello.swan --emit-c -o hello.c
+
+Requirements: a C++20 compiler to build Swan and a C11 compiler (normally Clang or GCC) to compile Swan programs. Python and CMake are not required.
 
 ## Implemented frontend
 
