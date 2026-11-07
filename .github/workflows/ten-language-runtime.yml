@@ -1,10 +1,6 @@
 name: Ten-language runtime benchmark
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - '.github/workflows/ten-language-runtime.yml'
   workflow_dispatch:
 
 permissions:
