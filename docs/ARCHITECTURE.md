@@ -15,9 +15,9 @@ The host assembler and linker are only used after Swan has emitted assembly. The
 ## Current implementation
 
 - Frontend: Swan lexer, parser, and semantic analysis.
-- Code generation: direct checked-AST to x86-64 System V assembly.
-- Assembly syntax: GNU assembler Intel syntax.
-- Object/executable production: host system `CC` toolchain.
+- Code generation: direct checked-AST to x86-64 System V and AArch64 AAPCS64 ELF assembly.
+- Assembly syntax: GNU assembler Intel syntax for x86-64; GNU AArch64 syntax for ARM64.
+- Object production: host system `CC` for x86-64 and GNU AArch64 assembler for ARM64.
 - Unsupported targets fail with a diagnostic. There is no LLVM or external compiler fallback.
 
 ## Backend architecture target
