@@ -2,15 +2,6 @@ name: Six-language benchmark
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "compiler/**"
-      - "build.sh"
-      - "benchmarks/multilang.py"
-      - ".github/workflows/multilang-benchmark.yml"
-
-permissions:
-  contents: read
 
 jobs:
   benchmark:
