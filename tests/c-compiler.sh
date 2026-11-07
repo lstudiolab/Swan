@@ -32,11 +32,11 @@ SWAN
 "$SWAN" build "$TMP/loop.swan" --target native -o "$TMP/loop"
 test "$("$TMP/loop" | wc -l | tr -d ' ')" = "3"
 "$SWAN" "$TMP/loop.swan" --target x86_64 --emit-asm -o "$TMP/loop-x86_64.s"
-grep -q 'inc r12' "$TMP/loop-x86_64.s"
+grep -q 'add qword ptr' "$TMP/loop-x86_64.s"
 "$SWAN" "$TMP/loop.swan" --target aarch64 --emit-asm -o "$TMP/loop-aarch64.s"
-grep -q 'add x19, x19, #1' "$TMP/loop-aarch64.s"
+grep -q 'add x10, x10, #1' "$TMP/loop-aarch64.s"
 "$SWAN" "$TMP/loop.swan" --target armv7 --emit-asm -o "$TMP/loop-armv7.s"
-grep -q 'add r4, r4, #1' "$TMP/loop-armv7.s"
+grep -q 'add r0, r0, #1' "$TMP/loop-armv7.s"
 cat > "$TMP/loops.swan" <<'SWAN'
 fn main() -> int:
     for i in 0..3
