@@ -19,6 +19,14 @@ inline char Lexer::advance() {
     return value;
 }
 inline std::vector<Token> Lexer::scan() {
+    // A Lexer instance is reusable; every scan starts from a clean cursor.
+    index_ = 0;
+    line_ = 1;
+    column_ = 1;
+    line_start_ = true;
+    indentation_.clear();
+    indentation_.push_back(0);
+
     std::vector<Token> result;
     result.reserve(source_.size() / 4 + 8);
     while (!eof()) {
