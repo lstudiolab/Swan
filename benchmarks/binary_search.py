@@ -112,8 +112,6 @@ def main():
    "Rust":["rustc","-C","opt-level=3","-C","target-cpu=native",str(src["Rust"]),"-o",str(exe["Rust"])],
    "Goose":[GOOSE,"build","-o",str(exe["Goose"]),str(src["Goose"])],
    "Swan":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan"])],
-   "Swan-fast":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"--fast-compile","-o",str(exe["Swan-fast"])],
-   "Swan-clang":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan-clang"])],
   }
   results={}
   names=("Swan","Goose","Rust","C","C++")
