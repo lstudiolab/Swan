@@ -26,7 +26,7 @@ inline ExprPtr Parser::prefix() {
     if (check("!") || check("-") || check("not")) {
         const auto& op = advance();
         auto node = std::make_shared<Expr>();
-        node->kind = Expr::Kind::Unary; node->token = op; node->op = op.value;
+        node->kind = Expr::Kind::Unary; node->token = op.location(); node->op = op.value;
         node->left = expression(8);
         return node;
     }
