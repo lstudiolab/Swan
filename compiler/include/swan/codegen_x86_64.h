@@ -48,6 +48,14 @@ static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError
  Expr *rhs=e->right;
  if(!rhs||rhs->kind!=E_BINARY||rhs->token.kind!=T_PLUS||!rhs->left||rhs->left->kind!=E_NAME||strcmp(rhs->left->token.text,e->left->token.text)||expr_has_call(rhs->right))return false;
  Local *v=local_find(l,e->left->token.text);if(!v)return false;
+ if(rhs->right->kind==E_INT){
+  char *end=NULL;long long imm=strtoll(rhs->right->token.text,&end,10);
+  if(end&&!*end&&imm>=INT32_MIN&&imm<=INT32_MAX){
+   if(v->reg>=0)text_add(o,"    add %s, %lld\n",cg_saved_regs[v->reg],imm);
+   else text_add(o,"    add QWORD PTR [rbp - %d], %lld\n",v->slot*8,imm);
+   return true;
+  }
+ }
  emit_expr(o,rhs->right,l,err);
  if(v->reg>=0)text_add(o,"    add %s, rax\n",cg_saved_regs[v->reg]);
  else text_add(o,"    add QWORD PTR [rbp - %d], rax\n",v->slot*8);
@@ -103,9 +111,12 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     }
     if(e->token.kind==T_PERCENT&&imm>1){
      uint64_t divisor=(uint64_t)imm;
-     uint64_t magic=(~(uint64_t)0)/divisor+1;
-     text_add(o,"    test rax, rax\n    js 1f\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %lld\n    sub rcx, rdx\n    jns 2f\n    add rcx, %lld\n    jmp 2f\n1:\n    mov rcx, %lld\n    cqo\n    idiv rcx\n    mov rcx, rdx\n2:\n    mov rax, rcx\n",
-      (unsigned long long)magic,imm,imm,imm);break;
+     if((divisor&(divisor-1))==0){
+      text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %lld\n    add rax, rcx\n    and rax, %lld\n    sub rax, rcx\n",imm-1,imm-1);break;
+     }
+     uint64_t magic=UINT64_MAX/divisor;
+     text_add(o,"    test rax, rax\n    js 1f\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %lld\n    sub rcx, rdx\n    lea rdx, [rcx - %lld]\n    cmp rcx, %lld\n    cmovae rcx, rdx\n    jmp 2f\n1:\n    mov rcx, %lld\n    cqo\n    idiv rcx\n    mov rcx, rdx\n2:\n    mov rax, rcx\n",
+      (unsigned long long)magic,imm,imm,imm,imm);break;
     }
    }
   }
