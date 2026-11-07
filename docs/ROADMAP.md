@@ -1,80 +1,82 @@
 # Swan Compiler Roadmap
 
-Swan's goal is to become a production-grade compiled language with predictable semantics, fast compilation, efficient native code, and a maintainable toolchain.
+Swan is intended to be a self-contained compiled language with Swan-owned machine-code backends. It must not transpile to C or delegate code generation to LLVM/Clang.
 
 ## Current baseline
 
-The active pipeline is:
+- Swan lexer, parser, and semantic analysis.
+- Initial direct AST-to-x86-64 System V assembly backend.
+- GNU assembler Intel syntax output.
+- System assembler/linker used only to assemble Swan-emitted assembly and link executables.
+- Unsupported architectures are rejected rather than silently delegated.
 
-`.swan -> Lexer -> Parser -> semantic analysis -> typed AST -> LLVM IR -> LLVM target backend -> assembly/linker`
+## Phase 1 — Complete the x86-64 backend
 
-The C transpilation path and legacy standalone compiler have been removed. Swan now lowers the checked AST directly to LLVM IR. The driver accepts x86-64, AArch64, ARMv7, RISC-V 64, WebAssembly, and arbitrary LLVM target triples supported by the installed LLVM build. Cross-target assembly is supported independently of cross-linking; executable linking requires the target linker, runtime, and sysroot.
+- Implement complete integer, boolean, string, float, aggregate, and pointer lowering.
+- Complete calling conventions, stack alignment, callee/caller-saved register handling, and variadic calls.
+- Implement robust stack-frame layout and local-variable lifetime handling.
+- Add correct struct layout and member access.
+- Add debug symbols, relocations, and platform ABI support.
+- Add assembly-level and executable regression tests.
 
-## Phase 1 — Language specification and frontend completeness
+## Phase 2 — Swan intermediate representation
 
-- Publish a formal Swan grammar and language specification.
-- Define exact semantics for every registered keyword.
-- Complete declarations, expressions, functions, structs, enums, classes, imports, exports, and access control.
-- Add type inference, generic types, overload resolution, and compile-time validation.
-- Improve diagnostics with source spans, notes, and actionable suggestions.
+- Add a typed, target-independent low-level IR.
+- Separate language semantics from machine-specific instruction selection.
+- Add IR verification and stable serialization/dump formats.
+- Represent control flow as basic blocks and explicit terminators.
+- Add explicit calling convention, memory, and data-layout operations.
 
-## Phase 2 — Swan memory and execution semantics
+## Phase 3 — Swan optimizer
 
-- Specify and implement hold, store, and clone.
-- Specify ownership, borrowing, lifetimes, mutation, and destruction.
-- Implement operate recovery semantics with deterministic failure behavior.
-- Add static lifetime and escape analysis.
+- Constant folding and compile-time evaluation.
+- Constant propagation and copy propagation.
+- Dead-code and unreachable-block elimination.
+- Common-subexpression elimination.
+- Loop-invariant code motion and strength reduction.
+- Inlining with compile-time budgets.
+- Liveness analysis and register allocation.
+- Instruction scheduling and peephole optimization.
 
-## Phase 3 — Typed IR correctness
+## Phase 4 — Additional Swan-owned backends
 
-- Verify every generated LLVM IR module before machine code generation.
-- Add explicit IR dumps and stable regression fixtures.
-- Complete lowering for all semantically accepted expressions, statements, aggregates, and calls.
-- Add source-location metadata and debug information.
-- Add differential tests against a trusted reference implementation for supported language semantics.
+Implement and validate each backend independently:
+- AArch64 / ARM64.
+- ARMv7 and Thumb.
+- RISC-V 64.
+- WebAssembly 32/64.
 
-## Phase 4 — Native optimization framework
+Each backend must own instruction selection, register allocation, ABI lowering, and assembly/object conventions. No LLVM fallback is permitted.
 
-- Measure LLVM optimization behavior at each optimization level.
-- Add Swan-owned optimizations only when benchmarks show a measurable benefit.
-- Add compile-time profiling for frontend, lowering, optimization, and code emission.
-- Track liveness, register allocation, spills, code size, and runtime through LLVM diagnostics and benchmark artifacts.
-- Preserve source-level semantics with differential tests.
+## Phase 5 — Platform and device support
 
-## Phase 5 — Native backend expansion
-
-- Validate additional LLVM target triples and platform ABIs.
-- Expand target-triple coverage and sysroot-aware executable linking.
-- Add target-specific runtime libraries and platform support.
-- Add reproducible builds and architecture-specific CI runners.
-- Add WebAssembly WASI and browser runtime integration.
+- Apple Darwin and iOS ABIs.
+- Android ARM64 and ARMv7 ABIs.
+- Linux GNU and musl ABIs.
+- Windows x64 and ARM64 ABIs.
+- WebAssembly WASI and browser environments.
+- Target-specific runtime libraries and linker integration.
 
 ## Phase 6 — Runtime and standard library
 
 - Strings, arrays, collections, iterators, and algorithms.
 - File and console I/O, errors, process APIs, and math.
-- Networking and concurrency primitives.
+- Networking and concurrency.
+- Memory ownership, allocation, and destruction.
 - Platform abstraction and cross-platform tests.
 
-## Phase 7 — Developer ecosystem
+## Phase 7 — Production hardening
 
-- Package manager and dependency resolution.
-- Formatter and linter.
-- Language server protocol implementation.
-- Debugger integration and test runner.
-- Stable compiler interfaces and versioned releases.
-
-## Phase 8 — Production hardening
-
-- Fuzz lexer, parser, semantic analysis, IR lowering, and code generation.
-- Add sanitizer, static-analysis, and cross-platform CI.
-- Benchmark compile time, memory use, generated instruction quality, and runtime.
-- Maintain backward compatibility and migration documentation.
+- Fuzz lexer, parser, semantic analysis, IR, and every backend.
+- Sanitizer and static-analysis CI.
+- Reproducible builds and toolchain pinning.
+- Differential tests and benchmark artifacts.
+- Stable compiler interfaces, package manager, formatter, LSP, and debugger.
 
 ## Engineering rules
 
-1. Do not call placeholder features implemented.
-2. Every language feature requires specification, implementation, diagnostics, and tests.
-3. Keep frontend, IR, backend, and driver responsibilities separate.
-4. Measure every optimization on reproducible benchmarks.
-5. Never claim Swan is faster than another language without fair, repeatable measurements.
+1. Never transpile Swan into C.
+2. Never use LLVM or Clang as Swan's code-generation backend.
+3. System assemblers and linkers may consume Swan-emitted assembly.
+4. Never claim a target is supported until its own backend passes ABI and execution tests.
+5. Every optimization requires correctness tests and reproducible performance measurements.
