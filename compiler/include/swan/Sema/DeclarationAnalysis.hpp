@@ -5,6 +5,8 @@
 
 namespace swan {
 inline void Sema::analyze() {
+    types_.reserve(types_.size() + program_.size());
+    functions_.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct && !types_.insert(node->name).second)
             fail(node->token,"type '" + node->name + "' is already defined");
@@ -15,6 +17,7 @@ inline void Sema::analyze() {
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             std::unordered_set<std::string> names;
+            names.reserve(node->fields.size());
             for (const auto& field : node->fields) {
                 if (!types_.contains(field.type)) fail(field.token,"unknown field type '" + field.type + "'");
                 if (field.type == "void") fail(field.token,"struct fields cannot have type void");
@@ -26,7 +29,10 @@ inline void Sema::analyze() {
 }
 
 inline void Sema::analyzeFunction(const StmtPtr& function) {
-    scopes_.clear(); scopes_.emplace_back();
+    scopes_.clear();
+    scopes_.reserve(8);
+    scopes_.emplace_back();
+    scopes_.back().reserve(function->parameters.size());
     return_type_ = function->return_type;
     if (!types_.contains(return_type_)) fail(function->token,"unknown return type '" + return_type_ + "'");
     for (const auto& parameter : function->parameters) {
