@@ -33,7 +33,13 @@ inline std::string CGenerator::generate() {
     }
 
     for (const auto& structure : structures) {
-        line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
+        beginLine();
+        output_ += "typedef struct swan_type_";
+        output_ += structure->name;
+        output_ += " swan_type_";
+        output_ += structure->name;
+        output_.push_back(';');
+        endLine();
     }
     if (!structures.empty()) line();
 
