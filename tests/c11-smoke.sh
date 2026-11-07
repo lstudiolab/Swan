@@ -217,7 +217,11 @@ SWAN
 cc -x assembler "$TMP/call-hotpath.s" -o "$TMP/call-hotpath"
 test "$("$TMP/call-hotpath")" = "466"
 grep -q 'test r12, 1' "$TMP/call-hotpath.s"
-grep -q 'call swan_fn_transform' "$TMP/call-hotpath.s"
+if grep -q 'call swan_fn_transform' "$TMP/call-hotpath.s"; then
+    echo 'FAIL: eligible single-return function was not inlined' >&2
+    exit 1
+fi
+grep -q 'imul rax' "$TMP/call-hotpath.s"
 if grep -q 'mov QWORD PTR \[rsp' "$TMP/call-hotpath.s"; then
     echo 'FAIL: simple direct-call arguments were unnecessarily staged on the stack' >&2
     exit 1
