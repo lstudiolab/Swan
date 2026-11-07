@@ -1,13 +1,16 @@
 #!/usr/bin/env python3
-"""Repeatable end-to-end Swan frontend/codegen benchmarks."""
+"""Repeatable end-to-end and per-phase Swan compiler benchmarks."""
 from pathlib import Path
 from statistics import median
+import os
 import subprocess
 import tempfile
 import time
 
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = ROOT / "build" / "swan"
+PHASE_BINARY = ROOT / "build" / "phase-bench"
+CXX = os.environ.get("CXX", "c++")
 REPEATS = 7
 
 
@@ -50,30 +53,31 @@ def fixtures():
     lines.append("}")
     yield "nested-scopes", "\n".join(lines) + "\n"
 
-    structures = 500
-    lines = [f"struct Item0 {{ value: int; }}"]
-    lines.extend(
-        f"struct Item{i} {{ previous: Item{i - 1}; }}"
-        for i in range(1, structures)
-    )
-    lines.append("fn main() -> int { return 0; }")
-    yield "struct-heavy", "\\n".join(lines) + "\\n"
-
 
 def main():
     if not BINARY.exists():
         subprocess.run(["sh", str(ROOT / "build.sh")], check=True)
+    subprocess.run([
+        CXX, "-std=c++20", "-O2", "-DNDEBUG", "-Wall", "-Wextra",
+        "-Wpedantic", "-Werror", f"-I{ROOT / 'compiler/include'}",
+        str(ROOT / "benchmarks/phase_bench.cpp"), "-o", str(PHASE_BINARY),
+    ], check=True)
 
     with tempfile.TemporaryDirectory(prefix="swan-bench-") as directory:
         work = Path(directory)
         print(f"compiler: {BINARY}")
-        print(f"repetitions: {REPEATS}; statistic: median wall time")
-        print("| Workload | Median (ms) | Range (ms) |")
-        print("|---|---:|---:|")
+        print(f"repetitions: {REPEATS} end-to-end; 9 phase samples; median")
+        print("| Workload | Frontend total (ms) | Lexer | Parser | Sema | Codegen | CLI total |")
+        print("|---|---:|---:|---:|---:|---:|---:|")
         for name, source_text in fixtures():
             source = work / f"{name}.swan"
             output = work / f"{name}.c"
             source.write_text(source_text, encoding="utf-8")
+            phases = subprocess.run(
+                [str(PHASE_BINARY), str(source)], check=True, text=True,
+                capture_output=True,
+            ).stdout.split()
+            lex, parse, sema, codegen, total = map(float, phases)
             samples = []
             for _ in range(REPEATS):
                 started = time.perf_counter()
@@ -83,8 +87,8 @@ def main():
                 )
                 samples.append((time.perf_counter() - started) * 1000)
             print(
-                f"| {name} | {median(samples):.2f} "
-                f"| {min(samples):.2f}–{max(samples):.2f} |"
+                f"| {name} | {total:.2f} | {lex:.2f} | {parse:.2f} "
+                f"| {sema:.2f} | {codegen:.2f} | {median(samples):.2f} |"
             )
 
 
