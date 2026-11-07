@@ -22,6 +22,8 @@ private:
     std::size_t index_ = 0;
     std::size_t line_ = 1;
     std::size_t column_ = 1;
+    bool line_start_ = true;
+    std::vector<std::size_t> indentation_{0};
 };
-} // namespace swan
+}
 #include "swan/Lex/Scanner.hpp"
