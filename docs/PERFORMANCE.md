@@ -11,8 +11,11 @@ The current implementation is a correctness-first baseline. It uses a simple sta
 The current compiler hot paths use:
 - **Arena-backed AST storage:** expression nodes, statement nodes, and parsed block vectors are allocated from 64 KiB chunks and released together.
 - **Compact tokens:** token records store text pointers into a shared token-text buffer instead of embedding a 512-byte character array in every token.
+- **Compact AST nodes:** expression nodes allocate argument vectors only for call expressions; statement names, types, and parameter names reference token text rather than embedding large fixed-size character arrays.
+- **Compact symbols:** semantic symbol entries reference stable token text instead of copying 512-byte names.
 - **Indexed semantic lookup:** function declarations and scoped local symbols use hash buckets rather than repeated linear scans. Scope rollback restores prior bucket heads without copying entire symbol tables.
 - **Indexed backend locals:** compact local records and hash lookup replace repeated reverse scans through large fixed-size local arrays.
+- **Expanded register use:** immutable locals in calling functions can occupy caller-saved registers; the backend preserves those registers around direct calls, nested calls, and logging, while mutable locals retain callee-saved registers or spills.
 - **Cached AST call metadata:** expression trees carry call-presence metadata so call analysis does not repeatedly walk subtrees.
 - **Low-overhead assembly emission:** literal instruction strings bypass the formatting library; formatted output uses a single formatting pass unless the output buffer must grow.
 - **Reduced runtime instruction count:** local-to-local arithmetic and comparisons avoid push/pop stack temporaries. Self-updates such as `sum = sum + value`, `value = value - 1`, and `value = value * factor` now update the destination register or stack slot directly instead of calculating into `rax` and copying the result back. Multiplication by zero, one, or a power of two is reduced to zeroing, no operation, or shifts (plus negation for negative powers of two) instead of a general multiply. Existing constant folding, small-function inlining, register locals, leaf-frame elimination, parity checks, and loop strength reduction remain enabled.
