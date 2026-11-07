@@ -46,7 +46,7 @@ public:
 
 private:
     using Scope = std::unordered_map<std::string, int>;
-    static constexpr const char* argument_registers_[] = {
+    static inline constexpr const char* argument_registers_[] = {
         "rdi", "rsi", "rdx", "rcx", "r8", "r9"
     };
 
