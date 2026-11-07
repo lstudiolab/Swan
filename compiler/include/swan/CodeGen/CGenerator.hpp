@@ -29,9 +29,9 @@ private:
     std::string output_;
     unsigned indent_ = 0;
     StructureSet structs_;
-    std::unordered_map<std::string,StmtPtr> functions_;
-    std::unordered_map<std::string,std::string> symbols_;
-    std::vector<std::unordered_map<std::string,std::string>> scopes_;
+    StringViewMap<StmtPtr> functions_;
+    StringViewMap<std::string> symbols_;
+    std::vector<StringViewMap<std::string>> scopes_;
 };
 }
 
