@@ -41,12 +41,12 @@ Potential future improvements:
 
 ### 4. C generation
 
-The C emitter recursively constructs expression strings. Semantic analysis now records each expression's resolved built-in type in a compact enum on the AST. Code generation consumes that result rather than recursively inferring the type again. Non-built-in types retain the existing fallback path. Generated C is appended to a reserved `std::string` buffer instead of an `ostringstream`, avoiding stream-formatting overhead and the final stream-to-string copy.
+The C emitter now appends expression fragments into one output string per expression tree instead of recursively allocating and concatenating a new string at every AST node. String literal escaping also writes directly into a reserved string rather than using an `ostringstream`. Semantic analysis records built-in expression types in a compact enum, and code generation reuses that metadata.
 
 Potential future improvements:
 
-- Reduce temporary strings created while assembling individual expressions and statements.
-- Reuse resolved symbol and type information.
+- Append statement fragments directly into the final output buffer where profiling shows the remaining line-level temporary strings matter.
+- Reuse resolved symbol and type information throughout the backend.
 - Measure generated output size and emission time independently.
 
 ## Measurement policy
@@ -60,7 +60,7 @@ No performance improvement is claimed without a reproducible baseline. Before op
 5. Run repeated trials and report median and spread.
 6. Verify generated program output before comparing timings.
 
-The benchmark suite currently has two distinct workloads: a deterministic 2,500-declaration compiler workload and an equivalent 50-million-iteration scalar program compiled by Swan, Rust, and Goose. The latter checks output equality and reports compile-pipeline time, runtime, and peak RSS. Neither substitutes for phase-level compiler profiling.
+The compiler benchmark suite exercises declaration-heavy input, repeated expression analysis, function calls, string literals, and nested scopes. It reports median end-to-end compiler time and the observed range over seven runs. A separate 50-million-iteration scalar workload compares Swan, Rust, and Goose, checks output equality, and reports compile-pipeline time, runtime, and peak RSS. These end-to-end workloads do not replace phase-level profiling.
 
 ## Optimization order
 
@@ -81,6 +81,9 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 - Parser token access returns references to avoid copying complete token objects.
 - Program parsing reserves declaration storage; code generation reserves structure/function indexes and uses a hash map for struct dependency lookup.
 - Semantic analysis stores built-in expression types in a compact enum. Code generation reuses the cached result instead of recursively inferring types again.
-- C output uses a reserved string buffer and appends indentation directly, avoiding stream formatting and a final buffer copy.
+- Semantic expression types are returned as non-owning `string_view` values, avoiding a new string copy at each recursive expression-analysis step.
+- Semantic name lookup uses one active-symbol hash index. Scope exit restores shadowed bindings, avoiding a reverse scan through every enclosing scope.
+- C expression emission appends into a shared expression buffer rather than building a tree of temporary strings.
+- C string escaping and output generation use reserved string buffers rather than stream formatting.
 
 These changes reduce known repeated work and avoid selected allocations. They are not a claim of a measured percentage improvement. Use the benchmark harness on the same machine before and after changes to quantify end-to-end impact.
