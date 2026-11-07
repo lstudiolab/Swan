@@ -13,7 +13,7 @@ Requirements: a C++20 compiler and Clang/LLVM with the target backends being tes
 - Architecture: enforce subsystem dependency direction.
 - Smoke: compile and run native programs through LLVM IR and the host backend. Includes nested control flow, strings, functions, arrays, and arithmetic.
 - Regressions: reject invalid return and void-type cases; validate return branches, struct dependencies, and string parameters.
-- Targets: emit assembly for x86-64, AArch64, ARMv7, RISC-V 64, WebAssembly, Apple, Android, and Windows target triples.
+- Targets: emit assembly and object files for x86-64, AArch64, ARMv7, RISC-V 64, and WebAssembly; exercise Apple, Android, and Windows triples plus per-CPU feature selection.
 
 Every language change should include valid and invalid source examples, diagnostic checks, and generated-code execution tests where runtime behavior is involved.
 
