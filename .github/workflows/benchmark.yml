@@ -6,6 +6,8 @@ on:
     paths:
       - ".github/workflows/benchmark.yml"
       - "benchmarks/**"
+      - "compiler/**"
+      - "build.sh"
 
 permissions:
   contents: read
@@ -13,20 +15,37 @@ permissions:
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install toolchains
+      - name: Install base toolchains
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build
+          sudo apt-get install -y build-essential cmake ninja-build lua5.4 unzip
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
       - uses: swift-actions/setup-swift@v2
         with:
           swift-version: "6.2"
+
       - uses: mlugg/setup-zig@v2
         with:
           version: "0.14.1"
+
+      - name: Install Kotlin compiler
+        run: |
+          curl -fsSL https://github.com/JetBrains/kotlin/releases/download/v2.1.20/kotlin-compiler-2.1.20.zip -o /tmp/kotlin.zip
+          sudo unzip -q /tmp/kotlin.zip -d /opt
+          echo "/opt/kotlinc/bin" >> "$GITHUB_PATH"
 
       - name: Build Swan compiler
         run: sh build.sh
@@ -38,10 +57,14 @@ jobs:
           cmake --build /tmp/goose-build --config Release --parallel 2
           echo "/tmp/goose-build" >> "$GITHUB_PATH"
 
-      - name: Generate identical workload
+      - name: Generate equivalent workload
+        shell: bash
         run: |
+          set -euo pipefail
           mkdir -p benchmarks/work
-          cat > benchmarks/work/main.c <<'EOF'
+          cd benchmarks/work
+
+          cat > main.c <<'EOF'
           #include <stdint.h>
           #include <stdio.h>
           int main(void) {
@@ -50,12 +73,12 @@ jobs:
                   acc = (acc + i * 31) % 1000000007LL;
                   ++i;
               }
-              printf("%lld\n", (long long)acc);
+              printf("%lld\\n", (long long)acc);
               return 0;
           }
           EOF
-          cp benchmarks/work/main.c /tmp/reference.c
-          cat > benchmarks/work/main.cpp <<'EOF'
+
+          cat > main.cpp <<'EOF'
           #include <cstdint>
           #include <cstdio>
           int main() {
@@ -64,10 +87,11 @@ jobs:
                   acc = (acc + i * 31) % 1000000007LL;
                   ++i;
               }
-              std::printf("%lld\n", static_cast<long long>(acc));
+              std::printf("%lld\\n", static_cast<long long>(acc));
           }
           EOF
-          cat > benchmarks/work/main.rs <<'EOF'
+
+          cat > main.rs <<'EOF'
           fn main() {
               let mut i: i64 = 0;
               let mut acc: i64 = 0;
@@ -78,7 +102,8 @@ jobs:
               println!("{acc}");
           }
           EOF
-          cat > benchmarks/work/main.go <<'EOF'
+
+          cat > main.go <<'EOF'
           package main
           import "fmt"
           func main() {
@@ -90,7 +115,8 @@ jobs:
               fmt.Println(acc)
           }
           EOF
-          cat > benchmarks/work/main.swift <<'EOF'
+
+          cat > main.swift <<'EOF'
           var i: Int64 = 0
           var acc: Int64 = 0
           while i < 50_000_000 {
@@ -99,7 +125,8 @@ jobs:
           }
           print(acc)
           EOF
-          cat > benchmarks/work/main.zig <<'EOF'
+
+          cat > main.zig <<'EOF'
           const std = @import("std");
           pub fn main() void {
               var i: i64 = 0;
@@ -107,19 +134,22 @@ jobs:
               while (i < 50_000_000) : (i += 1) {
                   acc = @mod(acc + i * 31, 1_000_000_007);
               }
-              std.debug.print("{d}\n", .{acc});
+              std.debug.print("{d}\\n", .{acc});
           }
           EOF
-          cat > benchmarks/work/main.swan <<'EOF'
+
+          cat > main.swan <<'EOF'
           fn main():
               var i: int = 0
               var acc: int = 0
-              while i < 50000000:
+              while i < 50000000
                   acc = (acc + i * 31) % 1000000007
                   i = i + 1
               log acc
+              return 0
           EOF
-          cat > benchmarks/work/main.goose <<'EOF'
+
+          cat > main.goose <<'EOF'
           fn main() {
               var i: i64 = 0;
               var acc: i64 = 0;
@@ -131,28 +161,112 @@ jobs:
           }
           EOF
 
-      - name: Compile all implementations
+          cat > Main.cs <<'EOF'
+          using System;
+          class Program {
+              static void Main() {
+                  long i = 0, acc = 0;
+                  while (i < 50000000) {
+                      acc = (acc + i * 31) % 1000000007;
+                      i++;
+                  }
+                  Console.WriteLine(acc);
+              }
+          }
+          EOF
+          cat > Bench.csproj <<'EOF'
+          <Project Sdk="Microsoft.NET.Sdk">
+            <PropertyGroup>
+              <OutputType>Exe</OutputType>
+              <TargetFramework>net8.0</TargetFramework>
+              <Optimize>true</Optimize>
+              <ImplicitUsings>disable</ImplicitUsings>
+            </PropertyGroup>
+          </Project>
+          EOF
+
+          cat > Main.java <<'EOF'
+          public class Main {
+              public static void main(String[] args) {
+                  long i = 0, acc = 0;
+                  while (i < 50000000L) {
+                      acc = (acc + i * 31) % 1000000007L;
+                      i++;
+                  }
+                  System.out.println(acc);
+              }
+          }
+          EOF
+
+          cat > Main.kt <<'EOF'
+          fun main() {
+              var i = 0L
+              var acc = 0L
+              while (i < 50_000_000L) {
+                  acc = (acc + i * 31L) % 1_000_000_007L
+                  i++
+              }
+              println(acc)
+          }
+          EOF
+
+          cat > main.js <<'EOF'
+          let i = 0, acc = 0;
+          while (i < 50000000) {
+              acc = (acc + i * 31) % 1000000007;
+              i++;
+          }
+          console.log(acc);
+          EOF
+
+          cat > main.lua <<'EOF'
+          local i, acc = 0, 0
+          while i < 50000000 do
+              acc = (acc + i * 31) % 1000000007
+              i = i + 1
+          end
+          print(acc)
+          EOF
+
+          cat > main.py <<'EOF'
+          i = 0
+          acc = 0
+          while i < 50000000:
+              acc = (acc + i * 31) % 1000000007
+              i += 1
+          print(acc)
+          EOF
+
+      - name: Compile implementations
         shell: bash
         run: |
           set -euo pipefail
           cd benchmarks/work
+          : > ../results.txt
           timed_build() {
             local name="$1"; shift
             local start end
             start=$(date +%s%N)
             "$@"
             end=$(date +%s%N)
-            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_ms %.3f\n", n, t/1000000 }' | tee -a ../results.txt
+            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_ms %.3f\\n", n, t/1000000 }' | tee -a ../results.txt
           }
+
           timed_build C cc -O2 -DNDEBUG main.c -o c
           timed_build C++ c++ -std=c++20 -O2 -DNDEBUG main.cpp -o cpp
           timed_build Rust rustc -C opt-level=2 main.rs -o rust
           timed_build Go go build -trimpath -o go main.go
+          timed_build CSharp dotnet build Bench.csproj -c Release --nologo
+          timed_build Java javac Main.java
+          timed_build Kotlin kotlinc Main.kt -include-runtime -d kotlin.jar
           timed_build Swift swiftc -O main.swift -o swift
           timed_build Zig zig build-exe -O ReleaseFast main.zig -femit-bin=zig
           timed_build Swan bash -c '../../build/swan main.swan -o main.swan.c && cc -O2 -DNDEBUG main.swan.c -o swan'
           timed_build Goose goose build main.goose
           mv main main-goose
+          echo "JavaScript compile_ms N/A (interpreted)" | tee -a ../results.txt
+          echo "Lua compile_ms N/A (interpreted)" | tee -a ../results.txt
+          echo "Python compile_ms N/A (interpreted)" | tee -a ../results.txt
 
       - name: Verify checksums and measure runtime
         shell: bash
@@ -160,18 +274,41 @@ jobs:
           set -euo pipefail
           cd benchmarks/work
           expected=$(./c)
-          printf "expected_checksum %s\n" "$expected" | tee -a ../results.txt
-          for name in c cpp rust go swift zig swan main-goose; do
-            file="./$name"
-            [[ -x "$file" ]] || { echo "Missing executable: $file"; exit 1; }
-            actual=$("$file")
-            [[ "$actual" == "$expected" ]] || { echo "$name checksum mismatch: $actual != $expected"; exit 1; }
+          printf "expected_checksum %s\\n" "$expected" | tee -a ../results.txt
+
+          run_case() {
+            local name="$1"; shift
+            local actual
+            actual=$("$@")
+            [[ "$actual" == "$expected" ]] || {
+              echo "$name checksum mismatch: $actual != $expected" >&2
+              exit 1
+            }
             for run in 1 2 3 4 5 6 7; do
-              /usr/bin/time -o /tmp/time -f "$name runtime_sec %e peak_rss_kb %M" "$file" >/tmp/out 2>&1
-              [[ "$(cat /tmp/out)" == "$expected" ]]
+              /usr/bin/time -o /tmp/time -f "$name runtime_sec %e peak_rss_kb %M" "$@" >/tmp/out 2>&1
+              [[ "$(cat /tmp/out)" == "$expected" ]] || {
+                echo "$name produced unexpected output on run $run" >&2
+                cat /tmp/out >&2
+                exit 1
+              }
               if (( run > 2 )); then cat /tmp/time >>../results.txt; fi
             done
-          done
+          }
+
+          run_case C ./c
+          run_case C++ ./cpp
+          run_case Rust ./rust
+          run_case Go ./go
+          run_case CSharp dotnet bin/Release/net8.0/Bench.dll
+          run_case Java java Main
+          run_case Kotlin java -jar kotlin.jar
+          run_case Swift ./swift
+          run_case Zig ./zig
+          run_case Swan ./swan
+          run_case Goose ./main-goose
+          run_case JavaScript node main.js
+          run_case Lua lua5.4 main.lua
+          run_case Python python3 main.py
           cat ../results.txt
 
       - name: Record environment and tool versions
@@ -181,13 +318,20 @@ jobs:
             echo "commit $(git rev-parse HEAD)"
             echo "cpu $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
             echo "kernel $(uname -sr)"
-            c++ --version | head -1
-            rustc --version
-            go version
-            swift --version | head -1
-            zig version
-            /tmp/goose-build/goose --version || true
-            ./build/swan --version || true
+            echo "c $(cc --version | head -1)"
+            echo "cpp $(c++ --version | head -1)"
+            echo "rust $(rustc --version)"
+            echo "go $(go version)"
+            echo "csharp $(dotnet --version)"
+            echo "java $(java -version 2>&1 | head -1)"
+            echo "kotlin $(kotlinc -version 2>&1 | head -1)"
+            echo "swift $(swift --version | head -1)"
+            echo "zig $(zig version)"
+            echo "goose $(/tmp/goose-build/goose --version)"
+            echo "node $(node --version)"
+            echo "lua $(lua5.4 -v 2>&1)"
+            echo "python $(python3 --version)"
+            echo "swan $(./build/swan --version)"
           } | tee -a benchmarks/results.txt
 
       - uses: actions/upload-artifact@v4
