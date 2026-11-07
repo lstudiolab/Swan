@@ -4,7 +4,7 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 SWAN_BIN=${SWAN_BIN:-$ROOT/build/swan}
 CC=${CC:-clang}
-OPT_LEVEL=${SWAN_OPT_LEVEL:-0}
+OPT_LEVEL=${SWAN_OPT_LEVEL:-1}
 
 case "$OPT_LEVEL" in
     0|1|2|3|s|z) ;;
