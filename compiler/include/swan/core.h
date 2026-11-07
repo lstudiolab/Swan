@@ -6,6 +6,7 @@
 #include <stdarg.h>
 #include <stdbool.h>
 #include <stdint.h>
+#include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -26,7 +27,20 @@ struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr *args[16]; siz
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
 typedef struct Stmt Stmt;
 struct Stmt { StmtKind kind; Token token; char name[SWAN_MAX_TEXT]; char type[SWAN_MAX_TEXT]; bool mutable_value; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; char params[16][SWAN_MAX_TEXT]; size_t param_count; Stmt *next; };
-typedef struct { Stmt *functions[1024]; size_t count; } Program;
+typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
+typedef struct { Stmt *functions[1024]; size_t count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; } Program;
+static inline void *swan_arena_alloc(Program *p,size_t size){
+ const size_t align=_Alignof(max_align_t);size=(size+align-1)&~(align-1);
+ SwanArenaChunk *c=p->arena;
+ if(!c||size>c->capacity-c->used){
+  size_t cap=size>65536?size:65536;
+  c=malloc(sizeof(*c)+cap);if(!c)return NULL;c->next=p->arena;c->used=0;c->capacity=cap;p->arena=c;
+ }
+ void *result=c->data+c->used;c->used+=size;memset(result,0,size);return result;
+}
+static inline void swan_program_destroy(Program *p){
+ SwanArenaChunk *c=p->arena;while(c){SwanArenaChunk *next=c->next;free(c);c=next;}p->arena=NULL;
+}
 typedef struct { char message[1024]; unsigned line,col; } SwanError;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
  va_list ap; va_start(ap,fmt); vsnprintf(e->message,sizeof(e->message),fmt,ap); va_end(ap);
