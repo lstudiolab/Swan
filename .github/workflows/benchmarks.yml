@@ -16,6 +16,8 @@ jobs:
           sudo apt-get install -y cmake clang build-essential time python3
       - name: Build Swan
         run: sh build.sh
+      - name: Benchmark compiler hot paths
+        run: python3 benchmarks/compile.py
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Build Goose compiler
