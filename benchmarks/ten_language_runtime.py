@@ -230,7 +230,7 @@ def main():
         sources[name].write_text(SRC[name], encoding="utf-8")
 
     swan = ROOT/"build/swan"
-    goose = ROOT/"goose/build/goose"
+    goose = ROOT.parent/"goose"/"build"/"goose"
     zig = pathlib.Path(os.environ["ZIG"])
     kotlin = pathlib.Path(os.environ["KOTLINC"])
     compilers = {
