@@ -35,6 +35,40 @@ static inline bool expr_has_call(Expr *e){
  return false;
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
+static inline bool add_term_to_r10_supported(Expr *e,Locals *l){
+ if(!e)return false;
+ if(e->kind==E_INT||e->kind==E_BOOL)return true;
+ if(e->kind==E_NAME)return local_find(l,e->token.text)!=NULL;
+ if(e->kind==E_BINARY&&e->token.kind==T_STAR&&e->left&&e->left->kind==E_NAME&&e->right&&e->right->kind==E_INT){
+  Local *v=local_find(l,e->left->token.text);char *end=NULL;strtoll(e->right->token.text,&end,10);
+  return v&&end&&!*end;
+ }
+ return false;
+}
+static inline bool add_chain_supported(Expr *e,Locals *l){
+ if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS)return add_chain_supported(e->left,l)&&add_chain_supported(e->right,l);
+ return add_term_to_r10_supported(e,l);
+}
+static inline void emit_term_r10(Text *o,Expr *e,Locals *l){
+ if(e->kind==E_INT)text_add(o,"    mov r10, %s\n",e->token.text);
+ else if(e->kind==E_BOOL)text_add(o,"    mov r10, %d\n",e->token.kind==T_TRUE);
+ else if(e->kind==E_NAME){
+  Local *v=local_find(l,e->token.text);
+  if(v->reg>=0)text_add(o,"    mov r10, %s\n",cg_saved_regs[v->reg]);
+  else text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",v->slot*8);
+ }else if(e->kind==E_BINARY&&e->token.kind==T_STAR){
+  Local *v=local_find(l,e->left->token.text);
+  if(v->reg>=0)text_add(o,"    imul r10, %s, %s\n",cg_saved_regs[v->reg],e->right->token.text);
+  else text_add(o,"    imul r10, QWORD PTR [rbp - %d], %s\n",v->slot*8,e->right->token.text);
+ }
+}
+static inline void emit_add_terms_rax(Text *o,Expr *e,Locals *l,SwanError *err,bool *first){
+ if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
+  emit_add_terms_rax(o,e->left,l,err,first);emit_add_terms_rax(o,e->right,l,err,first);return;
+ }
+ if(*first){emit_expr(o,e,l,err);*first=false;}
+ else{emit_term_r10(o,e,l);text_add(o,"    add rax, r10\n");}
+}
 static inline void emit_add_terms(Text *o,Expr *e,Locals *l,SwanError *err,bool *first){
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
   emit_add_terms(o,e->left,l,err,first);emit_add_terms(o,e->right,l,err,first);return;
@@ -87,7 +121,10 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_CALL:emit_call(o,e,l,err);break;
  case E_BINARY:
   if(e->token.kind==T_PLUS&&!expr_has_call(e)){
-   bool first=true;emit_add_terms(o,e,l,err,&first);if(!first)text_add(o,"    mov rax, r10\n");break;
+   bool first=true;
+   if(add_chain_supported(e,l))emit_add_terms_rax(o,e,l,err,&first);
+   else{emit_add_terms(o,e,l,err,&first);if(!first)text_add(o,"    mov rax, r10\n");}
+   break;
   }
   if(e->token.kind==T_ASSIGN){
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable");break;}
