@@ -48,6 +48,38 @@ drivers spawn child processes and parent-only RSS would not be comparable.
 These results are specific to the machine, compiler versions, and flags;
 they are not a universal language ranking.
 
+### Recorded nine-language result
+
+Ubuntu 24.04.5 x86_64, Clang/Clang++ 17.0.0, Rust 1.99.1, Go 1.27.3,
+Swift 6.1, Zig 0.13.0, Goose v2026.4. The benchmark used 50 million
+iterations of the same signed 32-bit recurrence and checksum `966250007`.
+
+| Language | Compile pipeline (s) | Runtime (s) | Runtime peak RSS (MiB) |
+|---|---:|---:|---:|
+| Swan | 0.0520 | 0.1260 | 1.59 |
+| Rust | 0.7276 | 0.1284 | 2.20 |
+| Goose | 0.6690 | 0.1574 | 2.59 |
+| C | 0.0322 | 0.1269 | 1.59 |
+| C++ | 0.2512 | 0.1291 | 3.60 |
+| Swift | 0.2458 | 0.1275 | 9.07 |
+| Zig | 5.7527 | 0.1609 | 0.26 |
+| Go | 2.9109 | 0.1314 | 1.93 |
+| Python (interpreted) | N/A | 3.0514 | 10.17 |
+
+On this single workload, Swan's runtime was within measurement noise of C,
+C++, Rust, Swift, and Go. Goose and Zig were somewhat slower on this loop;
+Python took about 24.2 times as long as Swan. Swan's full compile pipeline
+was 52 ms, versus 32 ms for direct C compilation. Zig and Go had the longest
+one-shot compile times in this run. These are observations from one runner,
+not general language rankings or guarantees.
+
+All nine implementations produced the same checksum. Native compiler flags
+were Swan/Goose/C/C++ Clang `-O2`, Rust `opt-level=3`, Swift `-O`,
+Zig `ReleaseFast`, and Go's default optimized build. Runtime is the median
+of five trials after one warm-up; compile time is a single clean pipeline
+measurement. RSS is the executable process peak, measured by GNU time.
+Compiler RSS is omitted because some compiler drivers spawn child processes.
+
 ## Cross-language baseline
 
 Run after building Swan and installing Clang, Rust, Goose, and GNU time:

@@ -102,6 +102,39 @@ These are single-runner measurements, not universal performance guarantees.
 Re-run `benchmarks/backend_flags.py` on the target machine before choosing
 different flags.
 
+## Nine-language comparison (Ubuntu 24.04.5)
+
+A matched 50-million-iteration signed 32-bit recurrence produced checksum
+`966250007` in every implementation. One-shot compile pipeline time,
+median runtime after one warm-up, and executable peak RSS were:
+
+| Language | Compile (s) | Runtime (s) | Runtime RSS (MiB) |
+|---|---:|---:|---:|
+| Swan | 0.0520 | 0.1260 | 1.59 |
+| Rust | 0.7276 | 0.1284 | 2.20 |
+| Goose | 0.6690 | 0.1574 | 2.59 |
+| C | 0.0322 | 0.1269 | 1.59 |
+| C++ | 0.2512 | 0.1291 | 3.60 |
+| Swift | 0.2458 | 0.1275 | 9.07 |
+| Zig | 5.7527 | 0.1609 | 0.26 |
+| Go | 2.9109 | 0.1314 | 1.93 |
+| Python | N/A | 3.0514 | 10.17 |
+
+Toolchains: Clang 17.0.0, Rust 1.99.1, Go 1.27.3, Swift 6.1,
+Zig 0.13.0, Goose v2026.4. Release flags were selected per toolchain.
+The benchmark verifies output equality before timing. Python's compile
+column is N/A because it is interpreted in this test. The native runtime
+times are tightly clustered except Goose/Zig; Python is about 24.2x slower
+than Swan for this loop. Compile-time differences are significant: Swan's
+52 ms frontend-plus-Clang pipeline was close to direct C's 32 ms compile,
+while Zig and Go took several seconds on this cold one-shot build.
+
+Do not generalize these results beyond this workload and runner. They do
+not measure startup-heavy applications, allocation-heavy workloads,
+concurrency, IO, generic specialization, or compile-time scaling with
+large source trees. RSS is peak resident memory of the running executable,
+not compiler memory.
+
 ## Optimization order
 
 1. Profile and reduce lexer allocations.
