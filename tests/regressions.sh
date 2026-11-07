@@ -114,7 +114,13 @@ fn main() -> int {
 SWAN
 "$SWAN" "$TMP/escaped-string.swan" -o "$TMP/escaped-string.c"
 "$CC" -std=c11 -Wall -Wextra -Werror "$TMP/escaped-string.c" -o "$TMP/escaped-string"
-test "$("$TMP/escaped-string")" = "line
-quote\"slash\\"
+actual=$("$TMP/escaped-string")
+expected=$(printf 'line\nquote"slash\\')
+if [ "$actual" != "$expected" ]; then
+    printf 'FAIL: escaped string output mismatch\n' >&2
+    printf 'actual bytes: '; printf '%s' "$actual" | od -An -t x1 >&2
+    printf 'expected bytes: '; printf '%s' "$expected" | od -An -t x1 >&2
+    exit 1
+fi
 printf 'PASS: escaped string literal generation\\n'
 printf 'PASS: compiler regression suite\n'
