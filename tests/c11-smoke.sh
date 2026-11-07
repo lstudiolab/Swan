@@ -123,10 +123,14 @@ fn main():
     return 0
 SWAN
 "$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
-grep -q "mov r11, rax" "$TMP/invariant-hoist.s"
-grep -q "mov rax, r11" "$TMP/invariant-hoist.s"
+if ! grep -q "mov r11, rax" "$TMP/invariant-hoist.s" || ! grep -q "mov rax, r11" "$TMP/invariant-hoist.s"; then
+    echo "FAIL: expected invariant expression was not hoisted" >&2
+    cat "$TMP/invariant-hoist.s" >&2
+    exit 1
+fi
 cc -x assembler "$TMP/invariant-hoist.s" -o "$TMP/invariant-hoist"
-test "$("$TMP/invariant-hoist")" = "2913"
+actual=$("$TMP/invariant-hoist")
+if [ "$actual" != "2913" ]; then echo "FAIL: invariant-hoist expected 2913, got $actual" >&2; exit 1; fi
 printf 'PASS: loop-invariant arithmetic hoisting preserves results\n'
 cat > "$TMP/zero-loop.swan" <<'SWAN'
 fn main():
