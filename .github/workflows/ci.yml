@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install LLVM backend
-        run: sudo apt-get update && sudo apt-get install -y clang lld
       - name: Build Swan compiler
         run: sh build.sh
-      - name: Verify Swan language features and regressions
+      - name: Verify native assembly backend
         run: |
           sh tests/smoke.sh
           sh tests/regressions.sh
