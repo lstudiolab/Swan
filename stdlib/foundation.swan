@@ -1,7 +1,7 @@
-// Swan Foundation
-// Small, dependency-free utilities implemented in Swan.
-//
-// Output
+# Swan Foundation
+# Small, dependency-free utilities implemented in Swan.
+# 
+# Output
 fn echo(message: string) -> void {
     log message;
 }
@@ -18,7 +18,7 @@ fn echo_bool(value: bool) -> void {
     log value;
 }
 
-// Integer arithmetic
+# Integer arithmetic
 fn abs_int(value: int) -> int {
     if value < 0 {
         return 0 - value;
@@ -110,7 +110,7 @@ fn sum_to_int(value: int) -> int {
     return result;
 }
 
-// Integer predicates
+# Integer predicates
 fn is_even(value: int) -> bool {
     return value % 2 == 0;
 }
@@ -123,7 +123,7 @@ fn in_range_int(value: int, lower: int, upper: int) -> bool {
     return value >= lower and value <= upper;
 }
 
-// Numeric conversion-free helpers
+# Numeric conversion-free helpers
 fn average_int(left: int, right: int) -> float {
     return (left + right) / 2;
 }
