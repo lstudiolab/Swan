@@ -17,6 +17,10 @@ inline bool Sema::alwaysReturns(const std::vector<StmtPtr>& statements) const {
 
 inline void Sema::analyzeBlock(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
+    std::size_t variableCount = 0;
+    for (const auto& statement : statements)
+        variableCount += statement->kind == Stmt::Kind::Variable;
+    scopes_.back().reserve(variableCount);
     for (const auto& statement : statements) analyzeStatement(statement);
     scopes_.pop_back();
 }
