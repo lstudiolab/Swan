@@ -1,0 +1,56 @@
+name: Six-language benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "compiler-c/**"
+      - "build.sh"
+      - "benchmarks/multilang.py"
+      - ".github/workflows/multilang-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: swan
+      - uses: actions/checkout@v4
+        with:
+          repository: aardappel/goose
+          path: goose
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+      - name: Install build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake gobjc libobjc-12-dev python3 time
+      - name: Build Swan
+        working-directory: swan
+        run: sh build.sh
+      - name: Build Goose
+        run: |
+          cmake -S goose -B goose/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build goose/build --parallel 2
+      - name: Run benchmark
+        run: python3 swan/benchmarks/multilang.py
+      - name: Publish summary
+        if: always()
+        run: |
+          if [ -f benchmark-results/results.md ]; then
+            cat benchmark-results/results.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Benchmark did not produce results. Inspect earlier build steps." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: six-language-benchmark-results
+          path: benchmark-results/
+          if-no-files-found: warn
