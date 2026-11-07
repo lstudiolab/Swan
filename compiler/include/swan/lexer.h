@@ -11,6 +11,7 @@ static inline TokenKind swan_keyword(const char *s) {
 }
 static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
  if(ts->count>=SWAN_MAX_TOKENS){Token t={0};swan_error(err,&t,"source has too many tokens");return false;}
+ if(ts->count==ts->capacity){size_t cap=ts->capacity?ts->capacity*2:256;if(cap>SWAN_MAX_TOKENS)cap=SWAN_MAX_TOKENS;Token *items=realloc(ts->items,cap*sizeof(*items));if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}ts->items=items;ts->capacity=cap;}
  Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;
  if(n>=sizeof(t->text)){swan_error(err,t,"token is too long");return false;}memcpy(t->text,s,n);t->text[n]=0;return true;
 }
