@@ -10,12 +10,10 @@ inline Token Lexer::scanPunctuation() {
     const std::string pair{character, peek(1)};
     if (pair == "->" || pair == "==" || pair == "!=" || pair == "<=" ||
         pair == ">=" || pair == "&&" || pair == "||") {
-        advance();
-        advance();
+        advance(); advance();
         return {pair, pair, line, column};
     }
-    if (std::string_view("{}()[],:;.+-*/%=<>!").find(character) !=
-        std::string_view::npos) {
+    if (std::string_view("()[],:;.+-*/%=<>!").find(character) != std::string_view::npos) {
         advance();
         const std::string value(1, character);
         return {value, value, line, column};
