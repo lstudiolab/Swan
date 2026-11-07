@@ -402,8 +402,8 @@ SWAN
 "$SWAN" "$TMP/volatile-preservation.swan" --emit-asm -o "$TMP/volatile-preservation.s"
 cc -x assembler "$TMP/volatile-preservation.s" -o "$TMP/volatile-preservation"
 test "$("$TMP/volatile-preservation")" = "315"
-grep -q 'mov QWORD PTR \\[rbp - .*\\], rbx' "$TMP/volatile-preservation.s"
-grep -q 'mov QWORD PTR \\[rbp - .*\\], r12' "$TMP/volatile-preservation.s"
+grep -q 'mov QWORD PTR \[rbp - .*\], rbx' "$TMP/volatile-preservation.s"
+grep -q 'mov QWORD PTR \[rbp - .*\], r12' "$TMP/volatile-preservation.s"
 if grep -q 'push rdi' "$TMP/volatile-preservation.s"; then
     echo 'FAIL: callee-saved local allocation regressed to volatile-register spills' >&2
     exit 1
