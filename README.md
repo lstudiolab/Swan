@@ -46,11 +46,11 @@ The initial C backend emits GNU assembler Intel syntax for x86-64. Other archite
     ./build/swan program.swan --target aarch64 --emit-asm -o program-aarch64.s
     ./build/swan program.swan --target aarch64 --emit-obj -o program-aarch64.o
 
-The initial C backend currently targets x86-64 System V. The system assembler/linker consumes Swan-emitted assembly; it does not compile Swan source.
+The initial C backend currently targets x86-64 System V on Linux. It supports the currently ported subset: integer expressions, local variables, function calls, if/else, while, and console logging. The system assembler/linker consumes Swan-emitted assembly; it does not compile Swan source.
 
 ## Optimization
 
-The native backend is an initial correctness-focused implementation. Swan-owned instruction selection, register allocation, peephole optimization, common-subexpression elimination, and target-specific scheduling are active compiler-development work. Do not treat the current `--optimize` flag as proof of a mature optimizer.
+The native backend is an initial correctness-focused implementation. A target-independent IR, register allocation, peephole optimization, common-subexpression elimination, and target-specific scheduling remain future compiler work.
 
 ## Tests
 
