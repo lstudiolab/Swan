@@ -123,12 +123,23 @@ def run(cmd, cwd, expected=None):
 
 def med(samples, key): return statistics.median(x[key] for x in samples)
 
+def tool_version(command):
+    p = subprocess.run(command, text=True, capture_output=True)
+    text = p.stdout or p.stderr
+    return text.splitlines()[0] if p.returncode == 0 and text else 'unavailable'
+
 def main():
     if not SWAN.is_file(): raise SystemExit("Build Swan first: sh build.sh")
     goose = os.environ.get("GOOSE", "goose")
     cc, rustc = shutil.which("cc"), shutil.which("rustc")
     if not cc or not rustc: raise SystemExit("cc and rustc are required")
     host_info = host()
+    versions = {
+        'Swan': 'Swan compiler at commit ' + str(os.getenv('GITHUB_SHA', 'local')),
+        'Goose': tool_version([goose, 'version']),
+        'Rust': tool_version([rustc, '--version']),
+        'C': tool_version([cc, '--version']),
+    }
     exts = {"Swan":"swan", "Goose":"goose", "Rust":"rs", "C":"c"}
     with tempfile.TemporaryDirectory(prefix="swan-goose-rust-c-") as td:
         d = pathlib.Path(td)
@@ -197,7 +208,7 @@ def main():
             x["runtime_cpu_percent_median"] = statistics.median(float(s["cpu_percent"].rstrip("%")) for s in samples)
             x["iterations_per_second"] = 1_000_000_000/x["runtime_median_s"]
         report = {"benchmark":"Swan vs Goose vs Rust vs C — one billion integer loop iterations",
-                  "commit":os.getenv("GITHUB_SHA"),"host":host_info,
+                  "commit":os.getenv("GITHUB_SHA"),"host":host_info,"toolchain_versions":versions,
                   "workload":{"loop_dimensions":[1000,1000,1000],"iterations":1_000_000_000,
                     "operation":"total += ((i * 31 + j * 17 + k * 13) % 97)",
                     "signed_integer_width":64,"expected_checksum":EXPECTED,"correctness":"PASS",
@@ -210,7 +221,7 @@ def main():
                     "Wall time uses perf_counter; GNU time provides CPU time, peak RSS, faults and context switches.",
                     "Peak RSS is per-process maximum resident memory, not total host RAM.",
                     "This common supported compute workload is distinct from the 20M binary-search workload; current Swan backend does not lower array allocation/indexing or break/continue."]}
-        (ROOT/"four-language-benchmark.json").write_text(json.dumps(report,indent=2)+"\\n")
+        (ROOT/"four-language-benchmark.json").write_text(json.dumps(report,indent=2)+"\n")
         lines = ["# Swan vs Goose vs Rust vs C","",
           "Workload: 1,000,000,000 identical loop iterations. Checksum verified.",
           f"Host: {host_info['cpu']}; {host_info['logical_cpus']} logical CPUs; RAM {host_info['memory'].get('MemTotal','unknown')}.","",
@@ -222,6 +233,7 @@ def main():
         lines += ["","## Runtime samples (seconds)","","| Round | Swan | Goose | Rust | C |","|---:|---:|---:|---:|---:|"]
         for i in range(RUNTIME_RUNS):
             lines.append("| "+str(i+1)+" | "+" | ".join(f"{results[n]['runtime_samples'][i]['wall_s']:.6f}" for n in names)+" |")
+        lines += ["","## Toolchain versions",""]+[f"- **{n}:** {versions[n]}" for n in names]
         lines += ["","## Compiler settings",""]+[f"- **{n}:** {flags[n]}" for n in names]
         lines += ["","Expected checksum: 48,000,000,020. All samples must match or the run fails.",
                   "Raw per-sample metrics: four-language-benchmark.json.",
