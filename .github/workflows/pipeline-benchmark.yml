@@ -34,7 +34,7 @@ jobs:
       - name: Build Swan compiler and pipeline harness
         run: |
           sh build.sh
-          c++ -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror \
+          c++ -x c++ -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror \
             -Icompiler/include tests/pipeline_benchmark.inc \
             -o build/pipeline-benchmark
 
