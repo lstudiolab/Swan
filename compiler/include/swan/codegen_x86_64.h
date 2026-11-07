@@ -68,6 +68,11 @@ static inline void emit_term_r10(Text *o,Expr *e,Locals *l){
  }
 }
 static inline void emit_add_terms_rax(Text *o,Expr *e,Locals *l,SwanError *err,bool *first){
+ if(o->hoist_expr==e){
+  if(*first){text_add(o,"    mov rax, r11\n");*first=false;}
+  else text_add(o,"    mov r10, r11\n    add rax, r10\n");
+  return;
+ }
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
   emit_add_terms_rax(o,e->left,l,err,first);emit_add_terms_rax(o,e->right,l,err,first);return;
  }
@@ -75,6 +80,11 @@ static inline void emit_add_terms_rax(Text *o,Expr *e,Locals *l,SwanError *err,b
  else{emit_term_r10(o,e,l);text_add(o,"    add rax, r10\n");}
 }
 static inline void emit_add_terms(Text *o,Expr *e,Locals *l,SwanError *err,bool *first){
+ if(o->hoist_expr==e){
+  if(*first){text_add(o,"    mov r10, r11\n");*first=false;}
+  else text_add(o,"    add r10, r11\n");
+  return;
+ }
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
   emit_add_terms(o,e->left,l,err,first);emit_add_terms(o,e->right,l,err,first);return;
  }
