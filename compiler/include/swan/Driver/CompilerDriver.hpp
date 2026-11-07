@@ -79,8 +79,9 @@ inline int compileNative(const std::string& generated,
 
     if (!execute) return 0;
 #ifdef _WIN32
-    return _spawnv(_P_WAIT, output.string().c_str(),
-                   std::vector<const char*>{output.string().c_str(), nullptr}.data());
+    const std::string executable = output.string();
+    const char* arguments[] = {executable.c_str(), nullptr};
+    return _spawnv(_P_WAIT, executable.c_str(), arguments);
 #else
     const std::string runCommand = shellQuote(output.string());
     return processExitCode(std::system(runCommand.c_str()));
@@ -136,7 +137,7 @@ inline int runCompiler(int argc, char** argv) {
                 );
 
         const int status = driver::compileNative(generated, output, execute);
-        if (execute || !options.hasOutput) {
+        if (!options.hasOutput) {
             std::error_code error;
             std::filesystem::remove(output, error);
         }
