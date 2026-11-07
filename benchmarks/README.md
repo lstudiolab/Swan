@@ -15,8 +15,10 @@ compile time with median runtime. It verifies that every executable produces
 the same checksum. This isolates the native C backend from Swan's own
 lexer/parser/sema/codegen time.
 
-On the recorded Ubuntu 26.04 / Clang 21.1.8 runner, `-O1` compiled in
-52.25 ms versus 53.61 ms for `-O2`; runtime was 129.83 ms versus 129.95 ms.
+On the recorded Ubuntu 26.04 / Clang 21.1.8 runner, the latest run measured
+`-O1` at 52.76 ms versus 55.96 ms for `-O2`; runtime was 191.22 ms versus
+193.06 ms. An earlier run showed the same ordering. Treat the absolute times
+as runner-specific.
 That makes `-O1` the recommended fast-build setting for this workload. The
 difference is small, so treat it as a measured default, not a universal
 speedup guarantee.
