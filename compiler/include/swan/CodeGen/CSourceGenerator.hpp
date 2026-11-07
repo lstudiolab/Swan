@@ -137,6 +137,42 @@ private:
         throw CompileError("unsupported expression in portable code generator");
     }
 
+    static const Stmt* loopIncrement(const std::vector<StmtPtr>& body) {
+        if (body.empty()) return nullptr;
+        const auto* statement = body.back().get();
+        if (statement->kind != Stmt::Kind::Expression || !statement->value ||
+            statement->value->kind != Expr::Kind::Binary ||
+            statement->value->token.value != "=") return nullptr;
+        const auto* assignment = statement->value.get();
+        if (assignment->left->kind != Expr::Kind::Name ||
+            assignment->right->kind != Expr::Kind::Binary ||
+            assignment->right->token.value != "+") return nullptr;
+        const auto* addition = assignment->right.get();
+        if (addition->left->kind != Expr::Kind::Name ||
+            addition->left->token.value != assignment->left->token.value ||
+            addition->right->kind != Expr::Kind::Literal ||
+            addition->right->token.kind != "INT" ||
+            addition->right->token.value != "1") return nullptr;
+        return statement;
+    }
+
+    static bool containsContinue(const std::vector<StmtPtr>& body) {
+        for (const auto& statement : body) {
+            if (statement->kind == Stmt::Kind::Continue) return true;
+            if (statement->kind == Stmt::Kind::If &&
+                (containsContinue(statement->body) ||
+                 containsContinue(statement->alternate))) return true;
+        }
+        return false;
+    }
+
+    void emitLoopBody(std::string& out, const std::vector<StmtPtr>& body,
+                      unsigned indent, bool omitIncrement) const {
+        const auto count = body.size() - (omitIncrement ? 1u : 0u);
+        for (std::size_t i = 0; i < count; ++i)
+            emitStatement(out, body[i].get(), indent);
+    }
+
     void emitStatement(std::string& out, const Stmt* node, unsigned indent) const {
         const std::string pad(indent * 4, ' ');
         switch (node->kind) {
@@ -176,11 +212,21 @@ private:
             }
             out += "\n";
             break;
-        case Stmt::Kind::While:
-            out += pad + "while (" + expression(node->condition.get()) + ") {\n";
-            emitBlock(out, node->body, indent + 1);
+        case Stmt::Kind::While: {
+            const auto* increment = loopIncrement(node->body);
+            const bool useFor = increment && !containsContinue(node->body);
+            if (useFor) {
+                const auto* assignment = increment->value.get();
+                out += pad + "for (; " + expression(node->condition.get()) + "; " +
+                    variableName(assignment->left->token.value) + "++) {\n";
+                emitLoopBody(out, node->body, indent + 1, true);
+            } else {
+                out += pad + "while (" + expression(node->condition.get()) + ") {\n";
+                emitBlock(out, node->body, indent + 1);
+            }
             out += pad + "}\n";
             break;
+        }
         case Stmt::Kind::Break: out += pad + "break;\n"; break;
         case Stmt::Kind::Continue: out += pad + "continue;\n"; break;
         case Stmt::Kind::Pass: out += pad + ";\n"; break;
