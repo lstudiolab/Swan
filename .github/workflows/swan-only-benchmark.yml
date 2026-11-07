@@ -1,0 +1,29 @@
+name: Swan-only stress benchmark
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "benchmarks/swan_only.py"
+      - "compiler/**"
+      - "main.c"
+      - "build.sh"
+      - ".github/workflows/swan-only-benchmark.yml"
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Swan
+        run: sh build.sh
+      - name: Run one-billion-iteration Swan benchmark
+        run: python3 benchmarks/swan_only.py
+      - name: Upload measured results
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-only-benchmark
+          path: swan-only-benchmark.json
+          if-no-files-found: error
