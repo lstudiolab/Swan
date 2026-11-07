@@ -3,6 +3,7 @@
 #include "swan/Basic/Diagnostic.hpp"
 #include "swan/Sema/TypeRules.hpp"
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -17,11 +18,11 @@ private:
     void analyzeFunction(const StmtPtr& function);
     void analyzeStatement(const StmtPtr& statement);
     void analyzeBlock(const std::vector<StmtPtr>& statements);
-    std::string analyzeExpression(const ExprPtr& expression);
+    std::string_view analyzeExpression(const ExprPtr& expression);
     bool alwaysReturns(const std::vector<StmtPtr>& statements) const;
     std::pair<std::string,bool>* lookup(const std::string& name);
-    static bool numeric(const std::string& type);
-    static bool compatible(const std::string& expected,const std::string& actual);
+    static bool numeric(std::string_view type);
+    static bool compatible(std::string_view expected, std::string_view actual);
     const Program& program_;
     std::unordered_set<std::string> types_{"int","float","bool","string","void"};
     std::unordered_map<std::string,StmtPtr> functions_;
