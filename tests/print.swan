@@ -1,0 +1,5 @@
+struct printingName:
+    var name1 = "alex"
+
+fn main():
+   log "printingName.var.name1";
