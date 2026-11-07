@@ -1,0 +1,7 @@
+// Swan Foundation
+// Basic output utilities.
+//
+// echo writes a string followed by a newline.
+fn echo(message: string) -> void {
+    log message;
+}
