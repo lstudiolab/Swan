@@ -223,7 +223,7 @@ class LLVMIRGenerator {
                 else {
                     std::string fmt = a.type == "double" ? "%g\n" : a.type == "i1" ? "%d\n" : "%lld\n";
                     auto f = stringValue(fmt);
-                    if (a.type == "i1") a = cast(a, "i64");
+                    if (a.type == "i1") { auto z = tmp(); line(z + " = zext i1 " + a.value + " to i32"); a = {"i32", z}; }
                     line("call i32 (ptr, ...) @printf(ptr " + f.value + ", " + a.type + " " + a.value + ")");
                 }
             } else if (s->kind == Stmt::Kind::Return) {
@@ -246,7 +246,8 @@ class LLVMIRGenerator {
                 line("br i1 " + c.value + ", label %" + yes + ", label %" + no); terminated_ = true;
                 label(yes); bool yt = emitBlock(s->body); if (!yt) branch(end);
                 label(no); bool nt = false; if (!s->alternate.empty()) nt = emitBlock(s->alternate); if (!nt) branch(end);
-                label(end); terminated_ = yt && nt;
+                label(end);
+                if (yt && nt) { line("unreachable"); terminated_ = true; }
             } else if (s->kind == Stmt::Kind::While) {
                 auto cond = block("while.cond."), bodyLabel = block("while.body."), done = block("while.end.");
                 branch(cond); label(cond);
