@@ -6,11 +6,10 @@
 namespace swan {
 inline void CGenerator::line(const std::string& value) {
     if (!value.empty()) {
-        for (unsigned level = 0; level < indent_; ++level)
-            output_ << "    ";
-        output_ << value;
+        output_.append(static_cast<std::size_t>(indent_) * 4, ' ');
+        output_.append(value);
     }
-    output_ << '\n';
+    output_.push_back('\n');
 }
 inline void CGenerator::block(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
