@@ -66,11 +66,13 @@ def measured(command: list[str], expected: str | None = None) -> tuple[dict, str
     if not pathlib.Path(TIME_BIN).exists():
         raise RuntimeError("GNU /usr/bin/time is required for transparent resource measurements")
     fmt = "SWAN_TIME_JSON:%e,%U,%S,%M,%P,%F,%R,%w,%c"
+    wall_start = time.perf_counter()
     result = subprocess.run(
         [TIME_BIN, "-f", fmt, *command],
         cwd=ROOT, text=True, capture_output=True,
     )
-    high_resolution_wall = time.perf_counter() - wall_start\n    match = re.search(r"SWAN_TIME_JSON:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", result.stderr)
+    high_resolution_wall = time.perf_counter() - wall_start
+    match = re.search(r"SWAN_TIME_JSON:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", result.stderr)
     if result.returncode:
         raise RuntimeError(f"{command} failed ({result.returncode}):\n{result.stderr}")
     if not match:
