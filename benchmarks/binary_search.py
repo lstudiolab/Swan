@@ -5,7 +5,7 @@ import json, os, pathlib, statistics, subprocess, tempfile, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 N = 20_000_000
-RUNS = 3
+RUNS = 5
 EXPECTED = N * (N - 1) // 2
 GOOSE = os.environ.get("GOOSE", "goose")
 TIME = "/usr/bin/time"
@@ -118,21 +118,33 @@ def main():
    "Swan-clang":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan-clang"])],
   }
   results={}
-  for name in ("Swan","Swan-clang","Swan-fast","Goose","Rust","C","C++"):
+  names=("Swan","Swan-clang","Swan-fast","Goose","Rust","C","C++")
+  for name in names:
    print(f"COMPILING {name}",flush=True)
    ct,cm,_=run(commands[name], {"SWAN_OPT_CC":"clang"} if name=="Swan-clang" else None)
    if not exe[name].is_file(): raise RuntimeError(f"{name} executable missing")
-   print(f"RUNNING {name} ({RUNS} measured repetitions)",flush=True)
-   runtime_samples=[]; memory_samples=[]
-   for attempt in range(RUNS):
+   results[name]={"compile_seconds":round(ct,3),"compile_peak_mib":round(cm,2),
+                  "runtime_samples_seconds":[],"runtime_samples_peak_mib":[],
+                  "checksum":EXPECTED,"executable_bytes":exe[name].stat().st_size}
+  # Interleave implementations and rotate the starting point each round to
+  # reduce fixed-order CPU temperature, frequency and background-load bias.
+  for attempt in range(RUNS):
+   order=names[attempt:]+names[:attempt]
+   print(f"MEASUREMENT ROUND {attempt+1}/{RUNS}: {', '.join(order)}",flush=True)
+   for name in order:
     rt,rm,out=run([str(exe[name])])
     try: checksum=int(out.splitlines()[-1])
     except Exception: raise RuntimeError(f"{name} invalid output: {out!r}")
     if checksum!=EXPECTED: raise RuntimeError(f"{name} checksum {checksum}; expected {EXPECTED}")
-    runtime_samples.append(rt); memory_samples.append(rm)
-   rt=statistics.median(runtime_samples); rm=statistics.median(memory_samples)
-   results[name]={"compile_seconds":round(ct,3),"compile_peak_mib":round(cm,2),"runtime_seconds":round(rt,3),"runtime_samples_seconds":[round(x,3) for x in runtime_samples],"runtime_peak_mib":round(rm,2),"checksum":EXPECTED,"executable_bytes":exe[name].stat().st_size}
-   print(f"PASS {name}: compile {ct:.3f}s, median runtime {rt:.3f}s, samples {runtime_samples}, peak RSS {rm:.2f} MiB",flush=True)
+    results[name]["runtime_samples_seconds"].append(round(rt,3))
+    results[name]["runtime_samples_peak_mib"].append(round(rm,2))
+  for name in names:
+   samples=results[name]["runtime_samples_seconds"]
+   results[name]["runtime_seconds"]=round(statistics.median(samples),3)
+   results[name]["runtime_peak_mib"]=round(statistics.median(results[name]["runtime_samples_peak_mib"]),2)
+   print(f"PASS {name}: compile {results[name]['compile_seconds']:.3f}s, "
+         f"median runtime {results[name]['runtime_seconds']:.3f}s, samples {samples}, "
+         f"peak RSS {results[name]['runtime_peak_mib']:.2f} MiB",flush=True)
   report={"array_elements":N,"queries":N,"query_formula":"(q * 7919) % 20000000","expected_checksum":EXPECTED,"all_checksums_valid":True,"languages":results}
   out=ROOT/"binary-search-benchmark.json";out.write_text(json.dumps(report,indent=2)+"\n")
   print("\n| Language | Compile s | Compile RAM MiB | Runtime s | Runtime RAM MiB | Binary B |")
