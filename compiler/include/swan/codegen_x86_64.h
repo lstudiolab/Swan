@@ -21,7 +21,8 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %zu], rax\n",i*8);}
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
  for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %zu]\n",regs[i],i*8);
- text_add(o,"    xor eax, eax\n    call swan_fn_%s\n",name);if(area)text_add(o,"    add rsp, %d\n",area);
+ char symbol[SWAN_MAX_TEXT+16];if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
+ text_add(o,"    xor eax, eax\n    call %s\n",symbol);if(area)text_add(o,"    add rsp, %d\n",area);
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
