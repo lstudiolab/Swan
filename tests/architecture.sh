@@ -59,7 +59,12 @@ grep -q 'main:' "$ROOT/build/portable-aarch64.s"
 grep -q 'main:' "$ROOT/build/portable-armv7.s"
 grep -q 'main:' "$ROOT/build/portable-riscv64.s"
 grep -q 'main:' "$ROOT/build/portable-wasm32.s"
-printf 'PASS: full Swan source lowers to x86-64, AArch64, ARMv7, RISC-V 64, and WebAssembly assembly\n'
+for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc; do
+    safe=$(printf '%s' "$target" | tr '-' '_')
+    "$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --target "$target" --emit-asm -o "$ROOT/build/portable-$safe.s"
+    test -s "$ROOT/build/portable-$safe.s"
+done
+printf 'PASS: full Swan source lowers to x86-64, AArch64, ARMv7, RISC-V 64, WebAssembly, Apple, and Windows assembly\n'
 
 # The optimized portable backend executes the same array and function workload.
 test "$("$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --optimize)" = "91"
