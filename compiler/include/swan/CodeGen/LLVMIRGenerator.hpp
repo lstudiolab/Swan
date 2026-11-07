@@ -167,7 +167,7 @@ class LLVMIRGenerator {
         }
         case Expr::Kind::Binary: {
             if (v == "=") {
-                auto p = address(e->left.get()); auto a = emitExpr(e->right.get());
+                auto p = address(e->left.get()); auto a = cast(emitExpr(e->right.get()), ty(e->left->resolved_type));
                 line("store " + a.type + " " + a.value + ", ptr " + p);
                 return a;
             }
@@ -215,7 +215,7 @@ class LLVMIRGenerator {
             if (s->kind == Stmt::Kind::Variable) {
                 auto p = slots_.at(s.get()); scopes_.back()[s->name] = p;
                 auto t = ty(s->type.empty() ? (s->value ? s->value->resolved_type : "int") : s->type);
-                auto a = s->value ? cast(emitExpr(s->value.get()), t) : Value{t, t == "ptr" ? "null" : "0"};
+                auto a = s->value ? cast(emitExpr(s->value.get()), t) : Value{t, t == "ptr" ? "null" : t == "double" ? "0.0" : (!t.empty() && t[0] == '%') ? "zeroinitializer" : "0"};
                 line("store " + t + " " + a.value + ", ptr " + p);
             } else if (s->kind == Stmt::Kind::Log) {
                 auto a = emitExpr(s->value.get());
