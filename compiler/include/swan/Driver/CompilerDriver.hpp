@@ -53,6 +53,63 @@ inline std::filesystem::path temporaryPath(const std::string& extension) {
         ("swan-" + std::to_string(stamp) + extension);
 }
 
+inline std::string targetTriple(const std::string& target) {
+    if (target == "native") return {};
+    if (target == "x86_64") return "x86_64-linux-gnu";
+    if (target == "aarch64") return "aarch64-linux-gnu";
+    if (target == "armv7") return "armv7-linux-gnueabihf";
+    if (target == "riscv64") return "riscv64-linux-gnu";
+    if (target == "wasm32") return "wasm32-unknown-unknown";
+    throw CompileError("unsupported target '" + target +
+        "'; supported: native, x86_64, aarch64, armv7, riscv64, wasm32");
+}
+
+inline int compilePortable(const std::string& generated,
+                           const std::filesystem::path& output,
+                           const std::string& target,
+                           bool emitAssembly,
+                           bool execute) {
+    const auto sourceFile = temporaryPath(".c");
+    struct Cleanup {
+        std::filesystem::path path;
+        ~Cleanup() { std::error_code error; std::filesystem::remove(path, error); }
+    } cleanup{sourceFile};
+    if (!writeTextFile(sourceFile, generated))
+        throw CompileError("cannot write temporary portable source");
+
+    if (emitAssembly) {
+        const char* configured = std::getenv("SWAN_CLANG");
+        const std::string compiler = configured && *configured ? configured : "clang";
+        std::string command = shellQuote(compiler);
+        const auto triple = targetTriple(target);
+        if (!triple.empty()) command += " -target " + shellQuote(triple);
+        command += " -O3 -std=c11 -S -x c " + shellQuote(sourceFile.string()) +
+            " -o " + shellQuote(output.string());
+        return processExitCode(std::system(command.c_str()));
+    }
+
+    if (target != "native")
+        throw CompileError("cross-target executable linking requires a target sysroot; use --emit-asm");
+    const char* configured = std::getenv("CC");
+    const std::string compiler = configured && *configured ? configured : "cc";
+    const std::string command = shellQuote(compiler) + " -O3 -std=c11 -x c " +
+        shellQuote(sourceFile.string()) + " -o " + shellQuote(output.string());
+    const int status = processExitCode(std::system(command.c_str()));
+    if (status != 0) {
+        std::error_code error;
+        std::filesystem::remove(output, error);
+        return status;
+    }
+    if (!execute) return 0;
+#ifdef _WIN32
+    const std::string executable = output.string();
+    const char* arguments[] = {executable.c_str(), nullptr};
+    return _spawnv(_P_WAIT, executable.c_str(), arguments);
+#else
+    return processExitCode(std::system(shellQuote(output.string()).c_str()));
+#endif
+}
+
 inline int compileNative(const std::string& generated,
                          const std::filesystem::path& output,
                          bool execute) {
@@ -112,8 +169,47 @@ inline int runCompiler(int argc, char** argv) {
         if (!readTextFile(options.input, source))
             throw CompileError("cannot open '" + options.input.string() + "'");
 
+        const bool emitAssembly = options.emitAssembly ||
+            (options.hasOutput && options.output.extension() == ".s");
+        const bool portable = options.optimize || options.target != "native";
+        if (portable) {
+            const auto output = options.hasOutput ? options.output
+                : std::filesystem::path(options.input.stem().string() + ".s");
+            if (emitAssembly) {
+                const auto generated = Compiler().compilePortable(source);
+                return driver::compilePortable(generated, output, options.target, true, false);
+            }
+            if (options.target != "native")
+                throw CompileError("non-native targets currently require --emit-asm");
+            const bool execute = options.action != driver::Action::Build;
+            const auto executable = options.hasOutput ? options.output
+                : execute ? driver::temporaryPath(
+#ifdef _WIN32
+                    ".exe"
+#else
+                    ""
+#endif
+                  )
+                  : std::filesystem::path(options.input.stem().string()
+#ifdef _WIN32
+                      + ".exe"
+#endif
+                    );
+            const int status = driver::compilePortable(
+                Compiler().compilePortable(source), executable, options.target, false, execute);
+            if (!options.hasOutput) {
+                std::error_code error;
+                std::filesystem::remove(executable, error);
+            }
+            if (!execute && status == 0)
+                std::cout << "Built " << executable.string() << '\\n';
+            return status;
+        }
+
+        if (options.target != "native")
+            (void)driver::targetTriple(options.target);
         const std::string generated = Compiler().compile(source);
-        if (options.emitAssembly || (options.hasOutput && options.output.extension() == ".s")) {
+        if (emitAssembly) {
             const auto output = options.hasOutput ? options.output
                 : std::filesystem::path(options.input.stem().string() + ".s");
             if (!writeTextFile(output, generated))
