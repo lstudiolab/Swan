@@ -1,18 +1,14 @@
 # Swan Compiler Roadmap
 
-Swan's goal is to become a production-grade programming language and compiler. The goal is capability, correctness, performance, and maintainability—not source-code size for its own sake.
-
-The compiler keeps the project's requested source layout:
-- One C++ translation unit: `main.cpp`
-- Stage implementations in focused headers under `compiler/include/swan/`
-- No CMake requirement
+Swan's goal is to become a production-grade compiled language with predictable semantics, fast compilation, efficient native code, and a maintainable toolchain.
 
 ## Current baseline
 
-The current compiler is a C++20 source-to-source compiler:
-`.swan -> Lexer -> Parser -> AST -> Sema -> C generator -> .c`
+The active pipeline is:
 
-The supported language is still a subset. A recognized keyword is not considered implemented until parsing, semantic analysis, code generation, diagnostics, and tests all support its defined behavior.
+`.swan -> Lexer -> Parser -> AST -> Semantic analysis -> x86-64 GNU assembly -> assembler/linker`
+
+The direct assembly backend currently targets x86-64 Linux System V ELF. It supports the present scalar language subset, basic control flow, function calls, strings, and console output. Other targets, aggregate ABI lowering, register allocation, and an optimizing IR are not yet complete.
 
 ## Phase 1 — Language specification and frontend completeness
 
@@ -21,85 +17,63 @@ The supported language is still a subset. A recognized keyword is not considered
 - Complete declarations, expressions, functions, structs, enums, classes, imports, exports, and access control.
 - Add type inference, generic types, overload resolution, and compile-time validation.
 - Improve diagnostics with source spans, notes, and actionable suggestions.
-- Add parser recovery and comprehensive positive/negative conformance tests.
-
-**Exit condition:** every documented frontend feature has specification examples and passing tests; unsupported syntax is rejected clearly.
 
 ## Phase 2 — Swan memory and execution semantics
 
-- Specify and implement `hold`, `store`, and `clone`.
-- Specify ownership, borrowing, lifetimes, mutation, and destruction rules.
-- Implement `operate` recovery semantics with deterministic failure behavior.
+- Specify and implement hold, store, and clone.
+- Specify ownership, borrowing, lifetimes, mutation, and destruction.
+- Implement operate recovery semantics with deterministic failure behavior.
 - Add static lifetime and escape analysis.
-- Prove that generated operations preserve the specified runtime behavior.
 
-**Exit condition:** memory behavior is defined, statically checked where possible, and covered by stress and safety tests.
+## Phase 3 — Typed low-level IR
 
-## Phase 3 — SIL intermediate representation
+- Introduce a typed, verified intermediate representation between semantic analysis and machine code.
+- Represent control flow as basic blocks with explicit terminators.
+- Make integer, floating-point, pointer, and aggregate operations explicit.
+- Add IR dumps and verifier tests.
 
-Only begin after the language semantics and frontend stabilize.
+## Phase 4 — Native optimization framework
 
-- Design typed SIL with explicit control flow and data flow.
-- Add a verifier that checks every SIL function and instruction.
-- Lower the AST into SIL without losing source-level meaning.
-- Add readable SIL dumps for debugging and regression tests.
+- Add constant folding, propagation, and dead-code elimination.
+- Add liveness analysis, register allocation, and spill minimization.
+- Add common-subexpression elimination and loop-invariant code motion.
+- Add strength reduction, loop transformations, and instruction selection.
+- Add inlining and specialization only when benchmarks show a benefit.
+- Preserve source-level semantics with differential tests.
 
-**Exit condition:** every supported Swan program lowers to valid, verifiable SIL.
+## Phase 5 — Native backend expansion
 
-## Phase 4 — Optimization framework
-
-- Add demand analysis.
-- Add constant folding and propagation.
-- Add dead-code and unreachable-block elimination.
-- Add common-subexpression elimination.
-- Add inlining and specialization where profitable.
-- Add escape analysis and allocation elimination.
-- Add optimization correctness tests and benchmark comparisons.
-
-Every optimization must preserve program semantics and be independently testable.
-
-## Phase 5 — Code generation backends
-
-- Keep the portable C backend.
-- Define a target-independent backend interface.
-- Add a native backend when the SIL and target model are stable.
-- Support target triples, ABI rules, debug information, and reproducible output.
-- Test generated programs against the same language conformance suite.
+- Add AArch64 and additional platform targets.
+- Implement aggregate and structure layout/ABI lowering.
+- Add debug information, target triples, and reproducible object generation.
+- Improve calling conventions and external ABI interoperability.
 
 ## Phase 6 — Runtime and standard library
 
 - Strings, arrays, collections, iterators, and algorithms.
-- File and console I/O.
-- Error handling and process APIs.
-- Date/time, math, and text utilities.
+- File and console I/O, errors, process APIs, and math.
 - Networking and concurrency primitives.
 - Platform abstraction and cross-platform tests.
-
-Runtime behavior must follow Swan's memory and concurrency rules.
 
 ## Phase 7 — Developer ecosystem
 
 - Package manager and dependency resolution.
 - Formatter and linter.
 - Language server protocol implementation.
-- Debug information and debugger integration.
-- Test runner, documentation generator, and build tooling.
-- Stable compiler interfaces and versioned language releases.
+- Debugger integration and test runner.
+- Stable compiler interfaces and versioned releases.
 
 ## Phase 8 — Production hardening
 
-- Fuzzing for lexer, parser, semantic analysis, SIL, and code generation.
-- Differential and property-based tests.
-- Sanitizer and static-analysis CI.
-- Compile-time, memory, and runtime benchmarks.
-- Cross-platform CI and release artifacts.
-- Backward-compatibility and migration policy.
+- Fuzz lexer, parser, semantic analysis, IR, and code generation.
+- Add sanitizer, static-analysis, and cross-platform CI.
+- Benchmark compile time, memory use, generated instruction quality, and runtime.
+- Maintain backward compatibility and migration documentation.
 
 ## Engineering rules
 
-1. Do not add placeholder features and call them implemented.
-2. Do not start SIL before the frontend and language semantics stabilize.
-3. Every feature needs specification, implementation, diagnostics, and tests.
-4. Keep stage responsibilities separated even though the implementation uses one `main.cpp` translation unit.
-5. Measure compile time, generated-code quality, memory use, and runtime performance.
-6. Compare Swan with Goose using reproducible benchmarks and documented feature tests, not line counts.
+1. Do not call placeholder features implemented.
+2. Every language feature requires specification, implementation, diagnostics, and tests.
+3. Keep frontend, IR, backend, and driver responsibilities separate.
+4. Measure every optimization on reproducible workloads.
+5. Never claim Swan is faster than C without fair, repeatable measurements.
