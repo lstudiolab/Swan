@@ -88,18 +88,18 @@ int main(int argc, char** argv) {
 
         const double parseMs = parseMilliseconds(source);
 
+        const auto semanticProgram = parseSource(source);
         const double semaMs = medianMilliseconds([&] {
-            auto program = parseSource(source);
-            swan::Sema semantic(program);
+            swan::Sema semantic(semanticProgram);
             semantic.analyze();
         });
 
+        swan::Sema validation(semanticProgram);
+        validation.analyze();
+
         std::string generated;
         const double codegenMs = medianMilliseconds([&] {
-            auto program = parseSource(source);
-            swan::Sema semantic(program);
-            semantic.analyze();
-            generated = swan::CGenerator(program).generate();
+            generated = swan::CGenerator(semanticProgram).generate();
         });
 
         const double frontendMs = medianMilliseconds([&] {
