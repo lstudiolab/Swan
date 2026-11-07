@@ -15,9 +15,9 @@ inline ExprPtr Parser::expression(int minimum) {
         if (level < minimum) break;
         auto& op = advance();
         auto right = expression(op.kind == "=" ? level : level + 1);
-        auto node = std::make_shared<Expr>();
+        auto node = std::make_unique<Expr>();
         node->kind = Expr::Kind::Binary; node->token = op.location(); node->op = std::move(op.value);
-        node->left = left; node->right = right; left = node;
+        node->left = std::move(left); node->right = std::move(right); left = std::move(node);
     }
     return left;
 }
@@ -45,17 +45,17 @@ inline ExprPtr Parser::prefix() {
     while (true) {
         if (match("(")) {
             auto call = std::make_shared<Expr>();
-            call->kind = Expr::Kind::Call; call->token = node->token; call->left = node;
+            call->kind = Expr::Kind::Call; call->token = node->token; call->left = std::move(node);
             if (!check(")")) {
                 do { call->arguments.push_back(expression()); } while (match(","));
             }
             expect(")","expected ')' after arguments");
-            node = call;
+            node = std::move(call);
         } else if (match(".")) {
             auto& member = expect("IDENT","expected member name");
             auto access = std::make_shared<Expr>();
             access->kind = Expr::Kind::Member; access->token = member.location();
-            access->left = node; access->value = std::move(member.value); node = access;
+            access->left = std::move(node); access->value = std::move(member.value); node = std::move(access);
         } else break;
     }
     return node;
