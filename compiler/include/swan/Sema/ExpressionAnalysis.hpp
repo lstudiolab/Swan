@@ -6,7 +6,13 @@
 namespace swan {
 inline std::string Sema::analyzeExpression(const ExprPtr& node) {
     const auto finish = [&](std::string type) {
-        node->resolved_type = type;
+        using Resolved = Expr::ResolvedType;
+        if (type == "int") node->resolved_type = Resolved::Int;
+        else if (type == "float") node->resolved_type = Resolved::Float;
+        else if (type == "bool") node->resolved_type = Resolved::Bool;
+        else if (type == "string") node->resolved_type = Resolved::String;
+        else if (type == "none") node->resolved_type = Resolved::None;
+        else if (type == "void") node->resolved_type = Resolved::Void;
         return type;
     };
     switch (node->kind) {
