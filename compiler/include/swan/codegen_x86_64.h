@@ -666,7 +666,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
  }
  if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
- text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
+ text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  return err->message[0]==0;
 }
 #endif
