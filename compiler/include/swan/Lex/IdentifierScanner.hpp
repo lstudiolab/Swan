@@ -3,17 +3,20 @@
 #include "swan/Lex/CharacterClasses.hpp"
 #include "swan/Lex/Keywords.hpp"
 #include <string>
-#include <utility>
 namespace swan {
 inline Token Lexer::scanIdentifier() {
     const auto line = line_;
-    auto column = column_;
+    const auto column = column_;
     const auto start = index_;
-    while (index_ < source_.size() && isIdentifierContinue(source_[index_])) {
+
+    do {
         ++index_;
-        ++column_;
-    }
-    std::string value(source_.substr(start, index_ - start));
-    return {keywordKind(value), std::move(value), line, column};
+    } while (index_ < source_.size() &&
+             isIdentifierContinue(source_[index_]));
+
+    const auto length = index_ - start;
+    column_ += length;
+    const auto text = source_.substr(start, length);
+    return {keywordKind(text), std::string(text), line, column};
 }
 } // namespace swan
