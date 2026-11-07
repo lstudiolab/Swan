@@ -5,8 +5,8 @@
 #include <utility>
 
 namespace swan {
-inline std::string CGenerator::inferredType(const ExprPtr& node) const {
-    return node ? node->resolved_type : std::string{};
+inline std::string_view CGenerator::inferredType(const ExprPtr& node) const {
+    return node ? std::string_view(node->resolved_type) : std::string_view{};
 }
 
 inline std::string CGenerator::expression(const ExprPtr& node) const {
