@@ -10,7 +10,8 @@ inline StmtPtr Parser::statement() {
     if (check("if")) {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::If; node->token = advance();
-        node->condition = expression(); node->body = block();
+        node->condition = expression();
+        node->body = block();
         if (match("else")) {
             if (check("if")) node->alternate.push_back(statement());
             else node->alternate = block();
@@ -20,13 +21,14 @@ inline StmtPtr Parser::statement() {
     if (check("while")) {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::While; node->token = advance();
-        node->condition = expression(); node->body = block();
+        node->condition = expression();
+        node->body = block();
         return node;
     }
     if (check("return")) {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::Return; node->token = advance();
-        if (!check("}") && !check("NEWLINE") && !check(";") && !check("EOF"))
+        if (!check("NEWLINE") && !check("DEDENT") && !check(";") && !check("EOF"))
             node->value = expression();
         return node;
     }
