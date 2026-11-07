@@ -85,6 +85,20 @@ test "$("$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --optimize)" = "9
 "$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --emit-c -o "$ROOT/build/portable-targets.c"
 cc -O3 -march=native -fwrapv "$ROOT/build/portable-targets.c" -o "$ROOT/build/portable-targets-c"
 test "$("$ROOT/build/portable-targets-c")" = "91"
+grep -q 'for (;' "$ROOT/build/portable-targets.c"
+cat > "$ROOT/build/portable-continue.swan" <<'SWAN'
+fn main() -> int:
+    var i = 0
+    var sum = 0
+    while i < 5
+        i = i + 1
+        if i == 3
+            continue
+        sum = sum + i
+    log sum
+    return 0
+SWAN
+test "$("$ROOT/build/swan" "$ROOT/build/portable-continue.swan" --optimize)" = "12"
 printf 'PASS: optimized portable backend execution\n'
 
 printf 'PASS: compiler architecture boundaries\n'
