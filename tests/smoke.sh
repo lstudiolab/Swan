@@ -184,7 +184,8 @@ fn main():
 SWAN
 "$SWAN" "$TMP/arrays.swan" -o "$TMP/arrays.s"
 ${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
-test "$("$TMP/arrays")" = "84"
+actual=$( "$TMP/arrays" )
+if [ "$actual" != "84" ]; then echo "FAIL: array sum expected 84, got [$actual]" >&2; exit 1; fi
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
 
 # Power-of-two integer division preserves signed truncation toward zero.
