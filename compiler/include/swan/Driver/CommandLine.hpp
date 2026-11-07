@@ -11,6 +11,7 @@ struct CommandLine {
     Action action = Action::Run;
     bool hasOutput = false;
     bool emitAssembly = false;
+    bool emitC = false;
     bool optimize = false;
     std::string target = "native";
     bool showHelp = false;
@@ -37,6 +38,10 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
         }
         if (argument == "--emit-asm") {
             options.emitAssembly = true;
+            continue;
+        }
+        if (argument == "--emit-c") {
+            options.emitC = true;
             continue;
         }
         if (argument == "--optimize" || argument == "-O") {
