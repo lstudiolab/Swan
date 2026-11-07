@@ -1,6 +1,7 @@
 #define _POSIX_C_SOURCE 200809L
 #include <ctype.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -10,8 +11,9 @@
 
 typedef enum { X86_64, AARCH64, ARMV7 } Target;
 typedef struct { char *data; size_t len, cap; } Buffer;
-static void append(Buffer *b,const char *s) {
-    size_t n=strlen(s);
+typedef struct { char name[64]; char start[48], end[48]; int indent, index_slot, limit_slot, has_body; } Loop;
+
+static void append_n(Buffer *b,const char *s,size_t n) {
     if(b->len+n+1>b->cap) {
         size_t cap=b->cap?b->cap:256;
         while(cap<b->len+n+1) cap*=2;
@@ -19,8 +21,10 @@ static void append(Buffer *b,const char *s) {
         if(!p){perror("realloc");exit(2);}
         b->data=p;b->cap=cap;
     }
-    memcpy(b->data+b->len,s,n+1);b->len+=n;
+    memcpy(b->data+b->len,s,n);b->len+=n;b->data[b->len]=0;
 }
+static void append(Buffer *b,const char *s){append_n(b,s,strlen(s));}
+static void emitf(Buffer *b,const char *fmt,long long a,long long c){char s[256];snprintf(s,sizeof s,fmt,a,c);append(b,s);}
 static char *trim(char *s) {
     while(isspace((unsigned char)*s))s++;
     size_t n=strlen(s);
@@ -44,10 +48,8 @@ static int parse_target(const char *s,Target *t){
     if(!strcmp(s,"armv7")||!strcmp(s,"armv7l")){*t=ARMV7;return 1;}
     return 0;
 }
-static void asm_string(Buffer *b,const char *s,unsigned id){
-    char label[40],line[64];
-    snprintf(label,sizeof label,".Lswan_str_%u",id);
-    snprintf(line,sizeof line,"%s:\n",label);append(b,line);append(b,"  .asciz \"");
+static void asm_string(Buffer *b,const char *s,const char *label){
+    append(b,label);append(b,":\n  .asciz \"");
     for(;*s;s++){
         char e[8];
         if(*s=='"'||*s=='\\'){e[0]='\\';e[1]=*s;e[2]=0;}
@@ -59,107 +61,158 @@ static void asm_string(Buffer *b,const char *s,unsigned id){
     }
     append(b,"\"\n");
 }
-static int emit_log(Buffer *out,Buffer *strings,Target t,char *v,unsigned *sid){
-    if(*v!='"')return fail("log currently requires a string literal");
-    char *end=strrchr(v+1,'"');
-    if(!end||*trim(end+1))return fail("invalid string literal");
-    *end=0;
-    char label[40];snprintf(label,sizeof label,".Lswan_str_%u",*sid);
-    asm_string(strings,v+1,(*sid)++);
-    if(t==X86_64){append(out,"  lea rdi, [rip + ");append(out,label);append(out,"]\n  call puts@PLT\n");}
-    else if(t==AARCH64){append(out,"  adrp x0, ");append(out,label);append(out,"\n  add x0, x0, :lo12:");append(out,label);append(out,"\n  bl puts\n");}
-    else{append(out,"  ldr r0, =");append(out,label);append(out,"\n  bl puts\n");}
+static int identifier(const char *s){
+    if(!s||!(isalpha((unsigned char)*s)||*s=='_'))return 0;
+    for(s++;*s;s++)if(!(isalnum((unsigned char)*s)||*s=='_'))return 0;
+    return 1;
+}
+static int loop_slot(const Loop *l,const char *name){
+    return !strcmp(l->name,name)?l->index_slot:0;
+}
+static int find_loop(Loop *loops,int depth,const char *name){
+    for(int i=depth-1;i>=0;i--)if(loop_slot(&loops[i],name))return loops[i].index_slot;
+    return 0;
+}
+static void slot_addr(Buffer *b,Target t,int slot,const char *reg){
+    char s[128];
+    if(t==X86_64)snprintf(s,sizeof s,"[rbp - %d]",slot);
+    else if(t==AARCH64)snprintf(s,sizeof s,"x29, #%d",slot);
+    else snprintf(s,sizeof s,"r11, #%d",slot);
+    (void)reg;
+    if(t==X86_64)append(b,s);
+}
+static void emit_store_const(Buffer *b,Target t,int slot,long long value){
+    char s[256];
+    if(t==X86_64){
+        snprintf(s,sizeof s,"  movabs rax, %lld\n  mov qword ptr [rbp - %d], rax\n",value,slot);append(b,s);
+    }else if(t==AARCH64){
+        snprintf(s,sizeof s,"  ldr x10, =%lld\n  sub x9, x29, #%d\n  str x10, [x9]\n",value,slot);append(b,s);
+    }else{
+        snprintf(s,sizeof s,"  ldr r0, =%lld\n  sub r2, r11, #%d\n  str r0, [r2]\n",value,slot);append(b,s);
+    }
+}
+static void emit_loop_open(Buffer *b,Target t,const Loop *l,long long first,long long limit){
+    emit_store_const(b,t,l->index_slot,first);
+    emit_store_const(b,t,l->limit_slot,limit);
+    append(b,l->start);append(b,":\n");
+    if(t==X86_64){
+        char s[160];snprintf(s,sizeof s,"  mov rax, qword ptr [rbp - %d]\n  cmp rax, qword ptr [rbp - %d]\n  jge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
+    }else if(t==AARCH64){
+        char s[200];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x10, [x9]\n  sub x9, x29, #%d\n  ldr x11, [x9]\n  cmp x10, x11\n  b.ge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
+    }else{
+        char s[200];snprintf(s,sizeof s,"  sub r2, r11, #%d\n  ldr r0, [r2]\n  sub r2, r11, #%d\n  ldr r1, [r2]\n  cmp r0, r1\n  bge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
+    }
+}
+static void emit_loop_close(Buffer *b,Target t,const Loop *l){
+    if(t==X86_64){
+        char s[160];snprintf(s,sizeof s,"  add qword ptr [rbp - %d], 1\n  jmp %s\n%s:\n",l->index_slot,l->start,l->end);append(b,s);
+    }else if(t==AARCH64){
+        char s[200];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x10, [x9]\n  add x10, x10, #1\n  str x10, [x9]\n  b %s\n%s:\n",l->index_slot,l->start,l->end);append(b,s);
+    }else{
+        char s[200];snprintf(s,sizeof s,"  sub r2, r11, #%d\n  ldr r0, [r2]\n  add r0, r0, #1\n  str r0, [r2]\n  b %s\n%s:\n",l->index_slot,l->start,l->end);append(b,s);
+    }
+}
+static int emit_log(Buffer *code,Buffer *data,Target t,char *value,Loop *loops,int depth,unsigned *string_id,int *needs_int){
+    if(*value=='"'){
+        char *end=strrchr(value+1,'"');
+        if(!end||*trim(end+1))return fail("invalid string literal");
+        *end=0;
+        char label[48];snprintf(label,sizeof label,".Lswan_str_%u",(*string_id)++);
+        asm_string(data,value+1,label);
+        if(t==X86_64){append(code,"  lea rdi, [rip + ");append(code,label);append(code,"]\n  call puts@PLT\n");}
+        else if(t==AARCH64){append(code,"  adrp x0, ");append(code,label);append(code,"\n  add x0, x0, :lo12:");append(code,label);append(code,"\n  bl puts\n");}
+        else{append(code,"  ldr r0, =");append(code,label);append(code,"\n  bl puts\n");}
+        return 0;
+    }
+    if(!identifier(value))return fail("log accepts a string literal or an active for-loop variable");
+    int slot=find_loop(loops,depth,value);
+    if(!slot)return fail("unknown variable in log statement");
+    *needs_int=1;
+    if(t==X86_64){char s[160];snprintf(s,sizeof s,"  mov rsi, qword ptr [rbp - %d]\n  lea rdi, [rip + .Lswan_int_fmt]\n  xor eax, eax\n  call printf@PLT\n",slot);append(code,s);}
+    else if(t==AARCH64){char s[180];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x1, [x9]\n  adrp x0, .Lswan_int_fmt\n  add x0, x0, :lo12:.Lswan_int_fmt\n  bl printf\n",slot);append(code,s);}
+    else{char s[160];snprintf(s,sizeof s,"  sub r2, r11, #%d\n  ldr r1, [r2]\n  ldr r0, =.Lswan_int_fmt\n  bl printf\n",slot);append(code,s);}
     return 0;
 }
 static int emit_source(const char *source,Target t,Buffer *out){
     char *copy=strdup(source);if(!copy)return fail("out of memory");
-    Buffer strings={0};unsigned sid=0,loop_id=0;
-    int in_main=0,have_main=0,returned=0,in_loop=0,loop_indent=0;
-    char loop_start[48],loop_end[48];
-    const char *header=t==X86_64?".intel_syntax noprefix\n.section .rodata\n":
-                       t==AARCH64?".section .rodata\n":".syntax unified\n.section .rodata\n";
-    append(out,header);
-    char *save=NULL;
+    Buffer code={0},data={0};Loop loops[128];int depth=0,in_main=0,have_main=0,returned=0,needs_int=0;
+    unsigned loop_id=0,string_id=0;char *save=NULL;
     for(char *raw=strtok_r(copy,"\n",&save);raw;raw=strtok_r(NULL,"\n",&save)){
         int indent=0;while(raw[indent]==' '||raw[indent]=='\t')indent+=raw[indent]=='\t'?4:1;
-        char *line=trim(raw);if(!*line||!strncmp(line,"# ",2)||!strncmp(line,"//",2))continue;
-        if(!strncmp(line,"fn main",7)){
-            if(have_main){free(copy);return fail("duplicate main function");}
-            have_main=1;in_main=1;
-            if(t==X86_64)append(out,".text\n.globl main\n.type main, @function\nmain:\n  push rbp\n  mov rbp, rsp\n  push r12\n  sub rsp, 8\n");
-            else if(t==AARCH64)append(out,".text\n.global main\n.type main, %function\nmain:\n  stp x29, x30, [sp, #-16]!\n  mov x29, sp\n  stp x19, x20, [sp, #-16]!\n");
-            else append(out,".text\n.global main\n.type main, %function\nmain:\n  push {r4, r5, fp, lr}\n  mov fp, sp\n");
+        char *line=trim(raw);
+        if(!*line||!strncmp(line,"//",2)||!strncmp(line,"# ",2))continue;
+        if(!in_main){
+            if(!strncmp(line,"fn main",7)){
+                if(have_main){free(copy);return fail("duplicate main function");}
+                have_main=1;in_main=1;continue;
+            }
             continue;
         }
-        if(!in_main)continue;
-        if(in_loop&&indent<=loop_indent){
-            if(t==X86_64){append(out,"  inc r12\n  jmp ");append(out,loop_start);append(out,"\n");}
-            else if(t==AARCH64){append(out,"  add x19, x19, #1\n  b ");append(out,loop_start);append(out,"\n");}
-            else{append(out,"  add r4, r4, #1\n  b ");append(out,loop_start);append(out,"\n");}
-            append(out,loop_end);append(out,":\n");in_loop=0;
+        while(depth&&indent<=loops[depth-1].indent){
+            if(!loops[depth-1].has_body){free(copy);free(code.data);free(data.data);return fail("for loop body cannot be empty");}
+            emit_loop_close(&code,t,&loops[depth-1]);depth--;
         }
         if(!strncmp(line,"for ",4)){
-            if(in_loop){free(copy);free(strings.data);return fail("nested for loops are not supported yet");}
-            char var[64];unsigned long long limit;char tail;
-            if(sscanf(line,"for %63s in 0..%llu %c",var,&limit,&tail)!=2||!limit){
-                free(copy);free(strings.data);return fail("range loop syntax is: for name in 0..LIMIT");
+            if(depth>=128){free(copy);free(code.data);free(data.data);return fail("maximum nested loop depth is 128");}
+            if(depth&&indent<=loops[depth-1].indent){free(copy);free(code.data);free(data.data);return fail("invalid loop indentation");}
+            char name[64],extra;long long first,last;
+            if(sscanf(line,"for %63s in %lld..%lld %c",name,&first,&last,&extra)!=3||!identifier(name)){
+                free(copy);free(code.data);free(data.data);return fail("range syntax: for name in START..END (END is exclusive)");
             }
-            if(indent<0){free(copy);free(strings.data);return fail("invalid loop indentation");}
-            unsigned id=loop_id++;
-            snprintf(loop_start,sizeof loop_start,".Lswan_loop_%u",id);
-            snprintf(loop_end,sizeof loop_end,".Lswan_end_%u",id);
-            char inst[160];
-            if(t==X86_64){
-                snprintf(inst,sizeof inst,"  xor r12d, r12d\n%s:\n  cmp r12, %llu\n  jae %s\n",loop_start,limit,loop_end);
-            }else if(t==AARCH64){
-                snprintf(inst,sizeof inst,"  mov x19, #0\n  ldr x20, =%llu\n%s:\n  cmp x19, x20\n  b.hs %s\n",limit,loop_start,loop_end);
-            }else{
-                snprintf(inst,sizeof inst,"  mov r4, #0\n  ldr r5, =%llu\n%s:\n  cmp r4, r5\n  bhs %s\n",limit,loop_start,loop_end);
+            if(t==ARMV7&&(first<INT32_MIN||first>INT32_MAX||last<INT32_MIN||last>INT32_MAX)){
+                free(copy);free(code.data);free(data.data);return fail("ARMv7 range bounds must fit signed 32-bit integers");
             }
-            append(out,inst);in_loop=1;loop_indent=indent;continue;
+            if(depth)loops[depth-1].has_body=1;
+            Loop *l=&loops[depth];memset(l,0,sizeof(*l));strcpy(l->name,name);l->indent=indent;
+            l->index_slot=(depth*2+1)*8;l->limit_slot=(depth*2+2)*8;
+            snprintf(l->start,sizeof l->start,".Lswan_loop_%u",loop_id);
+            snprintf(l->end,sizeof l->end,".Lswan_end_%u",loop_id++);
+            emit_loop_open(&code,t,l,first,last);depth++;continue;
         }
+        if(depth)loops[depth-1].has_body=1;
         if(!strncmp(line,"log ",4)){
-            if(emit_log(out,&strings,t,trim(line+4),&sid)){free(copy);free(strings.data);return 1;}
+            if(emit_log(&code,&data,t,trim(line+4),loops,depth,&string_id,&needs_int)){free(copy);free(code.data);free(data.data);return 1;}
         }else if(!strncmp(line,"return ",7)){
-            if(in_loop){free(copy);free(strings.data);return fail("return inside a for loop is not supported yet");}
             char *v=trim(line+7),*end=NULL;long long n=strtoll(v,&end,10);
-            if(end==v||*trim(end)){free(copy);free(strings.data);return fail("return requires an integer literal");}
-            char inst[96];
-            if(t==X86_64)snprintf(inst,sizeof inst,"  mov eax, %lld\n",n);
-            else if(t==AARCH64)snprintf(inst,sizeof inst,"  mov x0, #%lld\n",n);
-            else snprintf(inst,sizeof inst,"  mov r0, #%lld\n",n);
-            append(out,inst);returned=1;
-        }else if(!strncmp(line,"pass",4)){
-            append(out,"  nop\n");
+            if(end==v||*trim(end)){free(copy);free(code.data);free(data.data);return fail("return requires an integer literal");}
+            if(t==ARMV7&&(n<INT32_MIN||n>INT32_MAX)){free(copy);free(code.data);free(data.data);return fail("ARMv7 return value must fit signed 32-bit integer");}
+            char s[128];
+            if(t==X86_64)snprintf(s,sizeof s,"  mov eax, %lld\n  jmp .Lswan_exit\n",n);
+            else if(t==AARCH64)snprintf(s,sizeof s,"  ldr x0, =%lld\n  b .Lswan_exit\n",n);
+            else snprintf(s,sizeof s,"  ldr r0, =%lld\n  b .Lswan_exit\n",n);
+            append(&code,s);returned=1;
+        }else if(!strcmp(line,"pass")){
+            append(&code,"  nop\n");
         }else{
-            free(copy);free(strings.data);return fail("unsupported statement (supported: for range loops with log string, log string, return integer, pass)");
-        }
-        if(in_loop&&indent>loop_indent){
-            /* The body is emitted before the loop increment/branch at dedent. */
-        }
-        if(in_loop&&t==X86_64){
-            /* puts may clobber caller-saved registers; r12 is preserved by ABI. */
+            free(copy);free(code.data);free(data.data);return fail("unsupported statement (supported: nested range loops, log string/loop variable, return integer, pass)");
         }
     }
-    if(in_loop){
-        append(out,t==X86_64?"  inc r12\n  jmp ":"  add ");
-        if(t==X86_64){append(out,loop_start);append(out,"\n");}
-        else if(t==AARCH64){append(out,"x19, x19, #1\n  b ");append(out,loop_start);append(out,"\n");}
-        else{append(out,"r4, r4, #1\n  b ");append(out,loop_start);append(out,"\n");}
-        append(out,loop_end);append(out,":\n");
+    while(depth){
+        if(!loops[depth-1].has_body){free(copy);free(code.data);free(data.data);return fail("for loop body cannot be empty");}
+        emit_loop_close(&code,t,&loops[depth-1]);depth--;
     }
-    if(!have_main){free(copy);free(strings.data);return fail("program must define fn main()");}
-    if(!returned){
-        append(out,t==X86_64?"  xor eax, eax\n":t==AARCH64?"  mov x0, #0\n":"  mov r0, #0\n");
+    if(!have_main){free(copy);free(code.data);free(data.data);return fail("program must define fn main()");}
+    if(needs_int)asm_string(&data,t==ARMV7?"%d\\n":"%lld\\n",".Lswan_int_fmt");
+    if(t==X86_64){
+        append(out,".intel_syntax noprefix\n.section .rodata\n");append_n(out,data.data?data.data:"",data.len);
+        append(out,".text\n.globl main\n.type main, @function\nmain:\n  push rbp\n  mov rbp, rsp\n  sub rsp, 2048\n");
+        append_n(out,code.data?code.data:"",code.len);
+        if(!returned)append(out,"  xor eax, eax\n");
+        append(out,".Lswan_exit:\n  leave\n  ret\n.size main, .-main\n.section .note.GNU-stack,\"\",@progbits\n");
+    }else if(t==AARCH64){
+        append(out,".section .rodata\n");append_n(out,data.data?data.data:"",data.len);
+        append(out,".text\n.global main\n.type main, %function\nmain:\n  stp x29, x30, [sp, #-16]!\n  mov x29, sp\n  sub sp, sp, #2048\n");
+        append_n(out,code.data?code.data:"",code.len);
+        if(!returned)append(out,"  mov x0, #0\n");
+        append(out,".Lswan_exit:\n  add sp, sp, #2048\n  ldp x29, x30, [sp], #16\n  ret\n.size main, .-main\n");
+    }else{
+        append(out,".syntax unified\n.section .rodata\n");append_n(out,data.data?data.data:"",data.len);
+        append(out,".text\n.global main\n.type main, %function\nmain:\n  push {r4, r5, r6, r7, r11, lr}\n  mov r11, sp\n  sub sp, sp, #2048\n");
+        append_n(out,code.data?code.data:"",code.len);
+        if(!returned)append(out,"  mov r0, #0\n");
+        append(out,".Lswan_exit:\n  add sp, sp, #2048\n  pop {r4, r5, r6, r7, r11, pc}\n.size main, .-main\n");
     }
-    if(t==X86_64)append(out,"  add rsp, 8\n  pop r12\n  leave\n  ret\n.size main, .-main\n.section .note.GNU-stack,\"\",@progbits\n");
-    else if(t==AARCH64)append(out,"  ldp x19, x20, [sp], #16\n  ldp x29, x30, [sp], #16\n  ret\n.size main, .-main\n");
-    else append(out,"  pop {r4, r5, fp, pc}\n.size main, .-main\n");
-    if(strings.data){
-        Buffer merged={0};append(&merged,header);append(&merged,strings.data);append(&merged,out->data+strlen(header));
-        free(out->data);*out=merged;
-    }
-    free(strings.data);free(copy);return 0;
+    free(copy);free(code.data);free(data.data);return 0;
 }
 static int run_command(char *const argv[]){
     pid_t pid=fork();if(pid<0){perror("fork");return 1;}
@@ -168,26 +221,24 @@ static int run_command(char *const argv[]){
     return WIFEXITED(status)?WEXITSTATUS(status):1;
 }
 int main(int argc,char **argv){
-    const char *input=NULL,*output=NULL;int emit=0,build=0,showver=0;
-    Target target=host_target();
+    const char *input=NULL,*output=NULL;int emit=0,build=0,showver=0;Target target=host_target();
     for(int i=1;i<argc;i++){
         if(!strcmp(argv[i],"--version")||!strcmp(argv[i],"-v"))showver=1;
-        else if(!strcmp(argv[i],"--help")||!strcmp(argv[i],"-h")){
-            puts("Swan C compiler\nUsage: swan [build] file.swan [--target native|x86_64|aarch64|armv7] [--emit-asm] [-o path]");return 0;
-        }else if(!strcmp(argv[i],"build"))build=1;
+        else if(!strcmp(argv[i],"--help")||!strcmp(argv[i],"-h")){puts("Swan C compiler\nUsage: swan [build] file.swan [--target native|x86_64|aarch64|armv7] [--emit-asm] [-o path]");return 0;}
+        else if(!strcmp(argv[i],"build"))build=1;
         else if(!strcmp(argv[i],"--emit-asm"))emit=1;
         else if(!strcmp(argv[i],"--target")&&i+1<argc){if(!parse_target(argv[++i],&target))return fail("unknown target; choose native, x86_64, aarch64, or armv7");}
         else if(!strcmp(argv[i],"-o")||!strcmp(argv[i],"--output")){if(++i>=argc)return fail("missing output path");output=argv[i];}
         else if(argv[i][0]=='-')return fail("unknown option");
         else if(!input)input=argv[i];else return fail("unexpected extra argument");
     }
-    if(showver){puts("Swan C compiler 0.2.0");return 0;}
+    if(showver){puts("Swan C compiler 0.3.0");return 0;}
     if(!input)return fail("missing input .swan file");
     FILE *f=fopen(input,"rb");if(!f){perror(input);return 1;}
     if(fseek(f,0,SEEK_END)||ftell(f)<0){fclose(f);return fail("cannot size source file");}
-    long sz=ftell(f);rewind(f);char *src=malloc((size_t)sz+1);
+    long size=ftell(f);rewind(f);char *src=malloc((size_t)size+1);
     if(!src){fclose(f);return fail("out of memory");}
-    size_t got=fread(src,1,(size_t)sz,f);fclose(f);src[got]=0;
+    size_t got=fread(src,1,(size_t)size,f);fclose(f);src[got]=0;
     Buffer assembly={0};if(emit_source(src,target,&assembly)){free(src);free(assembly.data);return 1;}free(src);
     if(!output)output=emit?"a.s":"a.out";
     if(emit||(strlen(output)>2&&!strcmp(output+strlen(output)-2,".s"))){
@@ -195,7 +246,7 @@ int main(int argc,char **argv){
         fwrite(assembly.data,1,assembly.len,o);fclose(o);free(assembly.data);return 0;
     }
     char *tmp=strdup(output);if(!tmp){free(assembly.data);return fail("out of memory");}
-    size_t n=strlen(tmp);if(n+3>=4096){free(tmp);free(assembly.data);return fail("output path too long");}
+    if(strlen(tmp)+3>=4096){free(tmp);free(assembly.data);return fail("output path too long");}
     char asm_path[4096];snprintf(asm_path,sizeof asm_path,"%s.s",tmp);
     FILE *o=fopen(asm_path,"wb");if(!o){perror(asm_path);free(tmp);free(assembly.data);return 1;}
     fwrite(assembly.data,1,assembly.len,o);fclose(o);free(assembly.data);
@@ -203,9 +254,6 @@ int main(int argc,char **argv){
     char *const cmd[]={(char*)cc,"-x","assembler",asm_path,"-o",tmp,NULL};
     int rc=run_command(cmd);unlink(asm_path);
     if(rc){free(tmp);return rc;}
-    if(!build){char executable[4096];const char *path=tmp;
-        if(!strchr(tmp,'/')){snprintf(executable,sizeof executable,"./%s",tmp);path=executable;}
-        char *const run[]={ (char*)path,NULL };rc=run_command(run);
-    }
+    if(!build){char executable[4096];const char *path=tmp;if(!strchr(tmp,'/')){snprintf(executable,sizeof executable,"./%s",tmp);path=executable;}char *const run[]={ (char*)path,NULL };rc=run_command(run);}
     free(tmp);return rc;
 }
