@@ -26,8 +26,8 @@ fn main():
     return 0
 SWAN
 
-"$SWAN" "$TMP/program.swan" -o "$TMP/program.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/program.c" -o "$TMP/program"
+"$SWAN" "$TMP/program.swan" -o "$TMP/program.s"
+${CC:-cc} -x assembler "$TMP/program.s" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
 Foundation ready
 9
