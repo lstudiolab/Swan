@@ -26,7 +26,7 @@ inline StmtPtr Parser::declaration() {
         return node;
     }
     if (check("struct")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Struct; node->token = advance().location();
         node->name = std::move(expect("IDENT","expected structure name").value);
         expect("{"); separators();
@@ -41,7 +41,7 @@ inline StmtPtr Parser::declaration() {
         return node;
     }
     if (check("let") || check("var") || check("const")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Variable;
         const auto& keyword = advance();
         node->token = keyword.location();
@@ -54,7 +54,7 @@ inline StmtPtr Parser::declaration() {
         return node;
     }
     if (check("import")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Import; node->token = advance().location();
         auto& module = advance();
         if (module.kind != "IDENT" && module.kind != "STRING")
