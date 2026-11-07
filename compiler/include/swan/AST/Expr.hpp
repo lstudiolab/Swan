@@ -13,6 +13,7 @@ struct Expr {
     std::string value;
     std::string op;
     std::string literal_kind;
+    std::string resolved_type;
     ExprPtr left;
     ExprPtr right;
     std::vector<ExprPtr> arguments;
