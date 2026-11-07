@@ -42,11 +42,12 @@ static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
-static inline bool expr_has_call(Expr *e){
- if(!e)return false;if(e->kind==E_CALL)return true;
- if(expr_has_call(e->left)||expr_has_call(e->right))return true;
- for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))return true;
- return false;
+static inline bool expr_has_call(Expr *e){return e&&e->contains_call;}
+static inline unsigned cg_function_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
+static inline Stmt *cg_find_function(Program *p,const char *name){
+ if(!p)return NULL;
+ if(p->function_indexed){unsigned b=cg_function_hash(name)&2047u;for(int n=p->function_buckets[b];n;n=p->function_next[n-1]){Stmt *fn=p->functions[n-1];if(!strcmp(fn->name,name))return fn;}return NULL;}
+ for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
 static inline bool add_term_to_r10_supported(Expr *e,Locals *l){
@@ -153,9 +154,8 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!strcmp(name,"array")){swan_error(err,&e->token,"array lowering is not ported to the C backend yet");return;}
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
  if(o->program&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
-  for(size_t i=0;i<o->program->count;i++){
-   Stmt *fn=o->program->functions[i];
-   if(strcmp(fn->name,name)||fn->param_count!=1||fn->body_count!=1||fn->body[0]->kind!=S_RETURN||!fn->body[0]->value)continue;
+  Stmt *fn=cg_find_function(o->program,name);
+  if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
    const char *parameter=fn->params[0];Expr *body=fn->body[0]->value;
    if(!expr_inline_pure(body,parameter,true))continue;
    Expr *saved_arg=o->inline_arg;const char *saved_param=o->inline_param;
