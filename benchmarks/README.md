@@ -23,6 +23,31 @@ Swan therefore keeps `-O1` as the default to preserve predictable runtime.
 Set `SWAN_OPT_LEVEL=0` when compile time matters more than runtime. Results are
 workload- and runner-specific.
 
+## Nine-language comparison
+
+Run after installing the C/C++ toolchain, Rust, Goose, Swift, Zig 0.13, Go,
+Python 3, and GNU time:
+
+```sh
+sh build.sh
+python3 benchmarks/compare_languages.py
+```
+
+The same 50-million-iteration signed 32-bit recurrence is implemented in
+Swan, Rust, C++, Goose, C, Swift, Zig, Go, and Python. All implementations
+must print the same checksum or the benchmark fails. Native implementations
+are built with release-oriented optimization settings: Swan/Goose/C/C++ use
+Clang `-O2`, Rust uses `-C opt-level=3`, Swift uses `-O`, Zig uses
+`ReleaseFast`, and Go uses its standard optimized build. Python is run
+interpreted and reports compile time as N/A.
+
+Compile time is a clean one-shot measurement of the full frontend/backend
+pipeline. Runtime is the median of five runs after one warm-up. Peak runtime
+RSS is measured with GNU time. Compiler RSS is omitted because some compiler
+drivers spawn child processes and parent-only RSS would not be comparable.
+These results are specific to the machine, compiler versions, and flags;
+they are not a universal language ranking.
+
 ## Cross-language baseline
 
 Run after building Swan and installing Clang, Rust, Goose, and GNU time:

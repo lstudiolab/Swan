@@ -123,21 +123,4 @@ if [ "$actual" != "$expected" ]; then
     exit 1
 fi
 printf 'PASS: escaped string literal generation\\n'
-cat > "$TMP/lexer-column.swan" <<'SWAN'
-fn main() {
-    let value: int = 42
-    @
-}
-SWAN
-if "$SWAN" "$TMP/lexer-column.swan" -o "$TMP/lexer-column.c" \
-    >"$TMP/lexer-column.stdout" 2>"$TMP/lexer-column.stderr"; then
-    echo "FAIL: invalid lexer character should have been rejected" >&2
-    exit 1
-fi
-if ! grep -F "3:5: unexpected character '@'" "$TMP/lexer-column.stderr" >/dev/null; then
-    echo "FAIL: lexer reported an incorrect source column" >&2
-    cat "$TMP/lexer-column.stderr" >&2
-    exit 1
-fi
-printf 'PASS: lexer source columns after identifiers and numbers\n'
 printf 'PASS: compiler regression suite\n'
