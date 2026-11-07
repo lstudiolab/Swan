@@ -308,6 +308,76 @@ test "$("$TMP/array-u32")" = "4294967295
 7
 99"
 printf 'PASS: zero-initialized u32 arrays, indexed loads/stores, and unsigned value preservation\n'
+cat > "$TMP/heapsort.swan" <<'SWAN'
+fn main():
+    let values = array_u32_unchecked(10)
+    values[0] = 91
+    values[1] = 7
+    values[2] = 42
+    values[3] = 3
+    values[4] = 88
+    values[5] = 16
+    values[6] = 55
+    values[7] = 1
+    values[8] = 73
+    values[9] = 29
+    var start = 4
+    while start >= 0
+        var root = start
+        var active = 1
+        while active == 1
+            var child = root * 2 + 1
+            if child < 10
+                if child + 1 < 10
+                    if values[child] < values[child + 1]
+                        child = child + 1
+                if values[root] < values[child]
+                    var temp = values[root]
+                    values[root] = values[child]
+                    values[child] = temp
+                    root = child
+                else
+                    active = 0
+            else
+                active = 0
+        start = start - 1
+    var end = 9
+    while end > 0
+        var temp2 = values[0]
+        values[0] = values[end]
+        values[end] = temp2
+        var root2 = 0
+        var active2 = 1
+        while active2 == 1
+            var child2 = root2 * 2 + 1
+            if child2 < end
+                if child2 + 1 < end
+                    if values[child2] < values[child2 + 1]
+                        child2 = child2 + 1
+                if values[root2] < values[child2]
+                    var temp3 = values[root2]
+                    values[root2] = values[child2]
+                    values[child2] = temp3
+                    root2 = child2
+                else
+                    active2 = 0
+            else
+                active2 = 0
+        end = end - 1
+    var sorted = 1
+    var i = 1
+    while i < 10
+        if values[i - 1] > values[i]
+            sorted = 0
+        i = i + 1
+    log sorted
+    return 0
+SWAN
+"$SWAN" "$TMP/heapsort.swan" --emit-asm -o "$TMP/heapsort.s"
+cc -x assembler "$TMP/heapsort.s" -o "$TMP/heapsort"
+test "$("$TMP/heapsort")" = "1"
+printf 'PASS: in-place heapsort with unchecked u32 array indexing\\n'
+
 
 
 cat > "$TMP/volatile-preservation.swan" <<'SWAN'
