@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; Expr *hoist_expr; } Text;
 static inline void text_add(Text *t,const char *fmt,...){
  va_list ap;va_start(ap,fmt);va_list cp;va_copy(cp,ap);int n=vsnprintf(NULL,0,fmt,cp);va_end(cp);
  if(n<0){va_end(ap);return;}size_t need=t->len+(size_t)n+1;
@@ -54,6 +54,7 @@ static inline bool add_chain_supported(Expr *e,Locals *l){
  return add_term_to_r10_supported(e,l);
 }
 static inline void emit_term_r10(Text *o,Expr *e,Locals *l){
+ if(o->hoist_expr==e){text_add(o,"    mov r10, r11\\n");return;}
  if(e->kind==E_INT)text_add(o,"    mov r10, %s\n",e->token.text);
  else if(e->kind==E_BOOL)text_add(o,"    mov r10, %d\n",e->token.kind==T_TRUE);
  else if(e->kind==E_NAME){
@@ -115,6 +116,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
+ if(o->hoist_expr==e){text_add(o,"    mov rax, r11\\n");return;}
  switch(e->kind){
  case E_INT:text_add(o,"    mov rax, %s\n",e->token.text);break;
  case E_BOOL:text_add(o,"    mov eax, %d\n",e->token.kind==T_TRUE);break;
@@ -248,6 +250,68 @@ static inline bool statements_write_local(Stmt **body,size_t n,const char *name)
  }
  return false;
 }
+static inline bool expr_uses_local(Expr *e,const char *name){
+ if(!e)return false;
+ if(e->kind==E_NAME&&!strcmp(e->token.text,name))return true;
+ if(expr_uses_local(e->left,name)||expr_uses_local(e->right,name))return true;
+ for(size_t i=0;i<e->argc;i++)if(expr_uses_local(e->args[i],name))return true;
+ return false;
+}
+static inline bool expr_hoist_safe(Expr *e,Locals *l){
+ if(!e)return false;
+ if(e->kind==E_INT||e->kind==E_BOOL)return true;
+ if(e->kind==E_NAME)return local_find(l,e->token.text)!=NULL;
+ if(e->kind==E_UNARY)return e->token.kind==T_MINUS&&expr_hoist_safe(e->left,l);
+ if(e->kind==E_BINARY){
+  if(e->token.kind!=T_PLUS&&e->token.kind!=T_MINUS&&e->token.kind!=T_STAR)return false;
+  return expr_hoist_safe(e->left,l)&&expr_hoist_safe(e->right,l);
+ }
+ return false;
+}
+static inline bool expr_has_operator(Expr *e){
+ return e&&(e->kind==E_UNARY||e->kind==E_BINARY);
+}
+static inline bool expr_names_stable_in_loop(Expr *e,Stmt **body,size_t n){
+ if(!e)return true;
+ if(e->kind==E_NAME&&statements_write_local(body,n,e->token.text))return false;
+ if(!expr_names_stable_in_loop(e->left,body,n)||!expr_names_stable_in_loop(e->right,body,n))return false;
+ for(size_t i=0;i<e->argc;i++)if(!expr_names_stable_in_loop(e->args[i],body,n))return false;
+ return true;
+}
+static inline bool statements_have_call(Stmt **body,size_t n){
+ for(size_t i=0;i<n;i++){
+  Stmt *s=body[i];
+  if(s->kind==S_LOG||expr_has_call(s->value)||expr_has_call(s->condition))return true;
+  if(statements_have_call(s->body,s->body_count)||statements_have_call(s->alternate,s->alt_count))return true;
+ }
+ return false;
+}
+static inline bool statements_have_loop(Stmt **body,size_t n){
+ for(size_t i=0;i<n;i++){
+  Stmt *s=body[i];if(s->kind==S_WHILE)return true;
+  if(statements_have_loop(s->body,s->body_count)||statements_have_loop(s->alternate,s->alt_count))return true;
+ }
+ return false;
+}
+static inline Expr *find_loop_invariant_expr(Expr *e,const char *induction,Stmt **body,size_t n,Locals *l){
+ if(!e)return NULL;
+ if(expr_hoist_safe(e,l)&&expr_has_operator(e)&&!expr_uses_local(e,induction)&&expr_names_stable_in_loop(e,body,n))return e;
+ Expr *found=find_loop_invariant_expr(e->left,induction,body,n,l);if(found)return found;
+ found=find_loop_invariant_expr(e->right,induction,body,n,l);if(found)return found;
+ for(size_t i=0;i<e->argc;i++){found=find_loop_invariant_expr(e->args[i],induction,body,n,l);if(found)return found;}
+ return NULL;
+}
+static inline Expr *find_loop_hoist(Stmt *s,Locals *l){
+ if(!s||!s->condition||s->condition->kind!=E_BINARY||!s->condition->left||s->condition->left->kind!=E_NAME)return NULL;
+ const char *induction=s->condition->left->token.text;
+ if(statements_have_loop(s->body,s->body_count)||statements_have_call(s->body,s->body_count))return NULL;
+ for(size_t i=0;i<s->body_count;i++){
+  Stmt *item=s->body[i];
+  Expr *found=find_loop_invariant_expr(item->value,induction,s->body,s->body_count,l);if(found)return found;
+  found=find_loop_invariant_expr(item->condition,induction,s->body,s->body_count,l);if(found)return found;
+ }
+ return NULL;
+}
 static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
  if(!s||s->kind!=S_WHILE||!s->condition||s->condition->kind!=E_BINARY)return false;
  Expr *cond=s->condition;
@@ -310,6 +374,9 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
    }
    case S_WHILE:{
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
+    Expr *saved_hoist=o->hoist_expr;
+    Expr *hoist=saved_hoist?NULL:find_loop_hoist(s,l);
+    if(hoist){emit_expr(o,hoist,l,err);text_add(o,"    mov r11, rax\n");o->hoist_expr=hoist;}
     if(loop_bottom_test_candidate(s,l)){
      emit_condition_jump(o,s->condition,l,err,target,false);
      text_add(o,".Lswan_loop_%d:\n",id);
@@ -321,6 +388,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      text_add(o,".Lswan_loop_%d:\n",id);emit_condition_jump(o,s->condition,l,err,target,false);emit_block(o,s->body,s->body_count,l,label,err);
      text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);
     }
+    o->hoist_expr=saved_hoist;
     break;
    }
    default:break;
