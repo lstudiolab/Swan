@@ -10,12 +10,12 @@ Swan currently emits C11. It does not invoke a C compiler as part of its own com
 
 ### 1. Lexing
 
-The scanner visits each source character and creates token values. Token kind and token value are still stored as strings, so token representation remains a larger future optimization. The current pass uses binary search for keyword classification, avoids constructing a temporary two-character string on punctuation checks, scans identifiers and numeric literals directly from the source, and caps the initial token-vector reservation.
+The scanner visits each source character and creates token values. Token kinds are non-owning views into canonical static spellings, so they do not allocate or duplicate keyword and punctuation strings. Identifier and numeric lexemes are scanned directly from the source and copied once into owned token values; the parser later moves those values into the AST. The scanner uses binary search for keyword classification, avoids temporary two-character strings for punctuation, and caps its initial token-vector reservation.
 
 Potential future improvements:
 
-- Replace token-kind strings with a compact enum.
-- Store source offsets and lengths for identifier and numeric tokens instead of eagerly copying text.
+- Consider compact token-kind IDs if comparisons remain measurable after removing token-kind allocations.
+- Store source offsets and lengths for identifier and numeric tokens if source-lifetime ownership can be made explicit.
 - Keep decoded string-literal storage only where escape processing requires it.
 
 ### 2. Parsing and AST allocation
@@ -79,7 +79,7 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 - The lexer scans identifiers and numeric literals directly from the source and constructs each token value once.
 - Initial token-vector reservation is capped to avoid oversized allocations for whitespace-heavy or unusually large source files.
 - Parser token access returns references to avoid copying complete token objects.
-- The parser moves consumed lexemes into AST strings instead of copying them from the token buffer.
+- Token kinds use canonical static `string_view` spellings; the parser moves consumed lexemes into AST strings instead of copying them from the token buffer.
 - AST nodes retain source line/column only, avoiding repeated copies of token-kind and token-value strings.
 - Program parsing reserves declaration storage; code generation reserves structure/function indexes and uses a hash map for struct dependency lookup.
 - Semantic analysis stores built-in expression types in a compact enum. Code generation reuses the cached result instead of recursively inferring types again.
