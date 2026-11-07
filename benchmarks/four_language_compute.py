@@ -238,7 +238,7 @@ def main():
         lines += ["","Expected checksum: 48,000,000,020. All samples must match or the run fails.",
                   "Raw per-sample metrics: four-language-benchmark.json.",
                   "Note: Swan's 20M-array binary-search support is not yet complete; this is the largest common supported compute workload."]
-        md="\\n".join(lines)+"\\n"
+        md="\n".join(lines)+"\n"
         (ROOT/"four-language-benchmark.md").write_text(md,encoding="utf-8")
         print(md)
 
