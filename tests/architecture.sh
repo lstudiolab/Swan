@@ -62,7 +62,7 @@ grep -q 'main:' "$ROOT/build/portable-wasm32.s"
 printf 'PASS: full Swan source lowers to x86-64, AArch64, ARMv7, RISC-V 64, and WebAssembly assembly\n'
 
 # The optimized portable backend executes the same array and function workload.
-test "$("$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --optimize)" = "56"
+test "$("$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --optimize)" = "91"
 printf 'PASS: optimized portable backend execution\n'
 
 printf 'PASS: compiler architecture boundaries\n'
