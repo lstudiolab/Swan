@@ -1,59 +1,62 @@
 # Swan
 
-Swan is a compiled programming language with its own frontend, intermediate representation roadmap, optimizer roadmap, and machine-code backends. Swan source is compiled directly to assembly by Swan-owned code generators. It does not transpile to C and does not use LLVM or Clang.
+Swan is a compiled language with its own C11 compiler implementation and Swan-owned assembly code generation. It does not transpile Swan source to C and does not use LLVM or Clang.
 
-## Current compiler architecture\n\nThe implementation is C11. `main.c` is the only compiled source file; the lexer, parser, AST, diagnostics, driver, and code generator are header-only C modules under `compiler/include/swan/`. No C++ compiler is required.
+## Compiler architecture
 
-```text
+The compiler is implemented in C11. \`main.c\` is the only compiled source file. All compiler subsystems are header-only C modules under \`compiler/include/swan/\`.
+
+~~~text
 .swan source
-  -> Swan lexer
-  -> Swan parser
-  -> Swan semantic analysis
-  -> checked Swan AST
-  -> Swan-owned target code generator
-  -> assembly
-  -> system assembler and linker
-  -> native executable
-```
+  -> C header-only lexer
+  -> C header-only parser
+  -> C semantic analysis
+  -> Swan AST
+  -> Swan-owned x86-64 assembly generator
+  -> GNU assembler / system linker
+  -> executable
+~~~
 
-The assembler and linker are toolchain components used to turn emitted assembly into an object or executable. They do not perform Swan instruction selection, optimization, register allocation, or source compilation.
+The system assembler and linker only consume assembly emitted by Swan. They do not compile Swan source or select Swan instructions.
 
-## Build
+## Build and run
 
-Requirements: C11 compiler and a system assembler/linker (normally provided by `cc`).
+Requirements: a C11 compiler and a system assembler/linker (\`cc\` on Linux).
 
-    sh build.sh
-    ./build/swan examples/hello.swan
-    ./build/swan build examples/hello.swan -o hello
-    ./hello
+~~~sh
+sh build.sh
+./build/swan examples/hello.swan
+~~~
+
+Emit assembly without assembling or running:
+
+~~~sh
+./build/swan examples/hello.swan --emit-asm -o hello.s
+~~~
+
+## Translation-unit policy
+
+- Exactly one compiled source file: \`main.c\`.
+- No C++ source files or C++ headers remain.
+- Compiler modules are C headers and are included by \`main.c\`.
+- The build uses \`cc -std=c11\`; it does not require a C++ compiler.
 
 ## Backend status
 
-| Target | Status |
+| Target | C backend status |
 |---|---|
-| x86-64 System V | Initial Swan-owned assembly backend |
-| AArch64 / ARM64 | Planned C backend |
-| ARMv7 / Thumb | Planned |
-| RISC-V 64 | Planned |
-| WebAssembly | Planned |
+| x86-64 System V (Linux) | Initial implementation; tested |
+| AArch64 / ARM64 | Not ported yet |
+| ARMv7 / Thumb | Not ported yet |
+| RISC-V | Not ported yet |
+| WebAssembly | Not ported yet |
 
-The initial C backend emits GNU assembler Intel syntax for x86-64. Other architecture backends are not yet ported to C and are unavailable in this build. Swan does not silently fall back to LLVM, Clang, or another compiler backend.
-
-## Assembly and object output
-
-    ./build/swan program.swan --target x86_64 --emit-asm -o program.s
-    ./build/swan program.swan --target x86_64 --emit-obj -o program.o
-    ./build/swan program.swan --target aarch64 --emit-asm -o program-aarch64.s
-    ./build/swan program.swan --target aarch64 --emit-obj -o program-aarch64.o
-
-The initial C backend currently targets x86-64 System V on Linux. It supports the currently ported subset: integer expressions, local variables, function calls, if/else, while, and console logging. The system assembler/linker consumes Swan-emitted assembly; it does not compile Swan source.
-
-## Optimization
-
-The native backend is an initial correctness-focused implementation. A target-independent IR, register allocation, peephole optimization, common-subexpression elimination, and target-specific scheduling remain future compiler work.
+The current C backend is an initial subset. It supports integer and boolean expressions, local variables, function calls, \`if\`/\`else\`, \`while\`, and console logging. Arrays, floating point, structs, \`break\`/\`continue\`, full type checking, and other targets still need to be ported.
 
 ## Tests
 
-    sh test.sh
+~~~sh
+sh test.sh
+~~~
 
-CI builds the C11 compiler, verifies standalone C headers and the single-translation-unit rule, and runs native x86-64 assembly execution tests.
+CI verifies the one-file C11 build, standalone C headers, semantic checks, emitted x86-64 assembly, and native execution.
