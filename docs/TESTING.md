@@ -4,16 +4,17 @@
 
 Run from the repository root with `sh test.sh`.
 
-The suite builds the compiler with C++20 warnings treated as errors, checks architecture boundaries, compiles headers independently, assembles generated native code, runs end-to-end programs, and executes regressions.
+Requirements: a C++20 compiler and Clang/LLVM with the target backends being tested.
 
 ## Test layers
 
-- Build: compile the native compiler with the selected C++ compiler.
-- Header isolation: compile each public header as the only project include.
-- Architecture: enforce subsystem dependency direction and the single translation-unit policy.
-- Smoke: emit x86-64 assembly, assemble and link it, then compare program output. Includes nested control flow and multi-dedent cases.
-- Regressions: reject invalid return and void-type cases; validate return branches, struct dependency diagnostics, string parameters, and native execution.
+- Build: compile the unified Swan compiler.
+- Header isolation: compile each public header independently.
+- Architecture: enforce subsystem dependency direction.
+- Smoke: compile and run native programs through LLVM IR and the host backend. Includes nested control flow, strings, functions, arrays, and arithmetic.
+- Regressions: reject invalid return and void-type cases; validate return branches, struct dependencies, and string parameters.
+- Targets: emit assembly for x86-64, AArch64, ARMv7, RISC-V 64, WebAssembly, Apple, Android, and Windows target triples.
 
-Every language change should include valid and invalid source examples, diagnostics checks, and generated-assembly execution tests when runtime behavior is involved.
+Every language change should include valid and invalid source examples, diagnostic checks, and generated-code execution tests where runtime behavior is involved.
 
-Use `CXX=clang++ CC=clang sh test.sh` to select the compiler and assembler/linker driver.
+Use `SWAN_CLANG=/path/to/clang sh test.sh` to select the LLVM driver.
