@@ -15,9 +15,14 @@ class X86_64Generator {
     std::vector<std::unordered_map<std::string,int>> scopes_;
     std::vector<std::pair<std::string,std::string>> loops_;
     std::string returnLabel_;
-    int nextSlot_=0, nextLabel_=0, nextString_=0;
+    int nextSlot_=0, nextLabel_=0, nextString_=0, stackDepth_=0;
     static constexpr const char* argRegs_[6]={"rdi","rsi","rdx","rcx","r8","r9"};
     void emit(const std::string& s){text_+="    "+s+"\n";}
+    void push(const std::string& r){emit("push "+r);stackDepth_+=8;}
+    void pop(const std::string& r){emit("pop "+r);stackDepth_-=8;}
+    void reserve(int n){if(n>0){emit("sub rsp, "+std::to_string(n));stackDepth_+=n;}}
+    void release(int n){if(n>0){emit("add rsp, "+std::to_string(n));stackDepth_-=n;}}
+    void callSymbol(const std::string& name){int pad=(16-stackDepth_%16)%16;reserve(pad);emit("call "+name);release(pad);}
     std::string label(const char* p){return std::string(".L")+p+std::to_string(nextLabel_++);}
     std::string stringLabel(const std::string& value){
         auto f=strings_.find(value); if(f!=strings_.end()) return f->second;
@@ -53,7 +58,7 @@ class X86_64Generator {
             return;
         case Expr::Kind::Call:call(e);return;
         case Expr::Kind::Index:
-            expr(e->left.get());emit("push rax");expr(e->right.get());emit("mov rcx, rax");emit("pop rax");emit("mov rax, QWORD PTR [rax + rcx*8]");return;
+            expr(e->left.get());push("rax");expr(e->right.get());emit("mov rcx, rax");pop("rax");emit("mov rax, QWORD PTR [rax + rcx*8]");return;
         case Expr::Kind::Member:throw CompileError("struct member lowering is not implemented in the x86-64 backend yet");
         case Expr::Kind::Binary:binary(e);return;
         }
@@ -63,7 +68,7 @@ class X86_64Generator {
         const auto& name=e->left->token.value;
         if(name=="array"){
             if(e->arguments.size()!=1)throw CompileError("array expects one argument");
-            expr(e->arguments[0].get());emit("mov rdi, rax");emit("mov esi, 8");emit("xor eax, eax");emit("call calloc@PLT");return;
+            expr(e->arguments[0].get());emit("mov rdi, rax");emit("mov esi, 8");emit("xor eax, eax");callSymbol("calloc@PLT");return;
         }
         const Stmt* fn=nullptr;
         for(const auto& s:program_)if(s->kind==Stmt::Kind::Function&&s->name==name){fn=s.get();break;}
@@ -71,7 +76,7 @@ class X86_64Generator {
         const auto n=e->arguments.size();
         if(n>6)throw CompileError("x86-64 backend currently supports at most six call arguments");
         const bool pad=(n&1)!=0;if(pad)emit("sub rsp, 8");
-        for(const auto& a:e->arguments){expr(a.get());emit("push rax");}
+        for(const auto& a:e->arguments){expr(a.get());push("rax");}
         for(std::size_t i=0;i<n;++i)emit("mov "+std::string(argRegs_[i])+", QWORD PTR [rsp + "+std::to_string((n-1-i)*8)+"]");
         if(n||pad)emit("add rsp, "+std::to_string(n*8+(pad?8:0)));
         emit("xor eax, eax");emit("call "+(name=="main"?std::string("main"):"swan_fn_"+name));
@@ -80,10 +85,10 @@ class X86_64Generator {
         const auto& op=e->token.value;
         if(op=="="){
             if(e->left->kind==Expr::Kind::Name){expr(e->right.get());emit("mov QWORD PTR [rbp - "+std::to_string(lookup(e->left->token.value)*8)+"], rax");return;}
-            if(e->left->kind==Expr::Kind::Index){expr(e->left->left.get());emit("push rax");expr(e->left->right.get());emit("mov rcx, rax");emit("push rcx");expr(e->right.get());emit("pop rcx");emit("pop rdx");emit("mov QWORD PTR [rdx + rcx*8], rax");return;}
+            if(e->left->kind==Expr::Kind::Index){expr(e->left->left.get());push("rax");expr(e->left->right.get());emit("mov rcx, rax");push("rcx");expr(e->right.get());pop("rcx");pop("rdx");emit("mov QWORD PTR [rdx + rcx*8], rax");return;}
             throw CompileError("unsupported assignment target in x86-64 backend");
         }
-        expr(e->left.get());emit("push rax");expr(e->right.get());emit("mov rcx, rax");emit("pop rax");
+        expr(e->left.get());push("rax");expr(e->right.get());emit("mov rcx, rax");pop("rax");
         if(op=="+")emit("add rax, rcx");
         else if(op=="-")emit("sub rax, rcx");
         else if(op=="*")emit("imul rax, rcx");
@@ -100,7 +105,7 @@ class X86_64Generator {
         expr(e);
         if(e->resolved_type=="string")emit("mov rdi, rax");
         else{auto f=stringLabel("%lld\n");emit("mov rsi, rax");emit("lea rdi, [rip + "+f+"]");}
-        emit("xor eax, eax");emit("call "+std::string(e->resolved_type=="string"?"puts@PLT":"printf@PLT"));
+        emit("xor eax, eax");callSymbol(e->resolved_type=="string"?"puts@PLT":"printf@PLT");
     }
     void block(const std::vector<StmtPtr>& body){
         scopes_.emplace_back();
@@ -118,7 +123,7 @@ class X86_64Generator {
         scopes_.pop_back();
     }
     void function(const Stmt* fn){
-        nextSlot_=0;slots_.clear();scopes_.clear();loops_.clear();
+        nextSlot_=0;stackDepth_=0;slots_.clear();scopes_.clear();loops_.clear();
         scopes_.emplace_back();
         for(const auto& p:fn->parameters)scopes_.back()[p.name]=++nextSlot_;
         collect(fn->body);
