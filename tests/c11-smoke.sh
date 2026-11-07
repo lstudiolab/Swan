@@ -123,6 +123,8 @@ fn main():
     return 0
 SWAN
 "$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
+grep -q "mov r11, rax" "$TMP/invariant-hoist.s"
+grep -q "mov rax, r11" "$TMP/invariant-hoist.s"
 cc -x assembler "$TMP/invariant-hoist.s" -o "$TMP/invariant-hoist"
 test "$("$TMP/invariant-hoist")" = "2913"
 printf 'PASS: loop-invariant arithmetic hoisting preserves results\n'
