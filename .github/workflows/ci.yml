@@ -6,13 +6,20 @@ on:
   workflow_dispatch:
 
 jobs:
-  compiler-c:
-    runs-on: ubuntu-latest
+  compiler:
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Build standalone C11 compiler
+      - name: Build native Swan and standalone C compilers
         run: sh build.sh
-      - name: Verify native execution and architecture assembly
+      - name: Verify Swan language features and regressions
+        run: |
+          sh tests/smoke.sh
+          sh tests/regressions.sh
+          sh tests/architecture.sh
+      - name: Verify standalone C compiler
         run: sh tests/c-compiler.sh
-      - name: Verify compiler version
-        run: ./build/swan --version
+      - name: Verify compiler versions
+        run: |
+          ./build/swan --version
+          ./build/swan-c --version
