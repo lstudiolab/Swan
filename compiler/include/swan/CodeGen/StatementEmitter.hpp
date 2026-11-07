@@ -27,7 +27,12 @@ inline void CGenerator::block(const std::vector<StmtPtr>& statements) {
 inline void CGenerator::statement(const StmtPtr& node) {
     switch (node->kind) {
     case Stmt::Kind::Variable: {
-        const auto type = node->type.empty() ? inferredType(node->value) : node->type;
+        std::string inferredStorage;
+        std::string_view type = node->type;
+        if (type.empty()) {
+            inferredStorage = inferredType(node->value);
+            type = inferredStorage;
+        }
         auto& scope = scopes_.back();
         if (!scope.contains(node->name)) {
             auto old = symbols_.find(node->name);
@@ -35,7 +40,7 @@ inline void CGenerator::statement(const StmtPtr& node) {
         }
         symbols_[node->name] = type;
         beginLine();
-        appendCType(output_, type);
+        appendCType(output_, std::string(type));
         output_ += node->mutable_value ? " " : " const ";
         output_ += "swan_var_";
         output_ += node->name;
