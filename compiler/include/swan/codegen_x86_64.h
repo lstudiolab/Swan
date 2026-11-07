@@ -26,7 +26,8 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  case S_EXPR:emit_expr(o,s->value,l,err);break;
  case S_PASS:break;
  case S_BREAK:case S_CONTINUE:swan_error(err,&s->token,"loop control lowering is not yet supported");break;
- case S_IF:case S_WHILE:swan_error(err,&s->token,"control-flow lowering is not yet supported in the C backend");break;
+ case S_IF:{int id=(*label)++;emit_expr(o,s->condition,l,err);text_add(o,"    test rax, rax\\n    jz .Lswan_else_%d\\n",id);emit_block(o,s->body,s->body_count,l,label,err);text_add(o,"    jmp .Lswan_end_%d\\n.Lswan_else_%d:\\n",id,id);emit_block(o,s->alternate,s->alt_count,l,label,err);text_add(o,".Lswan_end_%d:\\n",id);break;}
+ case S_WHILE:{int id=(*label)++;text_add(o,".Lswan_loop_%d:\\n",id);emit_expr(o,s->condition,l,err);text_add(o,"    test rax, rax\\n    jz .Lswan_loop_end_%d\\n",id);emit_block(o,s->body,s->body_count,l,label,err);text_add(o,"    jmp .Lswan_loop_%d\\n.Lswan_loop_end_%d:\\n",id,id);break;}
  default:break;
  }}}
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
