@@ -247,5 +247,16 @@ if grep -A12 '^swan_fn_leaf:' "$TMP/leaf-registers.s" | grep -Eq 'push rbp|mov Q
     exit 1
 fi
 printf 'PASS: leaf volatile-register allocation does not overlap backend scratch registers\n'
+cat > "$TMP/accumulator-side-effect.swan" <<'SWAN'
+fn main():
+    var total = 2
+    total = total + (total = 5)
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/accumulator-side-effect.swan" --emit-asm -o "$TMP/accumulator-side-effect.s"
+cc -x assembler "$TMP/accumulator-side-effect.s" -o "$TMP/accumulator-side-effect"
+test "$("$TMP/accumulator-side-effect")" = "7"
+printf 'PASS: accumulator optimization preserves assignment evaluation order\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
