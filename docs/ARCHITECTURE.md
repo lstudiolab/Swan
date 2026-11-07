@@ -1,61 +1,45 @@
 # Compiler Architecture
 
-Swan uses a layered, header-oriented C++20 compiler architecture.
+Swan is a native compiler. The frontend and semantic model are Swan-owned; LLVM is the machine backend.
 
 ## Repository layout
 
 ```text
 main.cpp
 compiler/include/swan/
-├── Basic/       Source locations, tokens, and diagnostics
+├── Basic/       Source locations, tokens, diagnostics
 ├── Support/     File and version utilities
-├── Lex/         Token scanners and keyword classification
-├── AST/         Expression, declaration, statement, and program nodes
-├── Parse/       Parser and grammar routines
-├── Sema/        Type, scope, declaration, and statement analysis
-├── Frontend/    Lexing, parsing, and semantic-analysis orchestration
-├── CodeGen/     Direct x86-64 assembly generation
-├── Compiler/    Whole-compilation orchestration
-└── Driver/      Command-line options and native linking
+├── Lex/         Token scanners
+├── AST/         Expression, declaration, statement, program nodes
+├── Parse/       Grammar and parser
+├── Sema/        Type, scope, declaration, statement analysis
+├── Frontend/    Frontend orchestration
+├── CodeGen/     Typed Swan AST to LLVM IR
+├── Compiler/    Compilation orchestration
+└── Driver/      Target selection and LLVM invocation
 ```
 
-## Compilation pipeline
+## Pipeline
 
 ```text
-.swan source
-  -> Lexer
-  -> Parser
-  -> AST
-  -> Semantic analysis
-  -> x86-64 GNU assembly
-  -> assembler + system linker
-  -> native executable
+.swan -> Lexer -> Parser -> Semantic analysis
+      -> typed AST -> LLVM IR -> LLVM target backend
+      -> target assembly -> assembler/linker -> executable
 ```
 
-The compiler does not emit C as an intermediate representation. The assembly backend emits GNU assembler syntax for the x86-64 System V ELF ABI. The driver invokes the configured `CC` tool (normally `cc`) in assembler mode to assemble and link the generated source.
+Swan never emits C. The IR generator consumes the semantically checked AST directly. LLVM owns instruction selection, register allocation, machine optimization, and target assembly emission.
 
-## Backend responsibilities
+## Target model
 
-- Semantic analysis resolves and annotates expression types before code generation.
-- `AssemblyGenerator` lowers checked AST nodes into x86-64 instructions.
-- Stack slots hold source-level locals and parameters; expression temporaries use the machine stack.
-- Swan-to-Swan calls use a compiler-defined scalar calling convention. External libc calls follow System V ABI rules.
-- String and floating-point constants are emitted into read-only data.
-- The driver owns temporary files, tool invocation, executable output, and process execution.
+The driver accepts common aliases (x86_64, aarch64, armv7, riscv64, wasm32) and full LLVM target triples. A target triple selects both the instruction set and the platform ABI. The installed LLVM backend determines which triples can be emitted.
 
-## Target limitations
-
-The initial backend targets x86-64 Linux ELF. It does not yet implement other architectures, aggregate-value ABI lowering, debug information, register allocation, or a target-independent intermediate representation. Unsupported constructs must fail with diagnostics rather than silently produce incorrect code.
-
-## Translation-unit policy
-
-The executable has one checked-in C++ translation unit: `main.cpp`. Implementations are provided by inline definitions in subsystem headers. The build uses C++20 directly through `build.sh`; CMake is not required.
+Cross-target assembly does not require a sysroot. Linking a foreign executable requires the corresponding linker, runtime libraries, and sysroot.
 
 ## Engineering rules
 
-1. Basic and Support remain independent of compiler phases.
-2. Frontend owns language analysis and does not depend on code generation.
-3. Code generation consumes a semantically checked AST.
-4. Driver owns process-level behavior, not language semantics.
+1. Frontend owns Swan semantics and does not depend on code generation.
+2. Code generation consumes a semantically checked AST.
+3. LLVM IR is the backend interface; C is not an intermediate language.
+4. Driver owns target selection and external tool invocation.
 5. Every backend behavior requires a regression test.
-6. Performance claims require reproducible benchmarks and verified output.
+6. Do not claim a target is supported until assembly generation and validation pass.
