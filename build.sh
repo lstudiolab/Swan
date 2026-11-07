@@ -1,8 +1,9 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-CXX=${CXX:-c++}
+CC=${CC:-cc}
 mkdir -p "$ROOT/build"
-"$CXX" -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" "$ROOT/main.cpp" -o "$ROOT/build/swan"
-printf 'Built Swan compiler: %s\n' "$ROOT/build/swan"
+"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" "$ROOT/main.c" -o "$ROOT/build/swan"
+printf 'Built Swan C compiler: %s\n' "$ROOT/build/swan"
+printf 'Implementation: C11 headers; one translation unit (main.c)\n'
 printf 'Code generation: Swan-owned x86-64 assembly backend\n'
