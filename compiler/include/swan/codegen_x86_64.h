@@ -191,6 +191,21 @@ static inline bool emit_increment_statement(Text *o,Expr *e,Locals *l){
  else text_add(o,"    add QWORD PTR [rbp - %d], %lld\n",v->slot*8,imm);
  return true;
 }
+static inline bool expr_writes_name(Expr *e,const char *name){
+ if(!e)return false;
+ if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN&&e->left&&e->left->kind==E_NAME&&!strcmp(e->left->token.text,name))return true;
+ if(expr_writes_name(e->left,name)||expr_writes_name(e->right,name))return true;
+ for(size_t i=0;i<e->argc;i++)if(expr_writes_name(e->args[i],name))return true;
+ return false;
+}
+static inline bool loop_nested_no_writes(Stmt **body,size_t n,const char *name){
+ for(size_t i=0;i<n;i++){
+  Stmt *s=body[i];if(s->kind==S_VARIABLE&&!strcmp(s->name,name))return false;
+  if(expr_writes_name(s->value,name)||expr_writes_name(s->condition,name))return false;
+  if(!loop_nested_no_writes(s->body,s->body_count,name)||!loop_nested_no_writes(s->alternate,s->alt_count,name))return false;
+ }
+ return true;
+}
 static inline bool loop_body_safe_for_unroll(Stmt **body,size_t n,const char *name,int *increments){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
@@ -201,9 +216,8 @@ static inline bool loop_body_safe_for_unroll(Stmt **body,size_t n,const char *na
    if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS&&e->left&&e->left->kind==E_NAME&&!strcmp(e->left->token.text,name)&&e->right&&e->right->kind==E_INT&&!strcmp(e->right->token.text,"1")){(*increments)++;continue;}
    return false;
   }
-  if(s->kind==S_IF){
-   if(!loop_body_safe_for_unroll(s->body,s->body_count,name,increments)||!loop_body_safe_for_unroll(s->alternate,s->alt_count,name,increments))return false;
-  }
+  if(expr_writes_name(s->value,name)||expr_writes_name(s->condition,name))return false;
+  if(s->kind==S_IF&&(!loop_nested_no_writes(s->body,s->body_count,name)||!loop_nested_no_writes(s->alternate,s->alt_count,name)))return false;
  }
  return true;
 }
