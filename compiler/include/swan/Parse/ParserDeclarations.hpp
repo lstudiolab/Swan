@@ -22,6 +22,7 @@ inline StmtPtr Parser::declaration() {
         }
         expect(")");
         if (match("->")) node->return_type = typeName();
+        expect(":","expected ':' after function declaration");
         node->body = block();
         return node;
     }
@@ -29,15 +30,17 @@ inline StmtPtr Parser::declaration() {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::Struct; node->token = advance();
         node->name = expect("IDENT","expected structure name").value;
-        expect("{"); separators();
-        while (!check("}") && !check("EOF")) {
+        expect(":","expected ':' after structure name");
+        separators();
+        expect("INDENT","expected indentation for structure fields");
+        while (!check("DEDENT") && !check("EOF")) {
             if (check("var") || check("let")) advance();
             auto field = expect("IDENT","expected field name");
             expect(":");
             node->fields.push_back({field.value,typeName(),field});
             separators();
         }
-        expect("}");
+        expect("DEDENT","expected indentation to close structure");
         return node;
     }
     if (check("let") || check("var") || check("const")) {
