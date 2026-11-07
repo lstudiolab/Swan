@@ -27,7 +27,7 @@ inline StmtPtr Parser::declaration() {
     }
     if (check("struct")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::Struct; node->token = advance();
+        node->kind = Stmt::Kind::Struct; node->token = advance().location();
         node->name = expect("IDENT","expected structure name").value;
         expect("{"); separators();
         while (!check("}") && !check("EOF")) {
@@ -42,8 +42,10 @@ inline StmtPtr Parser::declaration() {
     }
     if (check("let") || check("var") || check("const")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::Variable; node->token = advance();
-        node->mutable_value = node->token.kind == "var";
+        node->kind = Stmt::Kind::Variable;
+        const auto& keyword = advance();
+        node->token = keyword.location();
+        node->mutable_value = keyword.kind == "var";
         node->name = expect("IDENT","expected variable name").value;
         if (match(":")) node->type = typeName();
         if (match("=")) node->value = expression();
@@ -53,7 +55,7 @@ inline StmtPtr Parser::declaration() {
     }
     if (check("import")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::Import; node->token = advance();
+        node->kind = Stmt::Kind::Import; node->token = advance().location();
         const auto& module = advance();
         if (module.kind != "IDENT" && module.kind != "STRING")
             fail(module,"expected module name");
