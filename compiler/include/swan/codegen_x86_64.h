@@ -21,17 +21,18 @@ static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d
 static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",reg);o->stack_depth+=8;}
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
-typedef struct { char name[SWAN_MAX_TEXT]; int slot,reg; bool mut; } Local;
-typedef struct { Local items[1024];size_t count;int slots,reg_count,saved_reg_count;bool caller_saved; } Locals;
+typedef struct { const char *name; int slot,reg,next; bool mut; } Local;
+typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
 static const char *cg_volatile_low_regs[]={"edi","esi","edx","r8d","r9d"};
 static inline const char *cg_reg_name(int reg){return reg<5?cg_saved_regs[reg]:cg_volatile_regs[reg-5];}
 static inline const char *cg_reg_low_name(int reg){static const char *saved[]={"ebx","r12d","r13d","r14d","r15d"};return reg<5?saved[reg]:cg_volatile_low_regs[reg-5];}
-static inline Local *local_find(Locals *l,const char *name){for(size_t i=l->count;i>0;i--)if(!strcmp(l->items[i-1].name,name))return &l->items[i-1];return NULL;}
+static inline unsigned cg_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
+static inline Local *local_find(Locals *l,const char *name){unsigned b=cg_name_hash(name)&2047u;for(int n=l->buckets[b];n;n=l->items[n-1].next)if(!strcmp(l->items[n-1].name,name))return &l->items[n-1];return NULL;}
 static inline Local *local_add(Locals *l,const char *name,bool mut){
  if(l->count>=1024)return NULL;
- Local *v=&l->items[l->count++];strcpy(v->name,name);v->mut=mut;v->reg=-1;v->slot=0;
+ size_t i=l->count++;unsigned b=cg_name_hash(name)&2047u;Local *v=&l->items[i];v->name=name;v->mut=mut;v->reg=-1;v->slot=0;v->next=l->buckets[b];l->buckets[b]=(int)i+1;
  if(l->caller_saved&&l->reg_count<5)v->reg=5+l->reg_count++;
  else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
  else v->slot=++l->slots;
