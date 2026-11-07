@@ -37,7 +37,13 @@ inline std::filesystem::path temporaryPath(const std::string& ext){
     auto stamp=std::chrono::steady_clock::now().time_since_epoch().count();
     return std::filesystem::temp_directory_path()/("swan-"+std::to_string(stamp)+ext);
 }
-inline int assembleAndLink(const std::filesystem::path& assembly,const std::filesystem::path& output,bool object){
+inline int assembleAndLink(const std::filesystem::path& assembly,const std::filesystem::path& output,bool object,const std::string& target){
+    if(object&&(target=="aarch64"||target=="arm64"||target=="aarch64-unknown-linux-gnu")){
+        const char* configured=std::getenv("SWAN_AARCH64_AS");
+        const std::string assembler=configured&&*configured?configured:"aarch64-linux-gnu-as";
+        const std::string command=shellQuote(assembler)+" "+shellQuote(assembly.string())+" -o "+shellQuote(output.string());
+        return exitCode(std::system(command.c_str()));
+    }
     const char* configured=std::getenv("CC");const std::string cc=configured&&*configured?configured:"cc";
     std::string command=shellQuote(cc)+" ";
     command+=object?"-c ":"";
@@ -58,6 +64,8 @@ inline int runCompiler(int argc,char** argv){
         if(!readTextFile(options.input,source))throw CompileError("cannot open '"+options.input.string()+"'");
         const bool assembly=options.emitAssembly||(options.hasOutput&&options.output.extension()==".s");
         const bool object=options.emitObject||(options.hasOutput&&(options.output.extension()==".o"||options.output.extension()==".obj"));
+        const bool aarch64=options.target=="aarch64"||options.target=="arm64"||options.target=="aarch64-unknown-linux-gnu";
+        if(!assembly&&!object&&aarch64)throw CompileError("cross-target executable linking is not configured; use --emit-asm or --emit-obj");
         if(assembly&&object)throw CompileError("choose either --emit-asm or --emit-obj");
         const auto asmText=Compiler().compileAssembly(source,options.target);
         auto output=options.hasOutput?options.output:
@@ -81,7 +89,7 @@ inline int runCompiler(int argc,char** argv){
         auto asmPath=driver::temporaryPath(".s");
         struct Cleanup{std::filesystem::path p;~Cleanup(){std::error_code e;std::filesystem::remove(p,e);}} cleanup{asmPath};
         if(!writeTextFile(asmPath,asmText))throw CompileError("cannot write temporary assembly");
-        const int status=driver::assembleAndLink(asmPath,output,object);
+        const int status=driver::assembleAndLink(asmPath,output,object,options.target);
         if(status!=0){std::error_code e;std::filesystem::remove(output,e);return status;}
         if(object){std::cout<<"Wrote "<<output.string()<<'\n';return 0;}
         if(options.action==driver::Action::Build){std::cout<<"Built "<<output.string()<<'\n';return 0;}
