@@ -20,7 +20,14 @@ static inline Expr *prefix(Parser *p){
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
  else{swan_error(p->err,&t,"expected expression");p->failed=true;return NULL;}
  while(e&&!p->failed){
-  if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){call->args=swan_arena_alloc(p->program,16*sizeof(*call->args));if(!call->args){swan_error(p->err,&call->token,"out of memory allocating call arguments");p->failed=true;return e;}do{if(call->argc>=16){swan_error(p->err,pk(p),"too many call arguments");p->failed=true;break;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
+  if(eat(p,T_LB)){
+   Expr *index=expression(p,1);
+   need(p,T_RB,"expected ']' after array index");
+   Expr *item=new_expr(p,E_INDEX,e->token);
+   if(item){item->left=e;item->right=index;item->contains_call=(e&&e->contains_call)||(index&&index->contains_call);}
+   e=item;
+  }
+  else if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){call->args=swan_arena_alloc(p->program,16*sizeof(*call->args));if(!call->args){swan_error(p->err,&call->token,"out of memory allocating call arguments");p->failed=true;return e;}do{if(call->argc>=16){swan_error(p->err,pk(p),"too many call arguments");p->failed=true;break;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
   else break;
  }
  return e;
