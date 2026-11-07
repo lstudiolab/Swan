@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; Expr *hoist_expr,*recurrence_expr; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless; Expr *hoist_expr,*recurrence_expr; } Text;
 static inline void text_add(Text *t,const char *fmt,...){
  va_list ap;va_start(ap,fmt);va_list cp;va_copy(cp,ap);int n=vsnprintf(NULL,0,fmt,cp);va_end(cp);
  if(n<0){va_end(ap);return;}size_t need=t->len+(size_t)n+1;
@@ -31,7 +31,7 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
 }
 static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE)local_add(l,s->name,s->mutable_value);collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
- for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
+ for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
 static inline bool expr_has_call(Expr *e){
  if(!e)return false;if(e->kind==E_CALL)return true;
@@ -239,8 +239,8 @@ static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,
     if((e->token.kind==T_EQ||e->token.kind==T_NE)&&e->left&&e->left->kind==E_BINARY&&e->left->token.kind==T_PERCENT&&e->left->right&&e->left->right->kind==E_INT&&!strcmp(e->left->right->token.text,"2")&&e->right&&e->right->kind==E_INT&&!strcmp(e->right->token.text,"0")&&e->left->left&&e->left->left->kind==E_NAME){
      Local *v=local_find(l,e->left->left->token.text);
      if(v){const char *jump=e->token.kind==T_EQ?(when_true?"jz":"jnz"):(when_true?"jnz":"jz");
-      if(v->reg>=0)text_add(o,"    test %s, 1\\n    %s %s\\n",cg_reg_name(v->reg),jump,target);
-      else text_add(o,"    test QWORD PTR [rbp - %d], 1\\n    %s %s\\n",v->slot*8,jump,target);
+      if(v->reg>=0)text_add(o,"    test %s, 1\n    %s %s\n",cg_reg_name(v->reg),jump,target);
+      else text_add(o,"    test QWORD PTR [rbp - %d], 1\n    %s %s\n",v->slot*8,jump,target);
       return;
      }
     }
@@ -413,9 +413,9 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     if(v&&immediate){
      if(v->reg>=0){
        const char *low=cg_reg_low_name(v->reg),*reg=cg_reg_name(v->reg);
-       if(value==0)text_add(o,"    xor %s, %s\\n",low,low);
-       else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov %s, %lld\\n",reg,value);
-       else text_add(o,"    movabs %s, %lld\\n",reg,value);
+       if(value==0)text_add(o,"    xor %s, %s\n",low,low);
+       else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov %s, %lld\n",reg,value);
+       else text_add(o,"    movabs %s, %lld\n",reg,value);
       else text_add(o,"    movabs %s, %lld\n",cg_reg_name(v->reg),value);
      }else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov QWORD PTR [rbp - %d], %lld\n",v->slot*8,value);
      else{if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);}
@@ -489,9 +489,9 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);
-  for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
+  for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
   const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
-  for(size_t a=0;a<fn->param_count&&a<6;a++){Local *v=local_find(&l,fn->params[a]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[a]))text_add(o,"    mov %s, %s\\n",dst,regs[a]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\\n",v->slot*8,regs[a]);}}
+  for(size_t a=0;a<fn->param_count&&a<6;a++){Local *v=local_find(&l,fn->params[a]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[a]))text_add(o,"    mov %s, %s\n",dst,regs[a]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[a]);}}
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);text_add(o,"    leave\n    ret\n");
  }
  text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
