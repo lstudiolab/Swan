@@ -9,7 +9,8 @@ namespace swan {
 inline Lexer::Lexer(std::string_view source) : source_(source) {}
 inline bool Lexer::eof() const { return index_ >= source_.size(); }
 inline char Lexer::peek(std::size_t offset) const {
-    return index_ + offset < source_.size() ? source_[index_ + offset] : '\0';
+    const auto position = index_ + offset;
+    return position < source_.size() ? source_[position] : '\0';
 }
 inline char Lexer::advance() {
     const char value = source_[index_++];
@@ -19,6 +20,7 @@ inline char Lexer::advance() {
 }
 inline std::vector<Token> Lexer::scan() {
     std::vector<Token> result;
+    result.reserve(source_.size() / 4 + 8);
     while (!eof()) {
         if (line_start_) {
             std::size_t width = 0;
