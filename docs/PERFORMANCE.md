@@ -15,7 +15,7 @@ The current compiler hot paths use:
 - **Indexed backend locals:** compact local records and hash lookup replace repeated reverse scans through large fixed-size local arrays.
 - **Cached AST call metadata:** expression trees carry call-presence metadata so call analysis does not repeatedly walk subtrees.
 - **Low-overhead assembly emission:** literal instruction strings bypass the formatting library; formatted output uses a single formatting pass unless the output buffer must grow.
-- **Reduced runtime instruction count:** local-to-local arithmetic and comparisons avoid push/pop stack temporaries; existing constant folding, small-function inlining, register locals, leaf-frame elimination, parity checks, and loop strength reduction remain enabled.
+- **Reduced runtime instruction count:** local-to-local arithmetic and comparisons avoid push/pop stack temporaries. Self-updates such as `sum = sum + value`, `value = value - 1`, and `value = value * factor` now update the destination register or stack slot directly instead of calculating into `rax` and copying the result back. Existing constant folding, small-function inlining, register locals, leaf-frame elimination, parity checks, and loop strength reduction remain enabled.
 
 These changes remove known allocation, lookup, formatting, and instruction-generation overhead. Their speed impact is **not quantified** until a separately authorized benchmark is run.
 
