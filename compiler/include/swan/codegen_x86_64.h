@@ -101,6 +101,19 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   if(e->right&&e->right->kind==E_INT){
    char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
    if(end&&*end==0&&imm>=INT32_MIN&&imm<=INT32_MAX){
+    if(e->left&&e->left->kind==E_NAME){
+     Local *v=local_find(l,e->left->token.text);
+     if(v&&v->reg>=0){
+      const char *reg=cg_saved_regs[v->reg];
+      if(e->token.kind==T_PLUS||e->token.kind==T_MINUS){
+       long long disp=e->token.kind==T_PLUS?imm:-imm;
+       if(disp>=0)text_add(o,"    lea rax, [%s + %lld]\n",reg,disp);
+       else text_add(o,"    lea rax, [%s - %lld]\n",reg,-disp);
+       break;
+      }
+      if(e->token.kind==T_STAR){text_add(o,"    imul rax, %s, %lld\n",reg,imm);break;}
+     }
+    }
     emit_expr(o,e->left,l,err);
     if(e->token.kind==T_PLUS){text_add(o,"    add rax, %lld\n",imm);break;}
     if(e->token.kind==T_MINUS){text_add(o,"    sub rax, %lld\n",imm);break;}
@@ -145,6 +158,14 @@ static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,
    case T_LE:cc=when_true?"jle":"jg";break;case T_GE:cc=when_true?"jge":"jl";break;default:break;
   }
   if(cc){
+   if(e->left&&e->left->kind==E_NAME&&e->right&&e->right->kind==E_INT){
+    char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);Local *v=local_find(l,e->left->token.text);
+    if(v&&end&&!*end&&imm>=INT32_MIN&&imm<=INT32_MAX){
+     if(v->reg>=0)text_add(o,"    cmp %s, %lld\n    %s %s\n",cg_saved_regs[v->reg],imm,cc,target);
+     else text_add(o,"    cmp QWORD PTR [rbp - %d], %lld\n    %s %s\n",v->slot*8,imm,cc,target);
+     return;
+    }
+   }
    emit_expr(o,e->left,l,err);
    if(e->right&&e->right->kind==E_INT){
     char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
