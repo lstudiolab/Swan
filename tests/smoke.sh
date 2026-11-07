@@ -106,3 +106,18 @@ SWAN
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/keyword-operators.c" -o "$TMP/keyword-operators"
 test "$("$TMP/keyword-operators")" = "keyword operators preserved"
 printf 'PASS: keyword operators and primitive types\n'
+
+# Tabs count as four indentation columns while occupying one source column.
+printf 'fn main():\n\tlog "tab indentation"\n\treturn 0\n' > "$TMP/tabs.swan"
+"$SWAN" "$TMP/tabs.swan" -o "$TMP/tabs.c"
+${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/tabs.c" -o "$TMP/tabs"
+test "$("$TMP/tabs")" = "tab indentation"
+printf 'PASS: tab indentation width and source scanning\n'
+
+# A dedent must match an existing indentation level exactly.
+printf 'fn main():\n    if true\n        log "nested"\n      log "invalid"\n' > "$TMP/bad-indent.swan"
+if "$SWAN" "$TMP/bad-indent.swan" -o "$TMP/bad-indent.c" 2>/dev/null; then
+  echo 'FAIL: inconsistent indentation accepted' >&2
+  exit 1
+fi
+printf 'PASS: inconsistent indentation rejected\n'
