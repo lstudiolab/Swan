@@ -1,5 +1,5 @@
 name: Binary Search Benchmark
-# Re-run on every benchmark harness correction.
+# Deterministic search workload; rerun after Goose constant fix.
 on:
   push:
     paths:
