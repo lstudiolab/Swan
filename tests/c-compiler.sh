@@ -23,4 +23,18 @@ if "$SWAN" "$TMP/hello.swan" --target mips --emit-asm -o "$TMP/bad.s" 2>/dev/nul
   echo "FAIL: unknown target accepted" >&2
   exit 1
 fi
-printf 'PASS: C compiler native execution and x86-64/AArch64/ARMv7 assembly emission\n'
+cat > "$TMP/loop.swan" <<'SWAN'
+fn main() -> int:
+    for i in 0..3
+        log "Hello, World!"
+    return 0
+SWAN
+"$SWAN" build "$TMP/loop.swan" --target native -o "$TMP/loop"
+test "$("$TMP/loop" | wc -l | tr -d ' ')" = "3"
+"$SWAN" "$TMP/loop.swan" --target x86_64 --emit-asm -o "$TMP/loop-x86_64.s"
+grep -q 'inc r12' "$TMP/loop-x86_64.s"
+"$SWAN" "$TMP/loop.swan" --target aarch64 --emit-asm -o "$TMP/loop-aarch64.s"
+grep -q 'add x19, x19, #1' "$TMP/loop-aarch64.s"
+"$SWAN" "$TMP/loop.swan" --target armv7 --emit-asm -o "$TMP/loop-armv7.s"
+grep -q 'add r4, r4, #1' "$TMP/loop-armv7.s"
+printf 'PASS: native range loops and C compiler execution and x86-64/AArch64/ARMv7 assembly emission\n'
