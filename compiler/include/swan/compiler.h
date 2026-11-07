@@ -1,6 +1,7 @@
 #ifndef SWAN_COMPILER_H
 #define SWAN_COMPILER_H
 #include "swan/codegen_x86_64.h"
+#include "swan/sema.h"
 #include <sys/stat.h>
 #include <unistd.h>
 static inline char *swan_read_file(const char *path){FILE *f=fopen(path,"rb");if(!f)return NULL;if(fseek(f,0,SEEK_END)){fclose(f);return NULL;}long n=ftell(f);if(n<0){fclose(f);return NULL;}rewind(f);char *s=malloc((size_t)n+1);if(!s){fclose(f);return NULL;}size_t got=fread(s,1,(size_t)n,f);fclose(f);s[got]=0;return s;}
