@@ -153,6 +153,7 @@ transform:
 main:
     push r12
     push r13
+    sub rsp, 8
     xor r12d, r12d
     xor r13d, r13d
 .Lloop:
@@ -176,6 +177,7 @@ main:
     xor eax, eax
     call printf@PLT
     xor eax, eax
+    add rsp, 8
     pop r13
     pop r12
     ret
