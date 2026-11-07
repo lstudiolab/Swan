@@ -17,11 +17,22 @@ jobs:
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
-      - name: Build Swan
-        run: sh build.sh
-      - name: Run one-billion-iteration Swan benchmark
+      - name: Record runner environment
+        run: |
+          echo "=== CPU ==="
+          lscpu
+          echo "=== MEMORY ==="
+          free -h
+          echo "=== STORAGE ==="
+          df -h .
+          echo "=== OS ==="
+          uname -a
+          echo "=== COMPILER TOOLCHAIN ==="
+          cc --version
+          python3 --version
+      - name: Build, measure and run Swan benchmark
         run: python3 benchmarks/swan_only.py
-      - name: Upload measured results
+      - name: Upload complete measurement report
         uses: actions/upload-artifact@v4
         with:
           name: swan-only-benchmark
