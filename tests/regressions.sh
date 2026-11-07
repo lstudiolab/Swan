@@ -90,4 +90,20 @@ SWAN
 test "$("$TMP/immutable-string")" = "Hello
 Hello"
 printf 'PASS: immutable string and parameter declarations\n'
+cat > "$TMP/nested-shadowing.swan" <<'SWAN'
+fn main() -> int {
+    var value: int = 1;
+    if true {
+        var value: int = 2;
+        log value;
+    }
+    log value;
+    return 0;
+}
+SWAN
+"$SWAN" "$TMP/nested-shadowing.swan" -o "$TMP/nested-shadowing.c"
+"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/nested-shadowing.c" -o "$TMP/nested-shadowing"
+test "$("$TMP/nested-shadowing")" = "2
+1"
+printf 'PASS: nested symbol shadowing and scope restoration\\n'
 printf 'PASS: compiler regression suite\n'
