@@ -133,7 +133,7 @@ jobs:
               while (i < 1000) : (i += 1) {
                   var j: i64 = 0;
                   while (j < 1_000_000) : (j += 1) {
-                      acc += @mod(i * 1_000_003 + j * 97, 65_536);
+                      acc = @mod(acc + @mod(i * 1_000_003 + j * 97, 65_536), 65_521);
                   }
               }
               std.debug.print("{d}\n", .{acc});
@@ -210,7 +210,7 @@ jobs:
               var acc = 0L
               for (i in 0L until 1000L) {
                   for (j in 0L until 1_000_000L) {
-                      acc += (i * 1_000_003L + j * 97L) % 65_536L
+                      acc = (acc + (i * 1_000_003L + j * 97L) % 65_536L) % 65_521L
                   }
               }
               println(acc)
