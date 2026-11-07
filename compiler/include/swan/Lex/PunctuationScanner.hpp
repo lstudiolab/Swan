@@ -6,19 +6,24 @@ namespace swan {
 inline Token Lexer::scanPunctuation() {
     const auto line = line_;
     const auto column = column_;
-    const char character = peek();
-    const std::string pair{character, peek(1)};
-    if (pair == "->" || pair == "==" || pair == "!=" || pair == "<=" ||
-        pair == ">=" || pair == "&&" || pair == "||") {
-        advance(); advance();
-        return {pair, pair, line, column};
-    }
-    if (std::string_view("()[],:;.+-*/%=<>!").find(character) != std::string_view::npos) {
+    const char first = peek();
+    const char second = peek(1);
+    if ((first == '-' && second == '>') || (first == '=' && second == '=') ||
+        (first == '!' && second == '=') || (first == '<' && second == '=') ||
+        (first == '>' && second == '=') || (first == '&' && second == '&') ||
+        (first == '|' && second == '|')) {
+        const char pair[] = {first, second};
         advance();
-        const std::string value(1, character);
+        advance();
+        const std::string value(pair, 2);
+        return {value, value, line, column};
+    }
+    if (std::string_view("()[],:;.+-*/%=<>!").find(first) != std::string_view::npos) {
+        advance();
+        const std::string value(1, first);
         return {value, value, line, column};
     }
     fail({"", "", line, column},
-         std::string("unexpected character '") + character + "'");
+         std::string("unexpected character '") + first + "'");
 }
 } // namespace swan
