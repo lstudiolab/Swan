@@ -7,24 +7,23 @@ mkdir -p "$TMP"
 
 cat "$ROOT/stdlib/foundation.swan" > "$TMP/program.swan"
 cat >> "$TMP/program.swan" <<'SWAN'
-fn main() -> int {
-    echo("Foundation ready");
-    echo_int(abs_int(-9));
-    echo_float(average_int(4, 7));
-    echo_bool(is_even(12));
-    echo_bool(is_odd(9));
-    echo_int(min_int(8, 3));
-    echo_int(max_int(8, 3));
-    echo_int(clamp_int(15, 0, 10));
-    echo_int(sign_int(-20));
-    echo_int(square_int(5));
-    echo_int(cube_int(3));
-    echo_int(power_int(2, 8));
-    echo_int(factorial_int(5));
-    echo_int(sum_to_int(10));
-    echo_bool(in_range_int(5, 1, 9));
-    return 0;
-}
+fn main():
+    echo("Foundation ready")
+    echo_int(abs_int(-9))
+    echo_float(average_int(4, 7))
+    echo_bool(is_even(12))
+    echo_bool(is_odd(9))
+    echo_int(min_int(8, 3))
+    echo_int(max_int(8, 3))
+    echo_int(clamp_int(15, 0, 10))
+    echo_int(sign_int(-20))
+    echo_int(square_int(5))
+    echo_int(cube_int(3))
+    echo_int(power_int(2, 8))
+    echo_int(factorial_int(5))
+    echo_int(sum_to_int(10))
+    echo_bool(in_range_int(5, 1, 9))
+    return 0
 SWAN
 
 "$SWAN" "$TMP/program.swan" -o "$TMP/program.c"
