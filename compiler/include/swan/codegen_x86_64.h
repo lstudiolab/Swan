@@ -197,17 +197,18 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
  char symbol[SWAN_MAX_TEXT+16];if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
+ cg_save_volatile(o,l);
  if(!nested){
   int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);
   for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov %s, rax\n",regs[i]);}
-  text_add(o,"    call %s\n",symbol);cg_release(o,pad);return;
+  text_add(o,"    call %s\n",symbol);cg_release(o,pad);cg_restore_volatile(o,l);return;
  }
  int area=(int)(((e->argc*8+15)/16)*16);
  int pad=(16-((o->stack_depth+area)%16))%16;
  cg_reserve(o,area+pad);
  for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %d], rax\n",pad+(int)i*8);}
  for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
- text_add(o,"    call %s\n",symbol);cg_release(o,area+pad);
+ text_add(o,"    call %s\n",symbol);cg_release(o,area+pad);cg_restore_volatile(o,l);
 }
 static inline bool cg_const_value(Expr *e,int64_t *out){
  if(!e)return false;
