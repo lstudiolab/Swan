@@ -8,7 +8,7 @@ Run `sh test.sh` from the repository root. Requirements: C++20 compiler and a ho
 
 - Build: compile the Swan compiler without LLVM or Clang.
 - Header isolation: compile public headers independently.
-- Architecture: verify Swan-owned x86-64 assembly output, object generation, linking, execution, and explicit rejection of unimplemented targets.
+- Architecture: verify Swan-owned x86-64 and AArch64 assembly output, AArch64 GNU object generation, x86-64 linking/execution, and explicit rejection of unimplemented targets.
 - Smoke: exercise functions, local variables, nested control flow, strings, arrays, arithmetic, and source diagnostics.
 - Regressions: verify invalid source is rejected and semantic regressions remain covered.
 
