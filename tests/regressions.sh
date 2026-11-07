@@ -108,7 +108,7 @@ test "$("$TMP/nested-shadowing")" = "2
 printf 'PASS: nested symbol shadowing and scope restoration\\n'
 cat > "$TMP/escaped-string.swan" <<'SWAN'
 fn main() -> int {
-    log "line\\nquote\\\"slash\\\\";
+    log "line\nquote\"slash\\";
     return 0;
 }
 SWAN
