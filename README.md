@@ -34,6 +34,17 @@ Emit assembly without assembling or running:
 ./build/swan examples/hello.swan --emit-asm -o hello.s
 ~~~
 
+## Arrays
+
+The x86-64 backend supports contiguous 32-bit unsigned integer arrays:
+
+- `array_u32(length)` allocates a zero-initialized array with bounds-checked indexing.
+- `array_u32_unchecked(length)` allocates the same contiguous storage without per-access bounds checks for performance-critical code.
+- Read an element with `values[index]` and write with `values[index] = value`.
+- Array allocation uses the system C allocator; the operating system reclaims the memory when the process exits.
+
+The one-billion-element native sorting workload is in `benchmarks/sort_1b.swan`. It uses approximately 4 GB for the array and performs generation, in-place heapsort, and an orderedness verification pass. It is intentionally not run in ordinary CI because it requires substantial memory and execution time; CI compiles and links it and runs a small heapsort correctness test.
+
 ## Translation-unit policy
 
 - Exactly one compiled source file: \`main.c\`.
