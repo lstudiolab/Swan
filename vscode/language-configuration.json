@@ -1,15 +1,15 @@
 {
   "comments": { "lineComment": "#" },
-  "brackets": [["(", ")"], ["[", "]"], ["{", "}"]],
+  "brackets": [["(", ")"], ["[", "]"]],
   "autoClosingPairs": [
-    ["(", ")"], ["[", "]"], ["{", "}"], ["\"", "\""], ["'", "'"]
+    ["(", ")"], ["[", "]"], ["\"", "\""], ["'", "'"]
   ],
   "surroundingPairs": [
-    ["(", ")"], ["[", "]"], ["{", "}"], ["\"", "\""], ["'", "'"]
+    ["(", ")"], ["[", "]"], ["\"", "\""], ["'", "'"]
   ],
   "indentationRules": {
-    "increaseIndentPattern": "^.*\\{\\s*$",
-    "decreaseIndentPattern": "^\\s*\\}.*$"
+    "increaseIndentPattern": "^\\s*(fn\\b.*:|if\\b.*|else\\s*|while\\b.*|struct\\b.*:|for\\b.*|loop\\b.*)$",
+    "decreaseIndentPattern": "^\\s*(else\\b.*)?$"
   },
   "wordPattern": "[A-Za-z_][A-Za-z0-9_]*"
 }
