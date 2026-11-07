@@ -13,7 +13,8 @@ inline std::string CGenerator::cType(const std::string& type) const { return map
 inline std::string CGenerator::quote(const std::string& value) const { return escapeCString(value); }
 
 inline std::string CGenerator::generate() {
-    output_ << "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
+    output_.reserve(std::max<std::size_t>(4096, program_.size() * 96));
+    output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
     std::vector<StmtPtr> structures;
     structures.reserve(program_.size());
     functions_.reserve(program_.size());
@@ -68,6 +69,6 @@ inline std::string CGenerator::generate() {
     }
     line();
     for (const auto& node : program_) if (node->kind == Stmt::Kind::Function) function(node);
-    return output_.str();
+    return std::move(output_);
 }
 }
