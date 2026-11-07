@@ -22,6 +22,7 @@ class LLVMIRGenerator {
     std::vector<std::pair<std::string, std::string>> loops_;
     unsigned temp_ = 0, label_ = 0, string_ = 0;
     bool terminated_ = false;
+    std::string sizeType_ = "i64";
     std::unordered_map<std::string, std::string> strings_;
 
     static std::string ty(const std::string& t) {
@@ -147,8 +148,8 @@ class LLVMIRGenerator {
         }
         case Expr::Kind::Call: {
             if (e->left->token.value == "array") {
-                auto n = cast(emitExpr(e->arguments.at(0).get()), "i64");
-                auto r = tmp(); line(r + " = call ptr @calloc(i64 " + n.value + ", i64 8)");
+                auto n = cast(emitExpr(e->arguments.at(0).get()), sizeType_);
+                auto r = tmp(); line(r + " = call ptr @calloc(" + sizeType_ + " " + n.value + ", " + sizeType_ + " 8)");
                 return {"ptr", r};
             }
             const Stmt* fn = nullptr;
@@ -263,10 +264,29 @@ class LLVMIRGenerator {
         scopes_.pop_back();
         return done;
     }
+    void validateStructs() const {
+        std::unordered_map<std::string, const Stmt*> structures;
+        std::unordered_map<std::string, unsigned char> marks;
+        for (const auto& node : program_)
+            if (node->kind == Stmt::Kind::Struct) structures.emplace(node->name, node.get());
+        const auto visit = [&](const auto& self, const Stmt* structure) -> void {
+            auto& mark = marks[structure->name];
+            if (mark == 2) return;
+            if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
+            mark = 1;
+            for (const auto& field : structure->fields) {
+                auto found = structures.find(field.type);
+                if (found != structures.end()) self(self, found->second);
+            }
+            mark = 2;
+        };
+        for (const auto& entry : structures) visit(visit, entry.second);
+    }
     std::string currentReturn_;
 public:
-    explicit LLVMIRGenerator(const Program& p) : program_(p) {}
+    explicit LLVMIRGenerator(const Program& p, bool size32 = false) : program_(p), sizeType_(size32 ? "i32" : "i64") {}
     std::string generate() {
+        validateStructs();
         out_ = "source_filename = \"swan\"\n";
         for (const auto& s : program_) if (s->kind == Stmt::Kind::Struct) {
             out_ += "%swan." + s->name + " = type { ";
