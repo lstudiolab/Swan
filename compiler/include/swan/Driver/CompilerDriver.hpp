@@ -22,7 +22,7 @@ inline std::string shellQuote(const std::string& value) {
 #ifdef _WIN32
     std::string quoted = "\"";
     for (char character : value) {
-        if (character == '\"') quoted += '\\';
+        if (character == '\"') quoted += '\\\\';
         quoted += character;
     }
     return quoted + "\"";
@@ -56,20 +56,20 @@ inline std::filesystem::path temporaryPath(const std::string& extension) {
 inline int compileNative(const std::string& generated,
                          const std::filesystem::path& output,
                          bool execute) {
-    const auto cFile = temporaryPath(".c");
+    const auto assemblyFile = temporaryPath(".s");
     struct Cleanup {
         std::filesystem::path path;
         ~Cleanup() { std::error_code error; std::filesystem::remove(path, error); }
-    } cleanup{cFile};
+    } cleanup{assemblyFile};
 
-    if (!writeTextFile(cFile, generated))
-        throw CompileError("cannot write temporary C source");
+    if (!writeTextFile(assemblyFile, generated))
+        throw CompileError("cannot write temporary assembly source");
 
     const char* configuredCompiler = std::getenv("CC");
     const std::string cCompiler = configuredCompiler && *configuredCompiler
         ? configuredCompiler : "cc";
-    const std::string command = shellQuote(cCompiler) + " -std=c11 -O2 " +
-        shellQuote(cFile.string()) + " -o " + shellQuote(output.string());
+    const std::string command = shellQuote(cCompiler) + " -x assembler " +
+        shellQuote(assemblyFile.string()) + " -o " + shellQuote(output.string());
     const int compileStatus = processExitCode(std::system(command.c_str()));
     if (compileStatus != 0) {
         std::error_code error;
@@ -113,9 +113,9 @@ inline int runCompiler(int argc, char** argv) {
             throw CompileError("cannot open '" + options.input.string() + "'");
 
         const std::string generated = Compiler().compile(source);
-        if (options.emitC || (options.hasOutput && options.output.extension() == ".c")) {
+        if (options.emitAssembly || (options.hasOutput && options.output.extension() == ".s")) {
             const auto output = options.hasOutput ? options.output
-                : std::filesystem::path(options.input.stem().string() + ".c");
+                : std::filesystem::path(options.input.stem().string() + ".s");
             if (!writeTextFile(output, generated))
                 throw CompileError("cannot write '" + output.string() + "'");
             return 0;
