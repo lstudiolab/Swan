@@ -216,14 +216,19 @@ fn main():
     let e = 5
     let f = 6
     let g = 7
+    let h = 8
+    let i = 9
+    let modulo = 194 % 97
     log answer()
-    log f + g
+    log f + g + h + i
+    log modulo
     return 0
 SWAN
 "$SWAN" "$TMP/caller-saved-locals.swan" -o "$TMP/caller-saved-locals.s"
 ${CC:-cc} -x assembler "$TMP/caller-saved-locals.s" -o "$TMP/caller-saved-locals"
 test "$("$TMP/caller-saved-locals")" = "10
-13"
+30
+0"
 printf 'PASS: caller-saved local registers survive calls\n'
 
 # Binary search exercises allocation, indexed memory, arithmetic, and nested control flow.
