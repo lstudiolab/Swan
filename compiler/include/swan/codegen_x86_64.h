@@ -272,7 +272,30 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     }
    }
   }
-  emit_expr(o,e->left,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n");cg_pop(o,"rax");
+  if(e->right&&e->right->kind==E_NAME){
+   Local *right=local_find(l,e->right->token.text);
+   if(right){
+    emit_expr(o,e->left,l,err);
+    const char *src=right->reg>=0?cg_reg_name(right->reg):NULL;
+    char memory[64];if(!src){snprintf(memory,sizeof(memory),"QWORD PTR [rbp - %d]",right->slot*8);src=memory;}
+    switch(e->token.kind){
+     case T_PLUS:text_add(o,"    add rax, %s\\n",src);break;
+     case T_MINUS:text_add(o,"    sub rax, %s\\n",src);break;
+     case T_STAR:text_add(o,"    imul rax, %s\\n",src);break;
+     case T_SLASH:case T_FLOORDIV:case T_PERCENT:
+      text_add(o,"    mov rcx, %s\\n    cqo\\n    idiv rcx\\n",src);
+      if(e->token.kind==T_PERCENT)text_add(o,"    mov rax, rdx\\n");break;
+     case T_EQ:case T_NE:case T_LT:case T_GT:case T_LE:case T_GE:{
+      const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
+      text_add(o,"    cmp rax, %s\\n    %s al\\n    movzx rax, al\\n",src,cc);break;
+     }
+     default:goto cg_generic_binary;
+    }
+    break;
+   }
+  }
+ cg_generic_binary:
+  emit_expr(o,e->left,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\\n");cg_pop(o,"rax");
   switch(e->token.kind){
    case T_PLUS:text_add(o,"    add rax, rcx\n");break;
    case T_MINUS:text_add(o,"    sub rax, rcx\n");break;
