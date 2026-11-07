@@ -67,6 +67,29 @@ private:
 
     static int align16(int value) { return (value + 15) & ~15; }
 
+    void validateStructs() const {
+        std::unordered_map<std::string_view, const Stmt*> structures;
+        std::unordered_map<std::string_view, unsigned char> marks;
+        structures.reserve(program_.size());
+        marks.reserve(program_.size());
+        for (const auto& node : program_)
+            if (node->kind == Stmt::Kind::Struct)
+                structures.emplace(node->name, node.get());
+        const auto visit = [&](const auto& self, const Stmt* structure) -> void {
+            auto& mark = marks[structure->name];
+            if (mark == 2) return;
+            if (mark == 1)
+                throw CompileError("struct value cycle involving '" + structure->name + "'");
+            mark = 1;
+            for (const auto& field : structure->fields) {
+                const auto dependency = structures.find(field.type);
+                if (dependency != structures.end()) self(self, dependency->second);
+            }
+            mark = 2;
+        };
+        for (const auto& entry : structures) visit(visit, entry.second);
+    }
+
     std::string label(const char* prefix) {
         return std::string(".L") + prefix + std::to_string(next_label_++);
     }
