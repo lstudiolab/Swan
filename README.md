@@ -19,9 +19,9 @@ Supported assembly targets:
 
 ## Current C migration status
 
-The C11 compiler is active in `compiler-c/swan.c`. The active C11 compiler supports `fn main()`, string `log`, integer-literal `return`, `pass`, and bounded `for name in 0..LIMIT` range loops. Range-loop bodies currently support string `log` statements. It emits target-specific assembly for x86-64, AArch64, and ARMv7. Native executable creation uses `CC` (default `cc`).
+The C11 compiler is active in `compiler-c/swan.c`. It supports `fn main()`, string and loop-variable `log`, integer-literal `return`, `pass`, nested ascending `for name in START..END` ranges (exclusive end), and `break`/`continue` within nested loops. Loop counters are stored in stack slots, so nested iterations and calls do not overwrite counter state. It emits target-specific assembly for x86-64, AArch64, and ARMv7. Native executable creation uses `CC` (default `cc`).
 
-The previous C++ compiler and its frontend remain in the repository as migration reference material, but are no longer part of `build.sh` or CI. The language frontend and backend are not yet fully ported: general variables, expressions, user-defined functions, nested loops, broader control flow, semantic analysis, and the standard library are pending. Unsupported syntax is rejected rather than silently ignored.
+The previous C++ compiler and its frontend remain in the repository as migration reference material, but are no longer part of `build.sh` or CI. The language frontend and backend are not yet fully ported: general variables, expressions, user-defined functions, `if`/`while`, semantic analysis, and the standard library are pending. Unsupported syntax is rejected rather than silently ignored.
 
 ## Tests
 
