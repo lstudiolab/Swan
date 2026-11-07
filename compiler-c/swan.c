@@ -88,7 +88,7 @@ static int emit_source(const char *source,Target t,Buffer *out){
             have_main=1;in_main=1;
             if(t==X86_64)append(out,".text\n.globl main\n.type main, @function\nmain:\n  push rbp\n  mov rbp, rsp\n  push r12\n  sub rsp, 8\n");
             else if(t==AARCH64)append(out,".text\n.global main\n.type main, %function\nmain:\n  stp x29, x30, [sp, #-16]!\n  mov x29, sp\n  stp x19, x20, [sp, #-16]!\n");
-            else append(out,".text\n.global main\n.type main, %function\nmain:\n  push {r4, fp, lr}\n  mov fp, sp\n");
+            else append(out,".text\n.global main\n.type main, %function\nmain:\n  push {r4, r5, fp, lr}\n  mov fp, sp\n");
             continue;
         }
         if(!in_main)continue;
@@ -154,7 +154,7 @@ static int emit_source(const char *source,Target t,Buffer *out){
     }
     if(t==X86_64)append(out,"  add rsp, 8\n  pop r12\n  leave\n  ret\n.size main, .-main\n.section .note.GNU-stack,\"\",@progbits\n");
     else if(t==AARCH64)append(out,"  ldp x19, x20, [sp], #16\n  ldp x29, x30, [sp], #16\n  ret\n.size main, .-main\n");
-    else append(out,"  pop {r4, fp, pc}\n.size main, .-main\n");
+    else append(out,"  pop {r4, r5, fp, pc}\n.size main, .-main\n");
     if(strings.data){
         Buffer merged={0};append(&merged,header);append(&merged,strings.data);append(&merged,out->data+strlen(header));
         free(out->data);*out=merged;
