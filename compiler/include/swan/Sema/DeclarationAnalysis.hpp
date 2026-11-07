@@ -1,6 +1,7 @@
 #pragma once
 #include "swan/Sema/Sema.hpp"
 #include <string>
+#include <string_view>
 #include <utility>
 namespace swan {
 inline void Sema::analyze() {
@@ -15,7 +16,7 @@ inline void Sema::analyze() {
     }
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
-            std::unordered_set<std::string> names;
+            std::unordered_set<std::string_view> names;
             names.reserve(node->fields.size());
             for (const auto& field : node->fields) {
                 if (!types_.contains(field.type)) fail(field.token,"unknown field type '" + field.type + "'");
