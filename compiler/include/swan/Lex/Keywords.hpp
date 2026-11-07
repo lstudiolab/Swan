@@ -1,90 +1,101 @@
 #pragma once
-#include <array>
 #include <string_view>
 
 namespace swan {
-inline constexpr std::array<std::string_view, 48> keywordTable = {
-    "and", "as", "async", "await", "bool", "break", "case", "class",
-    "clone", "const", "continue", "deinit", "else", "enum", "export",
-    "false", "float", "fn", "for", "get", "hold", "if", "import", "init",
-    "int", "let", "log", "loop", "none", "not", "operate", "or", "pass", "private",
-    "public", "range", "release", "return", "self", "store", "string", "struct",
-    "sync", "true", "type", "var", "void", "while"
-};
-
 inline std::string_view keywordKind(std::string_view value) noexcept {
     if (value.empty()) return "IDENT";
 
     switch (value.front()) {
         case 'a':
-            if (value == "and" || value == "as" || value == "async" ||
-                value == "await") return value;
+            if (value == "and") return "and";
+            if (value == "as") return "as";
+            if (value == "async") return "async";
+            if (value == "await") return "await";
             break;
         case 'b':
-            if (value == "bool" || value == "break") return value;
+            if (value == "bool") return "bool";
+            if (value == "break") return "break";
             break;
         case 'c':
-            if (value == "case" || value == "class" || value == "clone" ||
-                value == "const" || value == "continue") return value;
+            if (value == "case") return "case";
+            if (value == "class") return "class";
+            if (value == "clone") return "clone";
+            if (value == "const") return "const";
+            if (value == "continue") return "continue";
             break;
         case 'd':
-            if (value == "deinit") return value;
+            if (value == "deinit") return "deinit";
             break;
         case 'e':
-            if (value == "else" || value == "enum" || value == "export")
-                return value;
+            if (value == "else") return "else";
+            if (value == "enum") return "enum";
+            if (value == "export") return "export";
             break;
         case 'f':
-            if (value == "false" || value == "float" || value == "fn" ||
-                value == "for") return value;
+            if (value == "false") return "false";
+            if (value == "float") return "float";
+            if (value == "fn") return "fn";
+            if (value == "for") return "for";
             break;
         case 'g':
-            if (value == "get") return value;
+            if (value == "get") return "get";
             break;
         case 'h':
-            if (value == "hold") return value;
+            if (value == "hold") return "hold";
             break;
         case 'i':
-            if (value == "if" || value == "import" || value == "init" ||
-                value == "int") return value;
+            if (value == "if") return "if";
+            if (value == "import") return "import";
+            if (value == "init") return "init";
+            if (value == "int") return "int";
             break;
         case 'l':
-            if (value == "let" || value == "log" || value == "loop")
-                return value;
+            if (value == "let") return "let";
+            if (value == "log") return "log";
+            if (value == "loop") return "loop";
             break;
         case 'n':
-            if (value == "none" || value == "not") return value;
+            if (value == "none") return "none";
+            if (value == "not") return "not";
             break;
         case 'o':
-            if (value == "operate" || value == "or") return value;
+            if (value == "operate") return "operate";
+            if (value == "or") return "or";
             break;
         case 'p':
-            if (value == "pass" || value == "private" || value == "public")
-                return value;
+            if (value == "pass") return "pass";
+            if (value == "private") return "private";
+            if (value == "public") return "public";
             break;
         case 'r':
-            if (value == "range" || value == "release" || value == "return")
-                return value;
+            if (value == "range") return "range";
+            if (value == "release") return "release";
+            if (value == "return") return "return";
             break;
         case 's':
-            if (value == "self" || value == "store" || value == "string" ||
-                value == "struct" || value == "sync") return value;
+            if (value == "self") return "self";
+            if (value == "store") return "store";
+            if (value == "string") return "string";
+            if (value == "struct") return "struct";
+            if (value == "sync") return "sync";
             break;
         case 't':
-            if (value == "true" || value == "type") return value;
+            if (value == "true") return "true";
+            if (value == "type") return "type";
             break;
         case 'v':
-            if (value == "var" || value == "void") return value;
+            if (value == "var") return "var";
+            if (value == "void") return "void";
             break;
         case 'w':
-            if (value == "while") return value;
+            if (value == "while") return "while";
             break;
     }
 
     return "IDENT";
 }
 
-inline bool isKeyword(std::string_view value) {
+inline bool isKeyword(std::string_view value) noexcept {
     return keywordKind(value) != "IDENT";
 }
 } // namespace swan
