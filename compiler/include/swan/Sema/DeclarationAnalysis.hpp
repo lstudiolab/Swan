@@ -29,16 +29,22 @@ inline void Sema::analyze() {
 }
 
 inline void Sema::analyzeFunction(const StmtPtr& function) {
-    scopes_.clear(); scopes_.emplace_back();
-    scopes_.back().reserve(function->parameters.size());
+    scopes_.clear();
+    active_symbols_.clear();
+    scopes_.emplace_back();
+    scopes_.back().declarations.reserve(function->parameters.size());
+    scopes_.back().shadowed.reserve(function->parameters.size());
+    active_symbols_.reserve(function->parameters.size());
     return_type_ = function->return_type;
     if (!types_.contains(return_type_)) fail(function->token,"unknown return type '" + return_type_ + "'");
     for (const auto& parameter : function->parameters) {
         if (parameter.type.empty()) fail(parameter.token,"parameter '" + parameter.name + "' requires a type");
         if (!types_.contains(parameter.type)) fail(parameter.token,"unknown parameter type '" + parameter.type + "'");
         if (parameter.type == "void") fail(parameter.token,"parameters cannot have type void");
-        if (!scopes_.back().emplace(parameter.name,std::pair{parameter.type,false}).second)
-            fail(parameter.token,"duplicate parameter '" + parameter.name + "'");
+        auto [symbol, inserted] = scopes_.back().declarations.emplace(
+            parameter.name, Symbol{parameter.type, false});
+        if (!inserted) fail(parameter.token,"duplicate parameter '" + parameter.name + "'");
+        active_symbols_.emplace(parameter.name, &symbol->second);
     }
     loop_depth_ = 0;
     analyzeBlock(function->body);
