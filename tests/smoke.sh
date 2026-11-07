@@ -10,8 +10,8 @@ fn main():
     log "Hello"
     return 0
 SWAN
-"$SWAN" "$TMP/hello.swan" -o "$TMP/hello.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/hello.c" -o "$TMP/hello"
+"$SWAN" "$TMP/hello.swan" -o "$TMP/hello.s"
+${CC:-cc} -x assembler "$TMP/hello.s" -o "$TMP/hello"
 test "$("$TMP/hello")" = "Hello"
 printf 'PASS: indentation-based hello program\n'
 
@@ -26,8 +26,8 @@ fn main():
         x = x + 1
     return 0
 SWAN
-"$SWAN" "$TMP/control.swan" -o "$TMP/control.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/control.c" -o "$TMP/control"
+"$SWAN" "$TMP/control.swan" -o "$TMP/control.s"
+${CC:-cc} -x assembler "$TMP/control.s" -o "$TMP/control"
 test "$("$TMP/control")" = "0
 1
 0"
@@ -43,8 +43,8 @@ fn main():
     log "outer block closed"
     return 0
 SWAN
-"$SWAN" "$TMP/multi-dedent.swan" -o "$TMP/multi-dedent.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/multi-dedent.c" -o "$TMP/multi-dedent"
+"$SWAN" "$TMP/multi-dedent.swan" -o "$TMP/multi-dedent.s"
+${CC:-cc} -x assembler "$TMP/multi-dedent.s" -o "$TMP/multi-dedent"
 test "$("$TMP/multi-dedent")" = "inner blocks closed together
 outer block closed"
 printf 'PASS: one dedent closes multiple nested blocks\n'
@@ -56,8 +56,8 @@ fn main():
     log answer()
     return 0
 SWAN
-"$SWAN" "$TMP/functions.swan" -o "$TMP/functions.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/functions.c" -o "$TMP/functions"
+"$SWAN" "$TMP/functions.swan" -o "$TMP/functions.s"
+${CC:-cc} -x assembler "$TMP/functions.s" -o "$TMP/functions"
 test "$("$TMP/functions")" = "42"
 printf 'PASS: inferred integer return type and inline helper emission\n'
 
@@ -67,8 +67,8 @@ fn main():
     log large
     return 0
 SWAN
-"$SWAN" "$TMP/int64.swan" -o "$TMP/int64.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/int64.c" -o "$TMP/int64"
+"$SWAN" "$TMP/int64.swan" -o "$TMP/int64.s"
+${CC:-cc} -x assembler "$TMP/int64.s" -o "$TMP/int64"
 test "$("$TMP/int64")" = "3000000000"
 printf 'PASS: 64-bit integer lowering\n'
 
@@ -79,8 +79,8 @@ struct Point:
 fn main():
     return 0
 SWAN
-"$SWAN" "$TMP/structs.swan" -o "$TMP/structs.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/structs.c" -o "$TMP/structs"
+"$SWAN" "$TMP/structs.swan" -o "$TMP/structs.s"
+${CC:-cc} -x assembler "$TMP/structs.s" -o "$TMP/structs"
 printf 'PASS: indented struct declarations\n'
 
 cat > "$TMP/invalid.swan" <<'SWAN'
@@ -88,7 +88,7 @@ fn main():
     log missing
     return 0
 SWAN
-if "$SWAN" "$TMP/invalid.swan" -o "$TMP/invalid.c" 2>/dev/null; then
+if "$SWAN" "$TMP/invalid.swan" -o "$TMP/invalid.s" 2>/dev/null; then
   echo 'FAIL: semantic error accepted' >&2
   exit 1
 fi
@@ -99,7 +99,7 @@ fn main():
     log missing
     return 0
 SWAN
-if "$SWAN" "$TMP/identifier-location.swan" -o "$TMP/identifier-location.c" 2>"$TMP/identifier-location.err"; then
+if "$SWAN" "$TMP/identifier-location.swan" -o "$TMP/identifier-location.s" 2>"$TMP/identifier-location.err"; then
   echo 'FAIL: unknown identifier accepted' >&2
   exit 1
 fi
@@ -113,21 +113,21 @@ fn main():
         log "keyword operators preserved"
     return 0
 SWAN
-"$SWAN" "$TMP/keyword-operators.swan" -o "$TMP/keyword-operators.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/keyword-operators.c" -o "$TMP/keyword-operators"
+"$SWAN" "$TMP/keyword-operators.swan" -o "$TMP/keyword-operators.s"
+${CC:-cc} -x assembler "$TMP/keyword-operators.s" -o "$TMP/keyword-operators"
 test "$("$TMP/keyword-operators")" = "keyword operators preserved"
 printf 'PASS: keyword operators and primitive types\n'
 
 # Tabs count as four indentation columns while occupying one source column.
 printf 'fn main():\n\tlog "tab indentation"\n\treturn 0\n' > "$TMP/tabs.swan"
-"$SWAN" "$TMP/tabs.swan" -o "$TMP/tabs.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/tabs.c" -o "$TMP/tabs"
+"$SWAN" "$TMP/tabs.swan" -o "$TMP/tabs.s"
+${CC:-cc} -x assembler "$TMP/tabs.s" -o "$TMP/tabs"
 test "$("$TMP/tabs")" = "tab indentation"
 printf 'PASS: tab indentation width and source scanning\n'
 
 # A dedent must match an existing indentation level exactly.
 printf 'fn main():\n    if true\n        log "nested"\n      log "invalid"\n' > "$TMP/bad-indent.swan"
-if "$SWAN" "$TMP/bad-indent.swan" -o "$TMP/bad-indent.c" 2>/dev/null; then
+if "$SWAN" "$TMP/bad-indent.swan" -o "$TMP/bad-indent.s" 2>/dev/null; then
   echo 'FAIL: inconsistent indentation accepted' >&2
   exit 1
 fi
@@ -138,8 +138,8 @@ fn main():
     log "quote: \" slash: \\ newline:\n tab:\t"
     return 0
 SWAN
-"$SWAN" "$TMP/string-escapes.swan" -o "$TMP/string-escapes.c"
-${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/string-escapes.c" -o "$TMP/string-escapes"
+"$SWAN" "$TMP/string-escapes.swan" -o "$TMP/string-escapes.s"
+${CC:-cc} -x assembler "$TMP/string-escapes.s" -o "$TMP/string-escapes"
 expected=$(printf 'quote: " slash: \\ newline:\n tab:\t')
 test "$("$TMP/string-escapes")" = "$expected"
 printf 'PASS: direct C string escaping preserves special characters\n'
