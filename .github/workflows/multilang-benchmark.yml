@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - "compiler-c/**"
+      - "compiler/**"
       - "build.sh"
       - "benchmarks/multilang.py"
       - ".github/workflows/multilang-benchmark.yml"
@@ -30,7 +30,7 @@ jobs:
       - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential cmake gobjc libobjc-12-dev python3 time
+          sudo apt-get install -y --no-install-recommends build-essential cmake clang lld gobjc libobjc-12-dev python3 time
       - name: Build Swan
         working-directory: swan
         run: sh build.sh
