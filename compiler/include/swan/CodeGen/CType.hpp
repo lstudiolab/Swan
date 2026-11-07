@@ -2,6 +2,7 @@
 #include "swan/Basic/Diagnostic.hpp"
 #include <string>
 #include <string_view>
+#include <functional>
 #include <unordered_set>
 
 namespace swan {
@@ -10,14 +11,22 @@ inline std::string cVariableName(const std::string& name) { return "swan_var_" +
 inline std::string cFieldName(const std::string& name) { return "swan_field_" + name; }
 inline std::string cFunctionName(const std::string& name) { return name == "main" ? "main" : "swan_fn_" + name; }
 
+struct TransparentStringHash {
+    using is_transparent = void;
+    std::size_t operator()(std::string_view value) const noexcept {
+        return std::hash<std::string_view>{}(value);
+    }
+};
+using StructureSet = std::unordered_set<std::string, TransparentStringHash, std::equal_to<>>;
+
 inline void appendMappedCType(std::string& output, std::string_view type,
-                              const std::unordered_set<std::string>& structures) {
+                              const StructureSet& structures) {
     if (type == "int") output += "int";
     else if (type == "float") output += "double";
     else if (type == "bool") output += "bool";
     else if (type == "string") output += "const char *";
     else if (type == "void") output += "void";
-    else if (structures.contains(std::string(type))) {
+    else if (structures.contains(type)) {
         output += "swan_type_";
         output.append(type);
     } else {
@@ -25,7 +34,7 @@ inline void appendMappedCType(std::string& output, std::string_view type,
     }
 }
 
-inline std::string mapCType(const std::string& type, const std::unordered_set<std::string>& structures) {
+inline std::string mapCType(const std::string& type, const StructureSet& structures) {
     std::string result;
     result.reserve(type.size() + 8);
     appendMappedCType(result, type, structures);
