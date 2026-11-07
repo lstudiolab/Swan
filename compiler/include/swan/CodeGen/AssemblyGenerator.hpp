@@ -612,9 +612,9 @@ private:
         emit("    movabs r10, " + std::to_string(magic));
         emit("    mul r10");
         emit("    movabs r10, " + std::to_string(divisor));
-        emit("    imul rax, rdx, r10");
+        emit("    imul rdx, r10");
         popRcx();
-        emit("    sub rcx, rax");
+        emit("    sub rcx, rdx");
         emit("    cmp rcx, r10");
         emit("    jb " + done);
         emit("    sub rcx, r10");
