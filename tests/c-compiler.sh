@@ -59,6 +59,15 @@ test "$(grep -c '^nested$' "$TMP/loops.out")" = "6"
 test "$(grep -c 'must-not-print' "$TMP/loops.out" || true)" = "0"
 "$SWAN" "$TMP/loops.swan" --target x86_64 --emit-asm -o "$TMP/loops-x86_64.s"
 grep -q 'jge .Lswan_end_' "$TMP/loops-x86_64.s"
+cat > "$TMP/deep-loops.swan" <<'SWAN'
+fn main():
+    for a in 0..2
+        for b in 0..2
+            for c in 0..2
+                log "deep"
+SWAN
+"$SWAN" build "$TMP/deep-loops.swan" --target native -o "$TMP/deep-loops"
+test "$("$TMP/deep-loops" | wc -l | tr -d ' ')" = "8"
 "$SWAN" "$TMP/loops.swan" --target aarch64 --emit-asm -o "$TMP/loops-aarch64.s"
 grep -q 'b.ge .Lswan_end_' "$TMP/loops-aarch64.s"
 "$SWAN" "$TMP/loops.swan" --target armv7 --emit-asm -o "$TMP/loops-armv7.s"
