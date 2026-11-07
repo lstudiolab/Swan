@@ -48,12 +48,16 @@ This compiles the single `main.cpp` translation unit, using the stage headers, a
 ## Use
 
 ```sh
-./build/swan examples/hello.swan -o hello.c
-clang -std=c11 -O1 hello.c -o hello
+sh compile.sh examples/hello.swan hello
 ./hello
 ```
 
-Swan itself emits C source. It does not invoke the C compiler. For native builds, `-O1` is the recommended fast-compile setting: benchmarked runtime was effectively identical to `-O2` while backend compilation was slightly faster. Use `-O2` when you prefer the compiler's more aggressive optimization pass set.
+`compile.sh` runs the Swan frontend, then compiles the generated C with Clang at `-O1` by default. This is the measured fast-build setting: runtime was effectively identical to `-O2` while backend compilation was slightly faster. Set `SWAN_OPT_LEVEL=2` when you prefer more aggressive optimization, or use the lower-level workflow below to inspect the generated C:
+
+```sh
+./build/swan examples/hello.swan -o hello.c
+clang -std=c11 -O1 hello.c -o hello
+```
 
 ## Install
 
