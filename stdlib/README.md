@@ -4,47 +4,28 @@ The standard library is written in Swan wherever the current language can expres
 
 ## Foundation
 
-`foundation.swan` is the first standard-library module. It currently provides these implemented functions:
+foundation.swan is the first standard-library module. It provides echo, echo_int, echo_float, echo_bool; integer helpers abs_int, min_int, max_int, clamp_int, sign_int, square_int, cube_int, power_int, factorial_int, sum_to_int, average_int; and predicates is_even, is_odd, in_range_int.
 
-### Output
-- `echo(message: string) -> void`
-- `echo_int(value: int) -> void`
-- `echo_float(value: float) -> void`
-- `echo_bool(value: bool) -> void` (prints `1` for true and `0` for false)
-
-### Integer arithmetic
-- `abs_int(value: int) -> int`
-- `min_int(left: int, right: int) -> int`
-- `max_int(left: int, right: int) -> int`
-- `clamp_int(value: int, lower: int, upper: int) -> int`
-- `sign_int(value: int) -> int` (returns -1, 0, or 1)
-- `square_int(value: int) -> int`
-- `cube_int(value: int) -> int`
-- `power_int(base: int, exponent: int) -> int` (negative exponents return 0)
-- `factorial_int(value: int) -> int` (negative inputs return 0)
-- `sum_to_int(value: int) -> int` (sums 1 through value; values below 1 return 0)
-- `average_int(left: int, right: int) -> float`
-
-### Integer predicates
-- `is_even(value: int) -> bool`
-- `is_odd(value: int) -> bool`
-- `in_range_int(value: int, lower: int, upper: int) -> bool` (inclusive bounds)
-
-These are actual Swan function bodies, not compiler-provided placeholders. They compile into ordinary C functions and can call one another.
+These are actual Swan function bodies, not compiler-provided placeholders. Boolean output currently prints 1 for true and 0 for false. Negative power exponents and negative factorial inputs return 0.
 
 ## Example
 
-Until module resolution is implemented, combine the library and application source:
+    fn main():
+        echo("Foundation ready")
+        echo_int(square_int(5))
+        return 0
 
-```sh
-cat stdlib/foundation.swan main.swan > combined.swan
-./build/swan combined.swan -o combined.c
-cc -std=c11 combined.c -o combined
-./combined
-```
+Swan blocks use indentation; no curly braces or end keyword are used.
 
-The compiler parses `import` syntax, but module resolution and linking are not implemented yet. Therefore `import foundation` is not supported. This source-composition workflow is temporary.
+Until module resolution is implemented, combine library and application source:
+
+    cat stdlib/foundation.swan main.swan > combined.swan
+    ./build/swan combined.swan -o combined.c
+    cc -std=c11 combined.c -o combined
+    ./combined
+
+The compiler parses import syntax, but module resolution and linking are not implemented. Therefore import foundation is not supported.
 
 ## Current limitations
 
-Foundation intentionally stays within Swan's implemented language features. String length/manipulation, input, files, networking, random numbers, and platform APIs need additional string/runtime/compiler support and are not claimed as available here. Integer overflow follows the generated C integer behavior; callers should keep arithmetic within the supported integer range.
+String manipulation, input, files, networking, random numbers, and platform APIs need additional runtime/compiler support. Integer overflow follows generated C integer behavior.
