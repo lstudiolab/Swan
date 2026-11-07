@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""20M-element, 20M-query native binary-search benchmark with checksum checks."""
+"""20M-element, 20M-query zero-initialized binary-search benchmark with checksum checks."""
 from __future__ import annotations
 import json, os, pathlib, statistics, subprocess, tempfile, time
 
@@ -17,7 +17,7 @@ C = r"""
 #include <stdlib.h>
 #define N 20000000LL
 int main(void) {
- int64_t *a = malloc((size_t)N * sizeof(*a)); if (!a) return 2;
+ int64_t *a = calloc((size_t)N, sizeof(*a)); if (!a) return 2;
  for (int64_t i=0;i<N;i++) a[i]=i;
  int64_t sum=0;
  for (int64_t q=0;q<N;q++) {
