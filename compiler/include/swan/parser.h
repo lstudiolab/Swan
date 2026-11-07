@@ -1,15 +1,15 @@
 #ifndef SWAN_PARSER_H
 #define SWAN_PARSER_H
 #include "swan/lexer.h"
-typedef struct { TokenStream *ts; SwanError *err; bool failed; } Parser;
+typedef struct { TokenStream *ts; Program *program; SwanError *err; bool failed; } Parser;
 static inline Token *pk(Parser *p){return &p->ts->items[p->ts->pos<p->ts->count?p->ts->pos:p->ts->count-1];}
 static inline bool is(Parser *p,TokenKind k){return pk(p)->kind==k;}
 static inline Token take(Parser *p){Token t=*pk(p);if(t.kind!=T_EOF)p->ts->pos++;return t;}
 static inline bool eat(Parser *p,TokenKind k){if(!is(p,k))return false;take(p);return true;}
 static inline bool need(Parser *p,TokenKind k,const char *message){if(eat(p,k))return true;swan_error(p->err,pk(p),"%s",message);p->failed=true;return false;}
 static inline void separators(Parser *p){while(eat(p,T_NEWLINE)||eat(p,T_SEMI)){}}
-static inline Expr *new_expr(Parser *p,ExprKind k,Token t){Expr *e=calloc(1,sizeof(*e));if(!e){swan_error(p->err,&t,"out of memory");p->failed=true;return NULL;}e->kind=k;e->token=t;return e;}
-static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=calloc(1,sizeof(*s));if(!s){swan_error(p->err,&t,"out of memory");p->failed=true;return NULL;}s->kind=k;s->token=t;return s;}
+static inline Expr *new_expr(Parser *p,ExprKind k,Token t){Expr *e=swan_arena_alloc(p->program,sizeof(*e));if(!e){swan_error(p->err,&t,"out of memory allocating AST expression");p->failed=true;return NULL;}e->kind=k;e->token=t;return e;}
+static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=swan_arena_alloc(p->program,sizeof(*s));if(!s){swan_error(p->err,&t,"out of memory allocating AST statement");p->failed=true;return NULL;}s->kind=k;s->token=t;return s;}
 static inline int precedence(TokenKind k){switch(k){case T_ASSIGN:return 1;case T_OR:return 2;case T_AND:return 3;case T_EQ:case T_NE:return 4;case T_LT:case T_GT:case T_LE:case T_GE:return 5;case T_PLUS:case T_MINUS:return 6;case T_STAR:case T_SLASH:case T_FLOORDIV:case T_PERCENT:return 7;default:return 0;}}
 static inline Expr *expression(Parser *p,int min);
 static inline Expr *prefix(Parser *p){
@@ -37,5 +37,5 @@ static inline Stmt *statement(Parser *p){
  s=new_stmt(p,S_EXPR,t);if(s)s->value=expression(p,1);return s;
 }
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){eat(p,T_COLON);if(!need(p,T_NEWLINE,"expected newline")||!need(p,T_INDENT,"expected indentation"))return false;separators(p);while(!is(p,T_DEDENT)&&!is(p,T_EOF)&&!p->failed){if(*count>=1024){swan_error(p->err,pk(p),"block too large");p->failed=true;break;}if(*count==*capacity){size_t cap=*capacity?*capacity*2:8;if(cap>1024)cap=1024;Stmt **items=realloc(*out,cap*sizeof(*items));if(!items){swan_error(p->err,pk(p),"out of memory while parsing block");p->failed=true;break;}*out=items;*capacity=cap;}size_t before=p->ts->pos;(*out)[(*count)++]=statement(p);separators(p);if(before==p->ts->pos){swan_error(p->err,pk(p),"parser made no progress");p->failed=true;}}return need(p,T_DEDENT,"expected dedent");}
-static inline bool swan_parse(TokenStream *ts,Program *program,SwanError *err){Parser p={ts,err,false};separators(&p);while(!is(&p,T_EOF)&&!p.failed){Token t=take(&p);if(t.kind!=T_FN){swan_error(err,&t,"only function declarations are supported at file scope");return false;}if(program->count>=1024){swan_error(err,&t,"too many functions");return false;}Stmt *fn=new_stmt(&p,S_FUNCTION,t);if(!fn)return false;Token name=take(&p);if(name.kind!=T_IDENT){swan_error(err,&name,"expected function name");return false;}strcpy(fn->name,name.text);need(&p,T_LP,"expected '('");if(!is(&p,T_RP)){do{Token a=take(&p);if(a.kind!=T_IDENT||fn->param_count>=16){swan_error(err,&a,"invalid or excessive parameter list");return false;}strcpy(fn->params[fn->param_count++],a.text);if(eat(&p,T_COLON))take(&p);}while(eat(&p,T_COMMA));}need(&p,T_RP,"expected ')'");if(eat(&p,T_ARROW))take(&p);if(!block(&p,&fn->body,&fn->body_count,&fn->body_cap))return false;program->functions[program->count++]=fn;separators(&p);}return !p.failed;}
+static inline bool swan_parse(TokenStream *ts,Program *program,SwanError *err){Parser p={ts,program,err,false};separators(&p);while(!is(&p,T_EOF)&&!p.failed){Token t=take(&p);if(t.kind!=T_FN){swan_error(err,&t,"only function declarations are supported at file scope");return false;}if(program->count>=1024){swan_error(err,&t,"too many functions");return false;}Stmt *fn=new_stmt(&p,S_FUNCTION,t);if(!fn)return false;Token name=take(&p);if(name.kind!=T_IDENT){swan_error(err,&name,"expected function name");return false;}strcpy(fn->name,name.text);need(&p,T_LP,"expected '('");if(!is(&p,T_RP)){do{Token a=take(&p);if(a.kind!=T_IDENT||fn->param_count>=16){swan_error(err,&a,"invalid or excessive parameter list");return false;}strcpy(fn->params[fn->param_count++],a.text);if(eat(&p,T_COLON))take(&p);}while(eat(&p,T_COMMA));}need(&p,T_RP,"expected ')'");if(eat(&p,T_ARROW))take(&p);if(!block(&p,&fn->body,&fn->body_count,&fn->body_cap))return false;program->functions[program->count++]=fn;separators(&p);}return !p.failed;}
 #endif
