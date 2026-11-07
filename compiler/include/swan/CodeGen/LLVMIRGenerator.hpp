@@ -233,7 +233,7 @@ class LLVMIRGenerator {
                     if (s->token.value == "main") {}
                     if (a.type == "i64" && currentReturn_ == "i32") a = cast(a, "i32");
                     line("ret " + currentReturn_ + " " + a.value);
-                } else line("ret void");
+                } else line(currentReturn_ == "i32" ? "ret i32 0" : "ret void");
                 terminated_ = true;
             } else if (s->kind == Stmt::Kind::Expression) emitExpr(s->value.get());
             else if (s->kind == Stmt::Kind::Pass || s->kind == Stmt::Kind::Import) {}
