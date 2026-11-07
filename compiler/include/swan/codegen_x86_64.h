@@ -16,15 +16,15 @@ static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_dep
 typedef struct { char name[SWAN_MAX_TEXT]; int slot,reg; bool mut; } Local;
 typedef struct { Local items[1024];size_t count;int slots,reg_count,saved_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
-static const char *cg_volatile_regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
-static const char *cg_volatile_low_regs[]={"edi","esi","edx","ecx","r8d","r9d"};
+static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
+static const char *cg_volatile_low_regs[]={"edi","esi","edx","r8d","r9d"};
 static inline const char *cg_reg_name(int reg){return reg<5?cg_saved_regs[reg]:cg_volatile_regs[reg-5];}
 static inline const char *cg_reg_low_name(int reg){static const char *saved[]={"ebx","r12d","r13d","r14d","r15d"};return reg<5?saved[reg]:cg_volatile_low_regs[reg-5];}
 static inline Local *local_find(Locals *l,const char *name){for(size_t i=l->count;i>0;i--)if(!strcmp(l->items[i-1].name,name))return &l->items[i-1];return NULL;}
 static inline Local *local_add(Locals *l,const char *name,bool mut){
  if(l->count>=1024)return NULL;
  Local *v=&l->items[l->count++];strcpy(v->name,name);v->mut=mut;v->reg=-1;v->slot=0;
- if(l->caller_saved&&l->reg_count<6)v->reg=5+l->reg_count++;
+ if(l->caller_saved&&l->reg_count<5)v->reg=5+l->reg_count++;
  else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
  else v->slot=++l->slots;
  return v;
