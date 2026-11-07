@@ -68,7 +68,7 @@
       "patterns": [
         {
           "name": "keyword.control.swan",
-          "match": "\\b(if|else|endif|while|for|loop|case|break|continue|return|pass|range)\\b"
+          "match": "\\b(if|else|while|for|loop|case|break|continue|return|pass|range)\\b"
         }
       ]
     },
@@ -96,7 +96,7 @@
     "punctuation": {
       "patterns": [
         { "name": "punctuation.separator.swan", "match": "[,:;.]" },
-        { "name": "punctuation.section.brackets.swan", "match": "[()\\[\\]{}]" }
+        { "name": "punctuation.section.brackets.swan", "match": "[()\\[\\]]" }
       ]
     },
     "types": {
