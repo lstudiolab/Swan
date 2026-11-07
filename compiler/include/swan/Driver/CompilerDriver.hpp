@@ -60,8 +60,9 @@ inline std::string targetTriple(const std::string& target) {
     if (target == "armv7") return "armv7-linux-gnueabihf";
     if (target == "riscv64") return "riscv64-linux-gnu";
     if (target == "wasm32") return "wasm32-unknown-unknown";
+    if (target.find('-') != std::string::npos) return target;
     throw CompileError("unsupported target '" + target +
-        "'; supported: native, x86_64, aarch64, armv7, riscv64, wasm32");
+        "'; use a supported alias or a Clang target triple");
 }
 
 inline int compilePortable(const std::string& generated,
