@@ -14,7 +14,6 @@ inline Token Lexer::scanIdentifier() {
         ++column_;
     }
     std::string value(source_.substr(start, index_ - start));
-    std::string kind = isKeyword(value) ? value : "IDENT";
-    return {std::move(kind), std::move(value), line, column};
+    return {keywordKind(value), std::move(value), line, column};
 }
 } // namespace swan
