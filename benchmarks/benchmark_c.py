@@ -39,8 +39,8 @@ def main():
                        "-o", str(assembly)], 31, work)
         link = median([CC, "-x", "assembler", str(assembly), "-o", str(binary)],
                       21, work)
-        compile_run = median([str(SWAN), str(source), "--target", "native"],
-                             21, work, expected)
+        compile_run = median([str(SWAN), str(source), "--target", "native",
+                                  "-o", str(binary)], 21, work, expected)
         runtime = median([str(binary)], 101, work, expected)
 
         # Confirm cross-target emitters are exercised independently of host architecture.
