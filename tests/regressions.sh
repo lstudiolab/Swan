@@ -106,4 +106,15 @@ SWAN
 test "$("$TMP/nested-shadowing")" = "2
 1"
 printf 'PASS: nested symbol shadowing and scope restoration\\n'
+cat > "$TMP/escaped-string.swan" <<'SWAN'
+fn main() -> int {
+    log "line\\nquote\\\"slash\\\\";
+    return 0;
+}
+SWAN
+"$SWAN" "$TMP/escaped-string.swan" -o "$TMP/escaped-string.c"
+"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/escaped-string.c" -o "$TMP/escaped-string"
+test "$("$TMP/escaped-string")" = "line
+quote\"slash\\"
+printf 'PASS: escaped string literal generation\\n'
 printf 'PASS: compiler regression suite\n'
