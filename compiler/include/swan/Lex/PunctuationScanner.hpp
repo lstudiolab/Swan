@@ -7,12 +7,13 @@ inline Token Lexer::scanPunctuation() {
     const auto column = column_;
     const char first = peek();
     const char second = peek(1);
-    if ((first == '-' && second == '>') || (first == '=' && second == '=') ||
+    if ((first == '/' && second == '/') || (first == '-' && second == '>') || (first == '=' && second == '=') ||
         (first == '!' && second == '=') || (first == '<' && second == '=') ||
         (first == '>' && second == '=') || (first == '&' && second == '&') ||
         (first == '|' && second == '|')) {
         std::string_view kind;
-        if (first == '-') kind = "->";
+        if (first == '/') kind = "//";
+        else if (first == '-') kind = "->";
         else if (first == '=') kind = "==";
         else if (first == '!') kind = "!=";
         else if (first == '<') kind = "<=";
