@@ -322,3 +322,29 @@ fi
 printf 'PASS: local-to-local loop comparisons avoid stack temporaries\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
+
+cat > "$TMP/compound-arithmetic.swan" <<'SWAN'
+fn main():
+    var value = 6
+    var factor = 7
+    value = value * factor
+    value = value - 2
+    value = value + 1
+    log value
+    var a = 1
+    var b = 2
+    var c = 3
+    var d = 4
+    var e = 5
+    var spilled = 6
+    spilled = spilled * factor
+    spilled = spilled - value
+    log spilled
+    return 0
+SWAN
+"$SWAN" "$TMP/compound-arithmetic.swan" --emit-asm -o "$TMP/compound-arithmetic.s"
+cc -x assembler "$TMP/compound-arithmetic.s" -o "$TMP/compound-arithmetic"
+test "$("$TMP/compound-arithmetic")" = "41
+1"
+grep -q 'imul rbx, rbx, r12' "$TMP/compound-arithmetic.s"
+printf 'PASS: compound arithmetic updates register and spilled locals in place\n'
