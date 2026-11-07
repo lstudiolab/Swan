@@ -1,14 +1,6 @@
 name: Swan-only stress benchmark
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "benchmarks/swan_only.py"
-      - "compiler/**"
-      - "main.c"
-      - "build.sh"
-      - ".github/workflows/swan-only-benchmark.yml"
 permissions:
   contents: read
 jobs:
