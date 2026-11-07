@@ -16,7 +16,7 @@ inline ExprPtr Parser::expression(int minimum) {
         const auto& op = advance();
         auto right = expression(op.kind == "=" ? level : level + 1);
         auto node = std::make_shared<Expr>();
-        node->kind = Expr::Kind::Binary; node->token = op; node->op = op.value;
+        node->kind = Expr::Kind::Binary; node->token = op.location(); node->op = op.value;
         node->left = left; node->right = right; left = node;
     }
     return left;
@@ -24,14 +24,14 @@ inline ExprPtr Parser::expression(int minimum) {
 
 inline ExprPtr Parser::prefix() {
     if (check("!") || check("-") || check("not")) {
-        auto op = advance();
+        const auto& op = advance();
         auto node = std::make_shared<Expr>();
         node->kind = Expr::Kind::Unary; node->token = op; node->op = op.value;
         node->left = expression(8);
         return node;
     }
     const auto& token = advance();
-    auto node = std::make_shared<Expr>(); node->token = token;
+    auto node = std::make_shared<Expr>(); node->token = token.location();
     if (token.kind == "INT" || token.kind == "FLOAT" || token.kind == "STRING" ||
         token.kind == "true" || token.kind == "false" || token.kind == "none") {
         node->kind = Expr::Kind::Literal; node->value = token.value;
@@ -54,7 +54,7 @@ inline ExprPtr Parser::prefix() {
         } else if (match(".")) {
             const auto& member = expect("IDENT","expected member name");
             auto access = std::make_shared<Expr>();
-            access->kind = Expr::Kind::Member; access->token = member;
+            access->kind = Expr::Kind::Member; access->token = member.location();
             access->left = node; access->value = member.value; node = access;
         } else break;
     }
