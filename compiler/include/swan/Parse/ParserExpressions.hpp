@@ -24,9 +24,9 @@ inline ExprPtr Parser::expression(int minimum) {
 
 inline ExprPtr Parser::prefix() {
     if (check("!") || check("-") || check("not")) {
-        const auto& op = advance();
+        auto& op = advance();
         auto node = std::make_shared<Expr>();
-        node->kind = Expr::Kind::Unary; node->token = op.location(); node->op = op.value;
+        node->kind = Expr::Kind::Unary; node->token = op.location(); node->op = std::move(op.value);
         node->left = expression(8);
         return node;
     }
@@ -37,7 +37,7 @@ inline ExprPtr Parser::prefix() {
         node->kind = Expr::Kind::Literal; node->value = std::move(token.value);
         node->literal_kind = std::move(token.kind);
     } else if (token.kind == "IDENT") {
-        node->kind = Expr::Kind::Name; node->value = token.value;
+        node->kind = Expr::Kind::Name; node->value = std::move(token.value);
     } else if (token.kind == "(") {
         node = expression(); expect(")","expected ')' after expression");
     } else fail(token,"expected expression");
