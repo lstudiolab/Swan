@@ -2,7 +2,6 @@
 #include "swan/Sema/Sema.hpp"
 #include <string>
 #include <utility>
-
 namespace swan {
 inline std::string Sema::analyzeExpression(const ExprPtr& node) {
     const auto type = analyzeExpressionImpl(node);
@@ -33,16 +32,30 @@ inline std::string Sema::analyzeExpressionImpl(const ExprPtr& node) {
         if (!numeric(type)) fail(node->token,"numeric negation requires a number");
         return type;
     }
+    case Expr::Kind::Index: {
+        const auto base = analyzeExpression(node->left);
+        if (base != "int[]") fail(node->token,"indexing requires an int[] array");
+        if (analyzeExpression(node->right) != "int")
+            fail(node->token,"array index must be an integer");
+        return "int";
+    }
     case Expr::Kind::Binary: {
         const auto left = analyzeExpression(node->left);
         if (op == "=") {
-            if (node->left->kind != Expr::Kind::Name) fail(node->token,"assignment target must be a variable");
-            auto* symbol = lookup(node->left->token.value);
-            if (!symbol) fail(node->left->token,"unknown variable '" + node->left->token.value + "'");
-            if (!symbol->second) fail(node->left->token,"cannot assign to immutable value '" + node->left->token.value + "'");
-            const auto right = analyzeExpression(node->right);
-            if (!compatible(symbol->first,right)) fail(node->token,"cannot assign " + right + " to " + symbol->first);
-            return symbol->first;
+            if (node->left->kind == Expr::Kind::Name) {
+                auto* symbol = lookup(node->left->token.value);
+                if (!symbol) fail(node->left->token,"unknown variable '" + node->left->token.value + "'");
+                if (!symbol->second) fail(node->left->token,"cannot assign to immutable value '" + node->left->token.value + "'");
+                const auto right = analyzeExpression(node->right);
+                if (!compatible(symbol->first,right)) fail(node->token,"cannot assign " + right + " to " + symbol->first);
+                return symbol->first;
+            }
+            if (node->left->kind == Expr::Kind::Index) {
+                const auto right = analyzeExpression(node->right);
+                if (!compatible("int",right)) fail(node->token,"array elements require integer values");
+                return "int";
+            }
+            fail(node->token,"assignment target must be a variable or array element");
         }
         const auto right = analyzeExpression(node->right);
         if (op == "and" || op == "or" || op == "&&" || op == "||") {
@@ -59,7 +72,15 @@ inline std::string Sema::analyzeExpressionImpl(const ExprPtr& node) {
         return (left == "float" || right == "float" || op == "/") ? "float" : "int";
     }
     case Expr::Kind::Call: {
-        if (node->left->kind != Expr::Kind::Name) fail(node->token,"only direct function calls are supported");
+        if (!node->left || node->left->kind != Expr::Kind::Name)
+            fail(node->token,"only direct function calls are supported");
+        if (node->left->token.value == "array") {
+            if (node->arguments.size() != 1)
+                fail(node->token,"array(size) expects exactly one integer argument");
+            if (analyzeExpression(node->arguments[0]) != "int")
+                fail(node->token,"array size must be an integer");
+            return "int[]";
+        }
         auto found = functions_.find(node->left->token.value);
         if (found == functions_.end()) fail(node->token,"unknown function '" + node->left->token.value + "'");
         const auto& parameters = found->second->parameters;
