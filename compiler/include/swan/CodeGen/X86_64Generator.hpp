@@ -29,7 +29,9 @@ class X86_64Generator {
         auto n=".LS"+std::to_string(nextString_++); strings_[value]=n;
         rodata_+=n+":\n    .byte ";
         for(std::size_t i=0;i<value.size();++i){if(i)rodata_+=", ";rodata_+=std::to_string(static_cast<unsigned char>(value[i]));}
-        if(!value.empty())rodata_+=", "; rodata_+="0\n"; return n;
+        if(!value.empty()) rodata_+=", ";
+        rodata_+="0\n";
+        return n;
     }
     int slot(const Stmt* s) const {auto f=slots_.find(s);if(f==slots_.end())throw CompileError("missing local stack slot");return f->second;}
     int lookup(const std::string& n) const {
