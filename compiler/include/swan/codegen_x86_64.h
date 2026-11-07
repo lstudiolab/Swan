@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
 static inline bool text_reserve(Text *t,size_t extra){
  if(extra>SIZE_MAX-t->len-1)return false;size_t need=t->len+extra+1;
  if(need<=t->cap)return true;size_t cap=t->cap?t->cap:4096;
@@ -28,7 +28,7 @@ static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d
 static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",reg);o->stack_depth+=8;}
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
-typedef struct { const char *name; int slot,reg,next; bool mut; } Local;
+typedef struct { const char *name; int slot,reg,next; bool mut,array_u32; } Local;
 typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
@@ -45,7 +45,7 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  else v->slot=++l->slots;
  return v;
 }
-static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE)local_add(l,s->name,s->mutable_value);collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
+static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,"array_u32"))v->array_u32=true;}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
@@ -190,7 +190,18 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
 }
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
- if(!strcmp(name,"array")){swan_error(err,&e->token,"array lowering is not ported to the C backend yet");return;}
+ if(!strcmp(name,"array_u32")){
+  if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return;}
+  emit_expr(o,e->args[0],l,err);
+  text_add(o,"    test rax, rax\\n    js .Lswan_array_bounds_fail\\n");
+  cg_push(o,"rax");
+  text_add(o,"    add rax, 2\\n    mov rdi, rax\\n    mov esi, 4\\n");
+  cg_call(o,"calloc@PLT");
+  cg_pop(o,"rcx");
+  text_add(o,"    test rax, rax\\n    jz .Lswan_array_bounds_fail\\n    mov QWORD PTR [rax], rcx\\n    add rax, 8\\n");
+  o->uses_array_bounds=true;
+  return;
+ }
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
  if(o->program&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
   Stmt *fn=cg_find_function(o->program,name);
@@ -259,6 +270,18 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_NAME:{if(o->inline_param&&!strcmp(e->token.text,o->inline_param)){Expr *arg=o->inline_arg;const char *param=o->inline_param;o->inline_arg=NULL;o->inline_param=NULL;emit_expr(o,arg,l,err);o->inline_arg=arg;o->inline_param=param;break;}Local *v=local_find(l,e->token.text);if(!v)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else if(v->reg>=0)text_add(o,"    mov rax, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",v->slot*8);break;}
  case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
  case E_CALL:emit_call(o,e,l,err);break;
+ case E_INDEX:{
+  if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local array variable");break;}
+  Local *array=local_find(l,e->left->token.text);
+  if(!array||!array->array_u32){swan_error(err,&e->token,"indexing currently requires an array_u32 value");break;}
+  emit_expr(o,e->right,l,err);cg_push(o,"rax");
+  if(array->reg>=0)text_add(o,"    mov r11, %s\\n",cg_reg_name(array->reg));
+  else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\\n",array->slot*8);
+  cg_pop(o,"rcx");
+  text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\\n    jae .Lswan_array_bounds_fail\\n    mov eax, DWORD PTR [r11 + rcx*4]\\n");
+  o->uses_array_bounds=true;
+  break;
+ }
  case E_BINARY:
   if(e->token.kind==T_PLUS&&!expr_has_call(e)){
    bool first=true;
@@ -267,7 +290,19 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
    break;
   }
   if(e->token.kind==T_ASSIGN){
-   if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable");break;}
+   if(e->left&&e->left->kind==E_INDEX){
+    Expr *base=e->left->left;
+    if(!base||base->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local variable");break;}
+    Local *array=local_find(l,base->token.text);
+    if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
+    emit_expr(o,e->left->right,l,err);cg_push(o,"rax");
+    emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
+    if(array->reg>=0)text_add(o,"    mov r11, %s\\n",cg_reg_name(array->reg));
+    else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\\n",array->slot*8);
+    text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\\n    jae .Lswan_array_bounds_fail\\n    mov DWORD PTR [r11 + rcx*4], eax\\n");
+    o->uses_array_bounds=true;break;
+   }
+   if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");break;}
    Local *v=local_find(l,e->left->token.text);
    if(!v){swan_error(err,&e->token,"unknown assignment target");break;}
    emit_expr(o,e->right,l,err);
@@ -630,7 +665,8 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){size_t index=a-1;Local *v=local_find(&l,fn->params[index]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);}}
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
  }
- text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
+ if(o->uses_array_bounds)text_add(o,".text\\n.Lswan_array_bounds_fail:\\n    call abort@PLT\\n    ud2\\n");
+ text_add(o,".section .rodata\\n.Lswan_fmt:\\n    .string \"%%ld\\n\"\\n.section .note.GNU-stack,\"\",@progbits\\n");
  return err->message[0]==0;
 }
 #endif
