@@ -53,5 +53,26 @@ test "$("$TMP/control")" = "0
 9
 2"
 printf 'PASS: nested if/else and while control flow\n'
+cat > "$TMP/unknown-name.swan" <<'SWAN'
+fn main():
+    log missing_name
+    return 0
+SWAN
+if "$SWAN" "$TMP/unknown-name.swan" --emit-asm -o "$TMP/unknown-name.s"; then
+    echo 'FAIL: unknown variable was accepted' >&2
+    exit 1
+fi
+printf 'PASS: semantic name resolution rejects unknown variables\n'
+cat > "$TMP/immutable.swan" <<'SWAN'
+fn main():
+    let value = 1
+    value = 2
+    return 0
+SWAN
+if "$SWAN" "$TMP/immutable.swan" --emit-asm -o "$TMP/immutable.s"; then
+    echo 'FAIL: assignment to immutable binding was accepted' >&2
+    exit 1
+fi
+printf 'PASS: semantic analysis enforces immutable bindings\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
