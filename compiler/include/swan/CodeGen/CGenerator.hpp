@@ -3,6 +3,7 @@
 #include "swan/CodeGen/CType.hpp"
 #include "swan/CodeGen/StringLiteral.hpp"
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -23,9 +24,9 @@ private:
     const Program& program_;
     std::string output_;
     unsigned indent_ = 0;
-    std::unordered_set<std::string> structs_;
-    std::unordered_map<std::string,const Stmt*> functions_;
-    std::vector<std::unordered_map<std::string,std::string>> scopes_;
+    std::unordered_set<std::string_view> structs_;
+    std::unordered_map<std::string_view,const Stmt*> functions_;
+    std::vector<std::unordered_map<std::string_view,std::string>> scopes_;
 };
 }
 #include "swan/CodeGen/ProgramEmitter.hpp"
