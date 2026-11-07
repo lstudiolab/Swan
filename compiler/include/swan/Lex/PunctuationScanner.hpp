@@ -20,15 +20,34 @@ inline Token Lexer::scanPunctuation() {
         (character == '|' && next == '|')) {
         advance();
         advance();
-        std::string value{character, next};
-        return {value, std::move(value), line, column};
+        std::string_view kind;
+        if (character == '-') kind = "->";
+        else if (character == '=') kind = "==";
+        else if (character == '!') kind = "!=";
+        else if (character == '<') kind = "<=";
+        else if (character == '>') kind = ">=";
+        else if (character == '&') kind = "&&";
+        else kind = "||";
+        return {kind, std::string{character, next}, line, column};
     }
 
     if (std::string_view("{}()[],:;.+-*/%=<>!").find(character) !=
         std::string_view::npos) {
+        std::string_view kind;
+        switch (character) {
+            case '{': kind = "{"; break; case '}': kind = "}"; break;
+            case '(': kind = "("; break; case ')': kind = ")"; break;
+            case '[': kind = "["; break; case ']': kind = "]"; break;
+            case ',': kind = ","; break; case ':': kind = ":"; break;
+            case ';': kind = ";"; break; case '.': kind = "."; break;
+            case '+': kind = "+"; break; case '-': kind = "-"; break;
+            case '*': kind = "*"; break; case '/': kind = "/"; break;
+            case '%': kind = "%"; break; case '=': kind = "="; break;
+            case '<': kind = "<"; break; case '>': kind = ">"; break;
+            case '!': kind = "!"; break;
+        }
         advance();
-        std::string value(1, character);
-        return {value, std::move(value), line, column};
+        return {kind, std::string(1, character), line, column};
     }
 
     fail({"", "", line, column},
