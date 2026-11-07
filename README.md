@@ -49,11 +49,11 @@ This compiles the single `main.cpp` translation unit, using the stage headers, a
 
 ```sh
 ./build/swan examples/hello.swan -o hello.c
-cc -std=c11 hello.c -o hello
+clang -std=c11 -O1 hello.c -o hello
 ./hello
 ```
 
-Swan itself emits C source. It does not invoke the C compiler.
+Swan itself emits C source. It does not invoke the C compiler. For native builds, `-O1` is the recommended fast-compile setting: benchmarked runtime was effectively identical to `-O2` while backend compilation was slightly faster. Use `-O2` when you prefer the compiler's more aggressive optimization pass set.
 
 ## Install
 
