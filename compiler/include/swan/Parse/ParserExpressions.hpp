@@ -52,6 +52,15 @@ inline ExprPtr Parser::prefix() {
             }
             expect(")","expected ')' after arguments");
             node = std::move(call);
+        } else if (match("[")) {
+            const auto bracket = tokens_[position_ - 1];
+            auto index = std::make_unique<Expr>();
+            index->kind = Expr::Kind::Index;
+            index->token = bracket;
+            index->left = std::move(node);
+            index->right = expression();
+            expect("]","expected ']' after array index");
+            node = std::move(index);
         } else if (match(".")) {
             const auto& member = expect("IDENT","expected member name");
             auto access = std::make_unique<Expr>();
