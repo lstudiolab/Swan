@@ -17,6 +17,8 @@ The system assembler/linker is used only after Swan emits assembly. It does not 
 - String literals and basic console logging.
 - Heap integer arrays using the platform C runtime allocator.
 - GNU assembler Intel syntax output.
+- AArch64 GNU assembler output and AAPCS64 register calling convention.
+- AArch64 object emission through `aarch64-linux-gnu-as`.
 
 ## Known limitations
 
