@@ -172,6 +172,15 @@ private:
         stack_bytes_ -= 8;
     }
 
+    void emitArrayAddress(const Expr* node) {
+        emitExpression(node->left.get());
+        pushRax();
+        emitExpression(node->right.get());
+        emit("    imul rax, rax, 8");
+        popRcx();
+        emit("    lea rax, [rcx + rax]");
+    }
+
     void callAligned(const std::string& target) {
         const bool pad = (stack_bytes_ & 15) != 0;
         if (pad) {
@@ -408,6 +417,10 @@ private:
         case Expr::Kind::Call:
             emitCall(node);
             return;
+        case Expr::Kind::Index:
+            emitArrayAddress(node);
+            emit("    mov rax, QWORD PTR [rax]");
+            return;
         case Expr::Kind::Member:
             fail(node->token, "member access is not implemented by the native backend");
         }
@@ -422,6 +435,14 @@ private:
             return;
         }
         if (op == "=") {
+            if (node->left->kind == Expr::Kind::Index) {
+                emitArrayAddress(node->left.get());
+                pushRax();
+                emitExpression(node->right.get());
+                popRcx();
+                emit("    mov QWORD PTR [rcx], rax");
+                return;
+            }
             emitExpression(node->right.get());
             const auto location = lookupLocation(node->left->token.value);
             if (node->left->resolved_type == "float" &&
@@ -549,6 +570,13 @@ private:
     void emitCall(const Expr* node) {
         if (!node->left || node->left->kind != Expr::Kind::Name)
             fail(node->token, "only direct function calls are supported");
+        if (node->left->token.value == "array") {
+            emitExpression(node->arguments[0].get());
+            emit("    mov rdi, rax");
+            emit("    mov esi, 8");
+            callAligned("calloc@PLT");
+            return;
+        }
         if (node->arguments.size() > 6)
             fail(node->token, "the native backend currently supports at most six arguments");
 
