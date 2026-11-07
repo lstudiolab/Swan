@@ -19,7 +19,7 @@ typedef enum { T_EOF,T_IDENT,T_INT,T_FLOAT,T_STRING,T_NEWLINE,T_INDENT,T_DEDENT,
  T_PLUS,T_MINUS,T_STAR,T_SLASH,T_FLOORDIV,T_PERCENT,T_ASSIGN,T_EQ,T_NE,T_LT,T_GT,T_LE,T_GE,
  T_LB,T_RB,T_DOT,T_SEMI } TokenKind;
 typedef struct { TokenKind kind; char text[SWAN_MAX_TEXT]; unsigned line,col; } Token;
-typedef struct { Token items[SWAN_MAX_TOKENS]; size_t count,pos; const char *source; size_t length; } TokenStream;
+typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; } TokenStream;
 typedef enum { E_INT,E_FLOAT,E_STRING,E_BOOL,E_NAME,E_UNARY,E_BINARY,E_CALL } ExprKind;
 typedef struct Expr Expr;
 struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr *args[16]; size_t argc; };
