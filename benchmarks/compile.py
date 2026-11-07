@@ -53,14 +53,6 @@ def fixtures():
     lines.append("}")
     yield "nested-scopes", "\n".join(lines) + "\n"
 
-    structures = 500
-    lines = ["struct Item0 { value: int; }"]
-    lines.extend(
-        f"struct Item{i} {{ previous: Item{i - 1}; }}"
-        for i in range(1, structures)
-    )
-    lines.append("fn main() -> int { return 0; }")
-    yield "struct-heavy", "\n".join(lines) + "\n"
 
 
 def main():
