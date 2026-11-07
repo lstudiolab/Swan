@@ -172,7 +172,13 @@ inline int runCompiler(int argc, char** argv) {
 
         const bool emitAssembly = options.emitAssembly ||
             (options.hasOutput && options.output.extension() == ".s");
-        const bool portable = options.optimize || options.target != "native";
+#if defined(__linux__) && defined(__x86_64__)
+        constexpr bool directNativeSupported = true;
+#else
+        constexpr bool directNativeSupported = false;
+#endif
+        const bool portable = options.optimize || options.target != "native" ||
+            !directNativeSupported;
         if (portable) {
             const auto output = options.hasOutput ? options.output
                 : std::filesystem::path(options.input.stem().string() + ".s");
