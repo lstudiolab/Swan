@@ -2,28 +2,27 @@
 
 ## Current pipeline
 
-`.swan -> Lexer -> Parser -> AST -> Semantic analysis -> C source generation`
+`.swan -> Lexer -> Parser -> AST -> Semantic analysis -> x86-64 assembly -> assembler/linker`
 
-Swan emits C11. It does not invoke a C compiler as part of its own source-to-C compilation pipeline.
+Swan now generates assembly directly. The C source-generation stage has been removed from the active compilation path. The system toolchain is used to assemble and link the emitted instructions, not to translate generated C.
 
-## Current optimization work
+## Native backend baseline
 
-- Semantic analysis now stores the resolved type on every expression node. Code generation reads that annotation instead of repeating recursive type inference and scope/function lookups.
-- The C generator no longer builds and searches duplicate scope maps solely to rediscover types already checked by semantic analysis.
-- Non-entry Swan functions are emitted as `static inline` C functions. This gives the native C compiler explicit internal-linkage and inlining opportunities for small helpers.
-- Swan `int` lowers to `int64_t`, matching the 64-bit integer model used by the native benchmark implementations and avoiding the previous mismatch against C/Rust/Go/Swift/Zig/Goose 64-bit loop variables.
+The first backend is a correctness-oriented x86-64 System V ELF implementation. It currently uses stack slots for locals and parameters and emits explicit control-flow labels, arithmetic, comparisons, function calls, and libc output calls.
+
+This is a baseline, not the final optimization strategy. Direct assembly alone does not guarantee faster code than optimized C. In particular, the current backend does not yet perform register allocation, loop-invariant code motion, strength reduction, or machine-level instruction scheduling.
+
+## Optimization priorities
+
+1. Measure generated instruction counts and runtime hot paths.
+2. Add a typed low-level IR before complex machine optimizations.
+3. Introduce liveness analysis and register allocation to reduce stack traffic.
+4. Add constant folding, copy propagation, dead-code elimination, and common-subexpression elimination.
+5. Add loop optimizations and target-specific instruction selection.
+6. Validate every optimization against the same correctness suite and benchmark checksums.
 
 ## Measurement policy
 
-No performance improvement is claimed without a reproducible baseline. Before optimizing:
-
-1. Record compiler version, target platform, CPU, and build flags.
-2. Use fixed small, medium, and large Swan source fixtures.
-3. Measure lexing, parsing, semantic analysis, and code generation separately.
-4. Record wall time, peak resident memory, and allocation counts where available.
-5. Run repeated trials and report median and spread.
-6. Verify generated program output before comparing timings.
-
-The native cross-language benchmark measures end-to-end compile time (Swan-to-C translation plus native C compilation for Swan) and executable runtime separately. It must use equivalent integer widths and verify identical checksums before reporting timings.
+Record compiler revision, target, CPU, assembler/linker versions, and flags. Use fixed small, medium, and large fixtures; repeat trials and report medians. Keep frontend/assembly emission, assemble/link, end-to-end compile, and prebuilt runtime measurements separate. Never compare timings unless the workload and result are identical.
 
 Correctness and generated-code equivalence take precedence over compile-time improvements.
