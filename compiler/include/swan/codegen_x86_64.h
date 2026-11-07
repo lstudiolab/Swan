@@ -29,7 +29,7 @@ static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",r
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
 typedef struct { const char *name; int slot,reg,next; bool mut; } Local;
-typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count;bool caller_saved; } Locals;
+typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
 static const char *cg_volatile_low_regs[]={"edi","esi","edx","r8d","r9d"};
@@ -42,6 +42,7 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  size_t i=l->count++;unsigned b=cg_name_hash(name)&2047u;Local *v=&l->items[i];v->name=name;v->mut=mut;v->reg=-1;v->slot=0;v->next=l->buckets[b];l->buckets[b]=(int)i+1;
  if(l->caller_saved&&l->reg_count<5)v->reg=5+l->reg_count++;
  else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
+ else if(!l->caller_saved&&!mut&&l->volatile_reg_count<5)v->reg=5+l->volatile_reg_count++;
  else v->slot=++l->slots;
  return v;
 }
@@ -49,6 +50,8 @@ static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
+static inline void cg_save_volatile(Text *o,Locals *l){for(int i=0;i<l->volatile_reg_count;i++)cg_push(o,cg_volatile_regs[i]);}
+static inline void cg_restore_volatile(Text *o,Locals *l){for(int i=l->volatile_reg_count-1;i>=0;i--)cg_pop(o,cg_volatile_regs[i]);}
 static inline bool expr_has_call(Expr *e){return e&&e->contains_call;}
 static inline unsigned cg_function_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline Stmt *cg_find_function(Program *p,const char *name){
