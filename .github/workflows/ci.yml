@@ -6,45 +6,13 @@ on:
   workflow_dispatch:
 
 jobs:
-  compiler:
+  compiler-c:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-
-      - name: Build native C++20 compiler
+      - name: Build standalone C11 compiler
         run: sh build.sh
-
-      - name: Compile every Swan source file
-        shell: bash
-        run: |
-          set -euo pipefail
-          output_dir="build/swan-ci"
-          mapfile -d '' sources < <(find . -type f -name '*.swan' -not -path './.git/*' -not -path './build/*' -print0)
-
-          if (("${#sources[@]}" == 0)); then
-            echo "No .swan files found."
-            exit 0
-          fi
-
-          for source in "${sources[@]}"; do
-            relative="${source#./}"
-            generated="$output_dir/${relative%.swan}.s"
-            object="${output_dir}/${relative%.swan}.o"
-
-            mkdir -p "$(dirname "$generated")"
-            echo "::group::Compile $source"
-            ./build/swan "$source" --emit-asm -o "$generated"
-            cc -c -x assembler "$generated" -o "$object"
-            echo "::endgroup::"
-          done
-
-          echo "Successfully compiled ${#sources[@]} Swan source file(s)."
-
-      - name: Run compiler tests
-        run: sh test.sh
-
-      - name: Benchmark compiler and runtime
-        run: python3 benchmarks/benchmark.py
-
-      - name: Verify CLI version
+      - name: Verify native execution and architecture assembly
+        run: sh tests/c-compiler.sh
+      - name: Verify compiler version
         run: ./build/swan --version
