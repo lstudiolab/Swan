@@ -3,7 +3,6 @@
 #include <string>
 #include <string_view>
 #include <utility>
-
 namespace swan {
 inline void CGenerator::line(const std::string& value) {
     if (!value.empty()) {
@@ -56,7 +55,6 @@ inline void CGenerator::function(const StmtPtr& node) {
     scopes_.back().reserve(node->parameters.size());
     for (const auto& parameter : node->parameters)
         scopes_.back().emplace(parameter.name, parameter.type);
-
     std::string parameters;
     parameters.reserve(node->parameters.size() * 32);
     for (const auto& parameter : node->parameters) {
