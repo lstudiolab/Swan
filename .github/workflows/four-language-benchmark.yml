@@ -2,14 +2,6 @@ name: Four-language performance benchmark
 
 on:
   workflow_dispatch:
-  push:
-    branches: [main]
-    paths:
-      - "benchmarks/four_language_compute.py"
-      - "compiler/**"
-      - "main.c"
-      - "build.sh"
-      - ".github/workflows/four-language-benchmark.yml"
 
 permissions:
   contents: read
