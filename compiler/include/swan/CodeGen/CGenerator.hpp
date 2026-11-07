@@ -3,6 +3,7 @@
 #include "swan/CodeGen/CType.hpp"
 #include "swan/CodeGen/StringLiteral.hpp"
 #include <string>
+#include <string_view>
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
@@ -17,7 +18,7 @@ private:
     void appendCType(std::string& output, const std::string& type) const;
     std::string expression(const ExprPtr& expression) const;
     void appendExpression(std::string& output, const ExprPtr& expression) const;
-    std::string inferredType(const ExprPtr& expression) const;
+    std::string_view inferredType(const ExprPtr& expression) const;
     std::string quote(const std::string& value) const;
     void line(const std::string& value = {});
     void beginLine();
