@@ -164,6 +164,6 @@ int main(int argc,char **argv) {
     char *const cmd[]={(char*)cc,"-x","assembler",asm_path,"-o",tmp,NULL};
     int rc=run_command(cmd); unlink(asm_path);
     if(rc){free(tmp);return rc;}
-    if(!build) {char *const run[]={tmp,NULL}; rc=run_command(run);}
+    if(!build) { char executable[4096]; const char *run_path=tmp; if(!strchr(tmp, '/')) { snprintf(executable,sizeof executable,"./%s",tmp); run_path=executable; } char *const run[]={(char*)run_path,NULL}; rc=run_command(run); }
     free(tmp); (void)target_set; return rc;
 }
