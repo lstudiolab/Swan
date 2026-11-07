@@ -262,6 +262,32 @@ SWAN
 cc -x assembler "$TMP/accumulator-side-effect.s" -o "$TMP/accumulator-side-effect"
 test "$("$TMP/accumulator-side-effect")" = "7"
 printf 'PASS: accumulator optimization preserves assignment evaluation order\n'
+cat > "$TMP/local-operands.swan" <<'SWAN'
+fn main():
+    var left = 84
+    var right = 7
+    log left + right
+    log left - right
+    log left * right
+    log left / right
+    log left % right
+    log left > right
+    return 0
+SWAN
+"$SWAN" "$TMP/local-operands.swan" --emit-asm -o "$TMP/local-operands.s"
+cc -x assembler "$TMP/local-operands.s" -o "$TMP/local-operands"
+test "$("$TMP/local-operands")" = "91
+77
+588
+12
+0
+1"
+if grep -q 'push rax' "$TMP/local-operands.s"; then
+    echo 'FAIL: local-operand arithmetic unnecessarily spills expression values' >&2
+    cat "$TMP/local-operands.s" >&2
+    exit 1
+fi
+printf 'PASS: register/memory local operands avoid expression stack temporaries\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
     log (6 * 7) + (9 - 2)
