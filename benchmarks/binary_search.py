@@ -104,15 +104,17 @@ def main():
    src[name]=d/f"search.{suffix}";src[name].write_text(body)
   exe={name:d/name.lower().replace("+","p") for name in src}
   exe["Swan"]=d/"swan-search"
+  exe["Swan-fast"]=d/"swan-fast-search"
   commands={
    "C":["cc","-O3","-march=native","-DNDEBUG",str(src["C"]),"-o",str(exe["C"])],
    "C++":["c++","-O3","-march=native","-DNDEBUG","-std=c++17",str(src["C++"]),"-o",str(exe["C++"])],
    "Rust":["rustc","-C","opt-level=3","-C","target-cpu=native",str(src["Rust"]),"-o",str(exe["Rust"])],
    "Goose":[GOOSE,"build","-o",str(exe["Goose"]),str(src["Goose"])],
    "Swan":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan"])],
+   "Swan-fast":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"--fast-compile","-o",str(exe["Swan-fast"])],
   }
   results={}
-  for name in ("Swan","Goose","Rust","C","C++"):
+  for name in ("Swan","Swan-fast","Goose","Rust","C","C++"):
    print(f"COMPILING {name}",flush=True)
    ct,cm,_=run(commands[name])
    if not exe[name].is_file(): raise RuntimeError(f"{name} executable missing")
