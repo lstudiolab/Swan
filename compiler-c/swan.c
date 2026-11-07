@@ -115,7 +115,7 @@ static int emit_source(const char *source, Target target, Buffer *out) {
     /* String literals are emitted before text so references are position independent. */
     if(strings.data) {
         size_t pos=strlen(target==X86_64?".intel_syntax noprefix\n.section .rodata\n":target==AARCH64?".section .rodata\n":".syntax unified\n.section .rodata\n");
-        Buffer merged={0}; append(&merged,strings.data); append(&merged,out->data+pos);
+        Buffer merged={0}; append(&merged,target==X86_64?".intel_syntax noprefix\n.section .rodata\n":target==AARCH64?".section .rodata\n":".syntax unified\n.section .rodata\n"); append(&merged,strings.data); append(&merged,out->data+pos);
         free(out->data); *out=merged;
     }
     free(strings.data); free(copy); return 0;
