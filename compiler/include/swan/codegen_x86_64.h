@@ -179,10 +179,36 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
  text_add(o,"    call %s\n",symbol);cg_release(o,area+pad);
 }
+static inline bool cg_const_value(Expr *e,int64_t *out){
+ if(!e)return false;
+ if(e->kind==E_INT){char *end=NULL;errno=0;long long v=strtoll(e->token.text,&end,10);if(errno==ERANGE||!end||*end)return false;*out=(int64_t)v;return true;}
+ if(e->kind==E_BOOL){*out=e->token.kind==T_TRUE;return true;}
+ if(e->kind==E_UNARY&&e->token.kind==T_MINUS){int64_t v;if(!cg_const_value(e->left,&v))return false;*out=(int64_t)(0-(uint64_t)v);return true;}
+ if(e->kind!=E_BINARY||e->token.kind==T_ASSIGN)return false;
+ int64_t a,b;if(!cg_const_value(e->left,&a)||!cg_const_value(e->right,&b))return false;
+ switch(e->token.kind){
+  case T_PLUS:*out=(int64_t)((uint64_t)a+(uint64_t)b);return true;
+  case T_MINUS:*out=(int64_t)((uint64_t)a-(uint64_t)b);return true;
+  case T_STAR:*out=(int64_t)((uint64_t)a*(uint64_t)b);return true;
+  case T_EQ:*out=a==b;return true;case T_NE:*out=a!=b;return true;
+  case T_LT:*out=a<b;return true;case T_GT:*out=a>b;return true;
+  case T_LE:*out=a<=b;return true;case T_GE:*out=a>=b;return true;
+  case T_SLASH:case T_FLOORDIV:case T_PERCENT:
+   if(!b||(a==INT64_MIN&&b==-1))return false;
+   *out=e->token.kind==T_PERCENT?a%b:a/b;return true;
+  default:return false;
+ }
+}
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
  if(o->hoist_expr==e){text_add(o,"    mov rax, r11\n");return;}
  if(o->recurrence_expr==e){text_add(o,"    mov rax, r15\n");return;}
+ int64_t constant;
+ if(cg_const_value(e,&constant)){
+  if(constant>=INT32_MIN&&constant<=INT32_MAX)text_add(o,"    mov rax, %lld\n",(long long)constant);
+  else text_add(o,"    movabs rax, 0x%016llx\n",(unsigned long long)(uint64_t)constant);
+  return;
+ }
  switch(e->kind){
  case E_INT:text_add(o,"    mov rax, %s\n",e->token.text);break;
  case E_BOOL:text_add(o,"    mov eax, %d\n",e->token.kind==T_TRUE);break;
