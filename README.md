@@ -45,6 +45,8 @@ The x86-64 backend supports contiguous 32-bit unsigned integer arrays:
 
 The one-billion-element native sorting workload is in `benchmarks/sort_1b.swan`. It uses approximately 4 GB for the array and performs generation, in-place heapsort, and an orderedness verification pass. It is intentionally not run in ordinary CI because it requires substantial memory and execution time; CI compiles and links it and runs a small heapsort correctness test.
 
+Run the complete timed workload with `sh benchmarks/run_sort_1b.sh`. The script reports compiler build, Swan source compilation, assembly/link, and sort-plus-verification times in seconds. Use a machine with at least 4 GB of available memory (more is recommended for the operating system and toolchain).
+
 ## Translation-unit policy
 
 - Exactly one compiled source file: \`main.c\`.
