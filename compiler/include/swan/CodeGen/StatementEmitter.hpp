@@ -4,12 +4,16 @@
 #include <utility>
 
 namespace swan {
+inline void CGenerator::beginLine() {
+    output_.append(static_cast<std::size_t>(indent_) * 4, ' ');
+}
+inline void CGenerator::endLine() { output_.push_back('\n'); }
 inline void CGenerator::line(const std::string& value) {
     if (!value.empty()) {
-        output_.append(static_cast<std::size_t>(indent_) * 4, ' ');
+        beginLine();
         output_.append(value);
     }
-    output_.push_back('\n');
+    endLine();
 }
 inline void CGenerator::block(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
@@ -30,27 +34,81 @@ inline void CGenerator::statement(const StmtPtr& node) {
             scope[node->name] = old == symbols_.end() ? "" : old->second;
         }
         symbols_[node->name] = type;
-        line(cType(type) + (node->mutable_value ? " " : " const ") +
-             cVariableName(node->name) + (node->value ? " = " + expression(node->value) : "") + ";");
+        beginLine();
+        appendCType(output_, type);
+        output_ += node->mutable_value ? " " : " const ";
+        output_ += "swan_var_";
+        output_ += node->name;
+        if (node->value) {
+            output_ += " = ";
+            appendExpression(output_, node->value);
+        }
+        output_.push_back(';');
+        endLine();
         break;
     }
     case Stmt::Kind::Log: {
         const auto type = inferredType(node->value);
-        if (type == "string") line("puts(" + expression(node->value) + ");");
-        else if (type == "float") line("printf(\"%g\\n\", (double)(" + expression(node->value) + "));");
-        else if (type == "int" || type == "bool")
-            line("printf(\"%d\\n\", (int)(" + expression(node->value) + "));");
-        else fail(node->token,"log expression has no printable type");
+        beginLine();
+        if (type == "string") {
+            output_ += "puts(";
+            appendExpression(output_, node->value);
+            output_ += ");";
+        } else if (type == "float" || type == "int" || type == "bool") {
+            output_ += type == "float" ? "printf(\"%g\\n\", (double)("
+                                          : "printf(\"%d\\n\", (int)(";
+            appendExpression(output_, node->value);
+            output_ += "));";
+        } else {
+            fail(node->token,"log expression has no printable type");
+        }
+        endLine();
         break;
     }
-    case Stmt::Kind::Return: line(node->value ? "return " + expression(node->value) + ";" : "return;"); break;
-    case Stmt::Kind::Expression: line(expression(node->value) + ";"); break;
+    case Stmt::Kind::Return:
+        beginLine();
+        output_ += "return";
+        if (node->value) {
+            output_.push_back(' ');
+            appendExpression(output_, node->value);
+        }
+        output_.push_back(';');
+        endLine();
+        break;
+    case Stmt::Kind::Expression:
+        beginLine();
+        appendExpression(output_, node->value);
+        output_.push_back(';');
+        endLine();
+        break;
     case Stmt::Kind::If:
-        line("if (" + expression(node->condition) + ") {"); ++indent_; block(node->body); --indent_;
-        if (!node->alternate.empty()) { line("} else {"); ++indent_; block(node->alternate); --indent_; }
-        line("}"); break;
+        beginLine();
+        output_ += "if (";
+        appendExpression(output_, node->condition);
+        output_ += ") {";
+        endLine();
+        ++indent_;
+        block(node->body);
+        --indent_;
+        if (!node->alternate.empty()) {
+            beginLine(); output_ += "} else {"; endLine();
+            ++indent_;
+            block(node->alternate);
+            --indent_;
+        }
+        line("}");
+        break;
     case Stmt::Kind::While:
-        line("while (" + expression(node->condition) + ") {"); ++indent_; block(node->body); --indent_; line("}"); break;
+        beginLine();
+        output_ += "while (";
+        appendExpression(output_, node->condition);
+        output_ += ") {";
+        endLine();
+        ++indent_;
+        block(node->body);
+        --indent_;
+        line("}");
+        break;
     case Stmt::Kind::Break: line("break;"); break;
     case Stmt::Kind::Continue: line("continue;"); break;
     case Stmt::Kind::Pass: line(";"); break;
@@ -58,16 +116,35 @@ inline void CGenerator::statement(const StmtPtr& node) {
     }
 }
 inline void CGenerator::function(const StmtPtr& node) {
-    symbols_.clear(); scopes_.clear(); scopes_.emplace_back();
-    std::string parameters;
-    for (const auto& parameter : node->parameters) {
-        if (!parameters.empty()) parameters += ", ";
-        parameters += cType(parameter.type) + " const " + cVariableName(parameter.name);
-        symbols_[parameter.name] = parameter.type;
-        scopes_.back()[parameter.name] = parameter.type;
+    symbols_.clear();
+    scopes_.clear();
+    scopes_.emplace_back();
+    beginLine();
+    appendCType(output_, node->return_type);
+    output_.push_back(' ');
+    output_ += node->name == "main" ? "main" : "swan_fn_";
+    if (node->name != "main") output_ += node->name;
+    output_.push_back('(');
+    if (node->parameters.empty()) {
+        output_ += "void";
+    } else {
+        bool first = true;
+        for (const auto& parameter : node->parameters) {
+            if (!first) output_ += ", ";
+            first = false;
+            appendCType(output_, parameter.type);
+            output_ += " const swan_var_";
+            output_ += parameter.name;
+            symbols_[parameter.name] = parameter.type;
+            scopes_.back()[parameter.name] = parameter.type;
+        }
     }
-    line(cType(node->return_type) + " " + cFunctionName(node->name) + "(" +
-         (parameters.empty() ? "void" : parameters) + ") {");
-    ++indent_; block(node->body); --indent_; line("}"); line();
+    output_ += ") {";
+    endLine();
+    ++indent_;
+    block(node->body);
+    --indent_;
+    line("}");
+    line();
 }
 }
