@@ -6,9 +6,9 @@ Swan's goal is to become a production-grade compiled language with predictable s
 
 The active pipeline is:
 
-`.swan -> Lexer -> Parser -> AST -> Semantic analysis -> x86-64 GNU assembly -> assembler/linker`
+`.swan -> Lexer -> Parser -> semantic analysis -> typed AST -> LLVM IR -> LLVM target backend -> assembly/linker`
 
-The direct assembly backend currently targets x86-64 Linux System V ELF. It supports the present scalar language subset, basic control flow, function calls, strings, and console output. Other targets, aggregate ABI lowering, register allocation, and an optimizing IR are not yet complete.
+The C transpilation path and legacy standalone compiler have been removed. Swan now lowers the checked AST directly to LLVM IR. The driver accepts x86-64, AArch64, ARMv7, RISC-V 64, WebAssembly, and arbitrary LLVM target triples supported by the installed LLVM build. Cross-target assembly is supported independently of cross-linking; executable linking requires the target linker, runtime, and sysroot.
 
 ## Phase 1 — Language specification and frontend completeness
 
@@ -25,28 +25,29 @@ The direct assembly backend currently targets x86-64 Linux System V ELF. It supp
 - Implement operate recovery semantics with deterministic failure behavior.
 - Add static lifetime and escape analysis.
 
-## Phase 3 — Typed low-level IR
+## Phase 3 — Typed IR correctness
 
-- Introduce a typed, verified intermediate representation between semantic analysis and machine code.
-- Represent control flow as basic blocks with explicit terminators.
-- Make integer, floating-point, pointer, and aggregate operations explicit.
-- Add IR dumps and verifier tests.
+- Verify every generated LLVM IR module before machine code generation.
+- Add explicit IR dumps and stable regression fixtures.
+- Complete lowering for all semantically accepted expressions, statements, aggregates, and calls.
+- Add source-location metadata and debug information.
+- Add differential tests against a trusted reference implementation for supported language semantics.
 
 ## Phase 4 — Native optimization framework
 
-- Add constant folding, propagation, and dead-code elimination.
-- Add liveness analysis, register allocation, and spill minimization.
-- Add common-subexpression elimination and loop-invariant code motion.
-- Add strength reduction, loop transformations, and instruction selection.
-- Add inlining and specialization only when benchmarks show a benefit.
+- Measure LLVM optimization behavior at each optimization level.
+- Add Swan-owned optimizations only when benchmarks show a measurable benefit.
+- Add compile-time profiling for frontend, lowering, optimization, and code emission.
+- Track liveness, register allocation, spills, code size, and runtime through LLVM diagnostics and benchmark artifacts.
 - Preserve source-level semantics with differential tests.
 
 ## Phase 5 — Native backend expansion
 
-- Add AArch64 and additional platform targets.
-- Implement aggregate and structure layout/ABI lowering.
-- Add debug information, target triples, and reproducible object generation.
-- Improve calling conventions and external ABI interoperability.
+- Validate additional LLVM target triples and platform ABIs.
+- Add cross-target object generation and sysroot-aware executable linking.
+- Add target-specific runtime libraries and platform support.
+- Add reproducible builds and architecture-specific CI runners.
+- Add WebAssembly WASI and browser runtime integration.
 
 ## Phase 6 — Runtime and standard library
 
@@ -65,7 +66,7 @@ The direct assembly backend currently targets x86-64 Linux System V ELF. It supp
 
 ## Phase 8 — Production hardening
 
-- Fuzz lexer, parser, semantic analysis, IR, and code generation.
+- Fuzz lexer, parser, semantic analysis, IR lowering, and code generation.
 - Add sanitizer, static-analysis, and cross-platform CI.
 - Benchmark compile time, memory use, generated instruction quality, and runtime.
 - Maintain backward compatibility and migration documentation.
@@ -75,5 +76,5 @@ The direct assembly backend currently targets x86-64 Linux System V ELF. It supp
 1. Do not call placeholder features implemented.
 2. Every language feature requires specification, implementation, diagnostics, and tests.
 3. Keep frontend, IR, backend, and driver responsibilities separate.
-4. Measure every optimization on reproducible workloads.
-5. Never claim Swan is faster than C without fair, repeatable measurements.
+4. Measure every optimization on reproducible benchmarks.
+5. Never claim Swan is faster than another language without fair, repeatable measurements.
