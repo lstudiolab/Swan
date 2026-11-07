@@ -24,13 +24,17 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
         }
         return {};
     case Expr::Kind::Unary: return inferredType(node->left);
-    case Expr::Kind::Binary:
-        if (node->op == "==" || node->op == "!=" || node->op == "<" ||
-            node->op == ">" || node->op == "<=" || node->op == ">=" ||
-            node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||") return "bool";
-        if (node->op == "/") return "float";
-        return inferredType(node->left) == "float" || inferredType(node->right) == "float"
-            ? "float" : inferredType(node->left);
+    case Expr::Kind::Binary: {
+        const auto& op = node->op;
+        if (op == "==" || op == "!=" || op == "<" || op == ">" ||
+            op == "<=" || op == ">=" || op == "and" || op == "or" ||
+            op == "&&" || op == "||") return "bool";
+        if (op == "/") return "float";
+        const auto left = inferredType(node->left);
+        if (left == "float") return "float";
+        const auto right = inferredType(node->right);
+        return right == "float" ? "float" : left;
+    }
     case Expr::Kind::Member: return {};
     }
     return {};
@@ -46,14 +50,17 @@ inline std::string CGenerator::expression(const ExprPtr& node) const {
     case Expr::Kind::Name: return cVariableName(node->value);
     case Expr::Kind::Unary: return (node->op == "not" ? "!" : node->op) + expression(node->left);
     case Expr::Kind::Binary: {
-        const auto left = expression(node->left), right = expression(node->right);
+        const auto left = expression(node->left);
+        const auto right = expression(node->right);
         if (node->op == "/") return "((double)(" + left + ") / (double)(" + right + "))";
-        const auto op = node->op == "and" ? "&&" : node->op == "or" ? "||" : node->op;
+        const auto& op = node->op == "and" ? std::string("&&") :
+                         node->op == "or" ? std::string("||") : node->op;
         return "(" + left + " " + op + " " + right + ")";
     }
     case Expr::Kind::Call: {
         if (node->left->kind != Expr::Kind::Name) fail(node->token,"only direct function calls are supported");
         std::string result = cFunctionName(node->left->value) + "(";
+        result.reserve(result.size() + node->arguments.size() * 16);
         for (std::size_t i = 0; i < node->arguments.size(); ++i) {
             if (i) result += ", ";
             result += expression(node->arguments[i]);
