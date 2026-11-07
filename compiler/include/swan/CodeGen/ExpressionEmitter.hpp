@@ -48,32 +48,64 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
     return {};
 }
 inline std::string CGenerator::expression(const ExprPtr& node) const {
+    std::string result;
+    result.reserve(32);
+    appendExpression(result, node);
+    return result;
+}
+
+inline void CGenerator::appendExpression(std::string& output, const ExprPtr& node) const {
     switch (node->kind) {
     case Expr::Kind::Literal:
-        if (node->literal_kind == "STRING") return quote(node->value);
-        if (node->literal_kind == "true") return "true";
-        if (node->literal_kind == "false") return "false";
-        if (node->literal_kind == "none") return "NULL";
-        return node->value;
-    case Expr::Kind::Name: return cVariableName(node->value);
-    case Expr::Kind::Unary: return (node->op == "not" ? "!" : node->op) + expression(node->left);
-    case Expr::Kind::Binary: {
-        const auto left = expression(node->left), right = expression(node->right);
-        if (node->op == "/") return "((double)(" + left + ") / (double)(" + right + "))";
-        const auto op = node->op == "and" ? "&&" : node->op == "or" ? "||" : node->op;
-        return "(" + left + " " + op + " " + right + ")";
-    }
-    case Expr::Kind::Call: {
-        if (node->left->kind != Expr::Kind::Name) fail(node->token,"only direct function calls are supported");
-        std::string result = cFunctionName(node->left->value) + "(";
-        for (std::size_t i = 0; i < node->arguments.size(); ++i) {
-            if (i) result += ", ";
-            result += expression(node->arguments[i]);
+        if (node->literal_kind == "STRING") output += quote(node->value);
+        else if (node->literal_kind == "true") output += "true";
+        else if (node->literal_kind == "false") output += "false";
+        else if (node->literal_kind == "none") output += "NULL";
+        else output += node->value;
+        return;
+    case Expr::Kind::Name:
+        output += cVariableName(node->value);
+        return;
+    case Expr::Kind::Unary:
+        output += node->op == "not" ? "!" : node->op;
+        appendExpression(output, node->left);
+        return;
+    case Expr::Kind::Binary:
+        if (node->op == "/") {
+            output += "((double)(";
+            appendExpression(output, node->left);
+            output += ") / (double)(";
+            appendExpression(output, node->right);
+            output += "))";
+            return;
         }
-        return result + ")";
+        output.push_back('(');
+        appendExpression(output, node->left);
+        output.push_back(' ');
+        if (node->op == "and") output += "&&";
+        else if (node->op == "or") output += "||";
+        else output += node->op;
+        output.push_back(' ');
+        appendExpression(output, node->right);
+        output.push_back(')');
+        return;
+    case Expr::Kind::Call:
+        if (node->left->kind != Expr::Kind::Name)
+            fail(node->token,"only direct function calls are supported");
+        output += cFunctionName(node->left->value);
+        output.push_back('(');
+        for (std::size_t i = 0; i < node->arguments.size(); ++i) {
+            if (i) output += ", ";
+            appendExpression(output, node->arguments[i]);
+        }
+        output.push_back(')');
+        return;
+    case Expr::Kind::Member:
+        appendExpression(output, node->left);
+        output.push_back('.');
+        output += cFieldName(node->value);
+        return;
     }
-    case Expr::Kind::Member: return expression(node->left) + "." + cFieldName(node->value);
-    }
-    return {};
 }
+
 }
