@@ -13,6 +13,7 @@ struct CommandLine {
     bool emitAssembly = false;
     bool emitC = false;
     bool optimize = false;
+    bool fastCompile = false;
     std::string target = "native";
     bool showHelp = false;
     bool showVersion = false;
@@ -46,6 +47,10 @@ inline bool parseCommandLine(int argc, char** argv, CommandLine& options) {
         }
         if (argument == "--optimize" || argument == "-O") {
             options.optimize = true;
+            continue;
+        }
+        if (argument == "--fast-compile") {
+            options.fastCompile = true;
             continue;
         }
         if (argument == "--target") {
