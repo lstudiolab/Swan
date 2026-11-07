@@ -38,9 +38,6 @@ static Target host_target(void) {
     return X86_64;
 #endif
 }
-static const char *target_name(Target t) {
-    return t == X86_64 ? "x86_64" : t == AARCH64 ? "aarch64" : "armv7";
-}
 static int parse_target(const char *s, Target *t) {
     if (!strcmp(s,"native")) { *t=host_target(); return 1; }
     if (!strcmp(s,"x86_64") || !strcmp(s,"x86-64")) { *t=X86_64; return 1; }
