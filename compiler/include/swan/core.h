@@ -25,7 +25,7 @@ typedef struct Expr Expr;
 struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr *args[16]; size_t argc; };
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
 typedef struct Stmt Stmt;
-struct Stmt { StmtKind kind; Token token; char name[SWAN_MAX_TEXT]; char type[SWAN_MAX_TEXT]; bool mutable_value; Expr *value,*condition; Stmt *body[1024],*alternate[1024]; size_t body_count,alt_count; char params[16][SWAN_MAX_TEXT]; size_t param_count; Stmt *next; };
+struct Stmt { StmtKind kind; Token token; char name[SWAN_MAX_TEXT]; char type[SWAN_MAX_TEXT]; bool mutable_value; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; char params[16][SWAN_MAX_TEXT]; size_t param_count; Stmt *next; };
 typedef struct { Stmt *functions[1024]; size_t count; } Program;
 typedef struct { char message[1024]; unsigned line,col; } SwanError;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
