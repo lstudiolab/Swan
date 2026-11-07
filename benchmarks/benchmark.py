@@ -37,6 +37,18 @@ def median_seconds(command: list[str], repeats: int, cwd: pathlib.Path,
     return statistics.median(samples)
 
 
+def nested_expected_value(limit: int) -> int:
+    # Each residue 0..29 occurs 11 times in range(limit); 30..96 occur 10 times.
+    # This computes the expected checksum independently in 97^3 operations.
+    counts = [limit // 97 + (residue < limit % 97) for residue in range(97)]
+    return sum(
+        counts[i] * counts[j] * counts[k] * ((31 * i + 17 * j + 13 * k) % 97)
+        for i in range(97)
+        for j in range(97)
+        for k in range(97)
+    )
+
+
 def main() -> None:
     if not SWAN.is_file():
         raise SystemExit("Build Swan first with: sh build.sh")
@@ -61,7 +73,6 @@ def main() -> None:
         source.write_text("\n".join(lines), encoding="utf-8")
         source_bytes = source.stat().st_size
 
-        # Validate once outside timed samples and ensure all benchmark paths agree.
         subprocess.run([str(SWAN), str(source), "--emit-c", "-o", str(generated)],
                        check=True, stdout=subprocess.DEVNULL)
         subprocess.run([CC, "-std=c11", "-O2", str(generated), "-o", str(binary)],
@@ -80,10 +91,11 @@ def main() -> None:
         end_to_end = median_seconds([str(SWAN), str(source)], 5, work)
         runtime = median_seconds([str(binary)], 21, work, expected)
 
-        # Three nested loops execute exactly 1,000 x 1,000 x 1,000 = 1B
-        # loop-body iterations. The accumulated value is checked every run.
+        # Three nested loops execute 1B bodies. The modulo checksum prevents
+        # the C optimizer from replacing the complete loop nest with a constant.
         nested_source = work / "nested_1b.swan"
         nested_binary = work / "nested_1b"
+        limit = 1000
         nested_source.write_text(
             "fn main() -> int:\n"
             "    var total = 0\n"
@@ -93,7 +105,7 @@ def main() -> None:
             "        while j < 1000\n"
             "            var k = 0\n"
             "            while k < 1000\n"
-            "                total = total + i + j + k\n"
+            "                total = total + ((i * 31 + j * 17 + k * 13) % 97)\n"
             "                k = k + 1\n"
             "            j = j + 1\n"
             "        i = i + 1\n"
@@ -105,7 +117,7 @@ def main() -> None:
             [str(SWAN), "build", str(nested_source), "-o", str(nested_binary)],
             check=True, stdout=subprocess.DEVNULL,
         )
-        nested_expected = "1498500000000"
+        nested_expected = str(nested_expected_value(limit))
         nested_runtime = median_seconds(
             [str(nested_binary)], 3, work, nested_expected
         )
@@ -119,7 +131,7 @@ def main() -> None:
         print("1B nested-loop runtime benchmark")
         print("Workload: 1,000 x 1,000 x 1,000 = 1,000,000,000 iterations")
         print(f"Runtime (median of 3):       {nested_runtime:.2f} seconds")
-        print(f"Verified accumulated value: {nested_expected}")
+        print(f"Verified checksum:           {nested_expected}")
         print("Correctness: PASS")
 
 
