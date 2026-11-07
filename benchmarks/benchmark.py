@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible Swan CLI benchmark; reports medians, never enforces noisy thresholds."""
+"""Reproducible Swan compiler and runtime benchmarks; reports medians in seconds."""
 from __future__ import annotations
 
 import os
@@ -14,19 +14,24 @@ SWAN = ROOT / "build" / "swan"
 CC = os.environ.get("CC", "cc")
 
 
-def median_ms(command: list[str], repeats: int, cwd: pathlib.Path) -> float:
+def median_seconds(command: list[str], repeats: int, cwd: pathlib.Path,
+                   expected: str | None = None) -> float:
     samples = []
     for _ in range(repeats):
         start = time.perf_counter()
         result = subprocess.run(
-            command, cwd=cwd, stdout=subprocess.DEVNULL, stderr=subprocess.PIPE,
+            command, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, check=False,
         )
-        elapsed = (time.perf_counter() - start) * 1000
+        elapsed = time.perf_counter() - start
         if result.returncode:
             raise RuntimeError(
                 f"Command failed ({result.returncode}): {' '.join(command)}\n"
                 f"{result.stderr}"
+            )
+        if expected is not None and result.stdout.strip() != expected:
+            raise RuntimeError(
+                f"Incorrect result: expected {expected!r}, got {result.stdout.strip()!r}"
             )
         samples.append(elapsed)
     return statistics.median(samples)
@@ -48,7 +53,7 @@ def main() -> None:
             for index in range(function_count)
         ]
         lines.extend([
-            "fn main():",
+            "fn main() -> int:",
             f"    log value_{function_count - 1}()",
             "    return 0",
             "",
@@ -66,21 +71,55 @@ def main() -> None:
         if actual != expected:
             raise RuntimeError(f"Incorrect benchmark result: expected {expected}, got {actual}")
 
-        frontend = median_ms(
+        frontend = median_seconds(
             [str(SWAN), str(source), "--emit-c", "-o", str(generated)], 7, work
         )
-        native_link = median_ms(
+        native_link = median_seconds(
             [CC, "-std=c11", "-O2", str(generated), "-o", str(binary)], 7, work
         )
-        end_to_end = median_ms([str(SWAN), str(source)], 5, work)
-        runtime = median_ms([str(binary)], 21, work)
+        end_to_end = median_seconds([str(SWAN), str(source)], 5, work)
+        runtime = median_seconds([str(binary)], 21, work, expected)
 
-        print("Swan CLI benchmark (median wall-clock; lower is better)")
-        print(f"Workload: {function_count} functions, {source_bytes:,} source bytes")
-        print(f"Frontend + C emission:       {frontend:9.3f} ms")
-        print(f"Native C compile + link:     {native_link:9.3f} ms")
-        print(f"Direct compile + execute:    {end_to_end:9.3f} ms")
-        print(f"Prebuilt executable runtime: {runtime:9.3f} ms")
+        # Three nested loops execute exactly 1,000 x 1,000 x 1,000 = 1B
+        # loop-body iterations. The accumulated value is checked every run.
+        nested_source = work / "nested_1b.swan"
+        nested_binary = work / "nested_1b"
+        nested_source.write_text(
+            "fn main() -> int:\n"
+            "    var total = 0\n"
+            "    var i = 0\n"
+            "    while i < 1000\n"
+            "        var j = 0\n"
+            "        while j < 1000\n"
+            "            var k = 0\n"
+            "            while k < 1000\n"
+            "                total = total + i + j + k\n"
+            "                k = k + 1\n"
+            "            j = j + 1\n"
+            "        i = i + 1\n"
+            "    log total\n"
+            "    return 0\n",
+            encoding="utf-8",
+        )
+        subprocess.run(
+            [str(SWAN), "build", str(nested_source), "-o", str(nested_binary)],
+            check=True, stdout=subprocess.DEVNULL,
+        )
+        nested_expected = "1498500000000"
+        nested_runtime = median_seconds(
+            [str(nested_binary)], 3, work, nested_expected
+        )
+
+        print("Swan benchmark (median wall-clock; seconds; lower is better)")
+        print(f"Frontend + C emission:       {frontend:.2f} seconds")
+        print(f"Native C compile + link:     {native_link:.2f} seconds")
+        print(f"Direct compile + execute:    {end_to_end:.2f} seconds")
+        print(f"Prebuilt executable runtime: {runtime:.2f} seconds")
+        print()
+        print("1B nested-loop runtime benchmark")
+        print("Workload: 1,000 x 1,000 x 1,000 = 1,000,000,000 iterations")
+        print(f"Runtime (median of 3):       {nested_runtime:.2f} seconds")
+        print(f"Verified accumulated value: {nested_expected}")
         print("Correctness: PASS")
 
 
