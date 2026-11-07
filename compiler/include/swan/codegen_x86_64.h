@@ -27,7 +27,6 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  if(l->caller_saved&&l->reg_count<6)v->reg=5+l->reg_count++;
  else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
  else v->slot=++l->slots;
- else v->slot=++l->slots;
  return v;
 }
 static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE)local_add(l,s->name,s->mutable_value);collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
@@ -237,6 +236,14 @@ static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,
    case T_LE:cc=when_true?"jle":"jg";break;case T_GE:cc=when_true?"jge":"jl";break;default:break;
   }
   if(cc){
+    if((e->token.kind==T_EQ||e->token.kind==T_NE)&&e->left&&e->left->kind==E_BINARY&&e->left->token.kind==T_PERCENT&&e->left->right&&e->left->right->kind==E_INT&&!strcmp(e->left->right->token.text,"2")&&e->right&&e->right->kind==E_INT&&!strcmp(e->right->token.text,"0")&&e->left->left&&e->left->left->kind==E_NAME){
+     Local *v=local_find(l,e->left->left->token.text);
+     if(v){const char *jump=e->token.kind==T_EQ?(when_true?"jz":"jnz"):(when_true?"jnz":"jz");
+      if(v->reg>=0)text_add(o,"    test %s, 1\\n    %s %s\\n",cg_reg_name(v->reg),jump,target);
+      else text_add(o,"    test QWORD PTR [rbp - %d], 1\\n    %s %s\\n",v->slot*8,jump,target);
+      return;
+     }
+    }
    if(e->left&&e->left->kind==E_NAME&&e->right&&e->right->kind==E_INT){
     char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);Local *v=local_find(l,e->left->token.text);
     if(v&&end&&!*end&&imm>=INT32_MIN&&imm<=INT32_MAX){
@@ -405,9 +412,10 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     else if(s->value&&s->value->kind==E_BOOL){value=s->value->token.kind==T_TRUE;immediate=true;}
     if(v&&immediate){
      if(v->reg>=0){
-      static const char *low_regs[]={"ebx","r12d","r13d","r14d","r15d"};
-      if(value==0)text_add(o,"    xor %s, %s\n",low_regs[v->reg],low_regs[v->reg]);
-      else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov %s, %lld\n",cg_reg_name(v->reg),value);
+       const char *low=cg_reg_low_name(v->reg),*reg=cg_reg_name(v->reg);
+       if(value==0)text_add(o,"    xor %s, %s\\n",low,low);
+       else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov %s, %lld\\n",reg,value);
+       else text_add(o,"    movabs %s, %lld\\n",reg,value);
       else text_add(o,"    movabs %s, %lld\n",cg_reg_name(v->reg),value);
      }else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov QWORD PTR [rbp - %d], %lld\n",v->slot*8,value);
      else{if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);}
@@ -479,7 +487,6 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
   for(size_t a=0;a<fn->param_count;a++)local_add(&l,fn->params[a],false);
   collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
-  collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots+l.reg_count)*8+15)/16*16;
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
