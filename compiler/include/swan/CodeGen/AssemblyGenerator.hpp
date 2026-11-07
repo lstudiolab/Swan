@@ -36,7 +36,8 @@ public:
         text_ += ".intel_syntax noprefix\n"
                  ".text\n"
                  ".extern printf\n"
-                 ".extern puts\n";
+                 ".extern puts\n"
+                 ".extern calloc\n";
 
         for (const auto& node : program_) {
             if (node->kind == Stmt::Kind::Function) emitFunction(node.get());
