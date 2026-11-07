@@ -21,7 +21,7 @@ inline std::string CGenerator::generate() {
     std::vector<StmtPtr> structures;
     structures.reserve(program_.size());
     functions_.reserve(program_.size());
-    std::unordered_map<std::string, StmtPtr> structureByName;
+    StringViewMap<StmtPtr> structureByName;
     structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
@@ -43,7 +43,7 @@ inline std::string CGenerator::generate() {
     }
     if (!structures.empty()) line();
 
-    std::unordered_map<std::string, unsigned char> state;
+    StringViewMap<unsigned char> state;
     state.reserve(structures.size());
     std::vector<StmtPtr> ordered;
     ordered.reserve(structures.size());
