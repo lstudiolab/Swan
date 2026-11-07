@@ -286,25 +286,16 @@ jobs:
 
           run_case() {
             local name="$1"; shift
-            local actual
-            actual=$("$@" 2>&1)
-            [[ "$actual" == "$expected" ]] || {
-              echo "$name checksum mismatch: $actual != $expected" >&2
-              exit 1
-            }
-            for run in 1 2 3 4 5 6 7; do
+            for run in 1 2 3; do
               start=$(date +%s%N)
               /usr/bin/time -o /tmp/rss -f "%M" "$@" >/tmp/out 2>&1
               end=$(date +%s%N)
               [[ "$(cat /tmp/out)" == "$expected" ]] || {
-                echo "$name produced unexpected output on run $run" >&2
-                cat /tmp/out >&2
+                echo "$name checksum mismatch on run $run: $(cat /tmp/out) != $expected" >&2
                 exit 1
               }
-              if (( run > 2 )); then
-                elapsed=$((end-start))
-                awk -v n="$name" -v t="$elapsed" -v m="$(cat /tmp/rss)" 'BEGIN { printf "%s runtime_ms %.3f peak_rss_kb %s\n", n, t/1000000, m }' >>../results.txt
-              fi
+              elapsed=$((end-start))
+              awk -v n="$name" -v t="$elapsed" -v m="$(cat /tmp/rss)" 'BEGIN { printf "%s runtime_ms %.3f peak_rss_kb %s\n", n, t/1000000, m }' >>../results.txt
             done
           }
 
@@ -334,7 +325,7 @@ jobs:
                       values[parts[0]].append(float(parts[2]))
                       memory[parts[0]].append(int(parts[4]))
           with open("../results.txt", "a", encoding="utf-8") as f:
-              f.write("\nmedian_runtime_ms (5 measured runs after 2 warmups)\n")
+              f.write("\nmedian_runtime_ms (3 measured runs; each run checksum-verified)\n")
               for name, samples in values.items():
                   f.write(f"{name} median_ms {median(samples):.3f} median_peak_rss_kb {median(memory[name]):.0f}\n")
           PY
