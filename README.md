@@ -49,13 +49,15 @@ Emit assembly:
 
     ./build/swan program.swan --target aarch64 --emit-asm -o program.s
     ./build/swan program.swan --target wasm32 --emit-asm -o program.s
+./build/swan program.swan --target aarch64 --emit-obj -o program.o
+./build/swan program.swan --target aarch64 --cpu cortex-a72 --features +neon --emit-asm -o program.s
 
 Build and run on the host:
 
     ./build/swan build program.swan -o program
     ./program
 
-Cross-target assembly does not require a target sysroot. Linking a runnable executable for a foreign operating system requires that platform's linker, runtime libraries, and sysroot. Actual target availability depends on the installed LLVM build.
+Cross-target assembly and object generation do not require a target sysroot. Linking a runnable executable for a foreign operating system requires that platform's linker, runtime libraries, and sysroot. Use `--cpu` and `--features` to select a concrete CPU and ISA extensions. Actual target availability depends on the installed LLVM build.
 
 ## Optimization and compilation speed
 
