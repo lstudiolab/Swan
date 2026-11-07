@@ -52,7 +52,7 @@ commands={
  "goose": ([goose,"build","-o",bins["goose"],sources["goose"]],[bins["goose"]]),
  "c": (["cc","-O2","-std=c11",sources["c"],"-o",bins["c"]],[bins["c"]]),
  "cpp": (["c++","-O2","-std=c++17",sources["cpp"],"-o",bins["cpp"]],[bins["cpp"]]),
- "objective-c": (["gcc","-O2","-x","objective-c",sources["objective-c"],"-lobjc","-o",bins["objective-c"]],[bins["objective-c"]])
+ "objective-c": (["gcc","-O2","-std=gnu11","-x","objective-c",sources["objective-c"],"-lobjc","-o",bins["objective-c"]],[bins["objective-c"]])
 }
 results={}
 for name,(build,run) in commands.items():
