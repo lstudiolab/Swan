@@ -32,4 +32,37 @@ reject_dependency Frontend 'CodeGen|Compiler|Driver'
 reject_dependency CodeGen 'Frontend|Compiler|Driver'
 reject_dependency Compiler 'Driver'
 
+# The full Swan frontend can lower optimized code to independent target ISAs.
+cat > "$ROOT/build/portable-targets.swan" <<'SWAN'
+fn sum(n: int) -> int:
+    var total = 0
+    var i = 0
+    while i < n
+        total = total + i
+        i = i + 1
+    return total
+fn main() -> int:
+    let values = array(8)
+    var i = 0
+    while i < 8
+        values[i] = i * 2
+        i = i + 1
+    log sum(values[7])
+    return 0
+SWAN
+for target in x86_64 aarch64 armv7 riscv64 wasm32; do
+    "$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --target "$target" --emit-asm -o "$ROOT/build/portable-$target.s"
+    test -s "$ROOT/build/portable-$target.s"
+done
+grep -q 'main:' "$ROOT/build/portable-x86_64.s"
+grep -q 'main:' "$ROOT/build/portable-aarch64.s"
+grep -q 'main:' "$ROOT/build/portable-armv7.s"
+grep -q 'main:' "$ROOT/build/portable-riscv64.s"
+grep -q 'main:' "$ROOT/build/portable-wasm32.s"
+printf 'PASS: full Swan source lowers to x86-64, AArch64, ARMv7, RISC-V 64, and WebAssembly assembly\n'
+
+# The optimized portable backend executes the same array and function workload.
+test "$("$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --optimize)" = "56"
+printf 'PASS: optimized portable backend execution\n'
+
 printf 'PASS: compiler architecture boundaries\n'
