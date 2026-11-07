@@ -30,7 +30,7 @@ public:
                 ".Lfmt_int: .asciz \"%lld\\n\"\n"
                 ".Lfmt_float: .asciz \"%g\\n\"\n"
                 ".Lfmt_bool: .asciz \"%d\\n\"\n"
-                ".Lfloat_sign: .quad 0x8000000000000000\n";
+                ".Lfloat_sign: .quad 0x8000000000000000, 0\n";
 
         text_ += ".intel_syntax noprefix\n"
                  ".text\n"
