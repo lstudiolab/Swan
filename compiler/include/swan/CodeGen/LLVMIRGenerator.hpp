@@ -53,7 +53,7 @@ class LLVMIRGenerator {
             strings_.emplace(s, name);
             std::string encoded = bytes(s);
             globals_ += name + " = private unnamed_addr constant [" +
-                std::to_string(s.size() + 1) + " x i8] c\"" + encoded + "\\00\", align 1\n" + out_;
+                std::to_string(s.size() + 1) + " x i8] c\"" + encoded + "\\00\", align 1\n";
         } else name = it->second;
         auto p = tmp();
         line(p + " = getelementptr inbounds [" + std::to_string(s.size() + 1) +
