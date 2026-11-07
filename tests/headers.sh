@@ -5,7 +5,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 INCLUDE="$ROOT/compiler/include"
 CXX=${CXX:-c++}
 
-CPP_COUNT=$(find "$ROOT" -type f -name '*.cpp' | wc -l | tr -d ' ')
+CPP_COUNT=$(find "$ROOT" -type f -name '*.cpp' ! -path "$ROOT/benchmarks/*" | wc -l | tr -d ' ')
 if [ "$CPP_COUNT" -ne 1 ] || [ ! -f "$ROOT/main.cpp" ]; then
     echo "FAIL: the compiler must have exactly one C++ translation unit: main.cpp" >&2
     exit 1
