@@ -1,5 +1,5 @@
 #pragma once
-#include "swan/Basic/Token.hpp"
+#include "swan/Basic/SourceLocation.hpp"
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -12,7 +12,7 @@ struct Expr {
     enum class ResolvedType : std::uint8_t { Unknown, Int, Float, Bool, String, None, Void };
     Kind kind = Kind::Literal;
     ResolvedType resolved_type = ResolvedType::Unknown;
-    Token token;
+    SourceLocation token;
     std::string value;
     std::string op;
     std::string literal_kind;
