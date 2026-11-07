@@ -2,10 +2,9 @@
 #include "swan/AST/AST.hpp"
 #include "swan/CodeGen/CType.hpp"
 #include "swan/CodeGen/StringLiteral.hpp"
-#include <sstream>
 #include <string>
+#include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace swan {
@@ -15,20 +14,24 @@ public:
     std::string generate();
 private:
     std::string cType(const std::string& type) const;
+    void appendCType(std::string& output, std::string_view type) const;
     std::string expression(const ExprPtr& expression) const;
-    std::string inferredType(const ExprPtr& expression) const;
+    void appendExpression(std::string& output, const ExprPtr& expression) const;
+    std::string_view inferredType(const ExprPtr& expression) const;
     std::string quote(const std::string& value) const;
     void line(const std::string& value = {});
+    void beginLine();
+    void endLine();
     void function(const StmtPtr& function);
     void block(const std::vector<StmtPtr>& statements);
     void statement(const StmtPtr& statement);
     const Program& program_;
-    std::ostringstream output_;
+    std::string output_;
     unsigned indent_ = 0;
-    std::unordered_set<std::string> structs_;
-    std::unordered_map<std::string,StmtPtr> functions_;
-    std::unordered_map<std::string,std::string> symbols_;
-    std::vector<std::unordered_map<std::string,std::string>> scopes_;
+    StructureSet structs_;
+    StringViewMap<const Stmt*> functions_;
+    StringViewMap<std::string> symbols_;
+    std::vector<StringViewMap<std::string>> scopes_;
 };
 }
 

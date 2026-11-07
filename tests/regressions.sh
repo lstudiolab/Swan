@@ -90,4 +90,37 @@ SWAN
 test "$("$TMP/immutable-string")" = "Hello
 Hello"
 printf 'PASS: immutable string and parameter declarations\n'
+cat > "$TMP/nested-shadowing.swan" <<'SWAN'
+fn main() -> int {
+    var value: int = 1;
+    if true {
+        var value: int = 2;
+        log value;
+    }
+    log value;
+    return 0;
+}
+SWAN
+"$SWAN" "$TMP/nested-shadowing.swan" -o "$TMP/nested-shadowing.c"
+"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/nested-shadowing.c" -o "$TMP/nested-shadowing"
+test "$("$TMP/nested-shadowing")" = "2
+1"
+printf 'PASS: nested symbol shadowing and scope restoration\\n'
+cat > "$TMP/escaped-string.swan" <<'SWAN'
+fn main() -> int {
+    log "line\nquote\"slash\\";
+    return 0;
+}
+SWAN
+"$SWAN" "$TMP/escaped-string.swan" -o "$TMP/escaped-string.c"
+"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/escaped-string.c" -o "$TMP/escaped-string"
+actual=$("$TMP/escaped-string")
+expected=$(printf 'line\nquote"slash\\')
+if [ "$actual" != "$expected" ]; then
+    printf 'FAIL: escaped string output mismatch\n' >&2
+    printf 'actual bytes: '; printf '%s' "$actual" | od -An -t x1 >&2
+    printf 'expected bytes: '; printf '%s' "$expected" | od -An -t x1 >&2
+    exit 1
+fi
+printf 'PASS: escaped string literal generation\\n'
 printf 'PASS: compiler regression suite\n'

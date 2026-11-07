@@ -6,14 +6,14 @@
 #include <vector>
 namespace swan {
 struct Stmt;
-using StmtPtr = std::shared_ptr<Stmt>;
+using StmtPtr = std::unique_ptr<Stmt>;
 struct Stmt {
     enum class Kind {
         Function, Struct, Variable, If, While, Return, Break,
         Continue, Pass, Log, Expression, Import
     };
     Kind kind = Kind::Pass;
-    Token token;
+    SourceLocation token;
     std::string name;
     std::string type;
     std::string module;

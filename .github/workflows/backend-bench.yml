@@ -1,0 +1,27 @@
+name: Swan Backend Benchmarks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Clang
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang build-essential python3
+      - name: Build Swan
+        run: sh build.sh
+      - name: Measure Clang optimization levels
+        run: python3 benchmarks/backend_flags.py
+      - name: Measure Swan frontend phases
+        run: python3 benchmarks/compile.py
+      - name: Record toolchain
+        if: always()
+        run: |
+          uname -a
+          clang --version

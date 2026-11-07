@@ -13,8 +13,8 @@ private:
     const Token& peek(std::size_t offset = 0) const;
     bool check(std::string_view kind) const;
     bool match(std::string_view kind);
-    Token advance();
-    Token expect(std::string_view kind, std::string_view message = {});
+    Token& advance();
+    Token& expect(std::string_view kind, std::string_view message = {});
     void separators();
     std::string typeName();
     std::vector<StmtPtr> block();

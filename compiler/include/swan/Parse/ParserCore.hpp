@@ -18,26 +18,27 @@ inline bool Parser::match(std::string_view kind) {
     if (!check(kind)) return false;
     advance(); return true;
 }
-inline Token Parser::advance() {
-    Token token = peek();
-    if (!check("EOF")) ++position_;
+inline Token& Parser::advance() {
+    Token& token = tokens_[position_];
+    if (token.kind != "EOF") ++position_;
     return token;
 }
-inline Token Parser::expect(std::string_view kind, std::string_view message) {
+inline Token& Parser::expect(std::string_view kind, std::string_view message) {
     if (check(kind)) return advance();
     if (message.empty()) fail(peek(),std::string("expected ") + std::string(kind));
     fail(peek(),message);
 }
 inline void Parser::separators() { while (match("NEWLINE") || match(";")) {} }
 inline std::string Parser::typeName() {
-    auto token = advance();
+    auto& token = advance();
     if (token.kind != "IDENT" && token.kind != "int" && token.kind != "float" &&
         token.kind != "bool" && token.kind != "string" && token.kind != "void")
         fail(token,"expected type name");
-    return token.value;
+    return std::move(token.value);
 }
 inline Program Parser::parse() {
     Program program;
+    program.reserve(tokens_.size() / 8);
     separators();
     while (!check("EOF")) {
         const auto before = position_;

@@ -1,7 +1,6 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
 #include <algorithm>
-#include <functional>
 #include <string>
 #include <unordered_map>
 #include <utility>
@@ -10,58 +9,104 @@
 namespace swan {
 inline CGenerator::CGenerator(const Program& program) : program_(program) {}
 inline std::string CGenerator::cType(const std::string& type) const { return mapCType(type, structs_); }
+inline void CGenerator::appendCType(std::string& output, std::string_view type) const {
+    appendMappedCType(output, type, structs_);
+}
 inline std::string CGenerator::quote(const std::string& value) const { return escapeCString(value); }
 
 inline std::string CGenerator::generate() {
-    output_ << "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
-    std::vector<StmtPtr> structures;
+    output_.reserve(std::max<std::size_t>(4096, program_.size() * 96));
+    output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
+    std::vector<const Stmt*> structures;
+    structures.reserve(program_.size());
+    functions_.reserve(program_.size());
+    StringViewMap<const Stmt*> structureByName;
+    structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             structs_.insert(node->name);
-            structures.push_back(node);
+            structures.push_back(node.get());
+            structureByName.emplace(node->name, node.get());
         }
-        if (node->kind == Stmt::Kind::Function) functions_[node->name] = node;
+        if (node->kind == Stmt::Kind::Function) functions_.emplace(node->name, node.get());
     }
 
-    for (const auto& structure : structures)
-        line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
+    for (const auto& structure : structures) {
+        beginLine();
+        output_ += "typedef struct swan_type_";
+        output_ += structure->name;
+        output_ += " swan_type_";
+        output_ += structure->name;
+        output_.push_back(';');
+        endLine();
+    }
     if (!structures.empty()) line();
 
-    std::unordered_map<std::string, int> state;
-    std::vector<StmtPtr> ordered;
-    std::function<void(const StmtPtr&)> visit = [&](const StmtPtr& structure) {
-        int& mark = state[structure->name];
+    StringViewMap<unsigned char> state;
+    state.reserve(structures.size());
+    std::vector<const Stmt*> ordered;
+    ordered.reserve(structures.size());
+    const auto visit = [&](const auto& self, const Stmt* structure) -> void {
+        auto& mark = state[structure->name];
         if (mark == 2) return;
         if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
         mark = 1;
         for (const auto& field : structure->fields) {
             if (!structs_.contains(field.type)) continue;
-            auto dependency = std::find_if(structures.begin(), structures.end(),
-                [&](const StmtPtr& candidate) { return candidate->name == field.type; });
-            if (dependency != structures.end()) visit(*dependency);
+            const auto dependency = structureByName.find(field.type);
+            if (dependency != structureByName.end()) self(self, dependency->second);
         }
         mark = 2;
         ordered.push_back(structure);
     };
-    for (const auto& structure : structures) visit(structure);
+    for (const auto& structure : structures) visit(visit, structure);
 
     for (const auto& node : ordered) {
-        line("struct " + cTypeName(node->name) + " {"); ++indent_;
-        for (const auto& field : node->fields)
-            line(cType(field.type) + " " + cFieldName(field.name) + ";");
-        --indent_; line("};"); line();
-    }
-    for (const auto& node : program_) if (node->kind == Stmt::Kind::Function) {
-        std::string parameters;
-        for (const auto& parameter : node->parameters) {
-            if (!parameters.empty()) parameters += ", ";
-            parameters += cType(parameter.type) + " " + cVariableName(parameter.name);
+        beginLine();
+        output_ += "struct swan_type_";
+        output_ += node->name;
+        output_ += " {";
+        endLine();
+        ++indent_;
+        for (const auto& field : node->fields) {
+            beginLine();
+            appendCType(output_, field.type);
+            output_ += " swan_field_";
+            output_ += field.name;
+            output_.push_back(';');
+            endLine();
         }
-        line(cType(node->return_type) + " " + cFunctionName(node->name) + "(" +
-             (parameters.empty() ? "void" : parameters) + ");");
+        --indent_;
+        line("};");
+        line();
+    }
+    for (const auto& node : program_) {
+        if (node->kind != Stmt::Kind::Function) continue;
+        beginLine();
+        appendCType(output_, node->return_type);
+        output_.push_back(' ');
+        output_ += node->name == "main" ? "main" : "swan_fn_";
+        if (node->name != "main") output_ += node->name;
+        output_.push_back('(');
+        if (node->parameters.empty()) {
+            output_ += "void";
+        } else {
+            bool first = true;
+            for (const auto& parameter : node->parameters) {
+                if (!first) output_ += ", ";
+                first = false;
+                appendCType(output_, parameter.type);
+                output_ += " swan_var_";
+                output_ += parameter.name;
+            }
+        }
+        output_ += ");";
+        endLine();
     }
     line();
-    for (const auto& node : program_) if (node->kind == Stmt::Kind::Function) function(node);
-    return output_.str();
+    for (const auto& node : program_) {
+        if (node->kind == Stmt::Kind::Function) function(node);
+    }
+    return std::move(output_);
 }
 }

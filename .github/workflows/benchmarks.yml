@@ -1,0 +1,55 @@
+name: Language Benchmarks
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install C and C++ build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake clang build-essential time python3
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - name: Install Swift
+        uses: swift-actions/setup-swift@v2
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: 0.13.0
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Build Swan
+        run: sh build.sh
+      - name: Isolate native backend optimization levels
+        run: python3 benchmarks/backend_flags.py
+      - name: Benchmark compiler hot paths
+        run: python3 benchmarks/compile.py
+      - name: Build Goose compiler
+        run: |
+          git clone --depth 1 https://github.com/aardappel/goose.git "$RUNNER_TEMP/goose"
+          cmake -S "$RUNNER_TEMP/goose" -B "$RUNNER_TEMP/goose-build" \
+            -DCMAKE_BUILD_TYPE=Release -DGOOSE_BUILTIN_LIBS=
+          cmake --build "$RUNNER_TEMP/goose-build" --parallel 2
+          echo "GOOSE_BIN=$RUNNER_TEMP/goose-build/goose" >> "$GITHUB_ENV"
+          git -C "$RUNNER_TEMP/goose" rev-parse HEAD
+      - name: Compare nine languages
+        run: python3 benchmarks/compare_languages.py
+      - name: Record machine and toolchain versions
+        if: always()
+        run: |
+          uname -a
+          clang --version
+          clang++ --version
+          rustc --version
+          go version
+          swift --version
+          zig version
+          "$GOOSE_BIN" --version || true

@@ -1,26 +1,94 @@
 #pragma once
 #include "swan/Lex/Lexer.hpp"
 #include <string>
-#include <string_view>
+
 namespace swan {
 inline Token Lexer::scanPunctuation() {
     const auto line = line_;
     const auto column = column_;
-    const char character = peek();
-    const std::string pair{character, peek(1)};
-    if (pair == "->" || pair == "==" || pair == "!=" || pair == "<=" ||
-        pair == ">=" || pair == "&&" || pair == "||") {
-        advance();
-        advance();
-        return {pair, pair, line, column};
+    const char character = source_[index_];
+    const char next = peek(1);
+
+    switch (character) {
+        case '-':
+            if (next == '>') {
+                index_ += 2;
+                column_ += 2;
+                return {"->", "->", line, column};
+            }
+            break;
+        case '=':
+            if (next == '=') {
+                index_ += 2;
+                column_ += 2;
+                return {"==", "==", line, column};
+            }
+            break;
+        case '!':
+            if (next == '=') {
+                index_ += 2;
+                column_ += 2;
+                return {"!=", "!=", line, column};
+            }
+            break;
+        case '<':
+            if (next == '=') {
+                index_ += 2;
+                column_ += 2;
+                return {"<=", "<=", line, column};
+            }
+            break;
+        case '>':
+            if (next == '=') {
+                index_ += 2;
+                column_ += 2;
+                return {">=", ">=", line, column};
+            }
+            break;
+        case '&':
+            if (next == '&') {
+                index_ += 2;
+                column_ += 2;
+                return {"&&", "&&", line, column};
+            }
+            break;
+        case '|':
+            if (next == '|') {
+                index_ += 2;
+                column_ += 2;
+                return {"||", "||", line, column};
+            }
+            break;
     }
-    if (std::string_view("{}()[],:;.+-*/%=<>!").find(character) !=
-        std::string_view::npos) {
-        advance();
-        const std::string value(1, character);
-        return {value, value, line, column};
+
+    std::string_view kind;
+    switch (character) {
+        case '{': kind = "{"; break;
+        case '}': kind = "}"; break;
+        case '(': kind = "("; break;
+        case ')': kind = ")"; break;
+        case '[': kind = "["; break;
+        case ']': kind = "]"; break;
+        case ',': kind = ","; break;
+        case ':': kind = ":"; break;
+        case ';': kind = ";"; break;
+        case '.': kind = "."; break;
+        case '+': kind = "+"; break;
+        case '-': kind = "-"; break;
+        case '*': kind = "*"; break;
+        case '/': kind = "/"; break;
+        case '%': kind = "%"; break;
+        case '=': kind = "="; break;
+        case '<': kind = "<"; break;
+        case '>': kind = ">"; break;
+        case '!': kind = "!"; break;
+        default:
+            fail({"", "", line, column},
+                 std::string("unexpected character '") + character + "'");
     }
-    fail({"", "", line, column},
-         std::string("unexpected character '") + character + "'");
+
+    ++index_;
+    ++column_;
+    return {kind, std::string(1, character), line, column};
 }
 } // namespace swan

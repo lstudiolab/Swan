@@ -1,5 +1,6 @@
 #pragma once
 #include "swan/Basic/Token.hpp"
+#include "swan/Basic/SourceLocation.hpp"
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -9,10 +10,16 @@ public:
     CompileError(const Token& token, std::string_view message)
         : std::runtime_error(std::to_string(token.line) + ":" +
               std::to_string(token.column) + ": " + std::string(message)) {}
+    CompileError(SourceLocation location, std::string_view message)
+        : std::runtime_error(std::to_string(location.line) + ":" +
+              std::to_string(location.column) + ": " + std::string(message)) {}
     explicit CompileError(std::string_view message)
         : std::runtime_error(std::string(message)) {}
 };
 [[noreturn]] inline void fail(const Token& token, std::string_view message) {
     throw CompileError(token, message);
+}
+[[noreturn]] inline void fail(SourceLocation location, std::string_view message) {
+    throw CompileError(location, message);
 }
 }

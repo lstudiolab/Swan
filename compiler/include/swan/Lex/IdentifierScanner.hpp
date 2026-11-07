@@ -7,9 +7,16 @@ namespace swan {
 inline Token Lexer::scanIdentifier() {
     const auto line = line_;
     const auto column = column_;
-    std::string value;
-    while (!eof() && isIdentifierContinue(peek()))
-        value += advance();
-    return {isKeyword(value) ? value : "IDENT", value, line, column};
+    const auto start = index_;
+
+    do {
+        ++index_;
+    } while (index_ < source_.size() &&
+             isIdentifierContinue(source_[index_]));
+
+    const auto length = index_ - start;
+    column_ += length;
+    const auto text = source_.substr(start, length);
+    return {keywordKind(text), std::string(text), line, column};
 }
 } // namespace swan
