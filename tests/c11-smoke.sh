@@ -240,7 +240,8 @@ fn main():
 SWAN
 "$SWAN" "$TMP/leaf-registers.swan" --emit-asm -o "$TMP/leaf-registers.s"
 cc -x assembler "$TMP/leaf-registers.s" -o "$TMP/leaf-registers"
-test "$("$TMP/leaf-registers")" = "26"
+actual=$( "$TMP/leaf-registers" )
+if [ "$actual" != "26" ]; then echo "FAIL: leaf-registers expected 26, got $actual" >&2; cat "$TMP/leaf-registers.s" >&2; exit 1; fi
 if grep -A12 '^swan_fn_leaf:' "$TMP/leaf-registers.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
     echo 'FAIL: five-register leaf function unexpectedly spills or creates a frame' >&2
     exit 1
