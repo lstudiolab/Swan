@@ -8,7 +8,7 @@
 namespace swan {
 inline StmtPtr Parser::declaration() {
     if (check("fn")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Function; node->token = advance().location();
         node->name = std::move(expect("IDENT","expected function name").value);
         expect("(");
