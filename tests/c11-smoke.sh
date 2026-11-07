@@ -74,5 +74,20 @@ if "$SWAN" "$TMP/immutable.swan" --emit-asm -o "$TMP/immutable.s"; then
     exit 1
 fi
 printf 'PASS: semantic analysis enforces immutable bindings\n'
+cat > "$TMP/nested-calls.swan" <<'SWAN'
+fn base() -> int:
+    return 20
+fn add(a: int, b: int) -> int:
+    return a + b
+fn wrap(value: int) -> int:
+    return add(value, base())
+fn main():
+    log 1 + wrap(21)
+    return 0
+SWAN
+"$SWAN" "$TMP/nested-calls.swan" --emit-asm -o "$TMP/nested-calls.s"
+cc -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
+test "$("$TMP/nested-calls")" = "42"
+printf 'PASS: nested function calls preserve x86-64 ABI stack alignment\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
