@@ -21,7 +21,7 @@ The direct assembly backend targets x86-64 Linux (System V ELF). The full-langua
 - `riscv64` — 64-bit RISC-V
 - `wasm32` — WebAssembly 32-bit
 
-Generate target assembly with `./build/swan program.swan --target aarch64 --emit-asm -o program.s`. Clang supplies the architecture-specific backend. The target aliases above cover common Linux, ARM, RISC-V, and WebAssembly builds; any Clang target triple can also be passed directly, for example `arm64-apple-ios`, `aarch64-apple-darwin`, or `x86_64-pc-windows-msvc`. This covers different instruction sets and operating-system ABIs without pretending there is one universal assembly language.
+Generate target assembly with `./build/swan program.swan --target aarch64 --emit-asm -o program.s`. Clang supplies the architecture-specific backend. The target aliases above cover common Linux, ARM, RISC-V, and WebAssembly builds; any Clang target triple can also be passed directly, for example `arm64-apple-ios`, `aarch64-apple-darwin`, `aarch64-linux-android24`, `armv7a-linux-androideabi24`, or `x86_64-pc-windows-msvc`. This covers different instruction sets and operating-system ABIs without pretending there is one universal assembly language.
 
 Native optimized builds use `./build/swan program.swan --optimize`; set `CC` to select the native C compiler and `SWAN_CLANG` to select Clang for assembly output. Cross-target executable linking still requires a matching linker and target sysroot; Swan emits target assembly for foreign platforms and leaves final linking to the appropriate platform toolchain.
 
