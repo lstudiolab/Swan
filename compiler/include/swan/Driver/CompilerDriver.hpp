@@ -63,7 +63,7 @@ inline int compileLLVM(const std::string& ir, const std::filesystem::path& outpu
     const auto triple = targetTriple(target);
     std::string command = shellQuote(clang);
     if (!triple.empty()) command += " -target " + shellQuote(triple);
-    command += fastCompile ? " -O0" : " -O3";
+    command += fastCompile ? " -O0 -fno-addrsig" : " -O3 -fno-addrsig";
     if (target == "native") command += " -march=native";
     command += " -Wno-override-module -x ir " + shellQuote(irFile.string());
     command += assembly ? " -S -o " : " -o ";
