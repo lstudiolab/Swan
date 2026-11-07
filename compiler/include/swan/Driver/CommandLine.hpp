@@ -48,8 +48,9 @@ inline void printHelp() {
               << "Usage: swan <file.swan> [options]  Compile and run\n"
               << "       swan build <file.swan>      Build native executable\n"
               << "       swan <file.swan> --emit-asm  Emit target assembly\n"
+              << "       swan <file.swan> --emit-obj  Emit target object file\n"
               << "       swan <file.swan> --target TRIPLE --emit-asm\n"
               << "Targets: native, x86_64, aarch64, armv7, riscv64, wasm32, or LLVM target triple\n"
-              << "Options: -O / --optimize, --fast-compile, -o PATH\n";
+              << "Options: -O / --optimize, --fast-compile, --cpu CPU, --features +feature,-feature, -o PATH\n";
 }
 } // namespace swan::driver
