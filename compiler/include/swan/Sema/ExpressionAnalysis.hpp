@@ -5,6 +5,11 @@
 
 namespace swan {
 inline std::string Sema::analyzeExpression(const ExprPtr& node) {
+    const auto type = analyzeExpressionImpl(node);
+    node->resolved_type = type;
+    return type;
+}
+inline std::string Sema::analyzeExpressionImpl(const ExprPtr& node) {
     const auto& value = node->token.value;
     const auto& op = node->token.value;
     switch (node->kind) {
