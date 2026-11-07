@@ -71,7 +71,7 @@ jobs:
               int64_t acc = 0;
               for (int64_t i = 0; i < 1000; ++i)
                   for (int64_t j = 0; j < 1000000; ++j)
-                      acc += (i * 1000003 + j * 97) % 65536;
+                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
               printf("%lld\n", (long long)acc);
               return 0;
           }
@@ -84,7 +84,7 @@ jobs:
               std::int64_t acc = 0;
               for (std::int64_t i = 0; i < 1000; ++i)
                   for (std::int64_t j = 0; j < 1000000; ++j)
-                      acc += (i * 1000003 + j * 97) % 65536;
+                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
               std::printf("%lld\n", static_cast<long long>(acc));
           }
           EOF
@@ -94,7 +94,7 @@ jobs:
               let mut acc: i64 = 0;
               for i in 0_i64..1000 {
                   for j in 0_i64..1_000_000 {
-                      acc += (i * 1_000_003 + j * 97) % 65_536;
+                      acc = (acc + (i * 1_000_003 + j * 97) % 65_536) % 65_521;
                   }
               }
               println!("{acc}");
@@ -108,7 +108,7 @@ jobs:
               var acc int64
               for i := int64(0); i < 1000; i++ {
                   for j := int64(0); j < 1000000; j++ {
-                      acc += (i*1000003 + j*97) % 65536
+                      acc = (acc + (i*1000003 + j*97) % 65536) % 65521
                   }
               }
               fmt.Println(acc)
@@ -119,7 +119,7 @@ jobs:
           var acc: Int64 = 0
           for i: Int64 in 0..<1000 {
               for j: Int64 in 0..<1_000_000 {
-                  acc += (i * 1_000_003 + j * 97) % 65_536
+                  acc = (acc + (i * 1_000_003 + j * 97) % 65_536) % 65_521
               }
           }
           print(acc)
@@ -147,7 +147,7 @@ jobs:
               while i < 1000
                   var j: int = 0
                   while j < 1000000
-                      acc = acc + (i * 1000003 + j * 97) % 65536
+                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521
                       j = j + 1
                   i = i + 1
               log acc
@@ -161,7 +161,7 @@ jobs:
               while i < 1000 {
                   var j: i64 = 0;
                   while j < 1000000 {
-                      acc += (i * 1000003 + j * 97) % 65536;
+                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
                       j += 1;
                   }
                   i += 1;
@@ -177,7 +177,7 @@ jobs:
                   long acc = 0;
                   for (long i = 0; i < 1000; i++)
                       for (long j = 0; j < 1000000; j++)
-                          acc += (i * 1000003 + j * 97) % 65536;
+                          acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
                   Console.WriteLine(acc);
               }
           }
@@ -199,7 +199,7 @@ jobs:
                   long acc = 0;
                   for (long i = 0; i < 1000; i++)
                       for (long j = 0; j < 1000000; j++)
-                          acc += (i * 1000003 + j * 97) % 65536;
+                          acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
                   System.out.println(acc);
               }
           }
@@ -221,7 +221,7 @@ jobs:
           let acc = 0;
           for (let i = 0; i < 1000; i++) {
               for (let j = 0; j < 1000000; j++) {
-                  acc += (i * 1000003 + j * 97) % 65536;
+                  acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
               }
           }
           console.log(acc);
@@ -231,7 +231,7 @@ jobs:
           local acc = 0
           for i = 0, 999 do
               for j = 0, 999999 do
-                  acc = acc + (i * 1000003 + j * 97) % 65536
+                  acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521
               end
           end
           print(acc)
@@ -241,7 +241,7 @@ jobs:
           acc = 0
           for i in range(1000):
               for j in range(1000000):
-                  acc += (i * 1000003 + j * 97) % 65536
+                  acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521
           print(acc)
           EOF
 
