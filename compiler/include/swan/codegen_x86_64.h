@@ -3,10 +3,18 @@
 #include "swan/parser.h"
 typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
 static inline void text_add(Text *t,const char *fmt,...){
- va_list ap;va_start(ap,fmt);va_list cp;va_copy(cp,ap);int n=vsnprintf(NULL,0,fmt,cp);va_end(cp);
- if(n<0){va_end(ap);return;}size_t need=t->len+(size_t)n+1;
- if(need>t->cap){size_t cap=t->cap?t->cap:4096;while(cap<need)cap*=2;char *p=realloc(t->data,cap);if(!p){va_end(ap);return;}t->data=p;t->cap=cap;}
- vsnprintf(t->data+t->len,t->cap-t->len,fmt,ap);t->len+=(size_t)n;va_end(ap);
+ va_list ap;va_start(ap,fmt);va_list retry;va_copy(retry,ap);
+ if(!t->data){t->data=malloc(4096);if(!t->data){va_end(retry);va_end(ap);return;}t->cap=4096;t->data[0]=0;}
+ size_t avail=t->cap-t->len;int n=vsnprintf(t->data+t->len,avail,fmt,ap);
+ if(n<0){va_end(retry);va_end(ap);return;}
+ if((size_t)n>=avail){
+  size_t need=t->len+(size_t)n+1,cap=t->cap;
+  while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}
+  char *p=realloc(t->data,cap);if(!p){va_end(retry);va_end(ap);return;}
+  t->data=p;t->cap=cap;
+  vsnprintf(t->data+t->len,t->cap-t->len,fmt,retry);
+ }
+ t->len+=(size_t)n;va_end(retry);va_end(ap);
 }
 static inline void cg_reserve(Text *o,int n){if(n>0){text_add(o,"    sub rsp, %d\n",n);o->stack_depth+=n;}}
 static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d\n",n);o->stack_depth-=n;}}
