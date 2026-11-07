@@ -42,6 +42,6 @@ if "$SWAN" "$TMP/native.swan" --target armv7 --emit-asm -o "$TMP/not-supported.s
     exit 1
 fi
 grep -q "Swan-owned backend" "$TMP/unsupported.err"
-printf 'PASS: Swan-owned x86-64 assembly generation\n'
-printf 'PASS: system assembler object generation and native linking\n'
+printf 'PASS: Swan-owned x86-64 and AArch64 assembly generation\n'
+printf 'PASS: native and AArch64 object generation plus native linking\n'
 printf 'PASS: target selection rejects backends not yet implemented\n'
