@@ -41,8 +41,8 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  if(l->count>=1024)return NULL;
  size_t i=l->count++;unsigned b=cg_name_hash(name)&2047u;Local *v=&l->items[i];v->name=name;v->mut=mut;v->reg=-1;v->slot=0;v->next=l->buckets[b];l->buckets[b]=(int)i+1;
  if(l->caller_saved&&l->reg_count<5)v->reg=5+l->reg_count++;
- else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
  else if(!l->caller_saved&&!mut&&l->volatile_reg_count<5)v->reg=5+l->volatile_reg_count++;
+ else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
  else v->slot=++l->slots;
  return v;
 }
