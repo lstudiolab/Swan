@@ -2,15 +2,6 @@ name: Swan vs Goose 100M Hello World Benchmark
 
 on:
   workflow_dispatch:
-  push:
-    paths:
-      - "compiler/**"
-      - "build.sh"
-      - "benchmarks/hello_100m.py"
-      - ".github/workflows/hello-100m.yml"
-
-permissions:
-  contents: read
 
 jobs:
   benchmark:
