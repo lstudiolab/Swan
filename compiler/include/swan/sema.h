@@ -26,17 +26,31 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
   case E_NAME:if(!swan_symbol_find(symbols,e->token.text,NULL)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}return true;
   case E_CALL:{
    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"only direct function calls are supported");return false;}
-   if(!strcmp(e->left->token.text,"array")){swan_error(err,&e->token,"array allocation is not yet ported to the C backend");return false;}
+   if(!strcmp(e->left->token.text,"array_u32")){
+    if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return false;}
+    return swan_check_expr(p,e->args[0],symbols,err);
+   }
    Stmt *fn=swan_find_function(p,e->left->token.text);
    if(!fn){swan_error(err,&e->token,"unknown function '%s'",e->left->token.text);return false;}
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
    for(size_t i=0;i<e->argc;i++)if(!swan_check_expr(p,e->args[i],symbols,err))return false;
    return true;
   }
+  case E_INDEX:
+   if(!e->left||e->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->token.text,NULL)){
+    swan_error(err,&e->token,"array indexing requires a declared array variable");return false;
+   }
+   return swan_check_expr(p,e->right,symbols,err);
   case E_UNARY:return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
-    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable");return false;}
+    if(e->left&&e->left->kind==E_INDEX){
+     if(!e->left->left||e->left->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->left->token.text,NULL)){
+      swan_error(err,&e->token,"array assignment requires a declared array variable");return false;
+     }
+     return swan_check_expr(p,e->left->right,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
+    }
+    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");return false;}
     size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)){swan_error(err,&e->left->token,"unknown variable '%s'",e->left->token.text);return false;}
     if(!symbols->items[index].mutable_value){swan_error(err,&e->left->token,"cannot assign to immutable value '%s'",e->left->token.text);return false;}
     return swan_check_expr(p,e->right,symbols,err);
