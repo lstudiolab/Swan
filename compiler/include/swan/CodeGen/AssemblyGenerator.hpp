@@ -442,6 +442,23 @@ private:
             emitModulo97();
             return;
         }
+        if (op == "//" && node->right->kind == Expr::Kind::Literal &&
+            node->right->token.kind == "INT") {
+            const auto divisor = std::stoull(node->right->token.value);
+            if (divisor != 0 && (divisor & (divisor - 1)) == 0) {
+                emitExpression(node->left.get());
+                if (divisor > 1) {
+                    unsigned shift = 0;
+                    for (auto value = divisor; value > 1; value >>= 1) ++shift;
+                    emit("    mov r11, rax");
+                    emit("    sar r11, 63");
+                    emit("    and r11, " + std::to_string(divisor - 1));
+                    emit("    add rax, r11");
+                    emit("    sar rax, " + std::to_string(shift));
+                }
+                return;
+            }
+        }
         if (op == "=") {
             if (node->left->kind == Expr::Kind::Index) {
                 emitArrayAddress(node->left.get());
