@@ -295,7 +295,7 @@ jobs:
               }
               if (( run > 2 )); then
                 elapsed=$((end-start))
-                awk -v n="$name" -v t="$elapsed" -v m="$(cat /tmp/rss)" 'BEGIN { printf "%s runtime_ms %.3f peak_rss_kb %s\\n", n, t/1000000, m }' >>../results.txt
+                awk -v n="$name" -v t="$elapsed" -v m="$(cat /tmp/rss)" 'BEGIN { printf "%s runtime_ms %.3f peak_rss_kb %s\n", n, t/1000000, m }' >>../results.txt
               fi
             done
           }
@@ -326,9 +326,9 @@ jobs:
                       values[parts[0]].append(float(parts[2]))
                       memory[parts[0]].append(int(parts[3]))
           with open("../results.txt", "a", encoding="utf-8") as f:
-              f.write("\\nmedian_runtime_ms (3 measured runs after 2 warmups)\\n")
+              f.write("\nmedian_runtime_ms (3 measured runs after 2 warmups)\n")
               for name, samples in values.items():
-                  f.write(f"{name} median_ms {median(samples):.3f} median_peak_rss_kb {median(memory[name]):.0f}\\n")
+                  f.write(f"{name} median_ms {median(samples):.3f} median_peak_rss_kb {median(memory[name]):.0f}\n")
           PY
           cat ../results.txt
 
