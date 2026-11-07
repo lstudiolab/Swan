@@ -113,7 +113,7 @@ def main():
         results = []
         results.append(compile_pipeline("Swan", [
             [SWAN, swan_src, "-o", swan_c],
-            [CC, "-std=c11", "-O1", "-DNDEBUG", "-march=native", swan_c, "-o", swan_bin],
+            [CC, "-std=c11", "-O0", "-DNDEBUG", "-march=native", swan_c, "-o", swan_bin],
         ]))
         results.append(compile_pipeline("Rust", [
             [RUSTC, "-C", "opt-level=3", "-C", "target-cpu=native",
