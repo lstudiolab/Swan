@@ -341,6 +341,7 @@ private:
         case Stmt::Kind::Log: {
             const auto type = node->value->resolved_type;
             emitExpression(node->value.get());
+            pushCallerSavedLocals();
             if (type == "string") {
                 emit("    mov rdi, rax");
                 callAligned("puts@PLT");
@@ -361,6 +362,7 @@ private:
             } else {
                 fail(node->token, "assembly backend cannot print this type");
             }
+            popCallerSavedLocals();
             break;
         }
         case Stmt::Kind::Return:
@@ -661,9 +663,11 @@ private:
             fail(node->token, "only direct function calls are supported");
         if (node->left->token.value == "array") {
             emitExpression(node->arguments[0].get());
+            pushCallerSavedLocals();
             emit("    mov rdi, rax");
             emit("    mov esi, 8");
             callAligned("calloc@PLT");
+            popCallerSavedLocals();
             return;
         }
         if (node->arguments.size() > 6)
@@ -688,14 +692,16 @@ private:
             if (expected == "float") emit("    movq rax, xmm0");
             pushRax();
         }
+        pushCallerSavedLocals();
         for (std::size_t i = 0; i < node->arguments.size(); ++i) {
-            const auto offset = (node->arguments.size() - 1 - i) * 8;
+            const auto offset = 16 + (node->arguments.size() - 1 - i) * 8;
             emit("    mov " + std::string(argument_registers_[i]) +
-                 ", QWORD PTR [rsp" + (offset ? " + " + std::to_string(offset) : "") + "]");
+                 ", QWORD PTR [rsp + " + std::to_string(offset) + "]");
         }
         const std::string function = target->name == "main"
             ? "main" : "swan_fn_" + target->name;
         callAligned(function);
+        popCallerSavedLocals();
         if (!node->arguments.empty()) {
             const auto bytes = node->arguments.size() * 8;
             emit("    add rsp, " + std::to_string(bytes));
