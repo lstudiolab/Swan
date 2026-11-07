@@ -331,6 +331,8 @@ fn main():
     value = value - 2
     value = value + 1
     log value
+    value = value * 8
+    log value
     var a = 1
     var b = 2
     var c = 3
@@ -345,6 +347,8 @@ SWAN
 "$SWAN" "$TMP/compound-arithmetic.swan" --emit-asm -o "$TMP/compound-arithmetic.s"
 cc -x assembler "$TMP/compound-arithmetic.s" -o "$TMP/compound-arithmetic"
 test "$("$TMP/compound-arithmetic")" = "41
+328
 1"
 grep -q 'imul rbx, r12' "$TMP/compound-arithmetic.s"
+grep -q 'shl rbx, 3' "$TMP/compound-arithmetic.s"
 printf 'PASS: compound arithmetic updates register and spilled locals in place\n'
