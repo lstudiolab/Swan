@@ -179,8 +179,11 @@ inline int runCompiler(int argc, char** argv) {
 #else
         constexpr bool directNativeSupported = false;
 #endif
+        const char* fastEnvironment = std::getenv("SWAN_FAST_COMPILE");
+        const bool fastCompile = options.fastCompile ||
+            (fastEnvironment && *fastEnvironment && std::string(fastEnvironment) != "0");
         const bool portable = options.optimize || options.target != "native" ||
-            !directNativeSupported || emitC;
+            !directNativeSupported || !fastCompile || emitC;
         if (portable) {
             const auto output = options.hasOutput ? options.output
                 : std::filesystem::path(options.input.stem().string() + (emitC ? ".c" : ".s"));
