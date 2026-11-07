@@ -11,7 +11,7 @@
 
 typedef enum { X86_64, AARCH64, ARMV7 } Target;
 typedef struct { char *data; size_t len, cap; } Buffer;
-typedef struct { char name[64]; char start[48], end[48]; int indent, index_slot, limit_slot, has_body; } Loop;
+typedef struct { char name[64]; char start[48], step_label[48], end[48]; int indent, index_slot, limit_slot, has_body; } Loop;
 
 static void append_n(Buffer *b,const char *s,size_t n) {
     if(b->len+n+1>b->cap) {
@@ -95,6 +95,7 @@ static void emit_loop_open(Buffer *b,Target t,const Loop *l,long long first,long
     }
 }
 static void emit_loop_close(Buffer *b,Target t,const Loop *l){
+    append(b,l->step_label);append(b,":\n");
     if(t==X86_64){
         char s[160];snprintf(s,sizeof s,"  add qword ptr [rbp - %d], 1\n  jmp %s\n%s:\n",l->index_slot,l->start,l->end);append(b,s);
     }else if(t==AARCH64){
@@ -157,11 +158,17 @@ static int emit_source(const char *source,Target t,Buffer *out){
             Loop *l=&loops[depth];memset(l,0,sizeof(*l));strcpy(l->name,name);l->indent=indent;
             l->index_slot=(depth*2+1)*8;l->limit_slot=(depth*2+2)*8;
             snprintf(l->start,sizeof l->start,".Lswan_loop_%u",loop_id);
-            snprintf(l->end,sizeof l->end,".Lswan_end_%u",loop_id++);
+            snprintf(l->step_label,sizeof l->step_label,".Lswan_step_%u",loop_id);snprintf(l->end,sizeof l->end,".Lswan_end_%u",loop_id++);
             emit_loop_open(&code,t,l,first,last);depth++;continue;
         }
         if(depth)loops[depth-1].has_body=1;
-        if(!strncmp(line,"log ",4)){
+        if(!strcmp(line,"break")){
+            if(!depth){free(copy);free(code.data);free(data.data);return fail("break outside a loop");}
+            append(&code,"  jmp ");append(&code,loops[depth-1].end);append(&code,"\n");
+        }else if(!strcmp(line,"continue")){
+            if(!depth){free(copy);free(code.data);free(data.data);return fail("continue outside a loop");}
+            append(&code,"  jmp ");append(&code,loops[depth-1].step_label);append(&code,"\n");
+        }else if(!strncmp(line,"log ",4)){
             if(emit_log(&code,&data,t,trim(line+4),loops,depth,&string_id,&needs_int)){free(copy);free(code.data);free(data.data);return 1;}
         }else if(!strncmp(line,"return ",7)){
             char *v=trim(line+7),*end=NULL;long long n=strtoll(v,&end,10);
@@ -175,7 +182,7 @@ static int emit_source(const char *source,Target t,Buffer *out){
         }else if(!strcmp(line,"pass")){
             append(&code,"  nop\n");
         }else{
-            free(copy);free(code.data);free(data.data);return fail("unsupported statement (supported: nested range loops, log string/loop variable, return integer, pass)");
+            free(copy);free(code.data);free(data.data);return fail("unsupported statement (supported: nested range loops, break/continue, log string/loop variable, return integer, pass)");
         }
     }
     while(depth){
