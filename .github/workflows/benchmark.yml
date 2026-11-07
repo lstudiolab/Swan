@@ -50,7 +50,7 @@ jobs:
                   acc = (acc + i * 31) % 1000000007LL;
                   ++i;
               }
-              printf("%lld\\n", (long long)acc);
+              printf("%lld\n", (long long)acc);
               return 0;
           }
           EOF
@@ -64,7 +64,7 @@ jobs:
                   acc = (acc + i * 31) % 1000000007LL;
                   ++i;
               }
-              std::printf("%lld\\n", static_cast<long long>(acc));
+              std::printf("%lld\n", static_cast<long long>(acc));
           }
           EOF
           cat > benchmarks/work/main.rs <<'EOF'
@@ -107,7 +107,7 @@ jobs:
               while (i < 50_000_000) : (i += 1) {
                   acc = @mod(acc + i * 31, 1_000_000_007);
               }
-              std.debug.print("{d}\\n", .{acc});
+              std.debug.print("{d}\n", .{acc});
           }
           EOF
           cat > benchmarks/work/main.swan <<'EOF'
@@ -142,7 +142,7 @@ jobs:
             start=$(date +%s%N)
             "$@"
             end=$(date +%s%N)
-            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_ms %.3f\\n", n, t/1000000 }' | tee -a ../results.txt
+            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_ms %.3f\n", n, t/1000000 }' | tee -a ../results.txt
           }
           timed_build C cc -O2 -DNDEBUG main.c -o c
           timed_build C++ c++ -std=c++20 -O2 -DNDEBUG main.cpp -o cpp
@@ -160,15 +160,16 @@ jobs:
           set -euo pipefail
           cd benchmarks/work
           expected=$(./c)
-          printf "expected_checksum %s\\n" "$expected" | tee -a ../results.txt
+          printf "expected_checksum %s\n" "$expected" | tee -a ../results.txt
           for name in c cpp rust go swift zig swan main-goose; do
             file="./$name"
             [[ -x "$file" ]] || { echo "Missing executable: $file"; exit 1; }
             actual=$("$file")
             [[ "$actual" == "$expected" ]] || { echo "$name checksum mismatch: $actual != $expected"; exit 1; }
             for run in 1 2 3 4 5 6 7; do
-              /usr/bin/time -f "$name runtime_sec %e peak_rss_kb %M" "$file" >/tmp/out 2>>../results.txt
+              /usr/bin/time -o /tmp/time -f "$name runtime_sec %e peak_rss_kb %M" "$file" >/tmp/out 2>&1
               [[ "$(cat /tmp/out)" == "$expected" ]]
+              if (( run > 2 )); then cat /tmp/time >>../results.txt; fi
             done
           done
           cat ../results.txt
