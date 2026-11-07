@@ -27,6 +27,8 @@ SWAN
 for target in x86_64 aarch64 armv7 riscv64 wasm32; do
     "$SWAN" "$TMP/targets.swan" --target "$target" --emit-asm -o "$TMP/$target.s"
     test -s "$TMP/$target.s"
+    "$SWAN" "$TMP/targets.swan" --target "$target" --emit-obj -o "$TMP/$target.o"
+    test -s "$TMP/$target.o"
 done
 
 # LLVM's assembler validates the emitted ISA syntax and object format.
@@ -48,6 +50,8 @@ for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc aarch6
     test -s "$TMP/$safe.s"
 done
 
+"$SWAN" "$TMP/targets.swan" --target aarch64 --cpu cortex-a72 --features +neon --emit-asm -o "$TMP/aarch64-tuned.s"
+test -s "$TMP/aarch64-tuned.s"
 test "$("$SWAN" "$TMP/targets.swan")" = "91"
 printf 'PASS: native LLVM IR lowering and execution\n'
 printf 'PASS: x86-64, AArch64, ARMv7, RISC-V 64, and WebAssembly assembly\n'
