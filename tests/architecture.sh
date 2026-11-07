@@ -82,6 +82,9 @@ printf 'PASS: full Swan source lowers to x86-64, AArch64, ARMv7, RISC-V 64, WebA
 
 # The optimized portable backend executes the same array and function workload.
 test "$("$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --optimize)" = "91"
+"$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --emit-c -o "$ROOT/build/portable-targets.c"
+cc -O3 -march=native -fwrapv "$ROOT/build/portable-targets.c" -o "$ROOT/build/portable-targets-c"
+test "$("$ROOT/build/portable-targets-c")" = "91"
 printf 'PASS: optimized portable backend execution\n'
 
 printf 'PASS: compiler architecture boundaries\n'
