@@ -10,9 +10,10 @@ inline int Parser::precedence(std::string_view op) { return operatorPrecedence(o
 
 inline ExprPtr Parser::expression(int minimum) {
     auto left = prefix();
-    while (precedence(peek().kind) >= minimum) {
+    while (true) {
+        const int level = precedence(peek().kind);
+        if (level < minimum) break;
         const auto& op = advance();
-        const int level = precedence(op.kind);
         auto right = expression(op.kind == "=" ? level : level + 1);
         auto node = std::make_shared<Expr>();
         node->kind = Expr::Kind::Binary; node->token = op; node->op = op.value;
