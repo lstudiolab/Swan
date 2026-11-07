@@ -1,0 +1,67 @@
+name: Four-language performance benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "benchmarks/four_language_compute.py"
+      - "compiler/**"
+      - "main.c"
+      - "build.sh"
+      - ".github/workflows/four-language-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+      - name: Install Goose
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/aardappel/goose/releases/download/v2026.4/goose-v2026.4-linux-x64.tar.gz -o /tmp/goose.tar.gz
+          mkdir -p /tmp/goose-dist
+          tar -xzf /tmp/goose.tar.gz -C /tmp/goose-dist
+          GOOSE_BIN="$(find /tmp/goose-dist -type f -name goose -perm -u+x | head -n 1)"
+          test -n "$GOOSE_BIN"
+          echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
+          "$GOOSE_BIN" version
+      - name: Record machine and toolchain
+        run: |
+          echo "=== CPU ==="
+          lscpu
+          echo "=== MEMORY ==="
+          free -h
+          echo "=== OS ==="
+          uname -a
+          echo "=== C ==="
+          cc --version
+          echo "=== RUST ==="
+          rustc --version
+      - name: Build Swan
+        run: sh build.sh
+      - name: Run identical four-language benchmark
+        run: python3 benchmarks/four_language_compute.py
+      - name: Publish benchmark table
+        if: always()
+        run: |
+          if [ -f four-language-benchmark.md ]; then
+            cat four-language-benchmark.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Benchmark failed before producing a report. Inspect build and benchmark logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload full raw measurements
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: four-language-benchmark
+          path: |
+            four-language-benchmark.json
+            four-language-benchmark.md
+          if-no-files-found: warn
