@@ -177,6 +177,7 @@ fn main():
     var sum = 0
     i = 0
     while i < 8
+        log values[i]
         sum = sum + values[i]
         i = i + 1
     log sum
@@ -185,7 +186,7 @@ SWAN
 "$SWAN" "$TMP/arrays.swan" -o "$TMP/arrays.s"
 ${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
 actual=$( "$TMP/arrays" )
-if [ "$actual" != "84" ]; then echo "FAIL: array sum expected 84, got [$actual]" >&2; exit 1; fi
+if [ "$actual" != "0\n3\n6\n9\n12\n15\n18\n21\n84" ]; then echo "FAIL: array workload expected scaled sequence and sum, got [$actual]" >&2; exit 1; fi
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
 
 # Power-of-two integer division preserves signed truncation toward zero.
