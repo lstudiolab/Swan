@@ -56,7 +56,7 @@ sh compile.sh examples/hello.swan hello
 
 ```sh
 ./build/swan examples/hello.swan -o hello.c
-clang -std=c11 -O0 hello.c -o hello
+clang -std=c11 -O1 hello.c -o hello
 ```
 
 ## Install
