@@ -48,6 +48,25 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
    if(slot<0){swan_error(err,&e->token,"unknown assignment target");break;}
    emit_expr(o,e->right,l,err);text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);break;
   }
+  if(e->right&&e->right->kind==E_INT){
+   char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
+   if(end&&*end==0&&imm>=INT32_MIN&&imm<=INT32_MAX){
+    emit_expr(o,e->left,l,err);
+    if(e->token.kind==T_PLUS){text_add(o,"    add rax, %lld\n",imm);break;}
+    if(e->token.kind==T_MINUS){text_add(o,"    sub rax, %lld\n",imm);break;}
+    if(e->token.kind==T_STAR){text_add(o,"    imul rax, rax, %lld\n",imm);break;}
+    if(e->token.kind==T_EQ||e->token.kind==T_NE||e->token.kind==T_LT||e->token.kind==T_GT||e->token.kind==T_LE||e->token.kind==T_GE){
+     const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
+     text_add(o,"    cmp rax, %lld\n    %s al\n    movzx rax, al\n",imm,cc);break;
+    }
+    if(e->token.kind==T_PERCENT&&imm>1){
+     uint64_t divisor=(uint64_t)imm;
+     uint64_t magic=(~(uint64_t)0)/divisor+1;
+     text_add(o,"    test rax, rax\n    js 1f\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %lld\n    sub rcx, rdx\n    jns 2f\n    add rcx, %lld\n    jmp 2f\n1:\n    mov rcx, %lld\n    cqo\n    idiv rcx\n    mov rcx, rdx\n2:\n    mov rax, rcx\n",
+      (unsigned long long)magic,imm,imm,imm);break;
+    }
+   }
+  }
   emit_expr(o,e->left,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n");cg_pop(o,"rax");
   switch(e->token.kind){
    case T_PLUS:text_add(o,"    add rax, rcx\n");break;
