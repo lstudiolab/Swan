@@ -120,7 +120,7 @@ class LLVMIRGenerator {
             return {t, r};
         }
         case Expr::Kind::Unary: {
-            auto a = emitExpr(e->left.get()), r = tmp();
+            auto a = emitExpr(e->left.get()); auto r = tmp();
             if (v == "-") line(r + " = " + std::string(a.type == "double" ? "fneg double " : "sub i64 0, ") + a.value);
             else if (v == "not" || v == "!") line(r + " = xor i1 " + a.value + ", true");
             else throw CompileError("unsupported unary operator '" + v + "'");
@@ -167,7 +167,7 @@ class LLVMIRGenerator {
         }
         case Expr::Kind::Binary: {
             if (v == "=") {
-                auto p = address(e->left.get()), a = emitExpr(e->right.get());
+                auto p = address(e->left.get()); auto a = emitExpr(e->right.get());
                 line("store " + a.type + " " + a.value + ", ptr " + p);
                 return a;
             }
