@@ -64,6 +64,20 @@ for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc; do
     "$ROOT/build/swan" "$ROOT/build/portable-targets.swan" --target "$target" --emit-asm -o "$ROOT/build/portable-$safe.s"
     test -s "$ROOT/build/portable-$safe.s"
 done
+for target in x86_64 aarch64 armv7 riscv64 wasm32; do
+    case "$target" in
+        x86_64) triple=x86_64-linux-gnu ;;
+        aarch64) triple=aarch64-linux-gnu ;;
+        armv7) triple=armv7-linux-gnueabihf ;;
+        riscv64) triple=riscv64-linux-gnu ;;
+        wasm32) triple=wasm32-unknown-unknown ;;
+    esac
+    clang -target "$triple" -c -x assembler "$ROOT/build/portable-$target.s" -o "$ROOT/build/portable-$target.o"
+done
+for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc; do
+    safe=$(printf '%s' "$target" | tr '-' '_')
+    clang -target "$target" -c -x assembler "$ROOT/build/portable-$safe.s" -o "$ROOT/build/portable-$safe.o"
+done
 printf 'PASS: full Swan source lowers to x86-64, AArch64, ARMv7, RISC-V 64, WebAssembly, Apple, and Windows assembly\n'
 
 # The optimized portable backend executes the same array and function workload.
