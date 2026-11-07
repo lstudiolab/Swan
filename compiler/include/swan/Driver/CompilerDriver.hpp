@@ -27,7 +27,10 @@ inline int exitCode(int status){
 #ifdef _WIN32
     return status;
 #else
-    if(status==-1)return 1;if(WIFEXITED(status))return WEXITSTATUS(status);if(WIFSIGNALED(status))return 128+WTERMSIG(status);return 1;
+    if(status==-1)return 1;
+    if(WIFEXITED(status))return WEXITSTATUS(status);
+    if(WIFSIGNALED(status))return 128+WTERMSIG(status);
+    return 1;
 #endif
 }
 inline std::filesystem::path temporaryPath(const std::string& ext){
