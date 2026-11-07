@@ -1,6 +1,6 @@
 # Swan
 
-Swan is a compiled language. Its native compiler emits x86-64 System V assembly directly and links a native executable; it does not transpile programs to C.
+Swan is a compiled language with a direct x86-64 assembly backend and an optimizing portable backend. The portable backend lowers the typed Swan AST to C and uses Clang/LLVM or the configured C compiler for target-specific machine code.
 
 ## Build
 
@@ -13,7 +13,15 @@ The build currently produces two compiler binaries:
 - `build/swan` — full native compiler, with variables, expressions, functions, conditionals, loops, and heap integer arrays.
 - `build/swan-c` — standalone C11 compiler subset, retained for the C migration and cross-target assembly work.
 
-The full native assembly backend currently targets x86-64 Linux (System V ELF). The standalone C subset can emit x86-64, AArch64, and ARMv7 assembly.
+The direct assembly backend targets x86-64 Linux (System V ELF). The full-language portable backend supports optimized native builds with `--optimize` and assembly generation for:
+
+- `x86_64` — 64-bit x86
+- `aarch64` — 64-bit ARM (modern phones, tablets, Macs, and ARM computers)
+- `armv7` — 32-bit ARM
+- `riscv64` — 64-bit RISC-V
+- `wasm32` — WebAssembly 32-bit
+
+Generate target assembly with `./build/swan program.swan --target aarch64 --emit-asm -o program.s`. Cross-target assembly requires Clang. Native optimized builds use `./build/swan program.swan --optimize`; set `CC` to select the native C compiler and `SWAN_CLANG` to select Clang for assembly output. Cross-target executable linking still requires a matching linker and target sysroot; Swan currently emits portable assembly for those targets rather than pretending it can link a foreign executable on the host.
 
 ## Arrays and integer division
 
