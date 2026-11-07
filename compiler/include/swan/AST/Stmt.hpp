@@ -13,7 +13,7 @@ struct Stmt {
         Continue, Pass, Log, Expression, Import
     };
     Kind kind = Kind::Pass;
-    Token token;
+    SourceLocation token;
     std::string name;
     std::string type;
     std::string module;
