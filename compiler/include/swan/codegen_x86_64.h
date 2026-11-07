@@ -171,8 +171,8 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
       text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %lld\n    add rax, rcx\n    and rax, %lld\n    sub rax, rcx\n",imm-1,imm-1);break;
      }
      uint64_t magic=UINT64_MAX/divisor;
-     text_add(o,"    test rax, rax\n    js 1f\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %lld\n    sub rcx, rdx\n    lea rdx, [rcx - %lld]\n    cmp rcx, %lld\n    cmovae rcx, rdx\n    jmp 2f\n1:\n    mov rcx, %lld\n    cqo\n    idiv rcx\n    mov rcx, rdx\n2:\n    mov rax, rcx\n",
-      (unsigned long long)magic,imm,imm,imm,imm);break;
+     text_add(o,"    test rax, rax\n    jns 1f\n    mov rcx, %lld\n    cqo\n    idiv rcx\n    mov rcx, rdx\n    jmp 2f\n1:\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %lld\n    sub rcx, rdx\n    lea rdx, [rcx - %lld]\n    cmp rcx, %lld\n    cmovae rcx, rdx\n2:\n    mov rax, rcx\n",
+      imm,(unsigned long long)magic,imm,imm,imm);break;
     }
    }
   }
