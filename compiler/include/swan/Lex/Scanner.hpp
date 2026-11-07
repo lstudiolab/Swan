@@ -32,10 +32,22 @@ inline std::vector<Token> Lexer::scan() {
     while (!eof()) {
         if (line_start_) {
             std::size_t width = 0;
-            while (peek() == ' ' || peek() == '\t') {
-                width += peek() == '\t' ? 4 : 1;
-                advance();
+            const auto indentationStart = index_;
+            // Indentation is common on every block line. Scan it directly and
+            // update the cursor once instead of calling advance() per byte.
+            while (index_ < source_.size()) {
+                const char value = source_[index_];
+                if (value == ' ') {
+                    ++width;
+                    ++index_;
+                } else if (value == '\t') {
+                    width += 4;
+                    ++index_;
+                } else {
+                    break;
+                }
             }
+            column_ += index_ - indentationStart;
             if (peek() == '#' || peek() == '\n' || eof()) {
                 while (!eof() && peek() != '\n') advance();
                 if (!eof()) advance();
