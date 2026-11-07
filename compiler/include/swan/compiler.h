@@ -13,7 +13,7 @@ static inline int swan_run(int argc,char **argv){
  if(!swan_lex(source,&ts,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(source);return 1;}
  Program p={0};if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(source);return 1;}
  Text assembly={0};if(!swan_codegen_x86_64(&p,&assembly,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(source);free(assembly.data);return 1;}
- char temp[]="/tmp/swan-XXXXXX.s";int fd=mkstemps(temp,2);if(fd<0){perror("mkstemps");return 1;}FILE *af=fdopen(fd,"wb");fwrite(assembly.data,1,assembly.len,af);fclose(af);
+ char temp[]="/tmp/swan-XXXXXX";int fd=mkstemp(temp);if(fd<0){perror("mkstemps");return 1;}FILE *af=fdopen(fd,"wb");fwrite(assembly.data,1,assembly.len,af);fclose(af);
  if(emit_asm){const char *dest=output?output:"a.s";FILE *of=fopen(dest,"wb");if(!of){perror(dest);unlink(temp);return 1;}fwrite(assembly.data,1,assembly.len,of);fclose(of);unlink(temp);free(source);free(assembly.data);return 0;}
  char exe[1024];if(output)snprintf(exe,sizeof(exe),"%s",output);else{snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());}
  char command[4096];snprintf(command,sizeof(command),"cc -x assembler '%s' -o '%s' && '%s'",temp,exe,exe);int result=system(command);unlink(temp);if(!output)unlink(exe);free(source);free(assembly.data);return result==0?0:1;
