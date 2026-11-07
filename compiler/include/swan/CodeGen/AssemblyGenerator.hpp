@@ -476,10 +476,13 @@ private:
     void emitBinary(const Expr* node) {
         const auto& op = node->token.value;
         if (op == "%" && node->right->kind == Expr::Kind::Literal &&
-            node->right->token.kind == "INT" && node->right->token.value == "97") {
-            emitExpression(node->left.get());
-            emitModulo97();
-            return;
+            node->right->token.kind == "INT") {
+            const auto divisor = std::stoull(node->right->token.value);
+            if (divisor > 0 && divisor <= 9223372036854775807ULL) {
+                emitExpression(node->left.get());
+                emitModuloConstant(divisor);
+                return;
+            }
         }
         if (op == "//" && node->right->kind == Expr::Kind::Literal &&
             node->right->token.kind == "INT") {
@@ -591,24 +594,32 @@ private:
         }
     }
 
-    void emitModulo97() {
-        const auto adjust = label("mod97_adjust");
+    void emitModuloConstant(std::uint64_t divisor) {
+        if (divisor == 1) {
+            emit("    xor eax, eax");
+            return;
+        }
+        const auto maximum = ~std::uint64_t{0};
+        auto magic = maximum / divisor;
+        if (maximum % divisor == divisor - 1) ++magic;
+
+        const auto done = label("modconst_done");
         emit("    mov r11, rax");
         emit("    sar r11, 63");
         emit("    xor rax, r11");
         emit("    sub rax, r11");
         pushRax();
-        emit("    movabs r10, 190172619316593316");
+        emit("    movabs r10, " + std::to_string(magic));
         emit("    mul r10");
-        emit("    imul rax, rdx, 97");
+        emit("    movabs r10, " + std::to_string(divisor));
+        emit("    imul rax, rdx, r10");
         popRcx();
-        emit("    cmp rax, rcx");
-        emit("    jbe " + adjust);
-        emit("    sub rdx, 1");
-        emit(adjust + ":");
-        emit("    imul rdx, rdx, 97");
+        emit("    sub rcx, rax");
+        emit("    cmp rcx, r10");
+        emit("    jb " + done);
+        emit("    sub rcx, r10");
+        emit(done + ":");
         emit("    mov rax, rcx");
-        emit("    sub rax, rdx");
         emit("    xor rax, r11");
         emit("    sub rax, r11");
     }
