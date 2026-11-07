@@ -2,7 +2,7 @@
 
 ## Current state
 
-The compiler now emits assembly directly from the checked Swan AST through a Swan-owned x86-64 System V backend. The LLVM IR generator has been removed. The build and CI no longer require LLVM or Clang.
+The compiler emits assembly directly from the checked Swan AST through Swan-owned x86-64 System V and AArch64 AAPCS64 ELF backends. The LLVM IR generator has been removed. The build and CI do not require LLVM or Clang.
 
 The system assembler/linker is used only after Swan emits assembly. It does not perform Swan instruction selection or optimization.
 
