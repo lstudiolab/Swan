@@ -28,13 +28,13 @@ jobs:
 
           for source in "${sources[@]}"; do
             relative="${source#./}"
-            generated="$output_dir/${relative%.swan}.c"
+            generated="$output_dir/${relative%.swan}.s"
             object="${output_dir}/${relative%.swan}.o"
 
             mkdir -p "$(dirname "$generated")"
             echo "::group::Compile $source"
-            ./build/swan "$source" -o "$generated"
-            cc -std=c11 -c "$generated" -o "$object"
+            ./build/swan "$source" --emit-asm -o "$generated"
+            cc -c -x assembler "$generated" -o "$object"
             echo "::endgroup::"
           done
 
