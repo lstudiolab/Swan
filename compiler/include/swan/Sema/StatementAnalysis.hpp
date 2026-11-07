@@ -17,6 +17,7 @@ inline bool Sema::alwaysReturns(const std::vector<StmtPtr>& statements) const {
 
 inline void Sema::analyzeBlock(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
+    scopes_.back().reserve(statements.size());
     for (const auto& statement : statements) analyzeStatement(statement);
     scopes_.pop_back();
 }
@@ -33,7 +34,7 @@ inline void Sema::analyzeStatement(const StmtPtr& node) {
         if (type == "void") fail(node->token,"variables cannot have type void");
         if (!actual.empty() && !compatible(type,actual))
             fail(node->token,"cannot initialize " + type + " with " + actual);
-        scopes_.back()[node->name] = {type,node->mutable_value};
+        scopes_.back().emplace(node->name,std::pair{std::move(type),node->mutable_value});
         break;
     }
     case Stmt::Kind::Log: {
