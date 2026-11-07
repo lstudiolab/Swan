@@ -54,7 +54,7 @@ inline std::string targetTriple(const std::string& target) {
 }
 inline int compileLLVM(const std::string& ir, const std::filesystem::path& output,
                        const std::string& target, bool assembly, bool object, bool execute,
-                       bool fastCompile, const std::string& cpu, const std::string& features) {
+                       bool fastCompile, bool optimize, const std::string& cpu, const std::string& features) {
     const auto irFile = temporaryPath(".ll");
     struct Cleanup { std::filesystem::path path; ~Cleanup() { std::error_code e; std::filesystem::remove(path, e); } } cleanup{irFile};
     if (!writeTextFile(irFile, ir)) throw CompileError("cannot write temporary LLVM IR");
@@ -63,7 +63,7 @@ inline int compileLLVM(const std::string& ir, const std::filesystem::path& outpu
     const auto triple = targetTriple(target);
     std::string command = shellQuote(clang);
     if (!triple.empty()) command += " -target " + shellQuote(triple);
-    command += fastCompile ? " -O0 -fno-addrsig" : " -O3 -fno-addrsig";
+    command += fastCompile ? " -O0 -fno-addrsig" : optimize ? " -O3 -fno-addrsig" : " -O2 -fno-addrsig";
     if (!cpu.empty()) command += " -mcpu=" + shellQuote(cpu);
     else if (target == "native") command += " -march=native";
     if (!features.empty()) {
@@ -125,7 +125,7 @@ inline int runCompiler(int argc, char** argv) {
         const char* envFast = std::getenv("SWAN_FAST_COMPILE");
         const bool fast = options.fastCompile || (envFast && *envFast && std::string(envFast) != "0");
         const auto ir = Compiler().compileIR(source, options.target);
-        const int status = driver::compileLLVM(ir, output, options.target, assembly, object, execute, fast, options.cpu, options.features);
+        const int status = driver::compileLLVM(ir, output, options.target, assembly, object, execute, fast, options.optimize, options.cpu, options.features);
         if (!options.hasOutput && !assembly && !object) { std::error_code e; std::filesystem::remove(output, e); }
         if (!execute && !assembly && !object && status == 0) std::cout << "Built " << output.string() << '\n';
         return status;
