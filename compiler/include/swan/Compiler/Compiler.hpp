@@ -1,6 +1,5 @@
 #pragma once
-#include "swan/CodeGen/AssemblyGenerator.hpp"
-#include "swan/CodeGen/CSourceGenerator.hpp"
+#include "swan/CodeGen/LLVMIRGenerator.hpp"
 #include "swan/Frontend/Frontend.hpp"
 #include <string>
 #include <string_view>
@@ -8,14 +7,9 @@
 namespace swan {
 class Compiler {
 public:
-    std::string compile(std::string_view source) const {
+    std::string compileIR(std::string_view source) const {
         auto program = Frontend().build(source);
-        return AssemblyGenerator(program).generate();
-    }
-
-    std::string compilePortable(std::string_view source) const {
-        auto program = Frontend().build(source);
-        return CSourceGenerator(program).generate();
+        return LLVMIRGenerator(program).generate();
     }
 };
 }
