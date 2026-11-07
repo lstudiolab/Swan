@@ -5,6 +5,7 @@
 #include "swan/Lex/NumberScanner.hpp"
 #include "swan/Lex/StringScanner.hpp"
 #include "swan/Lex/PunctuationScanner.hpp"
+#include <algorithm>
 
 namespace swan {
 inline Lexer::Lexer(std::string_view source) : source_(source) {}
@@ -26,7 +27,7 @@ inline char Lexer::advance() {
 }
 inline std::vector<Token> Lexer::scan() {
     std::vector<Token> result;
-    result.reserve(source_.size() / 4);
+    result.reserve(std::min<std::size_t>(source_.size() / 4, 4096));
     while (!eof()) {
         const char character = peek();
         if (isHorizontalWhitespace(character)) {
