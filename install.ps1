@@ -1,5 +1,8 @@
 $ErrorActionPreference = "Stop"
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
+    throw "Install Clang/LLVM and ensure clang is on PATH. Swan uses LLVM for native code generation."
+}
 $Build = Join-Path $Root "build"
 $Main = Join-Path $Root "main.cpp"
 $Include = Join-Path $Root "compiler/include"
