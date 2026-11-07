@@ -24,7 +24,7 @@ private:
     static bool numeric(const std::string& type);
     static bool compatible(const std::string& expected,const std::string& actual);
     const Program& program_;
-    std::unordered_set<std::string_view> types_{"int","float","bool","string","void"};
+    std::unordered_set<std::string_view> types_{"int","float","bool","string","void","int[]"};
     std::unordered_map<std::string_view,const Stmt*> functions_;
     std::vector<Scope> scopes_;
     std::string return_type_;
