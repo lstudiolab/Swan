@@ -174,9 +174,17 @@ private:
     }
 
     void emitArrayAddress(const Expr* node) {
+        const auto* index = node->right.get();
+        if (index->kind == Expr::Kind::Name || index->kind == Expr::Kind::Literal) {
+            emitExpression(node->left.get());
+            emit("    mov r10, rax");
+            emitExpression(index);
+            emit("    lea rax, [r10 + rax*8]");
+            return;
+        }
         emitExpression(node->left.get());
         pushRax();
-        emitExpression(node->right.get());
+        emitExpression(index);
         popRcx();
         emit("    lea rax, [rcx + rax*8]");
     }
@@ -471,6 +479,31 @@ private:
             emit(done + ":");
             emit(std::string("    mov eax, ") + ((op == "and" || op == "&&") ? "0" : "1"));
             emit(done + "_end:");
+            return;
+        }
+
+        const bool integerFastPath = node->left->resolved_type == "int" &&
+            node->right->resolved_type == "int" &&
+            (node->right->kind == Expr::Kind::Name || node->right->kind == Expr::Kind::Literal) &&
+            (op == "+" || op == "-" || op == "*" || op == "==" || op == "!=" ||
+             op == "<" || op == ">" || op == "<=" || op == ">=");
+        if (integerFastPath) {
+            emitExpression(node->left.get());
+            emit("    mov r10, rax");
+            emitExpression(node->right.get());
+            if (op == "+") emit("    add rax, r10");
+            else if (op == "-") {
+                emit("    sub r10, rax");
+                emit("    mov rax, r10");
+            } else if (op == "*") emit("    imul rax, r10");
+            else {
+                emit("    cmp r10, rax");
+                const char* condition = op == "==" ? "sete" : op == "!=" ? "setne" :
+                    op == "<" ? "setl" : op == ">" ? "setg" :
+                    op == "<=" ? "setle" : "setge";
+                emit(std::string("    ") + condition + " al");
+                emit("    movzx rax, al");
+            }
             return;
         }
 
