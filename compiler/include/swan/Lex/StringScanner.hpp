@@ -7,12 +7,15 @@ inline Token Lexer::scanString() {
     const auto column = column_;
     const char quote = advance();
     std::string value;
+    value.reserve(32);
     while (!eof() && peek() != quote) {
-        const char character = advance();
-        if (character != '\\') {
-            value += character;
+        if (peek() != '\\') {
+            const auto start = index_;
+            while (!eof() && peek() != quote && peek() != '\\') advance();
+            value.append(source_.substr(start, index_ - start));
             continue;
         }
+        advance();
         if (eof())
             fail({"STRING", value, line, column}, "unterminated escape sequence");
         switch (advance()) {
@@ -29,6 +32,6 @@ inline Token Lexer::scanString() {
     if (eof())
         fail({"STRING", value, line, column}, "unterminated string");
     advance();
-    return {"STRING", value, line, column};
+    return {"STRING", std::move(value), line, column};
 }
 } // namespace swan
