@@ -79,15 +79,20 @@ times per optimization level and checks the output checksum:
 
 | Clang level | Backend compile | Program runtime |
 |---|---:|---:|
-| `-O0` | 49.56 ms | 281.99 ms |
-| `-O1` | 52.76 ms | 191.22 ms |
-| `-O2` | 55.96 ms | 193.06 ms |
-| `-O3` | 56.44 ms | 193.33 ms |
-| `-Os` | 54.23 ms | 191.22 ms |
+| `-O0` | 58.61 ms | 172.34 ms |
+| `-O1` | 61.61 ms | 179.95 ms |
+| `-O2` | 65.23 ms | 179.90 ms |
+| `-O3` | 64.64 ms | 179.96 ms |
+| `-Os` | 59.32 ms | 179.94 ms |
 
-For this workload, `-O1` is the best compile/runtime balance: it compiles
-slightly faster than `-O2` and its runtime is within measurement noise of
-`-O2`. `-O0` is not recommended because the runtime regresses by about 11%.
+For this scalar workload, `-O0` is the fastest compile setting and also
+produced the fastest runtime in the recorded run. A separate equivalent
+cross-language run measured Swan's complete frontend-plus-Clang pipeline at
+54.7 ms with `-O0`; Rust took 1.2712 s and Goose took 1.1860 s. All three
+executables produced the same checksum. The `-O0` result is the current
+compile-time-first default; set `SWAN_OPT_LEVEL=1` for other workloads where
+optimized runtime is more important. These measurements are workload- and
+runner-specific.
 The compiler frontend itself is already in the low-millisecond range, so
 rewriting lexer/parser algorithms is not justified by these measurements.
 The remaining compile cost is primarily launching and running the external C
