@@ -4,8 +4,8 @@
 #include <utility>
 
 namespace swan {
-inline std::string Sema::analyzeExpression(const ExprPtr& node) {
-    const auto finish = [&](std::string type) {
+inline std::string_view Sema::analyzeExpression(const ExprPtr& node) {
+    const auto finish = [&](std::string_view type) -> std::string_view {
         using Resolved = Expr::ResolvedType;
         if (type == "int") node->resolved_type = Resolved::Int;
         else if (type == "float") node->resolved_type = Resolved::Float;
@@ -44,7 +44,7 @@ inline std::string Sema::analyzeExpression(const ExprPtr& node) {
             if (!symbol) fail(node->left->token,"unknown variable '" + node->left->value + "'");
             if (!symbol->second) fail(node->left->token,"cannot assign to immutable value '" + node->left->value + "'");
             const auto right = analyzeExpression(node->right);
-            if (!compatible(symbol->first,right)) fail(node->token,"cannot assign " + right + " to " + symbol->first);
+            if (!compatible(symbol->first,right)) fail(node->token,"cannot assign " + std::string(right) + " to " + symbol->first);
             return finish(symbol->first);
         }
         const auto right = analyzeExpression(node->right);
