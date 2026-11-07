@@ -1,16 +1,37 @@
 #pragma once
 #include <string_view>
 namespace swan {
-inline bool isKeyword(std::string_view value) {
-    static constexpr std::string_view keywords[] = {
-        "fn", "let", "var", "const", "struct", "if", "else", "while", "return",
-        "break", "continue", "pass", "log", "true", "false", "none", "int",
-        "float", "bool", "string", "void", "and", "or", "not", "import", "as",
-        "for", "loop", "async", "await", "sync", "hold", "store", "operate",
-        "clone", "get", "init", "deinit", "release", "enum", "class", "type",
-        "public", "private", "export", "self", "case", "range"
-    };
-    for (const auto keyword : keywords) if (keyword == value) return true;
-    return false;
+inline bool isKeyword(std::string_view value) noexcept {
+    switch (value.size()) {
+    case 2:
+        return value == "fn" || value == "if" || value == "or" ||
+               value == "as";
+    case 3:
+        return value == "let" || value == "var" || value == "for" ||
+               value == "log" || value == "int" || value == "and" ||
+               value == "not" || value == "get" || value == "new";
+    case 4:
+        return value == "else" || value == "true" || value == "none" ||
+               value == "bool" || value == "void" || value == "loop" ||
+               value == "hold" || value == "sync" || value == "enum" ||
+               value == "type" || value == "self" || value == "case" ||
+               value == "init" || value == "async" || value == "await";
+    case 5:
+        return value == "const" || value == "while" || value == "break" ||
+               value == "float" || value == "store" || value == "clone" ||
+               value == "deinit" || value == "class" || value == "range";
+    case 6:
+        return value == "struct" || value == "return" || value == "import" ||
+               value == "string" || value == "public" || value == "export";
+    case 7:
+        return value == "continue" || value == "private" || value == "release" ||
+               value == "operate";
+    case 8:
+        return value == "function";
+    case 5 + 4:
+        return value == "statement";
+    default:
+        return false;
+    }
 }
 }
