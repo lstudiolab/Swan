@@ -524,7 +524,7 @@ private:
             emit("    sub r11, rax");
             emit("    mov rax, r11");
         } else if (op == "*") emit("    imul rax, rcx");
-        else if (op == "/" || op == "%") {
+        else if (op == "/" || op == "//" || op == "%") {
             emit("    mov r11, rax");
             emit("    mov rax, rcx");
             emit("    cqo");
