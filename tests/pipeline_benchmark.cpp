@@ -33,6 +33,22 @@ double medianMilliseconds(Function&& function) {
     return samples[samples.size() / 2];
 }
 
+double parseMilliseconds(const std::string& source) {
+    std::vector<double> samples;
+    samples.reserve(7);
+    for (int i = 0; i < 9; ++i) {
+        auto tokens = swan::Lexer(source).scan();
+        const auto start = Clock::now();
+        auto program = swan::Parser(std::move(tokens)).parse();
+        const auto finish = Clock::now();
+        (void)program;
+        if (i >= 2)
+            samples.push_back(std::chrono::duration<double, std::milli>(finish - start).count());
+    }
+    std::sort(samples.begin(), samples.end());
+    return samples[samples.size() / 2];
+}
+
 std::string makeSource(std::size_t statements) {
     std::string source;
     source.reserve(statements * 40);
@@ -70,11 +86,7 @@ int main(int argc, char** argv) {
             (void)tokens;
         });
 
-        const double parseMs = medianMilliseconds([&] {
-            auto tokens = swan::Lexer(source).scan();
-            auto program = swan::Parser(std::move(tokens)).parse();
-            (void)program;
-        });
+        const double parseMs = parseMilliseconds(source);
 
         const double semaMs = medianMilliseconds([&] {
             auto program = parseSource(source);
