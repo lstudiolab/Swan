@@ -47,6 +47,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){if(!e)ret
   }
   break;
 }
+}
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){for(size_t i=0;i<n;i++){Stmt *s=body[i];switch(s->kind){
  case S_VARIABLE:{int slot=local_find(l,s->name);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");if(slot>0)text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);break;}
  case S_LOG:if(s->value&&s->value->kind==E_STRING){int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);for(const unsigned char *q=(const unsigned char*)s->value->token.text;*q;q++){if(*q=='"'||*q=='\\')text_add(o,"\\%c",*q);else if(*q=='\n')text_add(o,"\\n");else if(*q=='\t')text_add(o,"\\t");else if(*q=='\r')text_add(o,"\\r");else if(*q<32)text_add(o,"\\%03o",*q);else text_add(o,"%c",*q);}text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n    call puts@PLT\n",id);}else{emit_expr(o,s->value,l,err);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n    call printf@PLT\n");}break;
