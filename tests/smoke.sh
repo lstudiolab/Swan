@@ -59,7 +59,18 @@ SWAN
 "$SWAN" "$TMP/functions.swan" -o "$TMP/functions.c"
 ${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/functions.c" -o "$TMP/functions"
 test "$("$TMP/functions")" = "42"
-printf 'PASS: inferred integer return type\n'
+printf 'PASS: inferred integer return type and inline helper emission\n'
+
+cat > "$TMP/int64.swan" <<'SWAN'
+fn main():
+    let large: int = 3000000000
+    log large
+    return 0
+SWAN
+"$SWAN" "$TMP/int64.swan" -o "$TMP/int64.c"
+${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/int64.c" -o "$TMP/int64"
+test "$("$TMP/int64")" = "3000000000"
+printf 'PASS: 64-bit integer lowering\n'
 
 cat > "$TMP/structs.swan" <<'SWAN'
 struct Point:

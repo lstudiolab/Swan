@@ -14,10 +14,8 @@ inline std::string CGenerator::generate() {
     output_.clear();
     output_.reserve(program_.size() * 64 + 64);
     structs_.clear();
-    functions_.clear();
-    scopes_.clear();
     indent_ = 0;
-    output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
+    output_ += "#include <stdbool.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
     std::vector<const Stmt*> structures;
     structures.reserve(program_.size());
     std::unordered_map<std::string_view,const Stmt*> structureByName;
@@ -28,7 +26,6 @@ inline std::string CGenerator::generate() {
             structureByName.emplace(node->name,node.get());
             structures.push_back(node.get());
         }
-        if (node->kind == Stmt::Kind::Function) functions_[node->name] = node.get();
     }
     for (const auto* structure : structures)
         line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
@@ -63,7 +60,10 @@ inline std::string CGenerator::generate() {
             if (!parameters.empty()) parameters += ", ";
             parameters += cType(parameter.type) + " " + cVariableName(parameter.name);
         }
-        line(cType(node->return_type) + " " + cFunctionName(node->name) + "(" +
+        const std::string linkage = node->name == "main" ? "" : "static inline ";
+        const std::string returnType = node->name == "main" && node->return_type == "int"
+            ? "int" : cType(node->return_type);
+        line(linkage + returnType + " " + cFunctionName(node->name) + "(" +
              (parameters.empty() ? "void" : parameters) + ");");
     }
     line();
