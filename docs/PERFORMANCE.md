@@ -87,7 +87,9 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 - Assignment analysis resolves the target once instead of recursively analyzing and looking it up a second time.
 - C expression emission appends into a shared expression buffer rather than building a tree of temporary strings.
 - C statement, function, struct, and typedef emission writes directly to the final output buffer.
+- Code-generation function, variable, scope, and structure indexes use AST-backed `string_view` keys, avoiding duplicate name allocations while the source AST remains alive.
 - Struct type membership uses transparent `string_view` lookup, avoiding a temporary string for every struct-typed field.
+- Struct dependency traversal uses a generic recursive lambda instead of type-erased `std::function` dispatch.
 - C string escaping and output generation append directly to reserved buffers rather than stream formatting.
 
 These changes reduce known repeated work and avoid selected allocations. They are not a claim of a measured percentage improvement. Use the benchmark harness on the same machine before and after changes to quantify end-to-end impact.
