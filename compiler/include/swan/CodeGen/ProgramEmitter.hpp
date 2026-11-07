@@ -61,7 +61,9 @@ inline std::string CGenerator::generate() {
             parameters += cType(parameter.type) + " " + cVariableName(parameter.name);
         }
         const std::string linkage = node->name == "main" ? "" : "static inline ";
-        line(linkage + cType(node->return_type) + " " + cFunctionName(node->name) + "(" +
+        const std::string returnType = node->name == "main" && node->return_type == "int"
+            ? "int" : cType(node->return_type);
+        line(linkage + returnType + " " + cFunctionName(node->name) + "(" +
              (parameters.empty() ? "void" : parameters) + ");");
     }
     line();
