@@ -13,10 +13,21 @@ static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d
 static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",reg);o->stack_depth+=8;}
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
-typedef struct { char name[SWAN_MAX_TEXT]; int slot; bool mut; } Local;
-typedef struct { Local items[1024];size_t count;int slots; } Locals;
-static inline int local_find(Locals *l,const char *name){for(size_t i=l->count;i>0;i--)if(!strcmp(l->items[i-1].name,name))return l->items[i-1].slot;return -1;}
-static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE&&l->count<1024){strcpy(l->items[l->count].name,s->name);l->items[l->count].slot=++l->slots;l->items[l->count].mut=s->mutable_value;l->count++;}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
+typedef struct { char name[SWAN_MAX_TEXT]; int slot,reg; bool mut; } Local;
+typedef struct { Local items[1024];size_t count;int slots,reg_count; } Locals;
+static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
+static inline Local *local_find(Locals *l,const char *name){for(size_t i=l->count;i>0;i--)if(!strcmp(l->items[i-1].name,name))return &l->items[i-1];return NULL;}
+static inline Local *local_add(Locals *l,const char *name,bool mut){
+ if(l->count>=1024)return NULL;
+ Local *v=&l->items[l->count++];strcpy(v->name,name);v->mut=mut;v->reg=-1;v->slot=0;
+ if(l->reg_count<5)v->reg=l->reg_count++;
+ else v->slot=++l->slots;
+ return v;
+}
+static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE)local_add(l,s->name,s->mutable_value);collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
+static inline void emit_restore_regs(Text *o,Locals *l){
+ for(int i=0;i<l->reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
+}
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
@@ -38,15 +49,18 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_BOOL:text_add(o,"    mov eax, %d\n",e->token.kind==T_TRUE);break;
  case E_FLOAT:swan_error(err,&e->token,"floating point is not yet supported by the C backend");break;
  case E_STRING:swan_error(err,&e->token,"string values are not yet supported outside log statements");break;
- case E_NAME:{int slot=local_find(l,e->token.text);if(slot<0)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",slot*8);break;}
+ case E_NAME:{Local *v=local_find(l,e->token.text);if(!v)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else if(v->reg>=0)text_add(o,"    mov rax, %s\n",cg_saved_regs[v->reg]);else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",v->slot*8);break;}
  case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
  case E_CALL:emit_call(o,e,l,err);break;
  case E_BINARY:
   if(e->token.kind==T_ASSIGN){
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable");break;}
-   int slot=local_find(l,e->left->token.text);
-   if(slot<0){swan_error(err,&e->token,"unknown assignment target");break;}
-   emit_expr(o,e->right,l,err);text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);break;
+   Local *v=local_find(l,e->left->token.text);
+   if(!v){swan_error(err,&e->token,"unknown assignment target");break;}
+   emit_expr(o,e->right,l,err);
+   if(v->reg>=0)text_add(o,"    mov %s, rax\n",cg_saved_regs[v->reg]);
+   else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);
+   break;
   }
   if(e->right&&e->right->kind==E_INT){
    char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
@@ -86,7 +100,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
   switch(s->kind){
-   case S_VARIABLE:{int slot=local_find(l,s->name);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");if(slot>0)text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);break;}
+   case S_VARIABLE:{Local *v=local_find(l,s->name);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");if(v){if(v->reg>=0)text_add(o,"    mov %s, rax\n",cg_saved_regs[v->reg]);else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);}break;}
    case S_LOG:
     if(s->value&&s->value->kind==E_STRING){
      int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);
@@ -101,7 +115,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n    call puts@PLT\n",id);
     }else{emit_expr(o,s->value,l,err);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");}
     break;
-   case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");text_add(o,"    leave\n    ret\n");break;
+   case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");emit_restore_regs(o,l);text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
    case S_BREAK:case S_CONTINUE:swan_error(err,&s->token,"loop control lowering is not yet supported");break;
@@ -123,13 +137,14 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];Locals l={0};o->stack_depth=0;
-  for(size_t a=0;a<fn->param_count;a++){strcpy(l.items[l.count].name,fn->params[a]);l.items[l.count].slot=++l.slots;l.count++;}
-  collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots*8+15)/16)*16;
+  for(size_t a=0;a<fn->param_count;a++)local_add(&l,fn->params[a],false);
+  collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots+l.reg_count)*8+15)/16*16;
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);
+  for(int a=0;a<l.reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
   const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
-  for(size_t a=0;a<fn->param_count&&a<6;a++){int slot=local_find(&l,fn->params[a]);text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",slot*8,regs[a]);}
-  emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n    leave\n    ret\n");
+  for(size_t a=0;a<fn->param_count&&a<6;a++){Local *v=local_find(&l,fn->params[a]);if(v){if(v->reg>=0)text_add(o,"    mov %s, %s\n",cg_saved_regs[v->reg],regs[a]);else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[a]);}}
+  emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);text_add(o,"    leave\n    ret\n");
  }
  text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  return err->message[0]==0;
