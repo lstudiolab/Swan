@@ -322,9 +322,9 @@ jobs:
           with open("../results.txt", encoding="utf-8") as f:
               for line in f:
                   parts = line.split()
-                  if len(parts) == 4 and parts[1] == "runtime_ms":
+                  if len(parts) == 5 and parts[1] == "runtime_ms" and parts[3] == "peak_rss_kb":
                       values[parts[0]].append(float(parts[2]))
-                      memory[parts[0]].append(int(parts[3]))
+                      memory[parts[0]].append(int(parts[4]))
           with open("../results.txt", "a", encoding="utf-8") as f:
               f.write("\nmedian_runtime_ms (5 measured runs after 2 warmups)\n")
               for name, samples in values.items():
