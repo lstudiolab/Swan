@@ -526,6 +526,12 @@ private:
             (op == "+" || op == "-" || op == "*" || op == "==" || op == "!=" ||
              op == "<" || op == ">" || op == "<=" || op == ">=");
         if (integerFastPath) {
+            if (node->right->kind == Expr::Kind::Literal &&
+                node->right->token.value == "1" && (op == "+" || op == "-")) {
+                emitExpression(node->left.get());
+                emit(op == "+" ? "    inc rax" : "    dec rax");
+                return;
+            }
             emitExpression(node->left.get());
             emit("    mov r10, rax");
             emitExpression(node->right.get());
