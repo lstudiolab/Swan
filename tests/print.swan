@@ -1,5 +1,8 @@
-struct printingName:
-    var name1 = "alex"
+struct PrintingName {
+    name1: string;
+}
 
-fn main():
-   log "printingName.var.name1";
+fn main() -> int {
+    log "printingName.var.name1";
+    return 0;
+}
