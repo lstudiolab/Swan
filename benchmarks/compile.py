@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Repeatable end-to-end Swan compiler benchmark; reports timings, not speedup claims."""
+"""Repeatable end-to-end Swan frontend/codegen benchmarks."""
 from pathlib import Path
 from statistics import median
 import subprocess
@@ -9,28 +9,75 @@ import time
 ROOT = Path(__file__).resolve().parents[1]
 BINARY = ROOT / "build" / "swan"
 REPEATS = 7
-DECLARATIONS = 2500
 
-if not BINARY.exists():
-    subprocess.run(["sh", str(ROOT / "build.sh")], check=True)
 
-with tempfile.TemporaryDirectory(prefix="swan-bench-") as directory:
-    source = Path(directory) / "large.swan"
-    output = Path(directory) / "large.c"
+def fixtures():
+    declarations = 2500
     lines = ["fn main() {"]
-    lines.extend(f"    let value{i}: int = {i}" for i in range(DECLARATIONS))
-    lines.append(f"    log value{DECLARATIONS - 1}")
+    lines.extend(f"    let value{i}: int = {i}" for i in range(declarations))
+    lines.extend([f"    log value{declarations - 1}", "}"])
+    yield "declarations", "\n".join(lines) + "\n"
+
+    assignments = 1500
+    lines = ["fn main() {", "    var total: int = 0"]
+    lines.extend("    total = total + 1" for _ in range(assignments))
+    lines.extend(["    log total", "}"])
+    yield "expressions", "\n".join(lines) + "\n"
+
+    calls = 1000
+    lines = [
+        "fn increment(value: int) -> int {",
+        "    return value + 1",
+        "}",
+        "fn main() {",
+        "    var total: int = 0",
+    ]
+    lines.extend("    total = increment(total)" for _ in range(calls))
+    lines.extend(["    log total", "}"])
+    yield "function-calls", "\n".join(lines) + "\n"
+
+    strings = 1200
+    lines = ["fn main() {"]
+    lines.extend(f'    log "literal-{i}-swan-compiler-benchmark"' for i in range(strings))
     lines.append("}")
-    source.write_text("\n".join(lines) + "\n", encoding="utf-8")
+    yield "string-literals", "\n".join(lines) + "\n"
 
-    samples = []
-    for _ in range(REPEATS):
-        start = time.perf_counter()
-        subprocess.run([str(BINARY), str(source), "-o", str(output)],
-                       check=True, stdout=subprocess.DEVNULL)
-        samples.append(time.perf_counter() - start)
+    depth = 48
+    lines = ["fn main() {"]
+    lines.extend("    " * (i + 1) + "if true {" for i in range(depth))
+    lines.append("    " * (depth + 1) + "log 1")
+    lines.extend("    " * (i + 1) + "}" for i in reversed(range(depth)))
+    lines.append("}")
+    yield "nested-scopes", "\n".join(lines) + "\n"
 
-    print(f"fixture: {DECLARATIONS:,} declarations")
-    print(f"runs: {REPEATS}")
-    print(f"median: {median(samples) * 1000:.2f} ms")
-    print("samples: " + ", ".join(f"{sample * 1000:.2f} ms" for sample in samples))
+
+def main():
+    if not BINARY.exists():
+        subprocess.run(["sh", str(ROOT / "build.sh")], check=True)
+
+    with tempfile.TemporaryDirectory(prefix="swan-bench-") as directory:
+        work = Path(directory)
+        print(f"compiler: {BINARY}")
+        print(f"repetitions: {REPEATS}; statistic: median wall time")
+        print("| Workload | Median (ms) | Range (ms) |")
+        print("|---|---:|---:|")
+        for name, source_text in fixtures():
+            source = work / f"{name}.swan"
+            output = work / f"{name}.c"
+            source.write_text(source_text, encoding="utf-8")
+            samples = []
+            for _ in range(REPEATS):
+                started = time.perf_counter()
+                subprocess.run(
+                    [str(BINARY), str(source), "-o", str(output)],
+                    check=True, stdout=subprocess.DEVNULL,
+                )
+                samples.append((time.perf_counter() - started) * 1000)
+            print(
+                f"| {name} | {median(samples):.2f} "
+                f"| {min(samples):.2f}–{max(samples):.2f} |"
+            )
+
+
+if __name__ == "__main__":
+    main()
