@@ -48,16 +48,17 @@ inline Program Parser::parse() {
     return program;
 }
 inline std::vector<StmtPtr> Parser::block() {
-    expect("{","expected '{' to begin block");
+    expect("NEWLINE","expected a new indented block");
+    expect("INDENT","expected indentation to begin block");
     std::vector<StmtPtr> body;
     separators();
-    while (!check("}") && !check("EOF")) {
+    while (!check("DEDENT") && !check("EOF")) {
         const auto before = position_;
         body.push_back(declaration());
         separators();
         if (before == position_) fail(peek(),"parser made no progress");
     }
-    expect("}","expected '}' to close block");
+    expect("DEDENT","expected indentation to close block");
     return body;
 }
 }
