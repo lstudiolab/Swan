@@ -11,23 +11,43 @@ inline Token Lexer::scanPunctuation() {
         (first == '!' && second == '=') || (first == '<' && second == '=') ||
         (first == '>' && second == '=') || (first == '&' && second == '&') ||
         (first == '|' && second == '|')) {
+        std::string_view kind;
+        if (first == '-') kind = "->";
+        else if (first == '=') kind = "==";
+        else if (first == '!') kind = "!=";
+        else if (first == '<') kind = "<=";
+        else if (first == '>') kind = ">=";
+        else if (first == '&') kind = "&&";
+        else kind = "||";
         const char pair[] = {first, second};
         advance();
         advance();
-        const std::string value(pair, 2);
-        return {std::string_view(source_.data() + index_ - 2, 2), value, line, column};
+        return {kind, std::string(pair, 2), line, column};
     }
+    std::string_view kind;
     switch (first) {
-    case '(': case ')': case '[': case ']': case ',': case ':': case ';':
-    case '.': case '+': case '-': case '*': case '/': case '%': case '=':
-    case '<': case '>': case '!': {
-        advance();
-        const std::string value(1, first);
-        return {std::string_view(source_.data() + index_ - 1, 1), value, line, column};
-    }
+    case '(': kind = "("; break;
+    case ')': kind = ")"; break;
+    case '[': kind = "["; break;
+    case ']': kind = "]"; break;
+    case ',': kind = ","; break;
+    case ':': kind = ":"; break;
+    case ';': kind = ";"; break;
+    case '.': kind = "."; break;
+    case '+': kind = "+"; break;
+    case '-': kind = "-"; break;
+    case '*': kind = "*"; break;
+    case '/': kind = "/"; break;
+    case '%': kind = "%"; break;
+    case '=': kind = "="; break;
+    case '<': kind = "<"; break;
+    case '>': kind = ">"; break;
+    case '!': kind = "!"; break;
     default:
         fail({"", "", line, column},
              std::string("unexpected character '") + first + "'");
     }
+    advance();
+    return {kind, std::string(1, first), line, column};
 }
 } // namespace swan
