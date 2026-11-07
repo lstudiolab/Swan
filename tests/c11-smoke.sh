@@ -198,5 +198,38 @@ SWAN
 cc -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
 test "$("$TMP/nested-calls")" = "42"
 printf 'PASS: nested function calls preserve x86-64 ABI stack alignment\n'
+cat > "$TMP/call-hotpath.swan" <<'SWAN'
+fn transform(x: int) -> int:
+    return (x * 31 + 7) % 97
+fn main():
+    var total = 0
+    var i = 0
+    while i < 8
+        if i % 2 == 0
+            total = total + transform(i)
+        else
+            total = total + transform(i + 1)
+        i = i + 1
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/call-hotpath.swan" --emit-asm -o "$TMP/call-hotpath.s"
+cc -x assembler "$TMP/call-hotpath.s" -o "$TMP/call-hotpath"
+test "$("$TMP/call-hotpath")" = "466"
+grep -q 'test r12, 1' "$TMP/call-hotpath.s"
+grep -q 'call swan_fn_transform' "$TMP/call-hotpath.s"
+if grep -q 'mov QWORD PTR \[rsp' "$TMP/call-hotpath.s"; then
+    echo 'FAIL: simple direct-call arguments were unnecessarily staged on the stack' >&2
+    exit 1
+fi
+if grep -A8 '^swan_fn_transform:' "$TMP/call-hotpath.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
+    echo 'FAIL: leaf function unexpectedly creates a stack frame' >&2
+    exit 1
+fi
+if grep -B2 'call swan_fn_transform' "$TMP/call-hotpath.s" | grep -q 'push rax'; then
+    echo 'FAIL: accumulator was spilled around a call' >&2
+    exit 1
+fi
+printf 'PASS: leaf-call, register argument, accumulator, and parity fast paths\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
