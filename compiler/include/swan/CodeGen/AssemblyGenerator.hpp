@@ -270,6 +270,31 @@ private:
         scopes_.clear();
     }
 
+    void emitConditionFalse(const Expr* condition, const std::string& target) {
+        if (condition->kind == Expr::Kind::Binary) {
+            const auto& op = condition->token.value;
+            const bool comparison = op == "==" || op == "!=" || op == "<" ||
+                op == ">" || op == "<=" || op == ">=";
+            const auto* right = condition->right.get();
+            if (comparison && condition->left->resolved_type == "int" &&
+                right->resolved_type == "int" &&
+                (right->kind == Expr::Kind::Name || right->kind == Expr::Kind::Literal)) {
+                emitExpression(condition->left.get());
+                emit("    mov r10, rax");
+                emitExpression(right);
+                emit("    cmp r10, rax");
+                const char* inverse = op == "==" ? "jne" : op == "!=" ? "je" :
+                    op == "<" ? "jge" : op == ">" ? "jle" :
+                    op == "<=" ? "jg" : "jl";
+                emit(std::string("    ") + inverse + " " + target);
+                return;
+            }
+        }
+        emitExpression(condition);
+        emit("    test rax, rax");
+        emit("    jz " + target);
+    }
+
     void emitBlock(const std::vector<StmtPtr>& statements) {
         scopes_.emplace_back();
         for (const auto& node : statements) emitStatement(node.get());
