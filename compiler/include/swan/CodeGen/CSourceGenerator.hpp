@@ -187,7 +187,7 @@ private:
     }
 
     void emitFunction(std::string& out, const Stmt* node) const {
-        out += type(node->return_type) + " " + functionName(node->name) + "(";
+        out += functionType(node) + " " + functionName(node->name) + "(";
         if (node->parameters.empty()) out += "void";
         for (std::size_t i = 0; i < node->parameters.size(); ++i) {
             if (i) out += ", ";
