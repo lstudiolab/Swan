@@ -7,7 +7,7 @@ CC=${CC:-cc}
 mkdir -p "$TMP"
 expect_rejected() {
     name=$1
-    if "$SWAN" "$TMP/$name.swan" -o "$TMP/$name.c" >/dev/null 2>&1; then
+    if "$SWAN" "$TMP/$name.swan" -o "$TMP/$name.s" >/dev/null 2>&1; then
         echo "FAIL: $name should have been rejected" >&2
         exit 1
     fi
@@ -40,8 +40,8 @@ fn main():
     log choose(true)
     return 0
 SWAN
-"$SWAN" "$TMP/return-both-branches.swan" -o "$TMP/return-both-branches.c"
-"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/return-both-branches.c" -o "$TMP/return-both-branches"
+"$SWAN" "$TMP/return-both-branches.swan" -o "$TMP/return-both-branches.s"
+"$CC" -x assembler "$TMP/return-both-branches.s" -o "$TMP/return-both-branches"
 test "$("$TMP/return-both-branches")" = "11"
 printf 'PASS: definite return across both branches\n'
 
@@ -53,8 +53,8 @@ struct Wing:
 fn main():
     return 0
 SWAN
-"$SWAN" "$TMP/forward-struct.swan" -o "$TMP/forward-struct.c"
-"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/forward-struct.c" -o "$TMP/forward-struct"
+"$SWAN" "$TMP/forward-struct.swan" -o "$TMP/forward-struct.s"
+"$CC" -x assembler "$TMP/forward-struct.s" -o "$TMP/forward-struct"
 printf 'PASS: forward struct dependency ordering\n'
 
 cat > "$TMP/struct-cycle.swan" <<'SWAN'
@@ -76,8 +76,8 @@ fn main():
     log echo(greeting)
     return 0
 SWAN
-"$SWAN" "$TMP/immutable-string.swan" -o "$TMP/immutable-string.c"
-"$CC" -std=c11 -Wall -Wextra -Werror "$TMP/immutable-string.c" -o "$TMP/immutable-string"
+"$SWAN" "$TMP/immutable-string.swan" -o "$TMP/immutable-string.s"
+"$CC" -x assembler "$TMP/immutable-string.s" -o "$TMP/immutable-string"
 test "$("$TMP/immutable-string")" = "Hello
 Hello"
 printf 'PASS: immutable string and parameter declarations\n'
