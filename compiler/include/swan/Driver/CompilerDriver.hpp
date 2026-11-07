@@ -181,7 +181,12 @@ inline int runCompiler(int argc, char** argv) {
             !directNativeSupported;
         if (portable) {
             const auto output = options.hasOutput ? options.output
-                : std::filesystem::path(options.input.stem().string() + ".s");
+                : std::filesystem::path(options.input.stem().string() + (emitC ? ".c" : ".s"));
+            if (emitC) {
+                if (!writeTextFile(output, Compiler().compilePortable(source)))
+                    throw CompileError("cannot write '" + output.string() + "'");
+                return 0;
+            }
             if (emitAssembly) {
                 const auto generated = Compiler().compilePortable(source);
                 return driver::compilePortable(generated, output, options.target, true, false);
