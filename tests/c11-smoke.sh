@@ -231,5 +231,20 @@ if grep -B2 'call swan_fn_transform' "$TMP/call-hotpath.s" | grep -q 'push rax';
     exit 1
 fi
 printf 'PASS: leaf-call, register argument, accumulator, and parity fast paths\n'
+cat > "$TMP/leaf-registers.swan" <<'SWAN'
+fn leaf(a: int, b: int, c: int, d: int, e: int) -> int:
+    return (a + b) * (c + d) + e
+fn main():
+    log leaf(1, 2, 3, 4, 5)
+    return 0
+SWAN
+"$SWAN" "$TMP/leaf-registers.swan" --emit-asm -o "$TMP/leaf-registers.s"
+cc -x assembler "$TMP/leaf-registers.s" -o "$TMP/leaf-registers"
+test "$("$TMP/leaf-registers")" = "26"
+if grep -A12 '^swan_fn_leaf:' "$TMP/leaf-registers.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
+    echo 'FAIL: five-register leaf function unexpectedly spills or creates a frame' >&2
+    exit 1
+fi
+printf 'PASS: leaf volatile-register allocation does not overlap backend scratch registers\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
