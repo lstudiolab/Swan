@@ -93,11 +93,9 @@ static int emit_source(const char *source,Target t,Buffer *out){
         }
         if(!in_main)continue;
         if(in_loop&&indent<=loop_indent){
-            append(out,t==X86_64?"  inc r12\n  jmp ":"  b ");
-            if(t==X86_64)append(out,loop_start);
-            else if(t==AARCH64){append(out,loop_start);append(out,"\n");}
-            else {append(out,loop_start);append(out,"\n");}
-            if(t==X86_64)append(out,"\n");
+            if(t==X86_64){append(out,"  inc r12\n  jmp ");append(out,loop_start);append(out,"\n");}
+            else if(t==AARCH64){append(out,"  add x19, x19, #1\n  b ");append(out,loop_start);append(out,"\n");}
+            else{append(out,"  add r4, r4, #1\n  b ");append(out,loop_start);append(out,"\n");}
             append(out,loop_end);append(out,":\n");in_loop=0;
         }
         if(!strncmp(line,"for ",4)){
