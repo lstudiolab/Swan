@@ -5,26 +5,30 @@
 
 namespace swan {
 inline std::string Sema::analyzeExpression(const ExprPtr& node) {
+    const auto finish = [&](std::string type) {
+        node->resolved_type = type;
+        return type;
+    };
     switch (node->kind) {
     case Expr::Kind::Literal:
-        if (node->literal_kind == "INT") return "int";
-        if (node->literal_kind == "FLOAT") return "float";
-        if (node->literal_kind == "STRING") return "string";
-        if (node->literal_kind == "true" || node->literal_kind == "false") return "bool";
-        return "none";
+        if (node->literal_kind == "INT") return finish("int");
+        if (node->literal_kind == "FLOAT") return finish("float");
+        if (node->literal_kind == "STRING") return finish("string");
+        if (node->literal_kind == "true" || node->literal_kind == "false") return finish("bool");
+        return finish("none");
     case Expr::Kind::Name: {
         auto* symbol = lookup(node->value);
         if (!symbol) fail(node->token,"unknown name '" + node->value + "'");
-        return symbol->first;
+        return finish(symbol->first);
     }
     case Expr::Kind::Unary: {
         const auto type = analyzeExpression(node->left);
         if (node->op == "!" || node->op == "not") {
             if (type != "bool") fail(node->token,"logical not requires bool");
-            return "bool";
+            return finish("bool");
         }
         if (!numeric(type)) fail(node->token,"numeric negation requires a number");
-        return type;
+        return finish(type);
     }
     case Expr::Kind::Binary: {
         const auto left = analyzeExpression(node->left);
@@ -35,21 +39,21 @@ inline std::string Sema::analyzeExpression(const ExprPtr& node) {
             if (!symbol->second) fail(node->left->token,"cannot assign to immutable value '" + node->left->value + "'");
             const auto right = analyzeExpression(node->right);
             if (!compatible(symbol->first,right)) fail(node->token,"cannot assign " + right + " to " + symbol->first);
-            return symbol->first;
+            return finish(symbol->first);
         }
         const auto right = analyzeExpression(node->right);
         if (node->op == "and" || node->op == "or" || node->op == "&&" || node->op == "||") {
             if (left != "bool" || right != "bool") fail(node->token,"logical operators require bool operands");
-            return "bool";
+            return finish("bool");
         }
         if (node->op == "==" || node->op == "!=" || node->op == "<" ||
             node->op == ">" || node->op == "<=" || node->op == ">=") {
             if (left != right && !(numeric(left) && numeric(right)))
                 fail(node->token,"comparison operands have incompatible types");
-            return "bool";
+            return finish("bool");
         }
         if (!numeric(left) || !numeric(right)) fail(node->token,"arithmetic operators require numeric operands");
-        return (left == "float" || right == "float" || node->op == "/") ? "float" : "int";
+        return finish((left == "float" || right == "float" || node->op == "/") ? "float" : "int");
     }
     case Expr::Kind::Call: {
         if (node->left->kind != Expr::Kind::Name) fail(node->token,"only direct function calls are supported");
@@ -64,7 +68,7 @@ inline std::string Sema::analyzeExpression(const ExprPtr& node) {
             if (!compatible(parameters[i].type,actual))
                 fail(node->arguments[i]->token,"argument has type " + actual + "; expected " + parameters[i].type);
         }
-        return found->second->return_type;
+        return finish(found->second->return_type);
     }
     case Expr::Kind::Member: fail(node->token,"member access is not implemented yet");
     }
