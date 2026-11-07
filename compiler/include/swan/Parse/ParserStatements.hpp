@@ -9,7 +9,7 @@ namespace swan {
 inline StmtPtr Parser::statement() {
     if (check("if")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::If; node->token = advance();
+        node->kind = Stmt::Kind::If; node->token = advance().location();
         node->condition = expression(); node->body = block();
         if (match("else")) {
             if (check("if")) node->alternate.push_back(statement());
