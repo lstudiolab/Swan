@@ -17,7 +17,35 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){if(!e)ret
  case E_NAME:{int slot=local_find(l,e->token.text);if(slot<0)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",slot*8);break;}
  case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
  case E_CALL:emit_call(o,e,l,err);break;
- case E_BINARY:emit_expr(o,e->left,l,err);text_add(o,"    push rax\n");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n    pop rax\n");switch(e->token.kind){case T_PLUS:text_add(o,"    add rax, rcx\n");break;case T_MINUS:text_add(o,"    sub rax, rcx\n");break;case T_STAR:text_add(o,"    imul rax, rcx\n");break;case T_SLASH:case T_FLOORDIV:case T_PERCENT:text_add(o,"    cqo\n    idiv rcx\n");if(e->token.kind==T_PERCENT)text_add(o,"    mov rax, rdx\n");break;case T_EQ:case T_NE:case T_LT:case T_GT:case T_LE:case T_GE:{const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";text_add(o,"    cmp rax, rcx\n    %s al\n    movzx rax, al\n",cc);break;}case T_ASSIGN:if(e->left->kind==E_NAME){int slot=local_find(l,e->left->token.text);if(slot<0)swan_error(err,&e->token,"unknown assignment target");else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);}else swan_error(err,&e->token,"unsupported assignment target");break;default:swan_error(err,&e->token,"operator not supported by backend");}}
+ case E_BINARY:
+  if(e->token.kind==T_ASSIGN){
+   if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable");break;}
+   int slot=local_find(l,e->left->token.text);
+   if(slot<0){swan_error(err,&e->token,"unknown assignment target");break;}
+   emit_expr(o,e->right,l,err);
+   text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);
+   break;
+  }
+  emit_expr(o,e->left,l,err);
+  text_add(o,"    push rax\n");
+  emit_expr(o,e->right,l,err);
+  text_add(o,"    mov rcx, rax\n    pop rax\n");
+  switch(e->token.kind){
+   case T_PLUS:text_add(o,"    add rax, rcx\n");break;
+   case T_MINUS:text_add(o,"    sub rax, rcx\n");break;
+   case T_STAR:text_add(o,"    imul rax, rcx\n");break;
+   case T_SLASH:case T_FLOORDIV:case T_PERCENT:
+    text_add(o,"    cqo\n    idiv rcx\n");
+    if(e->token.kind==T_PERCENT)text_add(o,"    mov rax, rdx\n");
+    break;
+   case T_EQ:case T_NE:case T_LT:case T_GT:case T_LE:case T_GE:{
+    const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
+    text_add(o,"    cmp rax, rcx\n    %s al\n    movzx rax, al\n",cc);
+    break;
+   }
+   default:swan_error(err,&e->token,"operator not supported by backend");break;
+  }
+  break;
 }
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){for(size_t i=0;i<n;i++){Stmt *s=body[i];switch(s->kind){
  case S_VARIABLE:{int slot=local_find(l,s->name);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");if(slot>0)text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);break;}
