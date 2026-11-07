@@ -15,7 +15,7 @@ public:
     std::string generate();
 private:
     std::string cType(const std::string& type) const;
-    void appendCType(std::string& output, const std::string& type) const;
+    void appendCType(std::string& output, std::string_view type) const;
     std::string expression(const ExprPtr& expression) const;
     void appendExpression(std::string& output, const ExprPtr& expression) const;
     std::string_view inferredType(const ExprPtr& expression) const;
