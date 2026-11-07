@@ -20,12 +20,11 @@ Swan blocks use indentation; no curly braces or end keyword are used.
 Until module resolution is implemented, combine library and application source:
 
     cat stdlib/foundation.swan main.swan > combined.swan
-    ./build/swan combined.swan -o combined.c
-    cc -std=c11 combined.c -o combined
+    ./build/swan build combined.swan -o combined
     ./combined
 
 The compiler parses import syntax, but module resolution and linking are not implemented. Therefore import foundation is not supported.
 
 ## Current limitations
 
-String manipulation, input, files, networking, random numbers, and platform APIs need additional runtime/compiler support. Integer overflow follows generated C integer behavior.
+String manipulation, input, files, networking, random numbers, and platform APIs need additional runtime/compiler support. The initial native backend targets x86-64 Linux and uses 64-bit integer machine operations; overflow semantics still need a formal language-level specification.
