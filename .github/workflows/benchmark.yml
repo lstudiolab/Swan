@@ -1,265 +1,62 @@
-name: Native compiled-language benchmark
+name: Swan vs Goose benchmark
 
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - ".github/workflows/benchmark.yml"
-      - "benchmarks/**"
+      - "benchmarks/compare_goose.py"
       - "compiler/**"
+      - "main.cpp"
       - "build.sh"
 
 permissions:
   contents: read
 
 jobs:
-  benchmark:
-    if: github.event_name == 'workflow_dispatch'
+  compare:
     runs-on: ubuntu-24.04
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install toolchains
+      - name: Install build tools
         run: |
           sudo apt-get update
-          sudo apt-get install -y build-essential cmake ninja-build
-          rustup update stable
-          go version
-
-      - uses: swift-actions/setup-swift@v2
-        with:
-          swift-version: "6.2"
-
-      - uses: mlugg/setup-zig@v2
-        with:
-          version: "0.14.1"
+          sudo apt-get install -y build-essential cmake ninja-build python3
 
       - name: Build Swan compiler
         run: sh build.sh
 
       - name: Build Goose compiler
         run: |
-          git clone --depth 1 https://github.com/aardappel/goose.git /tmp/goose
-          cmake -S /tmp/goose -B /tmp/goose-build -DCMAKE_BUILD_TYPE=Release
-          cmake --build /tmp/goose-build --config Release --parallel 2
-          echo "/tmp/goose-build" >> "$GITHUB_PATH"
+          git clone --depth 1 https://github.com/aardappel/goose.git "$RUNNER_TEMP/goose"
+          cmake -S "$RUNNER_TEMP/goose" -B "$RUNNER_TEMP/goose-build" -DCMAKE_BUILD_TYPE=Release -G Ninja
+          cmake --build "$RUNNER_TEMP/goose-build" --parallel 2
 
-      - name: Generate identical 1-billion-iteration workload
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p benchmarks/work
-          cd benchmarks/work
-
-          cat > main.c <<'EOF'
-          #include <stdint.h>
-          #include <stdio.h>
-          int main(void) {
-              int64_t acc = 0;
-              for (int64_t i = 0; i < 1000; ++i)
-                  for (int64_t j = 0; j < 1000000; ++j)
-                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              printf("%lld\n", (long long)acc);
-              return 0;
-          }
-          EOF
-
-          cat > main.cpp <<'EOF'
-          #include <cstdint>
-          #include <cstdio>
-          int main() {
-              std::int64_t acc = 0;
-              for (std::int64_t i = 0; i < 1000; ++i)
-                  for (std::int64_t j = 0; j < 1000000; ++j)
-                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              std::printf("%lld\n", static_cast<long long>(acc));
-          }
-          EOF
-
-          cat > main.rs <<'EOF'
-          fn main() {
-              let mut acc: i64 = 0;
-              for i in 0_i64..1000 {
-                  for j in 0_i64..1_000_000 {
-                      acc = (acc + (i * 1_000_003 + j * 97) % 65_536) % 65_521;
-                  }
-              }
-              println!("{acc}");
-          }
-          EOF
-
-          cat > main.go <<'EOF'
-          package main
-          import "fmt"
-          func main() {
-              var acc int64
-              for i := int64(0); i < 1000; i++ {
-                  for j := int64(0); j < 1000000; j++ {
-                      acc = (acc + (i*1000003 + j*97) % 65536) % 65521
-                  }
-              }
-              fmt.Println(acc)
-          }
-          EOF
-
-          cat > main.swift <<'EOF'
-          var acc: Int64 = 0
-          for i: Int64 in 0..<1000 {
-              for j: Int64 in 0..<1_000_000 {
-                  acc = (acc + (i * 1_000_003 + j * 97) % 65_536) % 65_521
-              }
-          }
-          print(acc)
-          EOF
-
-          cat > main.zig <<'EOF'
-          const std = @import("std");
-          pub fn main() void {
-              var acc: i64 = 0;
-              var i: i64 = 0;
-              while (i < 1000) : (i += 1) {
-                  var j: i64 = 0;
-                  while (j < 1_000_000) : (j += 1) {
-                      acc = @mod(acc + @mod(i * 1_000_003 + j * 97, 65_536), 65_521);
-                  }
-              }
-              std.debug.print("{d}\n", .{acc});
-          }
-          EOF
-
-          cat > main.swan <<'EOF'
-          fn main():
-              var i: int = 0
-              var acc: int = 0
-              while i < 1000
-                  var j: int = 0
-                  while j < 1000000
-                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521
-                      j = j + 1
-                  i = i + 1
-              log acc
-              return 0
-          EOF
-
-          cat > main.goose <<'EOF'
-          fn main() {
-              var acc: i64 = 0;
-              var i: i64 = 0;
-              while i < 1000 {
-                  var j: i64 = 0;
-                  while j < 1000000 {
-                      acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-                      j += 1;
-                  }
-                  i += 1;
-              }
-              print(acc);
-          }
-          EOF
-
-      - name: Compile native executables and measure compile time
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd benchmarks/work
-          : > ../results.txt
-          timed_build() {
-            local name="$1"; shift
-            local start end
-            start=$(date +%s%N)
-            "$@"
-            end=$(date +%s%N)
-            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_s %.6f\n", n, t/1000000000 }' | tee -a ../results.txt
-          }
-
-          timed_build C cc -O3 -DNDEBUG main.c -o c
-          timed_build C++ c++ -std=c++20 -O3 -DNDEBUG main.cpp -o cpp
-          timed_build Rust rustc -C opt-level=3 main.rs -o rust
-          timed_build Go go build -trimpath -o go main.go
-          timed_build Swift swiftc -O main.swift -o swift
-          timed_build Zig zig build-exe -O ReleaseFast main.zig -femit-bin=zig
-          timed_build Swan bash -c '../../build/swan main.swan -o main.swan.c && cc -O3 -DNDEBUG main.swan.c -o swan'
-          timed_build Goose goose build main.goose
-          mv main main-goose
-
-      - name: Verify and benchmark each native executable
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd benchmarks/work
-          expected=$(./c)
-          printf "expected_checksum %s\n" "$expected" | tee -a ../results.txt
-
-          run_case() {
-            local name="$1"; shift
-            local run start end elapsed rss
-            # One checksum-verified warm-up, then three measured runs.
-            for run in 0 1 2 3; do
-              start=$(date +%s%N)
-              /usr/bin/time -o /tmp/rss -f "%M" "$@" >/tmp/out 2>&1
-              end=$(date +%s%N)
-              if [[ "$(cat /tmp/out)" != "$expected" ]]; then
-                echo "$name checksum mismatch on run $run: $(cat /tmp/out) != $expected" >&2
-                exit 1
-              fi
-              if [[ "$run" -gt 0 ]]; then
-                elapsed=$((end-start))
-                rss=$(cat /tmp/rss)
-                awk -v n="$name" -v t="$elapsed" -v m="$rss" 'BEGIN { printf "%s runtime_s %.6f peak_rss_kb %s\n", n, t/1000000000, m }' >>../results.txt
-              fi
-            done
-          }
-
-          run_case C ./c
-          run_case C++ ./cpp
-          run_case Rust ./rust
-          run_case Go ./go
-          run_case Swift ./swift
-          run_case Zig ./zig
-          run_case Swan ./swan
-          run_case Goose ./main-goose
-
-          python3 - <<'PY'
-          from collections import defaultdict
-          from statistics import median
-          times = defaultdict(list)
-          memory = defaultdict(list)
-          with open("../results.txt", encoding="utf-8") as source:
-              for line in source:
-                  fields = line.split()
-                  if len(fields) == 5 and fields[1] == "runtime_s":
-                      times[fields[0]].append(float(fields[2]))
-                      memory[fields[0]].append(int(fields[4]))
-          with open("../results.txt", "a", encoding="utf-8") as output:
-              output.write("\nmedian_runtime_s (3 measured runs; each run checksum-verified)\n")
-              for name, samples in times.items():
-                  output.write(
-                      f"{name} median_s {median(samples):.6f} "
-                      f"median_peak_rss_kb {median(memory[name]):.0f}\n"
-                  )
-          PY
-          cat ../results.txt
+      - name: Compare identical workload
+        env:
+          GOOSE_BIN: ${{ runner.temp }}/goose-build/goose
+          GOOSE_HOME: ${{ runner.temp }}/goose-home
+          GOOSE_CC: cc
+          CC: cc
+        run: python3 benchmarks/compare_goose.py
 
       - name: Record benchmark environment
         if: always()
         run: |
           {
-            echo "commit $(git rev-parse HEAD)"
-            echo "cpu $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
-            echo "kernel $(uname -sr)"
-            echo "c $(cc --version | head -1)"
-            echo "cpp $(c++ --version | head -1)"
-            echo "rust $(rustc --version)"
-            echo "go $(go version)"
-            echo "swift $(swift --version | head -1)"
-            echo "zig $(zig version)"
-            echo "goose $(/tmp/goose-build/goose --version)"
-            echo "swan $(./build/swan --version)"
-          } | tee -a benchmarks/results.txt
+            echo "Swan commit: $(git rev-parse HEAD)"
+            echo "CPU: $(grep -m1 'model name' /proc/cpuinfo | cut -d: -f2- | xargs)"
+            echo "Kernel: $(uname -sr)"
+            echo "C compiler: $(cc --version | head -1)"
+            echo "C++ compiler: $(c++ --version | head -1)"
+            echo "Goose commit: $(git -C "$RUNNER_TEMP/goose" rev-parse HEAD 2>/dev/null || echo unavailable)"
+          } | tee benchmark-environment.txt
 
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-benchmark-results
-          path: benchmarks/results.txt
+          name: swan-goose-benchmark-environment
+          path: benchmark-environment.txt
