@@ -106,6 +106,26 @@ SWAN
 cc -x assembler "$TMP/nested-loops.s" -o "$TMP/nested-loops"
 test "$("$TMP/nested-loops")" = "12"
 printf 'PASS: nested bottom-tested loops\n'
+cat > "$TMP/invariant-hoist.swan" <<'SWAN'
+fn main():
+    var i = 0
+    var total = 0
+    while i < 3
+        var j = 0
+        while j < 4
+            var k = 0
+            while k < 5
+                total = total + ((i * 31 + j * 17 + k * 13) % 97)
+                k = k + 1
+            j = j + 1
+        i = i + 1
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
+cc -x assembler "$TMP/invariant-hoist.s" -o "$TMP/invariant-hoist"
+test "$("$TMP/invariant-hoist")" = "2913"
+printf 'PASS: loop-invariant arithmetic hoisting preserves results\n'
 cat > "$TMP/zero-loop.swan" <<'SWAN'
 fn main():
     var i = 0
