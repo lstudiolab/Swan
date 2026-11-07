@@ -239,7 +239,7 @@ def main():
       "Goose": lambda s,o: [goose, "build", "-o", o, s],
       "C": lambda s,o: ["cc","-O3","-march=native","-DNDEBUG","-std=c11",s,"-o",o],
       "C++": lambda s,o: ["c++","-O3","-march=native","-DNDEBUG","-std=c++17",s,"-o",o],
-      "Objective-C": lambda s,o: ["gcc","-O3","-march=native","-DNDEBUG","-x","objective-c",s,"-lobjc","-o",o],
+      "Objective-C": lambda s,o: ["gcc","-O3","-march=native","-DNDEBUG","-std=gnu11","-x","objective-c",s,"-lobjc","-o",o],
       "Go": lambda s,o: ["go","build","-trimpath","-ldflags=-s -w","-o",o,s],
       "Zig": lambda s,o: [zig,"build-exe","-O","ReleaseFast","-mcpu=native",s,"-femit-bin="+str(o)],
       "Kotlin": lambda s,o: [kotlin,s,"-include-runtime","-d",o],
