@@ -1,16 +1,20 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace swan {
 inline void CGenerator::line(const std::string& value) {
-    output_.append(indent_ * 4, ' ');
-    output_.append(value);
+    if (!value.empty()) {
+        output_.append(indent_ * 4, ' ');
+        output_.append(value);
+    }
     output_.push_back('\n');
 }
 inline void CGenerator::block(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
+    scopes_.back().reserve(statements.size());
     for (const auto& item : statements) statement(item);
     for (const auto& [name,oldType] : scopes_.back()) {
         if (oldType.empty()) symbols_.erase(name);
@@ -57,13 +61,16 @@ inline void CGenerator::statement(const StmtPtr& node) {
 }
 inline void CGenerator::function(const StmtPtr& node) {
     symbols_.clear(); scopes_.clear(); scopes_.emplace_back();
+    scopes_.back().reserve(node->parameters.size());
+    for (const auto& parameter : node->parameters) {
+        symbols_[parameter.name] = parameter.type;
+        scopes_.back()[parameter.name] = parameter.type;
+    }
     std::string parameters;
     parameters.reserve(node->parameters.size() * 32);
     for (const auto& parameter : node->parameters) {
         if (!parameters.empty()) parameters += ", ";
         parameters += cType(parameter.type) + " const " + cVariableName(parameter.name);
-        symbols_[parameter.name] = parameter.type;
-        scopes_.back()[parameter.name] = parameter.type;
     }
     line(cType(node->return_type) + " " + cFunctionName(node->name) + "(" +
          (parameters.empty() ? "void" : parameters) + ") {");
