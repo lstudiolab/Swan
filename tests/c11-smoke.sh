@@ -74,6 +74,20 @@ test "$("$TMP/control")" = "0
 9
 2"
 printf 'PASS: nested if/else and while control flow\n'
+cat > "$TMP/unroll.swan" <<'SWAN'
+fn main():
+    var i = 0
+    var sum = 0
+    while i < 10
+        sum = sum + i
+        i = i + 1
+    log sum
+    return 0
+SWAN
+"$SWAN" "$TMP/unroll.swan" --emit-asm -o "$TMP/unroll.s"
+cc -x assembler "$TMP/unroll.s" -o "$TMP/unroll"
+test "$("$TMP/unroll")" = "45"
+printf 'PASS: four-way loop unrolling preserves loop tails\n'
 cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
     log missing_name
