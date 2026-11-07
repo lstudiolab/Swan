@@ -1,6 +1,5 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
-#include <functional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
@@ -16,58 +15,102 @@ inline std::string CGenerator::generate() {
     structs_.clear();
     indent_ = 0;
     output_ += "#include <stdbool.h>\n#include <stdint.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
+
     std::vector<const Stmt*> structures;
     structures.reserve(program_.size());
-    std::unordered_map<std::string_view,const Stmt*> structureByName;
+    std::unordered_map<std::string_view, const Stmt*> structureByName;
     structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             structs_.insert(node->name);
-            structureByName.emplace(node->name,node.get());
+            structureByName.emplace(node->name, node.get());
             structures.push_back(node.get());
         }
     }
-    for (const auto* structure : structures)
-        line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
+
+    for (const auto* structure : structures) {
+        beginLine();
+        output_ += "typedef struct ";
+        output_ += cTypeName(structure->name);
+        output_.push_back(' ');
+        output_ += cTypeName(structure->name);
+        output_.push_back(';');
+        endLine();
+    }
     if (!structures.empty()) line();
-    std::unordered_map<std::string_view,unsigned char> state;
+
+    std::unordered_map<std::string_view, unsigned char> state;
     state.reserve(structures.size());
     std::vector<const Stmt*> ordered;
     ordered.reserve(structures.size());
-    std::function<void(const Stmt*)> visit = [&](const Stmt* structure) {
+
+    // Generic-lambda recursion avoids std::function type erasure and its
+    // possible heap allocation in this compile-time dependency walk.
+    const auto visit = [&](const auto& self, const Stmt* structure) -> void {
         auto& mark = state[structure->name];
         if (mark == 2) return;
-        if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
+        if (mark == 1)
+            throw CompileError("struct value cycle involving '" + structure->name + "'");
         mark = 1;
         for (const auto& field : structure->fields) {
             const auto dependency = structureByName.find(field.type);
-            if (dependency != structureByName.end()) visit(dependency->second);
+            if (dependency != structureByName.end())
+                self(self, dependency->second);
         }
         mark = 2;
         ordered.push_back(structure);
     };
-    for (const auto* structure : structures) visit(structure);
+    for (const auto* structure : structures) visit(visit, structure);
+
     for (const auto* node : ordered) {
-        line("struct " + cTypeName(node->name) + " {"); ++indent_;
-        for (const auto& field : node->fields)
-            line(cType(field.type) + " " + cFieldName(field.name) + ";");
-        --indent_; line("};"); line();
-    }
-    for (const auto& node : program_) if (node->kind == Stmt::Kind::Function) {
-        std::string parameters;
-        parameters.reserve(node->parameters.size() * 32);
-        for (const auto& parameter : node->parameters) {
-            if (!parameters.empty()) parameters += ", ";
-            parameters += cType(parameter.type) + " " + cVariableName(parameter.name);
+        beginLine();
+        output_ += "struct ";
+        output_ += cTypeName(node->name);
+        output_ += " {";
+        endLine();
+        ++indent_;
+        for (const auto& field : node->fields) {
+            beginLine();
+            output_ += cType(field.type);
+            output_.push_back(' ');
+            output_ += cFieldName(field.name);
+            output_.push_back(';');
+            endLine();
         }
+        --indent_;
+        line("};");
+        line();
+    }
+
+    for (const auto& node : program_) {
+        if (node->kind != Stmt::Kind::Function) continue;
         const std::string linkage = node->name == "main" ? "" : "static inline ";
         const std::string returnType = node->name == "main" && node->return_type == "int"
             ? "int" : cType(node->return_type);
-        line(linkage + returnType + " " + cFunctionName(node->name) + "(" +
-             (parameters.empty() ? "void" : parameters) + ");");
+        beginLine();
+        output_ += linkage;
+        output_ += returnType;
+        output_.push_back(' ');
+        output_ += cFunctionName(node->name);
+        output_.push_back('(');
+        if (node->parameters.empty()) {
+            output_ += "void";
+        } else {
+            for (std::size_t i = 0; i < node->parameters.size(); ++i) {
+                if (i) output_ += ", ";
+                const auto& parameter = node->parameters[i];
+                output_ += cType(parameter.type);
+                output_.push_back(' ');
+                output_ += cVariableName(parameter.name);
+            }
+        }
+        output_ += ");";
+        endLine();
     }
     line();
-    for (const auto& node : program_) if (node->kind == Stmt::Kind::Function) function(node);
+
+    for (const auto& node : program_)
+        if (node->kind == Stmt::Kind::Function) function(node);
     return std::move(output_);
 }
 }
