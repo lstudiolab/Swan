@@ -206,7 +206,7 @@ static int emit_source(const char *source,Target t,Buffer *out){
     }
     if(!have_main){free(copy);free(code.data);free(data.data);return fail("program must define fn main()");}
     if(needs_int)asm_string(&data,t==ARMV7?"%d\n":"%lld\n",".Lswan_int_fmt");
-    int frame_size=(t==X86_64&&max_depth>2)?(max_depth-2)*16:max_depth*16;
+    int frame_size=t==X86_64?(max_depth>2?(max_depth-2)*16:0):max_depth*16;
     int saved_pairs=t==X86_64?(max_depth>1?2:max_depth):0;
     char prologue[160],epilogue[160];
     if(t==X86_64){
