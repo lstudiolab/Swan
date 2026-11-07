@@ -1,6 +1,5 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
-#include <algorithm>
 #include <functional>
 #include <string>
 #include <unordered_map>
@@ -23,9 +22,12 @@ inline std::string CGenerator::generate() {
     output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
     std::vector<StmtPtr> structures;
     structures.reserve(program_.size());
+    std::unordered_map<std::string, StmtPtr> structureByName;
+    structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             structs_.insert(node->name);
+            structureByName.emplace(node->name, node);
             structures.push_back(node);
         }
         if (node->kind == Stmt::Kind::Function) functions_[node->name] = node;
@@ -35,19 +37,18 @@ inline std::string CGenerator::generate() {
         line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
     if (!structures.empty()) line();
 
-    std::unordered_map<std::string, int> state;
+    std::unordered_map<std::string, unsigned char> state;
+    state.reserve(structures.size());
     std::vector<StmtPtr> ordered;
     ordered.reserve(structures.size());
     std::function<void(const StmtPtr&)> visit = [&](const StmtPtr& structure) {
-        int& mark = state[structure->name];
+        auto& mark = state[structure->name];
         if (mark == 2) return;
         if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
         mark = 1;
         for (const auto& field : structure->fields) {
-            if (!structs_.contains(field.type)) continue;
-            auto dependency = std::find_if(structures.begin(), structures.end(),
-                [&](const StmtPtr& candidate) { return candidate->name == field.type; });
-            if (dependency != structures.end()) visit(*dependency);
+            const auto dependency = structureByName.find(field.type);
+            if (dependency != structureByName.end()) visit(dependency->second);
         }
         mark = 2;
         ordered.push_back(structure);
