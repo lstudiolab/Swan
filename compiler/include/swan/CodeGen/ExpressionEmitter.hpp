@@ -1,6 +1,7 @@
 #pragma once
 #include "swan/CodeGen/CGenerator.hpp"
 #include <string>
+#include <string_view>
 #include <utility>
 
 namespace swan {
@@ -53,9 +54,9 @@ inline std::string CGenerator::expression(const ExprPtr& node) const {
         const auto left = expression(node->left);
         const auto right = expression(node->right);
         if (node->op == "/") return "((double)(" + left + ") / (double)(" + right + "))";
-        const auto& op = node->op == "and" ? std::string("&&") :
-                         node->op == "or" ? std::string("||") : node->op;
-        return "(" + left + " " + op + " " + right + ")";
+        const std::string_view op = node->op == "and" ? "&&" :
+                                    node->op == "or" ? "||" : node->op;
+        return "(" + left + " " + std::string(op) + " " + right + ")";
     }
     case Expr::Kind::Call: {
         if (node->left->kind != Expr::Kind::Name) fail(node->token,"only direct function calls are supported");
