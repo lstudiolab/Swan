@@ -3,11 +3,10 @@
 #include <memory>
 #include <string>
 #include <utility>
-
 namespace swan {
 inline StmtPtr Parser::declaration() {
     if (check("fn")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Function; node->token = advance();
         node->name = expect("IDENT","expected function name").value;
         expect("(");
@@ -36,7 +35,7 @@ inline StmtPtr Parser::declaration() {
         return node;
     }
     if (check("struct")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Struct; node->token = advance();
         node->name = expect("IDENT","expected structure name").value;
         expect(":","expected ':' after structure name");
@@ -53,7 +52,7 @@ inline StmtPtr Parser::declaration() {
         return node;
     }
     if (check("let") || check("var") || check("const")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Variable; node->token = advance();
         node->mutable_value = node->token.kind == "var";
         node->name = expect("IDENT","expected variable name").value;
@@ -64,7 +63,7 @@ inline StmtPtr Parser::declaration() {
         return node;
     }
     if (check("import")) {
-        auto node = std::make_shared<Stmt>();
+        auto node = std::make_unique<Stmt>();
         node->kind = Stmt::Kind::Import; node->token = advance();
         const auto& module = advance();
         if (module.kind != "IDENT" && module.kind != "STRING")
