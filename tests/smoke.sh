@@ -143,3 +143,17 @@ ${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/string-escapes.c" -o "$TMP/string
 expected=$(printf 'quote: " slash: \\ newline:\n tab:\t')
 test "$("$TMP/string-escapes")" = "$expected"
 printf 'PASS: direct C string escaping preserves special characters\n'
+
+# The standard source-file invocation compiles a native executable and runs it.
+test "$("$SWAN" "$ROOT/examples/hello.swan")" = "Hello from Swan"
+printf 'PASS: direct .swan compile-and-run\n'
+
+# Build creates a reusable native executable without running it.
+"$SWAN" build "$ROOT/examples/hello.swan" -o "$TMP/hello-native"
+test -x "$TMP/hello-native"
+test "$("$TMP/hello-native")" = "Hello from Swan"
+printf 'PASS: native executable build\n'
+
+# Explicit run has the same behavior as the shorthand invocation.
+test "$("$SWAN" run "$ROOT/examples/hello.swan")" = "Hello from Swan"
+printf 'PASS: explicit run command\n'
