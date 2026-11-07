@@ -5,12 +5,10 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
 namespace swan {
 inline CGenerator::CGenerator(const Program& program) : program_(program) {}
 inline std::string CGenerator::cType(const std::string& type) const { return mapCType(type, structs_); }
 inline std::string CGenerator::quote(const std::string& value) const { return escapeCString(value); }
-
 inline std::string CGenerator::generate() {
     output_.clear();
     output_.reserve(program_.size() * 64 + 64);
@@ -19,28 +17,26 @@ inline std::string CGenerator::generate() {
     scopes_.clear();
     indent_ = 0;
     output_ += "#include <stdbool.h>\n#include <stdio.h>\n#include <stddef.h>\n\n";
-    std::vector<StmtPtr> structures;
+    std::vector<const Stmt*> structures;
     structures.reserve(program_.size());
-    std::unordered_map<std::string, StmtPtr> structureByName;
+    std::unordered_map<std::string,const Stmt*> structureByName;
     structureByName.reserve(program_.size());
     for (const auto& node : program_) {
         if (node->kind == Stmt::Kind::Struct) {
             structs_.insert(node->name);
-            structureByName.emplace(node->name, node);
-            structures.push_back(node);
+            structureByName.emplace(node->name,node.get());
+            structures.push_back(node.get());
         }
-        if (node->kind == Stmt::Kind::Function) functions_[node->name] = node;
+        if (node->kind == Stmt::Kind::Function) functions_[node->name] = node.get();
     }
-
-    for (const auto& structure : structures)
+    for (const auto* structure : structures)
         line("typedef struct " + cTypeName(structure->name) + " " + cTypeName(structure->name) + ";");
     if (!structures.empty()) line();
-
-    std::unordered_map<std::string, unsigned char> state;
+    std::unordered_map<std::string,unsigned char> state;
     state.reserve(structures.size());
-    std::vector<StmtPtr> ordered;
+    std::vector<const Stmt*> ordered;
     ordered.reserve(structures.size());
-    std::function<void(const StmtPtr&)> visit = [&](const StmtPtr& structure) {
+    std::function<void(const Stmt*)> visit = [&](const Stmt* structure) {
         auto& mark = state[structure->name];
         if (mark == 2) return;
         if (mark == 1) throw CompileError("struct value cycle involving '" + structure->name + "'");
@@ -52,9 +48,8 @@ inline std::string CGenerator::generate() {
         mark = 2;
         ordered.push_back(structure);
     };
-    for (const auto& structure : structures) visit(structure);
-
-    for (const auto& node : ordered) {
+    for (const auto* structure : structures) visit(structure);
+    for (const auto* node : ordered) {
         line("struct " + cTypeName(node->name) + " {"); ++indent_;
         for (const auto& field : node->fields)
             line(cType(field.type) + " " + cFieldName(field.name) + ";");
