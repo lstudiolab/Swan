@@ -204,6 +204,28 @@ test "$("$TMP/power-two-division")" = "1
 1"
 printf 'PASS: signed power-of-two integer division\n'
 
+# Caller-saved registers used for locals survive calls and output operations.
+cat > "$TMP/caller-saved-locals.swan" <<'SWAN'
+fn answer() -> int:
+    return 10
+fn main():
+    let a = 1
+    let b = 2
+    let c = 3
+    let d = 4
+    let e = 5
+    let f = 6
+    let g = 7
+    log answer()
+    log f + g
+    return 0
+SWAN
+"$SWAN" "$TMP/caller-saved-locals.swan" -o "$TMP/caller-saved-locals.s"
+${CC:-cc} -x assembler "$TMP/caller-saved-locals.s" -o "$TMP/caller-saved-locals"
+test "$("$TMP/caller-saved-locals")" = "10
+13"
+printf 'PASS: caller-saved local registers survive calls\n'
+
 # Binary search exercises allocation, indexed memory, arithmetic, and nested control flow.
 cat > "$TMP/binary-search.swan" <<'SWAN'
 fn main():
