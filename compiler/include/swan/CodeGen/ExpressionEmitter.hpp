@@ -14,10 +14,12 @@ inline std::string CGenerator::inferredType(const ExprPtr& node) const {
         if (node->literal_kind == "STRING") return "string";
         if (node->literal_kind == "true" || node->literal_kind == "false") return "bool";
         return {};
-    case Expr::Kind::Name: {
-        auto found = symbols_.find(node->value);
-        return found == symbols_.end() ? "" : found->second;
-    }
+    case Expr::Kind::Name:
+        for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
+            const auto found = scope->find(node->value);
+            if (found != scope->end()) return found->second;
+        }
+        return {};
     case Expr::Kind::Call:
         if (node->left->kind == Expr::Kind::Name) {
             auto found = functions_.find(node->left->value);
