@@ -189,6 +189,24 @@ actual=$( "$TMP/arrays" )
 if [ "$actual" != "0\n3\n6\n9\n12\n15\n18\n21\n84" ]; then echo "FAIL: array workload expected scaled sequence and sum, got [$actual]" >&2; exit 1; fi
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
 
+
+# Nested calls and calls inside expressions must preserve stack alignment.
+cat > "$TMP/nested-calls.swan" <<'SWAN'
+fn value() -> int:
+    return 7
+fn add(a: int, b: int) -> int:
+    return a + b
+fn main():
+    log 5 + value()
+    log add(1, add(2, 3))
+    return 0
+SWAN
+"$SWAN" "$TMP/nested-calls.swan" -o "$TMP/nested-calls.s"
+${CC:-cc} -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
+test "$("$TMP/nested-calls")" = "12
+6"
+printf 'PASS: nested calls and ABI stack alignment\\n'
+
 # Power-of-two integer division preserves signed truncation toward zero.
 cat > "$TMP/power-two-division.swan" <<'SWAN'
 fn main():
