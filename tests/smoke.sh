@@ -201,7 +201,7 @@ fn main():
         var high = 15
         var found = -1
         while low <= high
-            var middle = low + (high - low) / 2
+            var middle = low + (high - low) // 2
             var value = values[middle]
             if value == target
                 found = value
