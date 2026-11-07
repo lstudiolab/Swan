@@ -26,7 +26,6 @@ private:
     unsigned indent_ = 0;
     std::unordered_set<std::string> structs_;
     std::unordered_map<std::string,StmtPtr> functions_;
-    std::unordered_map<std::string,std::string> symbols_;
     std::vector<std::unordered_map<std::string,std::string>> scopes_;
 };
 }
