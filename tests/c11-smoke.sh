@@ -378,6 +378,11 @@ cc -x assembler "$TMP/heapsort.s" -o "$TMP/heapsort"
 test "$("$TMP/heapsort")" = "1"
 printf 'PASS: in-place heapsort with unchecked u32 array indexing\n'
 
+"$SWAN" "$ROOT/benchmarks/sort_1b.swan" --emit-asm -o "$TMP/sort-1b.s"
+cc -x assembler "$TMP/sort-1b.s" -o "$TMP/sort-1b"
+printf 'PASS: one-billion-element Swan sorting workload compiles and links\n'
+
+
 
 
 cat > "$TMP/volatile-preservation.swan" <<'SWAN'
