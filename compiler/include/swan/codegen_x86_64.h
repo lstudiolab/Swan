@@ -129,22 +129,40 @@ static inline bool expr_writes_local(Expr *e,const char *name);
 static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e||e->kind!=E_BINARY||e->token.kind!=T_ASSIGN||!e->left||e->left->kind!=E_NAME)return false;
  Expr *rhs=e->right;
- if(!rhs||rhs->kind!=E_BINARY||rhs->token.kind!=T_PLUS||!rhs->left||rhs->left->kind!=E_NAME||strcmp(rhs->left->token.text,e->left->token.text)||expr_writes_local(rhs->right,e->left->token.text))return false;
- Local *v=local_find(l,e->left->token.text);if(!v)return false;
+ if(!rhs||rhs->kind!=E_BINARY||
+    (rhs->token.kind!=T_PLUS&&rhs->token.kind!=T_MINUS&&rhs->token.kind!=T_STAR)||
+    !rhs->left||rhs->left->kind!=E_NAME||
+    strcmp(rhs->left->token.text,e->left->token.text)||
+    !rhs->right||expr_writes_local(rhs->right,e->left->token.text))return false;
+ Local *dst=local_find(l,e->left->token.text);if(!dst)return false;
+ const char *op=rhs->token.kind==T_PLUS?"add":rhs->token.kind==T_MINUS?"sub":"imul";
  if(rhs->right->kind==E_INT){
   char *end=NULL;long long imm=strtoll(rhs->right->token.text,&end,10);
   if(end&&!*end&&imm>=INT32_MIN&&imm<=INT32_MAX){
-   if(v->reg>=0)text_add(o,"    add %s, %lld\n",cg_reg_name(v->reg),imm);
-   else text_add(o,"    add QWORD PTR [rbp - %d], %lld\n",v->slot*8,imm);
+   if(dst->reg>=0){
+    if(rhs->token.kind==T_STAR)text_add(o,"    imul %s, %s, %lld\n",cg_reg_name(dst->reg),cg_reg_name(dst->reg),imm);
+    else text_add(o,"    %s %s, %lld\n",op,cg_reg_name(dst->reg),imm);
+   }else if(rhs->token.kind==T_STAR){
+    text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n    imul rax, rax, %lld\n    mov QWORD PTR [rbp - %d], rax\n",dst->slot*8,imm,dst->slot*8);
+   }else text_add(o,"    %s QWORD PTR [rbp - %d], %lld\n",op,dst->slot*8,imm);
+   return true;
+  }
+ }
+ if(rhs->right->kind==E_NAME){
+  Local *src=local_find(l,rhs->right->token.text);
+  if(src){
+   const char *operand=src->reg>=0?cg_reg_name(src->reg):NULL;
+   char memory[64];if(!operand){snprintf(memory,sizeof(memory),"QWORD PTR [rbp - %d]",src->slot*8);operand=memory;}
+   if(dst->reg>=0)text_add(o,"    %s %s, %s\n",op,cg_reg_name(dst->reg),operand);
+   else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n    %s rax, %s\n    mov QWORD PTR [rbp - %d], rax\n",dst->slot*8,op,operand,dst->slot*8);
    return true;
   }
  }
  emit_expr(o,rhs->right,l,err);
- if(v->reg>=0)text_add(o,"    add %s, rax\n",cg_reg_name(v->reg));
- else text_add(o,"    add QWORD PTR [rbp - %d], rax\n",v->slot*8);
- (void)err;return true;
+ if(dst->reg>=0)text_add(o,"    %s %s, rax\n",op,cg_reg_name(dst->reg));
+ else text_add(o,"    %s QWORD PTR [rbp - %d], rax\n",op,dst->slot*8);
+ return true;
 }
-
 static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_parameter){
  if(!e)return false;
  if(e->kind==E_INT||e->kind==E_BOOL)return true;
