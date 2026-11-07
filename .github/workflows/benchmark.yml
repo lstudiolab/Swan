@@ -59,7 +59,7 @@ jobs:
               for (int64_t i = 0; i < 1000; ++i)
                   for (int64_t j = 0; j < 1000000; ++j)
                       acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              printf("%lld\\n", (long long)acc);
+              printf("%lld\n", (long long)acc);
               return 0;
           }
           EOF
@@ -72,7 +72,7 @@ jobs:
               for (std::int64_t i = 0; i < 1000; ++i)
                   for (std::int64_t j = 0; j < 1000000; ++j)
                       acc = (acc + (i * 1000003 + j * 97) % 65536) % 65521;
-              std::printf("%lld\\n", static_cast<long long>(acc));
+              std::printf("%lld\n", static_cast<long long>(acc));
           }
           EOF
 
@@ -123,7 +123,7 @@ jobs:
                       acc = @mod(acc + @mod(i * 1_000_003 + j * 97, 65_536), 65_521);
                   }
               }
-              std.debug.print("{d}\\n", .{acc});
+              std.debug.print("{d}\n", .{acc});
           }
           EOF
 
@@ -169,7 +169,7 @@ jobs:
             start=$(date +%s%N)
             "$@"
             end=$(date +%s%N)
-            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_s %.6f\\n", n, t/1000000000 }' | tee -a ../results.txt
+            awk -v n="$name" -v t="$((end-start))" 'BEGIN { printf "%s compile_s %.6f\n", n, t/1000000000 }' | tee -a ../results.txt
           }
 
           timed_build C cc -O3 -DNDEBUG main.c -o c
@@ -188,7 +188,7 @@ jobs:
           set -euo pipefail
           cd benchmarks/work
           expected=$(./c)
-          printf "expected_checksum %s\\n" "$expected" | tee -a ../results.txt
+          printf "expected_checksum %s\n" "$expected" | tee -a ../results.txt
 
           run_case() {
             local name="$1"; shift
@@ -205,7 +205,7 @@ jobs:
               if [[ "$run" -gt 0 ]]; then
                 elapsed=$((end-start))
                 rss=$(cat /tmp/rss)
-                awk -v n="$name" -v t="$elapsed" -v m="$rss" 'BEGIN { printf "%s runtime_s %.6f peak_rss_kb %s\\n", n, t/1000000000, m }' >>../results.txt
+                awk -v n="$name" -v t="$elapsed" -v m="$rss" 'BEGIN { printf "%s runtime_s %.6f peak_rss_kb %s\n", n, t/1000000000, m }' >>../results.txt
               fi
             done
           }
@@ -231,11 +231,11 @@ jobs:
                       times[fields[0]].append(float(fields[2]))
                       memory[fields[0]].append(int(fields[4]))
           with open("../results.txt", "a", encoding="utf-8") as output:
-              output.write("\\nmedian_runtime_s (3 measured runs; each run checksum-verified)\\n")
+              output.write("\nmedian_runtime_s (3 measured runs; each run checksum-verified)\n")
               for name, samples in times.items():
                   output.write(
                       f"{name} median_s {median(samples):.6f} "
-                      f"median_peak_rss_kb {median(memory[name]):.0f}\\n"
+                      f"median_peak_rss_kb {median(memory[name]):.0f}\n"
                   )
           PY
           cat ../results.txt
