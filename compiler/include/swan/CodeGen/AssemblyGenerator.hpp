@@ -362,9 +362,7 @@ private:
         case Stmt::Kind::If: {
             const auto otherwise = label("else");
             const auto done = label("endif");
-            emitExpression(node->condition.get());
-            emit("    test rax, rax");
-            emit("    jz " + otherwise);
+            emitConditionFalse(node->condition.get(), otherwise);
             emitBlock(node->body);
             emit("    jmp " + done);
             emit(otherwise + ":");
@@ -376,9 +374,7 @@ private:
             const auto condition = label("while");
             const auto done = label("endwhile");
             emit(condition + ":");
-            emitExpression(node->condition.get());
-            emit("    test rax, rax");
-            emit("    jz " + done);
+            emitConditionFalse(node->condition.get(), done);
             loops_.emplace_back(done, condition);
             emitBlock(node->body);
             loops_.pop_back();
