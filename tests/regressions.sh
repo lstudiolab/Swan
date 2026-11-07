@@ -83,4 +83,20 @@ SWAN
 test "$("$TMP/immutable-string")" = "Hello
 Hello"
 printf 'PASS: immutable string and parameter declarations\n'
+
+cat > "$TMP/signed-remainder.swan" <<'SWAN'
+fn main():
+    var value = -1000
+    var total = 50000
+    while value <= 1000
+        total = total + (value % 97)
+        value = value + 1
+    log total
+    return 0
+SWAN
+"$SWAN" "$TMP/signed-remainder.swan" -o "$TMP/signed-remainder.s"
+"$CC" -x assembler "$TMP/signed-remainder.s" -o "$TMP/signed-remainder"
+test "$("$TMP/signed-remainder")" = "50000"
+printf 'PASS: branchless signed constant remainder lowering\n'
+
 printf 'PASS: compiler regression suite\n'
