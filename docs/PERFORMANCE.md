@@ -20,7 +20,7 @@ Potential future improvements:
 
 ### 2. Parsing and AST allocation
 
-Expression parsing is recursive and AST nodes use shared ownership. AST nodes now retain only a compact `SourceLocation` rather than copying a complete token (including its kind and lexeme strings) into every expression, statement, parameter, and field.
+Expression parsing is recursive. AST nodes use unique ownership because each expression and statement has exactly one parent; this removes shared-pointer control blocks and reference-count updates from AST construction and traversal. AST nodes also retain only a compact `SourceLocation` rather than copying a complete token into every expression, statement, parameter, and field.
 
 Potential future improvements:
 
@@ -79,6 +79,7 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 - Initial token-vector reservation is capped to avoid oversized allocations for whitespace-heavy or unusually large source files.
 - Parser token access returns references to avoid copying complete token objects.
 - Token kinds use canonical static `string_view` spellings; the parser moves consumed lexemes into AST strings instead of copying them from the token buffer.
+- AST nodes use `unique_ptr` ownership rather than reference-counted shared pointers, since the syntax tree has no shared child nodes.
 - AST nodes retain source line/column only, avoiding repeated copies of token-kind and token-value strings.
 - Program parsing reserves declaration storage; code generation reserves structure/function indexes and uses a hash map for struct dependency lookup.
 - Semantic analysis stores built-in expression types in a compact enum. Code generation reuses the cached result instead of recursively inferring types again.
