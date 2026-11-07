@@ -44,16 +44,20 @@ private:
         return name == "main" ? "main" : "swan_fn_" + name;
     }
 
+    static std::string functionType(const Stmt* node) {
+        return node->name == "main" ? "int" : type(node->return_type);
+    }
+
     static std::string quote(const std::string& value) {
         std::string result = "\"";
         for (unsigned char ch : value) {
-            if (ch == '"' || ch == '\\\\') { result.push_back('\\\\'); result.push_back(static_cast<char>(ch)); }
-            else if (ch == '\\n') result += "\\\\n";
-            else if (ch == '\\r') result += "\\\\r";
-            else if (ch == '\\t') result += "\\\\t";
+            if (ch == '"' || ch == '\\') { result.push_back('\\'); result.push_back(static_cast<char>(ch)); }
+            else if (ch == '\n') result += "\\n";
+            else if (ch == '\r') result += "\\r";
+            else if (ch == '\t') result += "\\t";
             else if (ch < 32 || ch >= 127) {
                 const char digits[] = "01234567";
-                result += "\\\\";
+                result += "\\";
                 result.push_back(digits[(ch >> 6) & 7]);
                 result.push_back(digits[(ch >> 3) & 7]);
                 result.push_back(digits[ch & 7]);
@@ -71,7 +75,7 @@ private:
     }
 
     void emitPrototype(std::string& out, const Stmt* node) const {
-        out += type(node->return_type) + " " + functionName(node->name) + "(";
+        out += functionType(node) + " " + functionName(node->name) + "(";
         if (node->parameters.empty()) out += "void";
         for (std::size_t i = 0; i < node->parameters.size(); ++i) {
             if (i) out += ", ";
