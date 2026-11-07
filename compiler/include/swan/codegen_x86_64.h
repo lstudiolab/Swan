@@ -1,13 +1,18 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; } Text;
 static inline void text_add(Text *t,const char *fmt,...){
  va_list ap;va_start(ap,fmt);va_list cp;va_copy(cp,ap);int n=vsnprintf(NULL,0,fmt,cp);va_end(cp);
  if(n<0){va_end(ap);return;}size_t need=t->len+(size_t)n+1;
  if(need>t->cap){size_t cap=t->cap?t->cap:4096;while(cap<need)cap*=2;char *p=realloc(t->data,cap);if(!p){va_end(ap);return;}t->data=p;t->cap=cap;}
  vsnprintf(t->data+t->len,t->cap-t->len,fmt,ap);t->len+=(size_t)n;va_end(ap);
 }
+static inline void cg_reserve(Text *o,int n){if(n>0){text_add(o,"    sub rsp, %d\n",n);o->stack_depth+=n;}}
+static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d\n",n);o->stack_depth-=n;}}
+static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",reg);o->stack_depth+=8;}
+static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
+static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
 typedef struct { char name[SWAN_MAX_TEXT]; int slot; bool mut; } Local;
 typedef struct { Local items[1024];size_t count;int slots; } Locals;
 static inline int local_find(Locals *l,const char *name){for(size_t i=l->count;i>0;i--)if(!strcmp(l->items[i-1].name,name))return l->items[i-1].slot;return -1;}
@@ -17,12 +22,14 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
  if(!strcmp(name,"array")){swan_error(err,&e->token,"array lowering is not ported to the C backend yet");return;}
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
- int area=(int)(((e->argc*8+15)/16)*16);if(area)text_add(o,"    sub rsp, %d\n",area);
- for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %zu], rax\n",i*8);}
+ int area=(int)(((e->argc*8+15)/16)*16);
+ int pad=(16-((o->stack_depth+area)%16))%16;
+ cg_reserve(o,area+pad);
+ for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %d], rax\n",pad+(int)i*8);}
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
- for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %zu]\n",regs[i],i*8);
+ for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
  char symbol[SWAN_MAX_TEXT+16];if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
- text_add(o,"    xor eax, eax\n    call %s\n",symbol);if(area)text_add(o,"    add rsp, %d\n",area);
+ text_add(o,"    xor eax, eax\n    call %s\n",symbol);cg_release(o,area+pad);
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
@@ -41,7 +48,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
    if(slot<0){swan_error(err,&e->token,"unknown assignment target");break;}
    emit_expr(o,e->right,l,err);text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",slot*8);break;
   }
-  emit_expr(o,e->left,l,err);text_add(o,"    push rax\n");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n    pop rax\n");
+  emit_expr(o,e->left,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n");cg_pop(o,"rax");
   switch(e->token.kind){
    case T_PLUS:text_add(o,"    add rax, rcx\n");break;
    case T_MINUS:text_add(o,"    sub rax, rcx\n");break;
@@ -73,7 +80,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
       else text_add(o,"%c",*q);
      }
      text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n    call puts@PLT\n",id);
-    }else{emit_expr(o,s->value,l,err);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n    call printf@PLT\n");}
+    }else{emit_expr(o,s->value,l,err);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");}
     break;
    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:emit_expr(o,s->value,l,err);break;
@@ -96,7 +103,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");int strid=0;
  for(size_t i=0;i<p->count;i++){
-  Stmt *fn=p->functions[i];Locals l={0};
+  Stmt *fn=p->functions[i];Locals l={0};o->stack_depth=0;
   for(size_t a=0;a<fn->param_count;a++){strcpy(l.items[l.count].name,fn->params[a]);l.items[l.count].slot=++l.slots;l.count++;}
   collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots*8+15)/16)*16;
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
