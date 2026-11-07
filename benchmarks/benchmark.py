@@ -56,7 +56,7 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="swan-bench-") as directory:
         work = pathlib.Path(directory)
         source = work / "large.swan"
-        generated = work / "large.c"
+        generated = work / "large.s"
         binary = work / "large"
         function_count = 400
 
@@ -73,9 +73,9 @@ def main() -> None:
         source.write_text("\n".join(lines), encoding="utf-8")
         source_bytes = source.stat().st_size
 
-        subprocess.run([str(SWAN), str(source), "--emit-c", "-o", str(generated)],
+        subprocess.run([str(SWAN), str(source), "--emit-asm", "-o", str(generated)],
                        check=True, stdout=subprocess.DEVNULL)
-        subprocess.run([CC, "-std=c11", "-O2", str(generated), "-o", str(binary)],
+        subprocess.run([CC, "-x", "assembler", str(generated), "-o", str(binary)],
                        check=True, stdout=subprocess.DEVNULL)
         expected = str(function_count - 1)
         actual = subprocess.check_output([str(binary)], text=True).strip()
@@ -83,10 +83,10 @@ def main() -> None:
             raise RuntimeError(f"Incorrect benchmark result: expected {expected}, got {actual}")
 
         frontend = median_seconds(
-            [str(SWAN), str(source), "--emit-c", "-o", str(generated)], 7, work
+            [str(SWAN), str(source), "--emit-asm", "-o", str(generated)], 7, work
         )
         native_link = median_seconds(
-            [CC, "-std=c11", "-O2", str(generated), "-o", str(binary)], 7, work
+            [CC, "-x", "assembler", str(generated), "-o", str(binary)], 7, work
         )
         end_to_end = median_seconds([str(SWAN), str(source)], 5, work)
         runtime = median_seconds([str(binary)], 21, work, expected)
@@ -123,8 +123,8 @@ def main() -> None:
         )
 
         print("Swan benchmark (median wall-clock; seconds; lower is better)")
-        print(f"Frontend + C emission:       {frontend:.2f} seconds")
-        print(f"Native C compile + link:     {native_link:.2f} seconds")
+        print(f"Frontend + assembly emission:       {frontend:.2f} seconds")
+        print(f"Assembly + native link:     {native_link:.2f} seconds")
         print(f"Direct compile + execute:    {end_to_end:.2f} seconds")
         print(f"Prebuilt executable runtime: {runtime:.2f} seconds")
         print()
