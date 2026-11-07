@@ -10,16 +10,14 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Build native Swan and standalone C compilers
+      - name: Install LLVM backend
+        run: sudo apt-get update && sudo apt-get install -y clang lld
+      - name: Build Swan compiler
         run: sh build.sh
       - name: Verify Swan language features and regressions
         run: |
           sh tests/smoke.sh
           sh tests/regressions.sh
           sh tests/architecture.sh
-      - name: Verify standalone C compiler
-        run: sh tests/c-compiler.sh
-      - name: Verify compiler versions
-        run: |
-          ./build/swan --version
-          ./build/swan-c --version
+      - name: Verify compiler version
+        run: ./build/swan --version
