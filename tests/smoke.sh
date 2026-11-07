@@ -163,3 +163,24 @@ printf 'PASS: explicit run command\n'
 test -x "$TMP/hello-run"
 test "$("$TMP/hello-run")" = "Hello from Swan"
 printf 'PASS: named run executable is preserved\n'
+
+# Heap arrays support allocation, indexed writes, indexed reads, and mutation.
+cat > "$TMP/arrays.swan" <<'SWAN'
+fn main():
+    let values = array(8)
+    var i = 0
+    while i < 8
+        values[i] = i * 3
+        i = i + 1
+    var sum = 0
+    i = 0
+    while i < 8
+        sum = sum + values[i]
+        i = i + 1
+    log sum
+    return 0
+SWAN
+"$SWAN" "$TMP/arrays.swan" -o "$TMP/arrays.s"
+${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
+test "$("$TMP/arrays")" = "84"
+printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
