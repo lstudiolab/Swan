@@ -54,7 +54,7 @@ private:
     };
     using Scope = std::unordered_map<std::string, Location>;
     static inline constexpr const char* local_registers_[] = {
-        "rbx", "r12", "r13", "r14"
+        "rbx", "r12", "r13", "r14", "r15", "r8", "r9"
     };
     static inline constexpr const char* argument_registers_[] = {
         "rdi", "rsi", "rdx", "rcx", "r8", "r9"
@@ -173,6 +173,18 @@ private:
         stack_bytes_ -= 8;
     }
 
+    void pushCallerSavedLocals() {
+        emit("    push r8");
+        emit("    push r9");
+        stack_bytes_ += 16;
+    }
+
+    void popCallerSavedLocals() {
+        emit("    pop r9");
+        emit("    pop r8");
+        stack_bytes_ -= 16;
+    }
+
     void emitArrayAddress(const Expr* node) {
         const auto* index = node->right.get();
         if (index->kind == Expr::Kind::Name || index->kind == Expr::Kind::Literal) {
@@ -235,7 +247,7 @@ private:
         emit("    push r14");
         emit("    push r15");
         if (frame_size_) emit("    sub rsp, " + std::to_string(frame_size_));
-        emit("    movabs r15, 190172619316593316");
+
 
         for (std::size_t i = 0; i < parameter_locations.size(); ++i) {
             if (i >= 6) fail(function->parameters[i].token,
@@ -580,7 +592,8 @@ private:
         emit("    xor rax, r11");
         emit("    sub rax, r11");
         emit("    mov r9, rax");
-        emit("    mul r15");
+        emit("    movabs r10, 190172619316593316");
+        emit("    mul r10");
         emit("    imul rax, rdx, 97");
         emit("    cmp rax, r9");
         emit("    jbe " + adjust);
