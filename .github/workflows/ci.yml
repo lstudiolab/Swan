@@ -6,20 +6,15 @@ on:
   workflow_dispatch:
 
 jobs:
-  compiler:
+  compiler-c11:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Install AArch64 GNU assembler
-        run: sudo apt-get update && sudo apt-get install -y binutils-aarch64-linux-gnu
-      - name: Build Swan compiler
+      - name: Build single-translation-unit C compiler
         run: sh build.sh
-      - name: Verify standalone headers
+      - name: Verify C header isolation and translation-unit policy
         run: sh tests/headers.sh
-      - name: Verify native assembly backend
-        run: |
-          sh tests/smoke.sh
-          sh tests/regressions.sh
-          sh tests/architecture.sh
+      - name: Verify native assembly output
+        run: sh tests/c11-smoke.sh
       - name: Verify compiler version
         run: ./build/swan --version
