@@ -11,7 +11,7 @@ inline int Parser::precedence(std::string_view op) { return operatorPrecedence(o
 inline ExprPtr Parser::expression(int minimum) {
     auto left = prefix();
     while (precedence(peek().kind) >= minimum) {
-        auto op = advance();
+        const auto& op = advance();
         const int level = precedence(op.kind);
         auto right = expression(op.kind == "=" ? level : level + 1);
         auto node = std::make_shared<Expr>();
@@ -29,7 +29,7 @@ inline ExprPtr Parser::prefix() {
         node->left = expression(8);
         return node;
     }
-    auto token = advance();
+    const auto& token = advance();
     auto node = std::make_shared<Expr>(); node->token = token;
     if (token.kind == "INT" || token.kind == "FLOAT" || token.kind == "STRING" ||
         token.kind == "true" || token.kind == "false" || token.kind == "none") {
@@ -51,7 +51,7 @@ inline ExprPtr Parser::prefix() {
             expect(")","expected ')' after arguments");
             node = call;
         } else if (match(".")) {
-            auto member = expect("IDENT","expected member name");
+            const auto& member = expect("IDENT","expected member name");
             auto access = std::make_shared<Expr>();
             access->kind = Expr::Kind::Member; access->token = member;
             access->left = node; access->value = member.value; node = access;
