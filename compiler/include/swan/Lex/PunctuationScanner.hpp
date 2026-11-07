@@ -1,7 +1,6 @@
 #pragma once
 #include "swan/Lex/Lexer.hpp"
 #include <string>
-#include <string_view>
 namespace swan {
 inline Token Lexer::scanPunctuation() {
     const auto line = line_;
@@ -16,14 +15,19 @@ inline Token Lexer::scanPunctuation() {
         advance();
         advance();
         const std::string value(pair, 2);
-        return {value, value, line, column};
+        return {std::string_view(source_.data() + index_ - 2, 2), value, line, column};
     }
-    if (std::string_view("()[],:;.+-*/%=<>!").find(first) != std::string_view::npos) {
+    switch (first) {
+    case '(': case ')': case '[': case ']': case ',': case ':': case ';':
+    case '.': case '+': case '-': case '*': case '/': case '%': case '=':
+    case '<': case '>': case '!': {
         advance();
         const std::string value(1, first);
-        return {value, value, line, column};
+        return {std::string_view(source_.data() + index_ - 1, 1), value, line, column};
     }
-    fail({"", "", line, column},
-         std::string("unexpected character '") + first + "'");
+    default:
+        fail({"", "", line, column},
+             std::string("unexpected character '") + first + "'");
+    }
 }
 } // namespace swan
