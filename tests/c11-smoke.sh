@@ -288,6 +288,26 @@ if grep -q 'push rax' "$TMP/local-operands.s"; then
     exit 1
 fi
 printf 'PASS: register/memory local operands avoid expression stack temporaries\n'
+cat > "$TMP/volatile-preservation.swan" <<'SWAN'
+fn combine(a: int, b: int) -> int:
+    return a + b
+fn main():
+    let a = 11
+    let b = 22
+    let c = 33
+    let d = 44
+    let e = 55
+    let f = 66
+    let g = 77
+    log combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1)
+    return 0
+SWAN
+"$SWAN" "$TMP/volatile-preservation.swan" --emit-asm -o "$TMP/volatile-preservation.s"
+cc -x assembler "$TMP/volatile-preservation.s" -o "$TMP/volatile-preservation"
+test "$("$TMP/volatile-preservation")" = "315"
+grep -q 'push rdi' "$TMP/volatile-preservation.s"
+grep -q 'pop rdi' "$TMP/volatile-preservation.s"
+printf 'PASS: immutable locals stay register-resident across nested and direct calls\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
     log (6 * 7) + (9 - 2)
