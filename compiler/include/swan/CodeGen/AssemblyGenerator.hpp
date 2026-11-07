@@ -177,9 +177,8 @@ private:
         emitExpression(node->left.get());
         pushRax();
         emitExpression(node->right.get());
-        emit("    imul rax, rax, 8");
         popRcx();
-        emit("    lea rax, [rcx + rax]");
+        emit("    lea rax, [rcx + rax*8]");
     }
 
     void callAligned(const std::string& target) {
@@ -520,9 +519,8 @@ private:
     void emitIntOperation(const std::string& op) {
         if (op == "+") emit("    add rax, rcx");
         else if (op == "-") {
-            emit("    mov r11, rcx");
-            emit("    sub r11, rax");
-            emit("    mov rax, r11");
+            emit("    sub rcx, rax");
+            emit("    mov rax, rcx");
         } else if (op == "*") emit("    imul rax, rcx");
         else if (op == "/" || op == "//" || op == "%") {
             emit("    mov r11, rax");
