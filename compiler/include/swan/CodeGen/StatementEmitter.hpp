@@ -9,7 +9,7 @@ inline void CGenerator::beginLine() {
     output_.append(indent_ * 4, ' ');
 }
 inline void CGenerator::endLine() {
-    output_.push_back('\\n');
+    output_.push_back('\n');
 }
 inline void CGenerator::line(const std::string& value) {
     if (!value.empty()) {
