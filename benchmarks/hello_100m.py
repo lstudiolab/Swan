@@ -20,7 +20,7 @@ def measured(command, label):
     return p, elapsed, rss
 
 goose = pathlib.Path("goose/build/goose").resolve()
-swan = pathlib.Path("swan/.build/swan").resolve()
+swan = pathlib.Path("swan/build/swan").resolve()
 exe = OUT / "hello-goose"
 gbuild, gbuild_s, gbuild_kb = measured([goose, "build", "-o", exe, goose_src], "goose-build")
 if gbuild.returncode:
