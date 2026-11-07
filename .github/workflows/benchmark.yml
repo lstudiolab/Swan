@@ -70,7 +70,7 @@ jobs:
           int main(void) {
               int64_t i = 0, acc = 0;
               while (i < 50000000LL) {
-                  acc = (acc + i * 31) % 1000000007LL;
+                  acc = (acc + (i * 31) % 1000000007LL) % 1000000007LL;
                   ++i;
               }
               printf("%lld\n", (long long)acc);
@@ -84,7 +84,7 @@ jobs:
           int main() {
               std::int64_t i = 0, acc = 0;
               while (i < 50000000LL) {
-                  acc = (acc + i * 31) % 1000000007LL;
+                  acc = (acc + (i * 31) % 1000000007LL) % 1000000007LL;
                   ++i;
               }
               std::printf("%lld\n", static_cast<long long>(acc));
@@ -96,7 +96,7 @@ jobs:
               let mut i: i64 = 0;
               let mut acc: i64 = 0;
               while i < 50_000_000 {
-                  acc = (acc + i * 31) % 1_000_000_007;
+                  acc = (acc + (i * 31) % 1_000_000_007) % 1_000_000_007;
                   i += 1;
               }
               println!("{acc}");
@@ -120,7 +120,7 @@ jobs:
           var i: Int64 = 0
           var acc: Int64 = 0
           while i < 50_000_000 {
-              acc = (acc + i * 31) % 1_000_000_007
+              acc = (acc + (i * 31) % 1_000_000_007) % 1_000_000_007
               i += 1
           }
           print(acc)
@@ -154,7 +154,7 @@ jobs:
               var i: i64 = 0;
               var acc: i64 = 0;
               while i < 50000000 {
-                  acc = (acc + i * 31) % 1000000007;
+                  acc = (acc + (i * 31) % 1000000007) % 1000000007;
                   i += 1;
               }
               print(acc);
@@ -167,7 +167,7 @@ jobs:
               static void Main() {
                   long i = 0, acc = 0;
                   while (i < 50000000) {
-                      acc = (acc + i * 31) % 1000000007;
+                      acc = (acc + (i * 31) % 1000000007) % 1000000007;
                       i++;
                   }
                   Console.WriteLine(acc);
@@ -190,7 +190,7 @@ jobs:
               public static void main(String[] args) {
                   long i = 0, acc = 0;
                   while (i < 50000000L) {
-                      acc = (acc + i * 31) % 1000000007L;
+                      acc = (acc + (i * 31) % 1000000007L) % 1000000007L;
                       i++;
                   }
                   System.out.println(acc);
@@ -203,7 +203,7 @@ jobs:
               var i = 0L
               var acc = 0L
               while (i < 50_000_000L) {
-                  acc = (acc + i * 31L) % 1_000_000_007L
+                  acc = (acc + (i * 31L) % 1_000_000_007L) % 1_000_000_007L
                   i++
               }
               println(acc)
@@ -213,7 +213,7 @@ jobs:
           cat > main.js <<'EOF'
           let i = 0, acc = 0;
           while (i < 50000000) {
-              acc = (acc + i * 31) % 1000000007;
+              acc = (acc + (i * 31) % 1000000007) % 1000000007;
               i++;
           }
           console.log(acc);
@@ -264,9 +264,9 @@ jobs:
           timed_build Swan bash -c '../../build/swan main.swan -o main.swan.c && cc -O2 -DNDEBUG main.swan.c -o swan'
           timed_build Goose goose build main.goose
           mv main main-goose
-          echo "JavaScript compile_ms N/A (interpreted)" | tee -a ../results.txt
-          echo "Lua compile_ms N/A (interpreted)" | tee -a ../results.txt
-          echo "Python compile_ms N/A (interpreted)" | tee -a ../results.txt
+          timed_build JavaScript node --check main.js
+          timed_build Lua luac5.4 -p main.lua
+          timed_build Python python3 -m py_compile main.py
 
       - name: Verify checksums and measure runtime
         shell: bash
