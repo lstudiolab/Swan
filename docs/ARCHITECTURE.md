@@ -2,7 +2,7 @@
 
 Swan owns its compilation pipeline and machine-code backends. There is no C transpilation stage, LLVM IR backend, or Clang code-generation dependency.
 
-## Current pipeline
+## Implementation model\n\nThe compiler implementation is C11 and header-only apart from `main.c`. Exactly one translation unit is compiled. Header modules own the AST, lexer, parser, diagnostics, semantic checks, driver, and code generation.\n\n## Current pipeline
 
 ```text
 .swan -> Lexer -> Parser -> Semantic analysis -> checked AST
@@ -15,9 +15,9 @@ The host assembler and linker are only used after Swan has emitted assembly. The
 ## Current implementation
 
 - Frontend: Swan lexer, parser, and semantic analysis.
-- Code generation: direct checked-AST to x86-64 System V and AArch64 AAPCS64 ELF assembly.
-- Assembly syntax: GNU assembler Intel syntax for x86-64; GNU AArch64 syntax for ARM64.
-- Object production: host system `CC` for x86-64 and GNU AArch64 assembler for ARM64.
+- Code generation: direct AST-to-x86-64 System V assembly in the initial C port.
+- Assembly syntax: GNU assembler Intel syntax for x86-64.
+- Object production: host system assembler/linker for x86-64.
 - Unsupported targets fail with a diagnostic. There is no LLVM or external compiler fallback.
 
 ## Backend architecture target
@@ -30,7 +30,7 @@ Each target backend will own:
 5. Assembly emission and relocation/symbol conventions.
 6. Target-specific optimization and instruction scheduling.
 
-Planned backends: x86-64, AArch64, ARMv7/Thumb, RISC-V 64, and WebAssembly.
+Planned C backends: AArch64, ARMv7/Thumb, RISC-V 64, and WebAssembly.
 
 ## Engineering rules
 
