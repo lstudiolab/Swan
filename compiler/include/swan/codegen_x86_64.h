@@ -31,8 +31,32 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  default:break;
  }}}
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
- (void)p;
- text_add(o, ".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
+ text_add(o,".intel_syntax noprefix\n.text\n");
+ int strid=0;
+ for(size_t i=0;i<p->count;i++){
+  Stmt *fn=p->functions[i];
+  Locals l={0};
+  for(size_t a=0;a<fn->param_count;a++){
+   strcpy(l.items[l.count].name,fn->params[a]);
+   l.items[l.count].slot=++l.slots;
+   l.count++;
+  }
+  collect_locals(fn->body,fn->body_count,&l);
+  int frame=((l.slots*8+15)/16)*16;
+  char sym[SWAN_MAX_TEXT+16];
+  if(!strcmp(fn->name,"main"))strcpy(sym,"main");
+  else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
+  text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);
+  if(frame)text_add(o,"    sub rsp, %d\n",frame);
+  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
+  for(size_t a=0;a<fn->param_count&&a<6;a++){
+   int slot=local_find(&l,fn->params[a]);
+   text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",slot*8,regs[a]);
+  }
+  emit_block(o,fn->body,fn->body_count,&l,&strid,err);
+  text_add(o,"    xor eax, eax\n    leave\n    ret\n");
+ }
+ text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  return err->message[0]==0;
 }
 #endif
