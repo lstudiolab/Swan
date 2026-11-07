@@ -1,0 +1,70 @@
+# Sort one billion deterministic pseudorandom 32-bit integers in place.
+# Requires approximately 4 GB for the input array.
+fn main():
+    let count = 1000000000
+    let values = array_u32_unchecked(count)
+
+    # Park-Miller generator: values are spread over a 31-bit range.
+    var state = 1
+    var i = 0
+    while i < count
+        state = (state * 48271) % 2147483647
+        values[i] = state
+        i = i + 1
+
+    # Build a max heap.
+    var start = count / 2 - 1
+    while start >= 0
+        var root = start
+        var active = 1
+        while active == 1
+            var child = root * 2 + 1
+            if child < count
+                if child + 1 < count
+                    if values[child] < values[child + 1]
+                        child = child + 1
+                if values[root] < values[child]
+                    var temp = values[root]
+                    values[root] = values[child]
+                    values[child] = temp
+                    root = child
+                else
+                    active = 0
+            else
+                active = 0
+        start = start - 1
+
+    # Repeatedly move the maximum to the end and restore the heap.
+    var end = count - 1
+    while end > 0
+        var temp2 = values[0]
+        values[0] = values[end]
+        values[end] = temp2
+        var root2 = 0
+        var active2 = 1
+        while active2 == 1
+            var child2 = root2 * 2 + 1
+            if child2 < end
+                if child2 + 1 < end
+                    if values[child2] < values[child2 + 1]
+                        child2 = child2 + 1
+                if values[root2] < values[child2]
+                    var temp3 = values[root2]
+                    values[root2] = values[child2]
+                    values[child2] = temp3
+                    root2 = child2
+                else
+                    active2 = 0
+            else
+                active2 = 0
+        end = end - 1
+
+    # Verify monotonic order. A nonzero result means the sort is incorrect.
+    var sorted = 1
+    var verify = 1
+    while verify < count
+        if values[verify - 1] > values[verify]
+            sorted = 0
+        verify = verify + 1
+    log sorted
+    return 0
