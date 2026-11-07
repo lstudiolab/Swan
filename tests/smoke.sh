@@ -1,5 +1,7 @@
 #!/usr/bin/env sh
 set -eu
+# Exercise the low-latency direct x86-64 backend explicitly.
+export SWAN_FAST_COMPILE=1
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/test"
