@@ -31,6 +31,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  default:break;
  }}}
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
+ (void)p;
  text_add(o, ".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  return err->message[0]==0;
 }
