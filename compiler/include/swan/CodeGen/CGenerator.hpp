@@ -5,7 +5,6 @@
 #include <string>
 #include <string_view>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
 namespace swan {
@@ -29,7 +28,7 @@ private:
     const Program& program_;
     std::string output_;
     unsigned indent_ = 0;
-    std::unordered_set<std::string> structs_;
+    StructureSet structs_;
     std::unordered_map<std::string,StmtPtr> functions_;
     std::unordered_map<std::string,std::string> symbols_;
     std::vector<std::unordered_map<std::string,std::string>> scopes_;
