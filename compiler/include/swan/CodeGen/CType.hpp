@@ -3,6 +3,7 @@
 #include <string>
 #include <string_view>
 #include <functional>
+#include <unordered_map>
 #include <unordered_set>
 
 namespace swan {
@@ -17,7 +18,9 @@ struct TransparentStringHash {
         return std::hash<std::string_view>{}(value);
     }
 };
-using StructureSet = std::unordered_set<std::string, TransparentStringHash, std::equal_to<>>;
+template <typename Value>
+using StringViewMap = std::unordered_map<std::string_view, Value, TransparentStringHash, std::equal_to<>>;
+using StructureSet = std::unordered_set<std::string_view, TransparentStringHash, std::equal_to<>>;
 
 inline void appendMappedCType(std::string& output, std::string_view type,
                               const StructureSet& structures) {
