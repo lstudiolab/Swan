@@ -74,7 +74,7 @@ for target in x86_64 aarch64 armv7 riscv64 wasm32; do
     esac
     clang -target "$triple" -c -x assembler "$ROOT/build/portable-$target.s" -o "$ROOT/build/portable-$target.o"
 done
-for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc; do
+for target in arm64-apple-ios aarch64-apple-darwin x86_64-pc-windows-msvc aarch64-linux-android24 armv7a-linux-androideabi24; do
     safe=$(printf '%s' "$target" | tr '-' '_')
     clang -target "$target" -c -x assembler "$ROOT/build/portable-$safe.s" -o "$ROOT/build/portable-$safe.o"
 done
