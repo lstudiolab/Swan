@@ -75,11 +75,12 @@ class X86_64Generator {
         if(!fn)throw CompileError("unknown function '"+name+"'");
         const auto n=e->arguments.size();
         if(n>6)throw CompileError("x86-64 backend currently supports at most six call arguments");
-        const bool pad=(n&1)!=0;if(pad)emit("sub rsp, 8");
-        for(const auto& a:e->arguments){expr(a.get());push("rax");}
-        for(std::size_t i=0;i<n;++i)emit("mov "+std::string(argRegs_[i])+", QWORD PTR [rsp + "+std::to_string((n-1-i)*8)+"]");
-        if(n||pad)emit("add rsp, "+std::to_string(n*8+(pad?8:0)));
-        emit("xor eax, eax");emit("call "+(name=="main"?std::string("main"):"swan_fn_"+name));
+        const int area=static_cast<int>(((n*8+15)/16)*16);
+        reserve(area);
+        for(std::size_t i=0;i<n;++i){expr(e->arguments[i].get());emit("mov QWORD PTR [rsp + "+std::to_string(i*8)+"], rax");}
+        for(std::size_t i=0;i<n;++i)emit("mov "+std::string(argRegs_[i])+", QWORD PTR [rsp + "+std::to_string(i*8)+"]");
+        emit("xor eax, eax");callSymbol(name=="main"?std::string("main"):"swan_fn_"+name);
+        release(area);
     }
     void binary(const Expr* e){
         const auto& op=e->token.value;
