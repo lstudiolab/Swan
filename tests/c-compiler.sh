@@ -74,6 +74,10 @@ SWAN
 "$SWAN" build "$TMP/loop-control.swan" --target native -o "$TMP/loop-control"
 test "$("$TMP/loop-control")" = "continued
 broken"
+cat > "$TMP/bad-break.swan" <<'SWAN'
+fn main():
+    break
+SWAN
 if "$SWAN" build "$TMP/bad-break.swan" -o "$TMP/bad-break" 2>/dev/null; then
   echo "FAIL: break outside loop accepted" >&2
   exit 1
