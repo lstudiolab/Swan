@@ -127,7 +127,7 @@ static int emit_log(Buffer *code,Buffer *data,Target t,char *value,Loop *loops,i
 }
 static int emit_source(const char *source,Target t,Buffer *out){
     char *copy=strdup(source);if(!copy)return fail("out of memory");
-    Buffer code={0},data={0};Loop loops[128];int depth=0,in_main=0,have_main=0,returned=0,needs_int=0;
+    Buffer code={0},data={0};Loop loops[128];int depth=0,max_depth=0,in_main=0,have_main=0,returned=0,needs_int=0;
     unsigned loop_id=0,string_id=0;char *save=NULL;
     for(char *raw=strtok_r(copy,"\n",&save);raw;raw=strtok_r(NULL,"\n",&save)){
         int indent=0;while(raw[indent]==' '||raw[indent]=='\t')indent+=raw[indent]=='\t'?4:1;
@@ -159,7 +159,7 @@ static int emit_source(const char *source,Target t,Buffer *out){
             l->index_slot=(depth*2+1)*8;l->limit_slot=(depth*2+2)*8;
             snprintf(l->start,sizeof l->start,".Lswan_loop_%u",loop_id);
             snprintf(l->step_label,sizeof l->step_label,".Lswan_step_%u",loop_id);snprintf(l->end,sizeof l->end,".Lswan_end_%u",loop_id++);
-            emit_loop_open(&code,t,l,first,last);depth++;continue;
+            emit_loop_open(&code,t,l,first,last);depth++;if(depth>max_depth)max_depth=depth;continue;
         }
         if(depth)loops[depth-1].has_body=1;
         if(!strcmp(line,"break")){
@@ -191,24 +191,33 @@ static int emit_source(const char *source,Target t,Buffer *out){
     }
     if(!have_main){free(copy);free(code.data);free(data.data);return fail("program must define fn main()");}
     if(needs_int)asm_string(&data,t==ARMV7?"%d\\n":"%lld\\n",".Lswan_int_fmt");
+    int frame_size=max_depth*16;
+    char prologue[160],epilogue[160];
     if(t==X86_64){
         append(out,".intel_syntax noprefix\n.section .rodata\n");append_n(out,data.data?data.data:"",data.len);
-        append(out,".text\n.globl main\n.type main, @function\nmain:\n  push rbp\n  mov rbp, rsp\n  sub rsp, 2048\n");
+        append(out,".text\n.globl main\n.type main, @function\nmain:\n  push rbp\n  mov rbp, rsp\n");
+        if(frame_size){snprintf(prologue,sizeof prologue,"  sub rsp, %d\\n",frame_size);append(out,prologue);}
         append_n(out,code.data?code.data:"",code.len);
         if(!returned)append(out,"  xor eax, eax\n");
         append(out,".Lswan_exit:\n  leave\n  ret\n.size main, .-main\n.section .note.GNU-stack,\"\",@progbits\n");
     }else if(t==AARCH64){
         append(out,".section .rodata\n");append_n(out,data.data?data.data:"",data.len);
-        append(out,".text\n.global main\n.type main, %function\nmain:\n  stp x29, x30, [sp, #-16]!\n  mov x29, sp\n  sub sp, sp, #2048\n");
+        append(out,".text\n.global main\n.type main, %function\nmain:\n  stp x29, x30, [sp, #-16]!\n  mov x29, sp\n");
+        if(frame_size){snprintf(prologue,sizeof prologue,"  sub sp, sp, #%d\\n",frame_size);append(out,prologue);}
         append_n(out,code.data?code.data:"",code.len);
         if(!returned)append(out,"  mov x0, #0\n");
-        append(out,".Lswan_exit:\n  add sp, sp, #2048\n  ldp x29, x30, [sp], #16\n  ret\n.size main, .-main\n");
+        append(out,".Lswan_exit:\n");
+        if(frame_size){snprintf(epilogue,sizeof epilogue,"  add sp, sp, #%d\\n",frame_size);append(out,epilogue);}
+        append(out,"  ldp x29, x30, [sp], #16\n  ret\n.size main, .-main\n");
     }else{
         append(out,".syntax unified\n.section .rodata\n");append_n(out,data.data?data.data:"",data.len);
-        append(out,".text\n.global main\n.type main, %function\nmain:\n  push {r4, r5, r6, r7, r11, lr}\n  mov r11, sp\n  sub sp, sp, #2048\n");
+        append(out,".text\n.global main\n.type main, %function\nmain:\n  push {r4, r5, r6, r7, r11, lr}\n  mov r11, sp\n");
+        if(frame_size){snprintf(prologue,sizeof prologue,"  ldr r12, =%d\\n  sub sp, sp, r12\\n",frame_size);append(out,prologue);}
         append_n(out,code.data?code.data:"",code.len);
         if(!returned)append(out,"  mov r0, #0\n");
-        append(out,".Lswan_exit:\n  add sp, sp, #2048\n  pop {r4, r5, r6, r7, r11, pc}\n.size main, .-main\n");
+        append(out,".Lswan_exit:\n");
+        if(frame_size){snprintf(epilogue,sizeof epilogue,"  ldr r12, =%d\\n  add sp, sp, r12\\n",frame_size);append(out,epilogue);}
+        append(out,"  pop {r4, r5, r6, r7, r11, pc}\n.size main, .-main\n");
     }
     free(copy);free(code.data);free(data.data);return 0;
 }
