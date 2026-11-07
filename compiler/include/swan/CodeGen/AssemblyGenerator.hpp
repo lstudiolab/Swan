@@ -46,7 +46,15 @@ public:
     }
 
 private:
-    using Scope = std::unordered_map<std::string, int>;
+    struct Location {
+        std::string reg;
+        int offset = 0;
+        bool in_register = false;
+    };
+    using Scope = std::unordered_map<std::string, Location>;
+    static inline constexpr const char* local_registers_[] = {
+        "rbx", "r12", "r13", "r14", "r15"
+    };
     static inline constexpr const char* argument_registers_[] = {
         "rdi", "rsi", "rdx", "rcx", "r8", "r9"
     };
@@ -56,10 +64,11 @@ private:
     std::string data_;
     std::unordered_map<std::string, std::string> strings_;
     std::unordered_map<std::string, std::string> floats_;
-    std::unordered_map<const Stmt*, int> statement_slots_;
+    std::unordered_map<const Stmt*, Location> statement_locations_;
     std::vector<Scope> scopes_;
     std::vector<std::pair<std::string, std::string>> loops_;
-    int next_slot_ = 0;
+    int next_spill_ = 0;
+    unsigned next_register_ = 0;
     int frame_size_ = 0;
     int stack_bytes_ = 0;
     unsigned next_label_ = 0;
@@ -96,25 +105,27 @@ private:
 
     void emit(const std::string& value) { text_ += value; text_.push_back('\n'); }
 
-    int allocateSlot() {
-        return (++next_slot_) * 8;
+    Location allocateLocation() {
+        if (next_register_ < std::size(local_registers_))
+            return {local_registers_[next_register_++], 0, true};
+        return {{}, 48 + next_spill_++ * 8, false};
     }
 
-    int lookupSlot(std::string_view name) const {
+    Location lookupLocation(std::string_view name) const {
         for (auto scope = scopes_.rbegin(); scope != scopes_.rend(); ++scope) {
             const auto found = scope->find(std::string(name));
             if (found != scope->end()) return found->second;
         }
-        throw CompileError("internal error: missing stack slot for '" + std::string(name) + "'");
+        throw CompileError("internal error: missing native location for '" + std::string(name) + "'");
     }
 
     void collectBlock(const std::vector<StmtPtr>& statements) {
         scopes_.emplace_back();
         for (const auto& node : statements) {
             if (node->kind == Stmt::Kind::Variable) {
-                const int slot = allocateSlot();
-                scopes_.back().emplace(node->name, slot);
-                statement_slots_.emplace(node.get(), slot);
+                const auto location = allocateLocation();
+                scopes_.back().emplace(node->name, location);
+                statement_locations_.emplace(node.get(), location);
             } else if (node->kind == Stmt::Kind::If) {
                 collectBlock(node->body);
                 if (!node->alternate.empty()) collectBlock(node->alternate);
@@ -182,21 +193,23 @@ private:
     }
 
     void emitFunction(const Stmt* function) {
-        next_slot_ = 0;
+        next_spill_ = 0;
+        next_register_ = 0;
         stack_bytes_ = 0;
-        statement_slots_.clear();
+        statement_locations_.clear();
         scopes_.clear();
         scopes_.emplace_back();
 
-        std::vector<int> parameter_slots;
-        parameter_slots.reserve(function->parameters.size());
+        std::vector<Location> parameter_locations;
+        parameter_locations.reserve(function->parameters.size());
         for (const auto& parameter : function->parameters) {
-            const int slot = allocateSlot();
-            scopes_.back().emplace(parameter.name, slot);
-            parameter_slots.push_back(slot);
+            const auto location = allocateLocation();
+            scopes_.back().emplace(parameter.name, location);
+            parameter_locations.push_back(location);
         }
         collectBlock(function->body);
-        frame_size_ = align16(next_slot_ * 8);
+        const int required = 40 + next_spill_ * 8;
+        frame_size_ = ((required + 7) / 16) * 16 + 8;
         epilogue_ = label("return");
 
         const std::string name = function->name == "main"
@@ -206,25 +219,39 @@ private:
         emit(name + ":");
         emit("    push rbp");
         emit("    mov rbp, rsp");
+        emit("    push rbx");
+        emit("    push r12");
+        emit("    push r13");
+        emit("    push r14");
+        emit("    push r15");
         if (frame_size_) emit("    sub rsp, " + std::to_string(frame_size_));
 
-        for (std::size_t i = 0; i < parameter_slots.size(); ++i) {
+        for (std::size_t i = 0; i < parameter_locations.size(); ++i) {
             if (i >= 6) fail(function->parameters[i].token,
                 "the native backend currently supports at most six parameters");
-            emit("    mov QWORD PTR [rbp - " + std::to_string(parameter_slots[i]) +
-                 "], " + argument_registers_[i]);
+            const auto& location = parameter_locations[i];
+            if (location.in_register)
+                emit("    mov " + location.reg + ", " + argument_registers_[i]);
+            else
+                emit("    mov QWORD PTR [rbp - " + std::to_string(location.offset) +
+                     "], " + argument_registers_[i]);
         }
 
         scopes_.clear();
         scopes_.emplace_back();
         for (std::size_t i = 0; i < function->parameters.size(); ++i)
-            scopes_.back().emplace(function->parameters[i].name, parameter_slots[i]);
+            scopes_.back().emplace(function->parameters[i].name, parameter_locations[i]);
 
         emitBlock(function->body);
         if (function->return_type == "float") emit("    pxor xmm0, xmm0");
         else emit("    xor eax, eax");
         emit(epilogue_ + ":");
-        emit("    mov rsp, rbp");
+        emit("    lea rsp, [rbp - 40]");
+        emit("    pop r15");
+        emit("    pop r14");
+        emit("    pop r13");
+        emit("    pop r12");
+        emit("    pop rbx");
         emit("    pop rbp");
         emit("    ret");
         emit(".size " + name + ", .-" + name);
@@ -241,19 +268,25 @@ private:
     void emitStatement(const Stmt* node) {
         switch (node->kind) {
         case Stmt::Kind::Variable: {
-            const int slot = statement_slots_.at(node);
-            scopes_.back().emplace(node->name, slot);
+            const auto location = statement_locations_.at(node);
+            scopes_.back().emplace(node->name, location);
             if (node->value) {
                 emitExpression(node->value.get());
                 if (node->type == "float" && node->value->resolved_type == "int")
                     emit("    cvtsi2sd xmm0, rax");
-                if (node->type == "float" ||
-                    (node->type.empty() && node->value->resolved_type == "float"))
-                    emit("    movsd QWORD PTR [rbp - " + std::to_string(slot) + "], xmm0");
-                else
-                    emit("    mov QWORD PTR [rbp - " + std::to_string(slot) + "], rax");
+                const bool floating = node->type == "float" ||
+                    (node->type.empty() && node->value->resolved_type == "float");
+                if (location.in_register) {
+                    if (floating) emit("    movq " + location.reg + ", xmm0");
+                    else emit("    mov " + location.reg + ", rax");
+                } else if (floating) {
+                    emit("    movsd QWORD PTR [rbp - " + std::to_string(location.offset) + "], xmm0");
+                } else {
+                    emit("    mov QWORD PTR [rbp - " + std::to_string(location.offset) + "], rax");
+                }
             } else {
-                emit("    mov QWORD PTR [rbp - " + std::to_string(slot) + "], 0");
+                if (location.in_register) emit("    xor " + location.reg + ", " + location.reg);
+                else emit("    mov QWORD PTR [rbp - " + std::to_string(location.offset) + "], 0");
             }
             break;
         }
@@ -352,11 +385,15 @@ private:
             }
             return;
         case Expr::Kind::Name: {
-            const int slot = lookupSlot(value);
-            if (node->resolved_type == "float")
-                emit("    movsd xmm0, QWORD PTR [rbp - " + std::to_string(slot) + "]");
-            else
-                emit("    mov rax, QWORD PTR [rbp - " + std::to_string(slot) + "]");
+            const auto location = lookupLocation(value);
+            if (location.in_register) {
+                if (node->resolved_type == "float") emit("    movq xmm0, " + location.reg);
+                else emit("    mov rax, " + location.reg);
+            } else if (node->resolved_type == "float") {
+                emit("    movsd xmm0, QWORD PTR [rbp - " + std::to_string(location.offset) + "]");
+            } else {
+                emit("    mov rax, QWORD PTR [rbp - " + std::to_string(location.offset) + "]");
+            }
             return;
         }
         case Expr::Kind::Unary:
@@ -386,14 +423,18 @@ private:
         const auto& op = node->token.value;
         if (op == "=") {
             emitExpression(node->right.get());
-            const int slot = lookupSlot(node->left->token.value);
+            const auto location = lookupLocation(node->left->token.value);
             if (node->left->resolved_type == "float" &&
                 node->right->resolved_type == "int")
                 emit("    cvtsi2sd xmm0, rax");
-            if (node->left->resolved_type == "float")
-                emit("    movsd QWORD PTR [rbp - " + std::to_string(slot) + "], xmm0");
-            else
-                emit("    mov QWORD PTR [rbp - " + std::to_string(slot) + "], rax");
+            if (location.in_register) {
+                if (node->left->resolved_type == "float") emit("    movq " + location.reg + ", xmm0");
+                else emit("    mov " + location.reg + ", rax");
+            } else if (node->left->resolved_type == "float") {
+                emit("    movsd QWORD PTR [rbp - " + std::to_string(location.offset) + "], xmm0");
+            } else {
+                emit("    mov QWORD PTR [rbp - " + std::to_string(location.offset) + "], rax");
+            }
             return;
         }
         if (op == "and" || op == "&&" || op == "or" || op == "||") {
