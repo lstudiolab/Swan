@@ -25,6 +25,27 @@ SWAN
 cc -x assembler "$TMP/arithmetic.s" -o "$TMP/arithmetic"
 test "$("$TMP/arithmetic")" = "43"
 printf 'PASS: typed locals, mutation, and arithmetic lowering\n'
+cat > "$TMP/remainder.swan" <<'SWAN'
+fn main():
+    log 195 % 97
+    log 194 % 97
+    log 9223372036854775807 % 97
+    log -195 % 97
+    log 13 % 4
+    log -13 % 4
+    log -8 % 4
+    return 0
+SWAN
+"$SWAN" "$TMP/remainder.swan" --emit-asm -o "$TMP/remainder.s"
+cc -x assembler "$TMP/remainder.s" -o "$TMP/remainder"
+test "$("$TMP/remainder")" = "1
+0
+78
+-1
+1
+-1
+0"
+printf 'PASS: signed constant remainder lowering\n'
 cat > "$TMP/calls.swan" <<'SWAN'
 fn add(a: int, b: int) -> int:
     return a + b
