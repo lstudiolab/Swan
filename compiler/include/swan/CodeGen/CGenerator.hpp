@@ -29,7 +29,7 @@ private:
     std::string output_;
     unsigned indent_ = 0;
     StructureSet structs_;
-    StringViewMap<StmtPtr> functions_;
+    StringViewMap<const Stmt*> functions_;
     StringViewMap<std::string> symbols_;
     std::vector<StringViewMap<std::string>> scopes_;
 };
