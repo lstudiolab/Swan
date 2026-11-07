@@ -186,7 +186,7 @@ SWAN
 "$SWAN" "$TMP/arrays.swan" -o "$TMP/arrays.s"
 ${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
 actual=$( "$TMP/arrays" )
-expected=$(printf '0\\n3\\n6\\n9\\n12\\n15\\n18\\n21\\n84')
+expected=$(printf '0\n3\n6\n9\n12\n15\n18\n21\n84')
 if [ "$actual" != "$expected" ]; then echo "FAIL: array workload expected scaled sequence and sum, got [$actual]" >&2; exit 1; fi
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
 
