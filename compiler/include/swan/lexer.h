@@ -1,6 +1,10 @@
 #ifndef SWAN_LEXER_H
 #define SWAN_LEXER_H
 #include "swan/core.h"
+static inline bool swan_ascii_alpha(unsigned char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z');}
+static inline bool swan_ascii_digit(unsigned char c){return c>='0'&&c<='9';}
+static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)||c=='_';}
+static inline bool swan_ident_continue(unsigned char c){return swan_ident_start(c)||swan_ascii_digit(c);}
 static inline TokenKind swan_keyword(const char *s,size_t n) {
  #define SWAN_KW(word,kind) if(n==sizeof(word)-1&&!memcmp(s,word,sizeof(word)-1))return kind
  SWAN_KW("fn",T_FN);SWAN_KW("let",T_LET);SWAN_KW("var",T_VAR);SWAN_KW("const",T_CONST);
@@ -36,8 +40,8 @@ static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
   if(c=='#'){while(i<ts->length&&src[i]!='\n'){i++;col++;}continue;}
   if(c=='\n'){if(!swan_emit(ts,T_NEWLINE,"",0,line,col,err))return false;i++;line++;col=1;line_start=true;continue;}
   unsigned sl=line,sc=col;size_t st=i;
-  if(isalpha((unsigned char)c)||c=='_'){while(i<ts->length&&(isalnum((unsigned char)src[i])||src[i]=='_')){i++;col++;}size_t n=i-st;if(n>=SWAN_MAX_TEXT){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"identifier too long");return false;}if(!swan_emit(ts,swan_keyword(src+st,n),src+st,n,sl,sc,err))return false;continue;}
-  if(isdigit((unsigned char)c)){while(i<ts->length&&isdigit((unsigned char)src[i])){i++;col++;}TokenKind k=T_INT;if(i+1<ts->length&&src[i]=='.'&&isdigit((unsigned char)src[i+1])){k=T_FLOAT;i++;col++;while(i<ts->length&&isdigit((unsigned char)src[i])){i++;col++;}}if(!swan_emit(ts,k,src+st,i-st,sl,sc,err))return false;continue;}
+  if(swan_ident_start((unsigned char)c)){while(i<ts->length&&swan_ident_continue((unsigned char)src[i])){i++;col++;}size_t n=i-st;if(n>=SWAN_MAX_TEXT){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"identifier too long");return false;}if(!swan_emit(ts,swan_keyword(src+st,n),src+st,n,sl,sc,err))return false;continue;}
+  if(swan_ascii_digit((unsigned char)c)){while(i<ts->length&&swan_ascii_digit((unsigned char)src[i])){i++;col++;}TokenKind k=T_INT;if(i+1<ts->length&&src[i]=='.'&&swan_ascii_digit((unsigned char)src[i+1])){k=T_FLOAT;i++;col++;while(i<ts->length&&swan_ascii_digit((unsigned char)src[i])){i++;col++;}}if(!swan_emit(ts,k,src+st,i-st,sl,sc,err))return false;continue;}
   if(c=='"'||c=='\''){char quote=c;i++;col++;char value[SWAN_MAX_TEXT];size_t n=0;bool closed=false;while(i<ts->length){c=src[i++];col++;if(c==quote){closed=true;break;}if(c=='\\'){if(i>=ts->length)break;c=src[i++];col++;switch(c){case 'n':c='\n';break;case 'r':c='\r';break;case 't':c='\t';break;case '\\':case '"':case '\'':break;default:{Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unknown string escape");return false;}}}if(n+1>=sizeof(value)){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"string literal too long");return false;}value[n++]=c;}if(!closed){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unterminated string");return false;}if(!swan_emit(ts,T_STRING,value,n,sl,sc,err))return false;continue;}
   TokenKind k=T_EOF;size_t n=1;
   if(i+1<ts->length){char d=src[i+1];if(c=='-'&&d=='>'){k=T_ARROW;n=2;}else if(c=='/'&&d=='/'){k=T_FLOORDIV;n=2;}else if(c=='='&&d=='='){k=T_EQ;n=2;}else if(c=='!'&&d=='='){k=T_NE;n=2;}else if(c=='<'&&d=='='){k=T_LE;n=2;}else if(c=='>'&&d=='='){k=T_GE;n=2;}}
