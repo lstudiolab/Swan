@@ -262,5 +262,19 @@ SWAN
 cc -x assembler "$TMP/accumulator-side-effect.s" -o "$TMP/accumulator-side-effect"
 test "$("$TMP/accumulator-side-effect")" = "7"
 printf 'PASS: accumulator optimization preserves assignment evaluation order\n'
+cat > "$TMP/constant-fold.swan" <<'SWAN'
+fn main():
+    log (6 * 7) + (9 - 2)
+    return 0
+SWAN
+"$SWAN" "$TMP/constant-fold.swan" --emit-asm -o "$TMP/constant-fold.s"
+cc -x assembler "$TMP/constant-fold.s" -o "$TMP/constant-fold"
+test "$("$TMP/constant-fold")" = "49"
+if grep -Eq 'imul|add rax|sub rax' "$TMP/constant-fold.s"; then
+    echo 'FAIL: constant expression was not folded before assembly emission' >&2
+    cat "$TMP/constant-fold.s" >&2
+    exit 1
+fi
+printf 'PASS: integer constant folding removes runtime arithmetic\n'
 "$SWAN" --version | grep -q 'Swan 0.6.0'
 printf 'PASS: C compiler version command\n'
