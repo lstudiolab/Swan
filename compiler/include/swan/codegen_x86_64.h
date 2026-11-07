@@ -107,9 +107,11 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
       const char *reg=cg_saved_regs[v->reg];
       if(e->token.kind==T_PLUS||e->token.kind==T_MINUS){
        long long disp=e->token.kind==T_PLUS?imm:-imm;
-       if(disp>=0)text_add(o,"    lea rax, [%s + %lld]\n",reg,disp);
-       else text_add(o,"    lea rax, [%s - %lld]\n",reg,-disp);
-       break;
+       if(disp>=INT32_MIN&&disp<=INT32_MAX){
+        if(disp>=0)text_add(o,"    lea rax, [%s + %lld]\n",reg,disp);
+        else text_add(o,"    lea rax, [%s - %lld]\n",reg,-disp);
+        break;
+       }
       }
       if(e->token.kind==T_STAR){text_add(o,"    imul rax, %s, %lld\n",reg,imm);break;}
      }
