@@ -52,11 +52,11 @@ sh compile.sh examples/hello.swan hello
 ./hello
 ```
 
-`compile.sh` runs the Swan frontend, then compiles the generated C with Clang at `-O1` by default. This is the measured fast-build setting: runtime was effectively identical to `-O2` while backend compilation was slightly faster. Set `SWAN_OPT_LEVEL=2` when you prefer more aggressive optimization, or use the lower-level workflow below to inspect the generated C:
+`compile.sh` runs the Swan frontend, then compiles the generated C with Clang at `-O0` by default to prioritize build speed. In the measured workload, `-O0` compiled faster than `-O1` and also ran faster, though this result is workload-dependent. Set `SWAN_OPT_LEVEL=1` for optimized runtime, or use the lower-level workflow below to inspect the generated C:
 
 ```sh
 ./build/swan examples/hello.swan -o hello.c
-clang -std=c11 -O1 hello.c -o hello
+clang -std=c11 -O0 hello.c -o hello
 ```
 
 ## Install
