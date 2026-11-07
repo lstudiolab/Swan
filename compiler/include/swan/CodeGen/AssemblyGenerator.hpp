@@ -54,7 +54,7 @@ private:
     };
     using Scope = std::unordered_map<std::string, Location>;
     static inline constexpr const char* local_registers_[] = {
-        "rbx", "r12", "r13", "r14", "r15", "r8", "r9"
+        "rbx", "r12", "r13", "r14", "r15", "r8", "r9", "rdi", "rsi"
     };
     static inline constexpr const char* argument_registers_[] = {
         "rdi", "rsi", "rdx", "rcx", "r8", "r9"
@@ -174,15 +174,19 @@ private:
     }
 
     void pushCallerSavedLocals() {
+        emit("    push rdi");
+        emit("    push rsi");
         emit("    push r8");
         emit("    push r9");
-        stack_bytes_ += 16;
+        stack_bytes_ += 32;
     }
 
     void popCallerSavedLocals() {
         emit("    pop r9");
         emit("    pop r8");
-        stack_bytes_ -= 16;
+        emit("    pop rsi");
+        emit("    pop rdi");
+        stack_bytes_ -= 32;
     }
 
     void emitArrayAddress(const Expr* node) {
@@ -593,16 +597,17 @@ private:
         emit("    sar r11, 63");
         emit("    xor rax, r11");
         emit("    sub rax, r11");
-        emit("    mov r9, rax");
+        pushRax();
         emit("    movabs r10, 190172619316593316");
         emit("    mul r10");
         emit("    imul rax, rdx, 97");
-        emit("    cmp rax, r9");
+        popRcx();
+        emit("    cmp rax, rcx");
         emit("    jbe " + adjust);
         emit("    sub rdx, 1");
         emit(adjust + ":");
         emit("    imul rdx, rdx, 97");
-        emit("    mov rax, r9");
+        emit("    mov rax, rcx");
         emit("    sub rax, rdx");
         emit("    xor rax, r11");
         emit("    sub rax, r11");
@@ -694,7 +699,7 @@ private:
         }
         pushCallerSavedLocals();
         for (std::size_t i = 0; i < node->arguments.size(); ++i) {
-            const auto offset = 16 + (node->arguments.size() - 1 - i) * 8;
+            const auto offset = 32 + (node->arguments.size() - 1 - i) * 8;
             emit("    mov " + std::string(argument_registers_[i]) +
                  ", QWORD PTR [rsp + " + std::to_string(offset) + "]");
         }
