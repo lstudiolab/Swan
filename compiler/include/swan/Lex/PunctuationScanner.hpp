@@ -2,6 +2,7 @@
 #include "swan/Lex/Lexer.hpp"
 #include <string>
 #include <string_view>
+#include <utility>
 
 namespace swan {
 inline Token Lexer::scanPunctuation() {
@@ -19,15 +20,15 @@ inline Token Lexer::scanPunctuation() {
         (character == '|' && next == '|')) {
         advance();
         advance();
-        const std::string value{character, next};
-        return {value, value, line, column};
+        std::string value{character, next};
+        return {value, std::move(value), line, column};
     }
 
     if (std::string_view("{}()[],:;.+-*/%=<>!").find(character) !=
         std::string_view::npos) {
         advance();
-        const std::string value(1, character);
-        return {value, value, line, column};
+        std::string value(1, character);
+        return {value, std::move(value), line, column};
     }
 
     fail({"", "", line, column},
