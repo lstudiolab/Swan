@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swan"
+SWAN="$ROOT/build/swan-c"
 TMP="$ROOT/build/c-compiler-tests"
 mkdir -p "$TMP"
 cat > "$TMP/hello.swan" <<'SWAN'
