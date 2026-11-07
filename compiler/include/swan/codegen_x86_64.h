@@ -2,16 +2,23 @@
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
 typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
+static inline bool text_reserve(Text *t,size_t extra){
+ if(extra>SIZE_MAX-t->len-1)return false;size_t need=t->len+extra+1;
+ if(need<=t->cap)return true;size_t cap=t->cap?t->cap:4096;
+ while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}
+ char *p=realloc(t->data,cap);if(!p)return false;t->data=p;t->cap=cap;if(!t->len)t->data[0]=0;return true;
+}
 static inline void text_add(Text *t,const char *fmt,...){
+ if(!strchr(fmt,'%')){
+  size_t n=strlen(fmt);if(!text_reserve(t,n))return;
+  memcpy(t->data+t->len,fmt,n);t->len+=n;t->data[t->len]=0;return;
+ }
  va_list ap;va_start(ap,fmt);va_list retry;va_copy(retry,ap);
- if(!t->data){t->data=malloc(4096);if(!t->data){va_end(retry);va_end(ap);return;}t->cap=4096;t->data[0]=0;}
+ if(!text_reserve(t,0)){va_end(retry);va_end(ap);return;}
  size_t avail=t->cap-t->len;int n=vsnprintf(t->data+t->len,avail,fmt,ap);
  if(n<0){va_end(retry);va_end(ap);return;}
  if((size_t)n>=avail){
-  size_t need=t->len+(size_t)n+1,cap=t->cap;
-  while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}
-  char *p=realloc(t->data,cap);if(!p){va_end(retry);va_end(ap);return;}
-  t->data=p;t->cap=cap;
+  if(!text_reserve(t,(size_t)n)){va_end(retry);va_end(ap);return;}
   vsnprintf(t->data+t->len,t->cap-t->len,fmt,retry);
  }
  t->len+=(size_t)n;va_end(retry);va_end(ap);
