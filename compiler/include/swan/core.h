@@ -23,7 +23,7 @@ typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
 typedef enum { E_INT,E_FLOAT,E_STRING,E_BOOL,E_NAME,E_UNARY,E_BINARY,E_CALL } ExprKind;
 typedef struct Expr Expr;
-struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr *args[16]; size_t argc; bool contains_call; };
+struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t argc; bool contains_call; };
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
 typedef struct Stmt Stmt;
 struct Stmt { StmtKind kind; Token token; char name[SWAN_MAX_TEXT]; char type[SWAN_MAX_TEXT]; bool mutable_value; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; char params[16][SWAN_MAX_TEXT]; size_t param_count; Stmt *next; };
