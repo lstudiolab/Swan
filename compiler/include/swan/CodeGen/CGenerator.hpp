@@ -15,6 +15,7 @@ public:
 private:
     std::string cType(const std::string& type) const;
     std::string expression(const ExprPtr& expression) const;
+    void appendExpression(std::string& output, const ExprPtr& expression) const;
     std::string inferredType(const ExprPtr& expression) const;
     std::string quote(const std::string& value) const;
     void line(const std::string& value = {});
