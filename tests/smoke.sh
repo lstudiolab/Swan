@@ -144,7 +144,7 @@ SWAN
 ${CC:-cc} -x assembler "$TMP/string-escapes.s" -o "$TMP/string-escapes"
 expected=$(printf 'quote: " slash: \\ newline:\n tab:\t')
 test "$("$TMP/string-escapes")" = "$expected"
-printf 'PASS: direct C string escaping preserves special characters\n'
+printf 'PASS: native string escaping preserves special characters\n'
 
 # The standard source-file invocation compiles a native executable and runs it.
 test "$("$SWAN" "$ROOT/examples/hello.swan")" = "Hello from Swan"
