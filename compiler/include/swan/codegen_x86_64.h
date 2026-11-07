@@ -356,16 +356,6 @@ static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,
      return;
     }
    }
-   if(e->left&&e->left->kind==E_NAME&&e->right&&e->right->kind==E_NAME){
-    Local *left=local_find(l,e->left->token.text),*right=local_find(l,e->right->token.text);
-    if(left&&right){
-     const char *src=right->reg>=0?cg_reg_name(right->reg):NULL;char memory[64];
-     if(!src){snprintf(memory,sizeof(memory),"QWORD PTR [rbp - %d]",right->slot*8);src=memory;}
-     if(left->reg>=0)text_add(o,"    cmp %s, %s\\n    %s %s\\n",cg_reg_name(left->reg),src,cc,target);
-     else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\\n    cmp rax, %s\\n    %s %s\\n",left->slot*8,src,cc,target);
-     return;
-    }
-   }
    emit_expr(o,e->left,l,err);
    if(e->right&&e->right->kind==E_INT){
     char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
