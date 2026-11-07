@@ -30,7 +30,14 @@ test -s "$TMP/native.o"
 test -s "$TMP/native-object.o"
 "$SWAN" build "$TMP/native.swan" -o "$TMP/native"
 test "$("$TMP/native")" = "91"
-if "$SWAN" "$TMP/native.swan" --target aarch64 --emit-asm -o "$TMP/not-supported.s" 2>"$TMP/unsupported.err"; then
+"$SWAN" "$TMP/native.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
+test -s "$TMP/aarch64.s"
+grep -q '^.global main' "$TMP/aarch64.s"
+aarch64-linux-gnu-as "$TMP/aarch64.s" -o "$TMP/aarch64.o"
+test -s "$TMP/aarch64.o"
+"$SWAN" "$TMP/native.swan" --target aarch64 --emit-obj -o "$TMP/aarch64-driver.o"
+test -s "$TMP/aarch64-driver.o"
+if "$SWAN" "$TMP/native.swan" --target armv7 --emit-asm -o "$TMP/not-supported.s" 2>"$TMP/unsupported.err"; then
     echo 'FAIL: unimplemented architecture was accepted' >&2
     exit 1
 fi
