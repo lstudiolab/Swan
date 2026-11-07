@@ -10,7 +10,7 @@
 namespace swan {
 inline CGenerator::CGenerator(const Program& program) : program_(program) {}
 inline std::string CGenerator::cType(const std::string& type) const { return mapCType(type, structs_); }
-inline void CGenerator::appendCType(std::string& output, const std::string& type) const {
+inline void CGenerator::appendCType(std::string& output, std::string_view type) const {
     appendMappedCType(output, type, structs_);
 }
 inline std::string CGenerator::quote(const std::string& value) const { return escapeCString(value); }
