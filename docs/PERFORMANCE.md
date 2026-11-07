@@ -41,11 +41,11 @@ Potential future improvements:
 
 ### 4. C generation
 
-The C emitter recursively constructs expression strings. Semantic analysis now records each expression's resolved built-in type in a compact enum on the AST. Code generation consumes that result rather than recursively inferring the type again. Non-built-in types retain the existing fallback path. The emitter also writes indentation directly to the output stream.
+The C emitter recursively constructs expression strings. Semantic analysis now records each expression's resolved built-in type in a compact enum on the AST. Code generation consumes that result rather than recursively inferring the type again. Non-built-in types retain the existing fallback path. Generated C is appended to a reserved `std::string` buffer instead of an `ostringstream`, avoiding stream-formatting overhead and the final stream-to-string copy.
 
 Potential future improvements:
 
-- Emit into a shared output buffer instead of returning many intermediate strings.
+- Reduce temporary strings created while assembling individual expressions and statements.
 - Reuse resolved symbol and type information.
 - Measure generated output size and emission time independently.
 
@@ -81,6 +81,6 @@ Correctness and generated-code equivalence take precedence over compile-time imp
 - Parser token access returns references to avoid copying complete token objects.
 - Program parsing reserves declaration storage; code generation reserves structure/function indexes and uses a hash map for struct dependency lookup.
 - Semantic analysis stores built-in expression types in a compact enum. Code generation reuses the cached result instead of recursively inferring types again.
-- C output indentation is written directly to the stream rather than allocating a temporary indentation string for every emitted line.
+- C output uses a reserved string buffer and appends indentation directly, avoiding stream formatting and a final buffer copy.
 
 These changes reduce known repeated work and avoid selected allocations. They are not a claim of a measured percentage improvement. Use the benchmark harness on the same machine before and after changes to quantify end-to-end impact.
