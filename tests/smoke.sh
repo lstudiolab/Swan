@@ -217,6 +217,6 @@ fn main():
     return 0
 SWAN
 "$SWAN" "$TMP/binary-search.swan" -o "$TMP/binary-search.s"
-\${CC:-cc} -x assembler "$TMP/binary-search.s" -o "$TMP/binary-search"
+${CC:-cc} -x assembler "$TMP/binary-search.s" -o "$TMP/binary-search"
 test "$("$TMP/binary-search")" = "120"
 printf 'PASS: binary search over heap arrays\\n'
