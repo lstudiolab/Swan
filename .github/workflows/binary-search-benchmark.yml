@@ -1,13 +1,6 @@
 name: Binary Search Benchmark
 # Deterministic search workload; rerun after Goose constant fix.
 on:
-  push:
-    paths:
-      - "benchmarks/binary_search.swan"
-      - "benchmarks/binary_search.py"
-      - ".github/workflows/binary-search-benchmark.yml"
-      - "compiler/**"
-      - "build.sh"
   workflow_dispatch:
 permissions:
   contents: read
