@@ -1,6 +1,5 @@
 #pragma once
 #include "swan/Parse/Parser.hpp"
-#include <algorithm>
 #include <memory>
 #include <string>
 #include <utility>
@@ -14,7 +13,7 @@ inline StmtPtr Parser::declaration() {
         expect("(");
         if (!check(")")) {
             do {
-                auto parameter = expect("IDENT","expected parameter name");
+                const auto& parameter = expect("IDENT","expected parameter name");
                 std::string type;
                 if (match(":")) type = typeName();
                 node->parameters.push_back({parameter.value,type,parameter});
@@ -45,7 +44,7 @@ inline StmtPtr Parser::declaration() {
         expect("INDENT","expected indentation for structure fields");
         while (!check("DEDENT") && !check("EOF")) {
             if (check("var") || check("let")) advance();
-            auto field = expect("IDENT","expected field name");
+            const auto& field = expect("IDENT","expected field name");
             expect(":");
             node->fields.push_back({field.value,typeName(),field});
             separators();
@@ -67,7 +66,7 @@ inline StmtPtr Parser::declaration() {
     if (check("import")) {
         auto node = std::make_shared<Stmt>();
         node->kind = Stmt::Kind::Import; node->token = advance();
-        auto module = advance();
+        const auto& module = advance();
         if (module.kind != "IDENT" && module.kind != "STRING")
             fail(module,"expected module name");
         node->module = module.value;
