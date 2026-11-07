@@ -37,7 +37,15 @@ private:
         if (value == "string") return "const char *";
         if (value == "int[]") return "swan_int *";
         if (value == "void" || value == "none") return "void";
-        return "struct " + value;
+        return "struct swan_t_" + value;
+    }
+
+    static std::string variableName(const std::string& name) {
+        return "swan_v_" + name;
+    }
+
+    static std::string fieldName(const std::string& name) {
+        return "swan_f_" + name;
     }
 
     static std::string functionName(const std::string& name) {
@@ -79,7 +87,7 @@ private:
         if (node->parameters.empty()) out += "void";
         for (std::size_t i = 0; i < node->parameters.size(); ++i) {
             if (i) out += ", ";
-            out += type(node->parameters[i].type) + " " + node->parameters[i].name;
+            out += type(node->parameters[i].type) + " " + variableName(node->parameters[i].name);
         }
         out += ");\n";
     }
@@ -93,7 +101,7 @@ private:
             if (value == "false" || value == "none") return "0";
             return value;
         case Expr::Kind::Name:
-            return value;
+            return variableName(value);
         case Expr::Kind::Unary:
             return "(" + std::string(value == "not" ? "!" : value) +
                 expression(node->left.get()) + ")";
@@ -101,7 +109,7 @@ private:
             return "(" + expression(node->left.get()) + "[" +
                 expression(node->right.get()) + "])";
         case Expr::Kind::Member:
-            return "(" + expression(node->left.get()) + "." + value + ")";
+            return "(" + expression(node->left.get()) + "." + fieldName(value) + ")";
         case Expr::Kind::Call: {
             if (node->left->token.value == "array")
                 return "((swan_int *)calloc((unsigned long)(" +
@@ -135,7 +143,7 @@ private:
         case Stmt::Kind::Variable: {
             const std::string declared = node->type.empty()
                 ? node->value->resolved_type : node->type;
-            out += pad + type(declared) + " " + node->name;
+            out += pad + type(declared) + " " + variableName(node->name);
             if (node->value) out += " = " + expression(node->value.get());
             else out += " = 0";
             out += ";\n";
@@ -191,7 +199,7 @@ private:
         if (node->parameters.empty()) out += "void";
         for (std::size_t i = 0; i < node->parameters.size(); ++i) {
             if (i) out += ", ";
-            out += type(node->parameters[i].type) + " " + node->parameters[i].name;
+            out += type(node->parameters[i].type) + " " + variableName(node->parameters[i].name);
         }
         out += ") {\n";
         emitBlock(out, node->body, 1);
