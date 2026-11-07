@@ -16,22 +16,13 @@ inline void CGenerator::block(const std::vector<StmtPtr>& statements) {
     scopes_.emplace_back();
     scopes_.back().reserve(statements.size());
     for (const auto& item : statements) statement(item);
-    for (const auto& [name,oldType] : scopes_.back()) {
-        if (oldType.empty()) symbols_.erase(name);
-        else symbols_[name] = oldType;
-    }
     scopes_.pop_back();
 }
 inline void CGenerator::statement(const StmtPtr& node) {
     switch (node->kind) {
     case Stmt::Kind::Variable: {
         const auto type = node->type.empty() ? inferredType(node->value) : node->type;
-        auto& scope = scopes_.back();
-        if (!scope.contains(node->name)) {
-            auto old = symbols_.find(node->name);
-            scope[node->name] = old == symbols_.end() ? "" : old->second;
-        }
-        symbols_[node->name] = type;
+        scopes_.back().emplace(node->name, type);
         line(cType(type) + (node->mutable_value ? " " : " const ") +
              cVariableName(node->name) + (node->value ? " = " + expression(node->value) : "") + ";");
         break;
@@ -60,12 +51,12 @@ inline void CGenerator::statement(const StmtPtr& node) {
     }
 }
 inline void CGenerator::function(const StmtPtr& node) {
-    symbols_.clear(); scopes_.clear(); scopes_.emplace_back();
+    scopes_.clear();
+    scopes_.emplace_back();
     scopes_.back().reserve(node->parameters.size());
-    for (const auto& parameter : node->parameters) {
-        symbols_[parameter.name] = parameter.type;
-        scopes_.back()[parameter.name] = parameter.type;
-    }
+    for (const auto& parameter : node->parameters)
+        scopes_.back().emplace(parameter.name, parameter.type);
+
     std::string parameters;
     parameters.reserve(node->parameters.size() * 32);
     for (const auto& parameter : node->parameters) {
