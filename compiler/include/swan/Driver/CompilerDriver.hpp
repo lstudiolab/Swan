@@ -51,8 +51,6 @@ inline int runCompiler(int argc,char** argv){
     if(options.showHelp){driver::printHelp();return 0;}
     try{
         if(options.input.extension()!=".swan")throw CompileError("input file must use .swan extension");
-        if(!options.cpu.empty()||!options.features.empty())
-            throw CompileError("CPU feature tuning is not available until Swan's per-architecture instruction selector is implemented");
         std::string source;
         if(!readTextFile(options.input,source))throw CompileError("cannot open '"+options.input.string()+"'");
         const bool assembly=options.emitAssembly||(options.hasOutput&&options.output.extension()==".s");
