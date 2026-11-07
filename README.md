@@ -2,7 +2,7 @@
 
 Swan is a compiled programming language with its own frontend, intermediate representation roadmap, optimizer roadmap, and machine-code backends. Swan source is compiled directly to assembly by Swan-owned code generators. It does not transpile to C and does not use LLVM or Clang.
 
-## Current compiler architecture
+## Current compiler architecture\n\nThe implementation is C11. `main.c` is the only compiled source file; the lexer, parser, AST, diagnostics, driver, and code generator are header-only C modules under `compiler/include/swan/`. No C++ compiler is required.
 
 ```text
 .swan source
@@ -20,7 +20,7 @@ The assembler and linker are toolchain components used to turn emitted assembly 
 
 ## Build
 
-Requirements: C++20 compiler and a system assembler/linker (normally provided by `cc`).
+Requirements: C11 compiler and a system assembler/linker (normally provided by `cc`).
 
     sh build.sh
     ./build/swan examples/hello.swan
@@ -32,12 +32,12 @@ Requirements: C++20 compiler and a system assembler/linker (normally provided by
 | Target | Status |
 |---|---|
 | x86-64 System V | Initial Swan-owned assembly backend |
-| AArch64 / ARM64 (AAPCS64 ELF) | Initial Swan-owned assembly backend |
+| AArch64 / ARM64 | Planned C backend |
 | ARMv7 / Thumb | Planned |
 | RISC-V 64 | Planned |
 | WebAssembly | Planned |
 
-The x86-64 backend emits GNU assembler Intel syntax. The AArch64 backend emits GNU AArch64 assembly for the AAPCS64 ELF ABI. ARMv7/Thumb, RISC-V, and WebAssembly remain rejected until their Swan-owned backends are implemented. Swan does not silently fall back to LLVM, Clang, or another compiler backend.
+The initial C backend emits GNU assembler Intel syntax for x86-64. Other architecture backends are not yet ported to C and are unavailable in this build. Swan does not silently fall back to LLVM, Clang, or another compiler backend.
 
 ## Assembly and object output
 
@@ -46,7 +46,7 @@ The x86-64 backend emits GNU assembler Intel syntax. The AArch64 backend emits G
     ./build/swan program.swan --target aarch64 --emit-asm -o program-aarch64.s
     ./build/swan program.swan --target aarch64 --emit-obj -o program-aarch64.o
 
-`--target native` selects the host backend. The initial backend supports x86-64 System V. Object generation and executable linking use the system `CC` toolchain; set `CC` for host assembly/linking or `SWAN_AARCH64_AS` to select the GNU AArch64 assembler.
+The initial C backend currently targets x86-64 System V. The system assembler/linker consumes Swan-emitted assembly; it does not compile Swan source.
 
 ## Optimization
 
@@ -56,4 +56,4 @@ The native backend is an initial correctness-focused implementation. Swan-owned 
 
     sh test.sh
 
-CI builds the compiler without LLVM/Clang and checks native assembly emission, object generation, linking, execution, and explicit rejection of targets whose Swan backend is not yet implemented.
+CI builds the C11 compiler, verifies standalone C headers and the single-translation-unit rule, and runs native x86-64 assembly execution tests.
