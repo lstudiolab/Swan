@@ -195,7 +195,24 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
   switch(s->kind){
-   case S_VARIABLE:{Local *v=local_find(l,s->name);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");if(v){if(v->reg>=0)text_add(o,"    mov %s, rax\n",cg_saved_regs[v->reg]);else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);}break;}
+   case S_VARIABLE:{
+    Local *v=local_find(l,s->name);long long value=0;bool immediate=!s->value;
+    if(s->value&&s->value->kind==E_INT){char *end=NULL;value=strtoll(s->value->token.text,&end,10);immediate=end&&!*end;}
+    else if(s->value&&s->value->kind==E_BOOL){value=s->value->token.kind==T_TRUE;immediate=true;}
+    if(v&&immediate){
+     if(v->reg>=0){
+      static const char *low_regs[]={"ebx","r12d","r13d","r14d","r15d"};
+      if(value==0)text_add(o,"    xor %s, %s\n",low_regs[v->reg],low_regs[v->reg]);
+      else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov %s, %lld\n",cg_saved_regs[v->reg],value);
+      else text_add(o,"    movabs %s, %lld\n",cg_saved_regs[v->reg],value);
+     }else if(value>=INT32_MIN&&value<=INT32_MAX)text_add(o,"    mov QWORD PTR [rbp - %d], %lld\n",v->slot*8,value);
+     else{if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);}
+    }else{
+     if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");
+     if(v){if(v->reg>=0)text_add(o,"    mov %s, rax\n",cg_saved_regs[v->reg]);else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);}
+    }
+    break;
+   }
    case S_LOG:
     if(s->value&&s->value->kind==E_STRING){
      int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);
