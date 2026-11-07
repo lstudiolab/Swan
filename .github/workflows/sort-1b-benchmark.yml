@@ -1,0 +1,35 @@
+name: Swan 1B Integer Sort Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sort-1b-benchmark.yml"
+      - "benchmarks/sort_1b.swan"
+      - "benchmarks/run_sort_1b.sh"
+      - "compiler/**"
+      - "main.c"
+      - "build.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sort-1b:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and execute 1-billion-element sort
+        shell: bash
+        run: |
+          set -o pipefail
+          sh benchmarks/run_sort_1b.sh 2>&1 | tee sort-1b-benchmark.log
+      - name: Upload benchmark log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-sort-1b-${{ github.run_id }}
+          path: sort-1b-benchmark.log
+          if-no-files-found: warn
