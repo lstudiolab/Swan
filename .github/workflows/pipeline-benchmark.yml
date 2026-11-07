@@ -5,13 +5,13 @@ on:
     branches: [main]
     paths:
       - "compiler/**"
-      - "tests/pipeline_benchmark.cpp"
+      - "tests/pipeline_benchmark.inc"
       - "build.sh"
       - ".github/workflows/pipeline-benchmark.yml"
   pull_request:
     paths:
       - "compiler/**"
-      - "tests/pipeline_benchmark.cpp"
+      - "tests/pipeline_benchmark.inc"
       - "build.sh"
       - ".github/workflows/pipeline-benchmark.yml"
   workflow_dispatch:
@@ -35,7 +35,7 @@ jobs:
         run: |
           sh build.sh
           c++ -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror \
-            -Icompiler/include tests/pipeline_benchmark.cpp \
+            -Icompiler/include tests/pipeline_benchmark.inc \
             -o build/pipeline-benchmark
 
       - name: Measure compiler pipeline stages
