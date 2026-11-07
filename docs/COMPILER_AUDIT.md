@@ -2,11 +2,11 @@
 
 ## Current state
 
-The compiler emits assembly directly from the checked Swan AST through Swan-owned x86-64 System V and AArch64 AAPCS64 ELF backends. The LLVM IR generator has been removed. The build and CI do not require LLVM or Clang.
+The compiler is being ported to C11 with a single `main.c` translation unit and header-only modules. The initial C backend emits x86-64 System V assembly directly. The previous C++ implementation is not used by the C build.
 
 The system assembler/linker is used only after Swan emits assembly. It does not perform Swan instruction selection or optimization.
 
-## Implemented in the initial x86-64 backend
+## Initial C backend coverage
 
 - Integer and boolean literals.
 - Local variables and function parameters.
@@ -24,10 +24,10 @@ The system assembler/linker is used only after Swan emits assembly. It does not 
 
 - Floating-point lowering is not implemented.
 - Struct member lowering is not implemented.
-- More than six call arguments are rejected.
-- x86-64 System V and AArch64 AAPCS64 ELF backends are initial implementations.
+- Control-flow lowering, arrays, floats, structs, and complete semantic analysis still need to be ported.
+- Only the initial x86-64 System V C backend exists; AArch64 is not yet ported.
 - ARMv7/Thumb, RISC-V, and WebAssembly backends do not exist yet.
-- AArch64 executable linking and execution are not yet validated in CI.
+
 - Register allocation is currently stack-based and not optimized.
 - CPU-specific instruction tuning and mature Swan-owned optimization passes are not implemented.
 - Platform-specific ABIs beyond the initial x86-64 System V target are not yet validated.
