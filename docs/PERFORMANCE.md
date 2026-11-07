@@ -79,11 +79,11 @@ times per optimization level and checks the output checksum:
 
 | Clang level | Backend compile | Program runtime |
 |---|---:|---:|
-| `-O0` | 49.86 ms | 144.65 ms |
-| `-O1` | 52.25 ms | 129.83 ms |
-| `-O2` | 53.61 ms | 129.95 ms |
-| `-O3` | 56.18 ms | 131.05 ms |
-| `-Os` | 51.87 ms | 132.95 ms |
+| `-O0` | 49.56 ms | 281.99 ms |
+| `-O1` | 52.76 ms | 191.22 ms |
+| `-O2` | 55.96 ms | 193.06 ms |
+| `-O3` | 56.44 ms | 193.33 ms |
+| `-Os` | 54.23 ms | 191.22 ms |
 
 For this workload, `-O1` is the best compile/runtime balance: it compiles
 slightly faster than `-O2` and its runtime is within measurement noise of
