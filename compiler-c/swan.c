@@ -80,16 +80,19 @@ static void emit_store_const(Buffer *b,Target t,int slot,long long value){
     }
 }
 static void emit_loop_open(Buffer *b,Target t,const Loop *l,long long first,long long limit){
+    if(t==X86_64&&l->reg_pair){
+        const char *index=l->reg_pair==1?"r12":"r14",*limit_reg=l->reg_pair==1?"r13":"r15";
+        char s[220];
+        snprintf(s,sizeof s,"  movabs %s, %lld\n  movabs %s, %lld\n",index,first,limit_reg,limit);
+        append(b,s);append(b,l->start);append(b,":\n");
+        snprintf(s,sizeof s,"  cmp %s, %s\n  jge %s\n",index,limit_reg,l->end);append(b,s);
+        return;
+    }
     emit_store_const(b,t,l->index_slot,first);
     emit_store_const(b,t,l->limit_slot,limit);
     append(b,l->start);append(b,":\n");
     if(t==X86_64){
-        char s[240];
-        if(l->reg_pair){
-            const char *index=l->reg_pair==1?"r12":"r14",*limit_reg=l->reg_pair==1?"r13":"r15";
-            snprintf(s,sizeof s,"  movabs %s, %lld\n  movabs %s, %lld\n%s:\n  cmp %s, %s\n  jge %s\n",index,first,limit_reg,limit,l->start,index,limit_reg,l->end);
-        }else snprintf(s,sizeof s,"  mov rax, qword ptr [rbp - %d]\n  cmp rax, qword ptr [rbp - %d]\n  jge %s\n",l->index_slot,l->limit_slot,l->end);
-        append(b,s);
+        char s[160];snprintf(s,sizeof s,"  mov rax, qword ptr [rbp - %d]\n  cmp rax, qword ptr [rbp - %d]\n  jge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
     }else if(t==AARCH64){
         char s[200];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x10, [x9]\n  sub x9, x29, #%d\n  ldr x11, [x9]\n  cmp x10, x11\n  b.ge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
     }else{
