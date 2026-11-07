@@ -7,7 +7,7 @@
 namespace swan {
 inline Token Lexer::scanIdentifier() {
     const auto line = line_;
-    const auto column = column_;
+    auto column = column_;
     const auto start = index_;
     while (index_ < source_.size() && isIdentifierContinue(source_[index_])) {
         ++index_;
