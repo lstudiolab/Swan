@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Swan compiler
         run: sh build.sh
+      - name: Verify standalone headers
+        run: sh tests/headers.sh
       - name: Verify native assembly backend
         run: |
           sh tests/smoke.sh
