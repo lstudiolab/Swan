@@ -139,7 +139,7 @@ fn main():
     return 0
 SWAN
 "$SWAN" "$TMP/string-escapes.swan" -o "$TMP/string-escapes.c"
-\${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/string-escapes.c" -o "$TMP/string-escapes"
+${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/string-escapes.c" -o "$TMP/string-escapes"
 expected=$(printf 'quote: " slash: \\ newline:\n tab:\t')
 test "$("$TMP/string-escapes")" = "$expected"
 printf 'PASS: direct C string escaping preserves special characters\n'
