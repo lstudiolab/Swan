@@ -232,6 +232,37 @@ static inline bool emit_increment_statement(Text *o,Expr *e,Locals *l){
  else text_add(o,"    add QWORD PTR [rbp - %d], %lld\n",v->slot*8,imm);
  return true;
 }
+static inline bool expr_writes_local(Expr *e,const char *name){
+ if(!e)return false;
+ if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN&&e->left&&e->left->kind==E_NAME&&!strcmp(e->left->token.text,name))return true;
+ if(expr_writes_local(e->left,name)||expr_writes_local(e->right,name))return true;
+ for(size_t i=0;i<e->argc;i++)if(expr_writes_local(e->args[i],name))return true;
+ return false;
+}
+static inline bool statements_write_local(Stmt **body,size_t n,const char *name){
+ for(size_t i=0;i<n;i++){
+  Stmt *s=body[i];
+  if(s->kind==S_VARIABLE&&!strcmp(s->name,name))return true;
+  if(expr_writes_local(s->value,name)||expr_writes_local(s->condition,name))return true;
+  if(statements_write_local(s->body,s->body_count,name)||statements_write_local(s->alternate,s->alt_count,name))return true;
+ }
+ return false;
+}
+static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
+ if(!s||s->kind!=S_WHILE||!s->condition||s->condition->kind!=E_BINARY)return false;
+ Expr *cond=s->condition;
+ if((cond->token.kind!=T_LT&&cond->token.kind!=T_LE)||!cond->left||cond->left->kind!=E_NAME||!cond->right||cond->right->kind!=E_INT)return false;
+ char *end=NULL;long long bound=strtoll(cond->right->token.text,&end,10);
+ if(!end||*end||bound<INT32_MIN||bound>INT32_MAX||!local_find(l,cond->left->token.text))return false;
+ if(!s->body_count)return false;
+ Stmt *last=s->body[s->body_count-1];
+ if(last->kind!=S_EXPR||!last->value||last->value->kind!=E_BINARY||last->value->token.kind!=T_ASSIGN)return false;
+ Expr *assign=last->value;
+ if(!assign->left||assign->left->kind!=E_NAME||strcmp(assign->left->token.text,cond->left->token.text))return false;
+ Expr *step=assign->right;
+ if(!step||step->kind!=E_BINARY||step->token.kind!=T_PLUS||!step->left||step->left->kind!=E_NAME||strcmp(step->left->token.text,cond->left->token.text)||!step->right||step->right->kind!=E_INT||strcmp(step->right->token.text,"1"))return false;
+ return !statements_write_local(s->body,s->body_count-1,cond->left->token.text);
+}
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
@@ -278,8 +309,19 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     emit_block(o,s->alternate,s->alt_count,l,label,err);text_add(o,".Lswan_end_%d:\n",id);break;
    }
    case S_WHILE:{
-    int id=(*label)++;text_add(o,".Lswan_loop_%d:\n",id);char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);emit_condition_jump(o,s->condition,l,err,target,false);emit_block(o,s->body,s->body_count,l,label,err);
-    text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);break;
+    int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
+    if(loop_bottom_test_candidate(s,l)){
+     emit_condition_jump(o,s->condition,l,err,target,false);
+     text_add(o,".Lswan_loop_%d:\n",id);
+     emit_block(o,s->body,s->body_count,l,label,err);
+     snprintf(target,sizeof(target),".Lswan_loop_%d",id);
+     emit_condition_jump(o,s->condition,l,err,target,true);
+     text_add(o,".Lswan_loop_end_%d:\n",id);
+    }else{
+     text_add(o,".Lswan_loop_%d:\n",id);emit_condition_jump(o,s->condition,l,err,target,false);emit_block(o,s->body,s->body_count,l,label,err);
+     text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);
+    }
+    break;
    }
    default:break;
   }
