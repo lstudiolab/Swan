@@ -26,7 +26,7 @@ public:
         strings_.clear();
         floats_.clear();
         next_label_ = 0;
-        data_ = ".section .rodata\n"
+        validateStructs();\n        data_ = ".section .rodata\n"
                 ".Lfmt_int: .asciz \"%lld\\n\"\n"
                 ".Lfmt_float: .asciz \"%g\\n\"\n"
                 ".Lfmt_bool: .asciz \"%d\\n\"\n"
