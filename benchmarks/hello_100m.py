@@ -16,7 +16,10 @@ def measured(command, label):
     start = time.perf_counter()
     p = subprocess.run(wrapped, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     elapsed = time.perf_counter() - start
-    rss = int(memfile.read_text().strip()) if memfile.exists() else None
+    rss = None
+    if memfile.exists():
+        values = [line.strip() for line in memfile.read_text().splitlines() if line.strip().isdigit()]
+        rss = int(values[-1]) if values else None
     return p, elapsed, rss
 
 goose = pathlib.Path("goose/build/goose").resolve()
