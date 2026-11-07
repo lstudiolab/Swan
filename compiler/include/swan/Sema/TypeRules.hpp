@@ -1,10 +1,10 @@
 #pragma once
-#include <string>
+#include <string_view>
 namespace swan {
-inline bool isNumericType(const std::string& type) {
+inline bool isNumericType(std::string_view type) {
     return type == "int" || type == "float";
 }
-inline bool isTypeCompatible(const std::string& expected, const std::string& actual) {
+inline bool isTypeCompatible(std::string_view expected, std::string_view actual) {
     return expected == actual || (expected == "float" && actual == "int");
 }
 }
