@@ -25,8 +25,9 @@ The system assembler/linker is used only after Swan emits assembly. It does not 
 - Floating-point lowering is not implemented.
 - Struct member lowering is not implemented.
 - More than six call arguments are rejected.
-- Only the x86-64 System V ABI backend is implemented.
-- AArch64, ARM, RISC-V, and WebAssembly backends do not exist yet.
+- x86-64 System V and AArch64 AAPCS64 ELF backends are initial implementations.
+- ARMv7/Thumb, RISC-V, and WebAssembly backends do not exist yet.
+- AArch64 executable linking and execution are not yet validated in CI.
 - Register allocation is currently stack-based and not optimized.
 - CPU-specific instruction tuning and mature Swan-owned optimization passes are not implemented.
 - Platform-specific ABIs beyond the initial x86-64 System V target are not yet validated.
