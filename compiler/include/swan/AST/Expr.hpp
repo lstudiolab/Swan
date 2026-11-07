@@ -7,7 +7,7 @@ namespace swan {
 struct Expr;
 using ExprPtr = std::unique_ptr<Expr>;
 struct Expr {
-    enum class Kind { Literal, Name, Unary, Binary, Call, Member };
+    enum class Kind { Literal, Name, Unary, Binary, Call, Member, Index };
     Kind kind = Kind::Literal;
     Token token;
     std::string resolved_type;
