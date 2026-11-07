@@ -76,7 +76,7 @@ private:
     }
 
     void emitStruct(std::string& out, const Stmt* node) const {
-        out += "struct " + node->name + " {\n";
+        out += "struct swan_t_" + node->name + " {\n";
         for (const auto& field : node->fields)
             out += "    " + type(field.type) + " " + field.name + ";\n";
         out += "};\n";
