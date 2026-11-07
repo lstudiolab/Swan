@@ -3,5 +3,5 @@
 #include <string>
 namespace swan {
 struct Param { std::string name; std::string type; SourceLocation token; };
-struct Field { std::string name; std::string type; Token token; };
+struct Field { std::string name; std::string type; SourceLocation token; };
 }
