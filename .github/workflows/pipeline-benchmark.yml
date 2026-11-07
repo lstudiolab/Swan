@@ -1,0 +1,53 @@
+name: Swan Compiler Pipeline Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "compiler/**"
+      - "tests/pipeline_benchmark.cpp"
+      - "build.sh"
+      - ".github/workflows/pipeline-benchmark.yml"
+  pull_request:
+    paths:
+      - "compiler/**"
+      - "tests/pipeline_benchmark.cpp"
+      - "build.sh"
+      - ".github/workflows/pipeline-benchmark.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Record machine and toolchain
+        run: |
+          lscpu | grep -E 'Model name|CPU\(s\)' | head -n 2
+          c++ --version | head -n 1
+          cc --version | head -n 1
+
+      - name: Build Swan compiler and pipeline harness
+        run: |
+          sh build.sh
+          c++ -std=c++20 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror \
+            -Icompiler/include tests/pipeline_benchmark.cpp \
+            -o build/pipeline-benchmark
+
+      - name: Measure compiler pipeline stages
+        run: |
+          set -eu
+          ./build/pipeline-benchmark build | tee build/pipeline-results.csv
+
+      - name: Preserve benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-pipeline-benchmark
+          path: |
+            build/pipeline-results.csv
+            build/pipeline-*.c
+          retention-days: 30
