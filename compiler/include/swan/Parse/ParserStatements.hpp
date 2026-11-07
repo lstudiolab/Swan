@@ -19,23 +19,24 @@ inline StmtPtr Parser::statement() {
     }
     if (check("while")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::While; node->token = advance();
+        node->kind = Stmt::Kind::While; node->token = advance().location();
         node->condition = expression(); node->body = block();
         return node;
     }
     if (check("return")) {
         auto node = std::make_shared<Stmt>();
-        node->kind = Stmt::Kind::Return; node->token = advance();
+        node->kind = Stmt::Kind::Return; node->token = advance().location();
         if (!check("}") && !check("NEWLINE") && !check(";") && !check("EOF"))
             node->value = expression();
         return node;
     }
     if (check("break") || check("continue") || check("pass") || check("log")) {
         auto node = std::make_shared<Stmt>();
-        node->token = advance();
-        if (node->token.kind == "break") node->kind = Stmt::Kind::Break;
-        else if (node->token.kind == "continue") node->kind = Stmt::Kind::Continue;
-        else if (node->token.kind == "log") {
+        const auto& keyword = advance();
+        node->token = keyword.location();
+        if (keyword.kind == "break") node->kind = Stmt::Kind::Break;
+        else if (keyword.kind == "continue") node->kind = Stmt::Kind::Continue;
+        else if (keyword.kind == "log") {
             node->kind = Stmt::Kind::Log; node->value = expression();
         } else node->kind = Stmt::Kind::Pass;
         return node;
