@@ -72,7 +72,7 @@ jobs:
               for (int64_t i = 0; i < 1000; ++i)
                   for (int64_t j = 0; j < 1000000; ++j)
                       acc += (i * 1000003 + j * 97) % 65536;
-              printf("%lld\\n", (long long)acc);
+              printf("%lld\n", (long long)acc);
               return 0;
           }
           EOF
@@ -85,7 +85,7 @@ jobs:
               for (std::int64_t i = 0; i < 1000; ++i)
                   for (std::int64_t j = 0; j < 1000000; ++j)
                       acc += (i * 1000003 + j * 97) % 65536;
-              std::printf("%lld\\n", static_cast<long long>(acc));
+              std::printf("%lld\n", static_cast<long long>(acc));
           }
           EOF
 
@@ -136,7 +136,7 @@ jobs:
                       acc += @mod(i * 1_000_003 + j * 97, 65_536);
                   }
               }
-              std.debug.print("{d}\\n", .{acc});
+              std.debug.print("{d}\n", .{acc});
           }
           EOF
 
