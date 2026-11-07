@@ -1,37 +1,42 @@
 {
   "Function": {
     "prefix": "fn",
-    "body": ["fn ${1:functionName}(${2}) -> ${3:int} {", "    ${0:pass;}", "}"],
+    "body": ["fn ${1:functionName}(${2}) -> ${3:int}:", "    ${0:pass}"],
     "description": "Declare a Swan function"
   },
   "Variable": {
     "prefix": "var",
-    "body": ["var ${1:name}: ${2:int} = ${3:0};"],
+    "body": ["var ${1:name}: ${2:int} = ${3:0}"],
     "description": "Declare a mutable variable"
   },
   "Immutable value": {
     "prefix": "let",
-    "body": ["let ${1:name}: ${2:string} = ${3:\"value\"};"],
+    "body": ["let ${1:name}: ${2:string} = ${3:\"value\"}"],
     "description": "Declare an immutable value"
   },
   "Structure": {
     "prefix": "struct",
-    "body": ["struct ${1:Name} {", "    ${2:field}: ${3:int};", "}"],
+    "body": ["struct ${1:Name}:", "    ${2:field}: ${3:int}"],
     "description": "Declare a Swan structure"
   },
   "If statement": {
     "prefix": "if",
-    "body": ["if ${1:condition} {", "    ${0:pass;}", "}"],
+    "body": ["if ${1:condition}", "    ${0:pass}"],
     "description": "Create an if block"
+  },
+  "If else statement": {
+    "prefix": "ife",
+    "body": ["if ${1:condition}", "    ${2:pass}", "else", "    ${0:pass}"],
+    "description": "Create an if/else block"
   },
   "While loop": {
     "prefix": "while",
-    "body": ["while ${1:condition} {", "    ${0:pass;}", "}"],
+    "body": ["while ${1:condition}", "    ${0:pass}"],
     "description": "Create a while loop"
   },
   "Log": {
     "prefix": "log",
-    "body": ["log \"${1:message}\";"],
+    "body": ["log \"${1:message}\""],
     "description": "Log a value"
   }
 }
