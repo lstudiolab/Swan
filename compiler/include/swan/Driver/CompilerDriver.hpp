@@ -93,7 +93,7 @@ inline int compilePortable(const std::string& generated,
         throw CompileError("cross-target executable linking requires a target sysroot; use --emit-asm");
     const char* configured = std::getenv("CC");
     const std::string compiler = configured && *configured ? configured : "cc";
-    const std::string command = shellQuote(compiler) + " -O3 -fwrapv -std=c11 -x c " +
+    const std::string command = shellQuote(compiler) + " -O3 -march=native -fwrapv -std=c11 -x c " +
         shellQuote(sourceFile.string()) + " -o " + shellQuote(output.string());
     const int status = processExitCode(std::system(command.c_str()));
     if (status != 0) {
