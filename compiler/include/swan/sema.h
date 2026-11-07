@@ -1,7 +1,7 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { char name[SWAN_MAX_TEXT]; bool mutable_value; int previous; } SwanSymbol;
+typedef struct { const char *name; bool mutable_value; int previous; } SwanSymbol;
 typedef struct { SwanSymbol *items; size_t count; int buckets[2048]; } SwanSymbols;
 static inline unsigned swan_name_hash(const char *s){
  uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;
@@ -15,7 +15,7 @@ static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *inde
 }
 static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut){
  if(s->count>=1024)return false;unsigned b=swan_name_hash(name)&2047u;size_t i=s->count++;
- SwanSymbol *v=&s->items[i];strcpy(v->name,name);v->mutable_value=mut;v->previous=s->buckets[b];s->buckets[b]=(int)i+1;return true;
+ SwanSymbol *v=&s->items[i];v->name=name;v->mutable_value=mut;v->previous=s->buckets[b];s->buckets[b]=(int)i+1;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){
  while(s->count>mark){size_t i=--s->count;unsigned b=swan_name_hash(s->items[i].name)&2047u;s->buckets[b]=s->items[i].previous;}
