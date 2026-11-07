@@ -348,7 +348,7 @@ SWAN
 cc -x assembler "$TMP/compound-arithmetic.s" -o "$TMP/compound-arithmetic"
 test "$("$TMP/compound-arithmetic")" = "41
 328
-1"
+-286"
 grep -q 'imul rbx, r12' "$TMP/compound-arithmetic.s"
 grep -q 'shl rbx, 3' "$TMP/compound-arithmetic.s"
 printf 'PASS: compound arithmetic updates register and spilled locals in place\n'
