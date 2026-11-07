@@ -184,3 +184,39 @@ SWAN
 ${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
 test "$("$TMP/arrays")" = "84"
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
+
+# Binary search exercises allocation, indexed memory, arithmetic, and nested control flow.
+cat > "$TMP/binary-search.swan" <<'SWAN'
+fn main():
+    let values = array(16)
+    var i = 0
+    while i < 16
+        values[i] = i
+        i = i + 1
+    var query = 0
+    var checksum = 0
+    while query < 16
+        var target = (query * 7) % 16
+        var low = 0
+        var high = 15
+        var found = -1
+        while low <= high
+            var middle = low + (high - low) / 2
+            var value = values[middle]
+            if value == target
+                found = value
+                break
+            else
+                if value < target
+                    low = middle + 1
+                else
+                    high = middle - 1
+        checksum = checksum + found
+        query = query + 1
+    log checksum
+    return 0
+SWAN
+"$SWAN" "$TMP/binary-search.swan" -o "$TMP/binary-search.s"
+\${CC:-cc} -x assembler "$TMP/binary-search.s" -o "$TMP/binary-search"
+test "$("$TMP/binary-search")" = "120"
+printf 'PASS: binary search over heap arrays\\n'
