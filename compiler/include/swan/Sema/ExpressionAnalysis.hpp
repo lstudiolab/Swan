@@ -72,7 +72,7 @@ inline std::string_view Sema::analyzeExpression(const ExprPtr& node) {
         for (std::size_t i = 0; i < parameters.size(); ++i) {
             const auto actual = analyzeExpression(node->arguments[i]);
             if (!compatible(parameters[i].type,actual))
-                fail(node->arguments[i]->token,"argument has type " + actual + "; expected " + parameters[i].type);
+                fail(node->arguments[i]->token,"argument has type " + std::string(actual) + "; expected " + parameters[i].type);
         }
         return finish(found->second->return_type);
     }
