@@ -123,7 +123,7 @@ fn main():
     return 0
 SWAN
 "$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
-if ! grep -q "mov r11, rax" "$TMP/invariant-hoist.s" || ! grep -q "mov rax, r11" "$TMP/invariant-hoist.s"; then
+if ! grep -q "mov r11, rax" "$TMP/invariant-hoist.s" || ! grep -q "mov rax, r11" "$TMP/invariant-hoist.s" || ! grep -q "imul r15, r14, 13" "$TMP/invariant-hoist.s" || ! grep -q "add r15, 13" "$TMP/invariant-hoist.s"; then
     echo "FAIL: expected invariant expression was not hoisted" >&2
     cat "$TMP/invariant-hoist.s" >&2
     exit 1
