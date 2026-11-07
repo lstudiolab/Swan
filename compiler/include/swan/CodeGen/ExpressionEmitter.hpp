@@ -64,7 +64,8 @@ inline void CGenerator::appendExpression(std::string& output, const ExprPtr& nod
         else output += node->value;
         return;
     case Expr::Kind::Name:
-        output += cVariableName(node->value);
+        output += "swan_var_";
+        output += node->value;
         return;
     case Expr::Kind::Unary:
         output += node->op == "not" ? "!" : node->op;
@@ -92,7 +93,11 @@ inline void CGenerator::appendExpression(std::string& output, const ExprPtr& nod
     case Expr::Kind::Call:
         if (node->left->kind != Expr::Kind::Name)
             fail(node->token,"only direct function calls are supported");
-        output += cFunctionName(node->left->value);
+        if (node->left->value == "main") output += "main";
+        else {
+            output += "swan_fn_";
+            output += node->left->value;
+        }
         output.push_back('(');
         for (std::size_t i = 0; i < node->arguments.size(); ++i) {
             if (i) output += ", ";
@@ -103,7 +108,8 @@ inline void CGenerator::appendExpression(std::string& output, const ExprPtr& nod
     case Expr::Kind::Member:
         appendExpression(output, node->left);
         output.push_back('.');
-        output += cFieldName(node->value);
+        output += "swan_field_";
+        output += node->value;
         return;
     }
 }
