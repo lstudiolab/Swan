@@ -36,5 +36,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: swan-only-benchmark
-          path: swan-only-benchmark.json
+          path: |
+            swan-only-benchmark.json
+            swan-only-benchmark.s
           if-no-files-found: error
