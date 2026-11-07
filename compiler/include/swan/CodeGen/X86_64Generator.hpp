@@ -80,7 +80,7 @@ class X86_64Generator {
         const auto& op=e->token.value;
         if(op=="="){
             if(e->left->kind==Expr::Kind::Name){expr(e->right.get());emit("mov QWORD PTR [rbp - "+std::to_string(lookup(e->left->token.value)*8)+"], rax");return;}
-            if(e->left->kind==Expr::Kind::Index){expr(e->left->left.get());emit("push rax");expr(e->left->right.get());emit("mov rcx, rax");expr(e->right.get());emit("pop rdx");emit("mov QWORD PTR [rdx + rcx*8], rax");return;}
+            if(e->left->kind==Expr::Kind::Index){expr(e->left->left.get());emit("push rax");expr(e->left->right.get());emit("mov rcx, rax");emit("push rcx");expr(e->right.get());emit("pop rcx");emit("pop rdx");emit("mov QWORD PTR [rdx + rcx*8], rax");return;}
             throw CompileError("unsupported assignment target in x86-64 backend");
         }
         expr(e->left.get());emit("push rax");expr(e->right.get());emit("mov rcx, rax");emit("pop rax");
