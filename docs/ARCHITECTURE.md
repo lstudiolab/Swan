@@ -1,45 +1,41 @@
 # Compiler Architecture
 
-Swan is a native compiler. The frontend and semantic model are Swan-owned; LLVM is the machine backend.
+Swan owns its compilation pipeline and machine-code backends. There is no C transpilation stage, LLVM IR backend, or Clang code-generation dependency.
 
-## Repository layout
-
-```text
-main.cpp
-compiler/include/swan/
-├── Basic/       Source locations, tokens, diagnostics
-├── Support/     File and version utilities
-├── Lex/         Token scanners
-├── AST/         Expression, declaration, statement, program nodes
-├── Parse/       Grammar and parser
-├── Sema/        Type, scope, declaration, statement analysis
-├── Frontend/    Frontend orchestration
-├── CodeGen/     Typed Swan AST to LLVM IR
-├── Compiler/    Compilation orchestration
-└── Driver/      Target selection and LLVM invocation
-```
-
-## Pipeline
+## Current pipeline
 
 ```text
-.swan -> Lexer -> Parser -> Semantic analysis
-      -> typed AST -> LLVM IR -> LLVM target backend
-      -> target assembly -> assembler/linker -> executable
+.swan -> Lexer -> Parser -> Semantic analysis -> checked AST
+      -> Swan-owned x86-64 code generator -> GNU assembly
+      -> system assembler/linker -> object / executable
 ```
 
-Swan never emits C. The IR generator consumes the semantically checked AST directly. LLVM owns instruction selection, register allocation, machine optimization, and target assembly emission.
+The host assembler and linker are only used after Swan has emitted assembly. They do not compile Swan source or choose machine instructions.
 
-## Target model
+## Current implementation
 
-The driver accepts common aliases (x86_64, aarch64, armv7, riscv64, wasm32) and full LLVM target triples. A target triple selects both the instruction set and the platform ABI. The installed LLVM backend determines which triples can be emitted.
+- Frontend: Swan lexer, parser, and semantic analysis.
+- Code generation: direct checked-AST to x86-64 System V assembly.
+- Assembly syntax: GNU assembler Intel syntax.
+- Object/executable production: host system `CC` toolchain.
+- Unsupported targets fail with a diagnostic. There is no LLVM or external compiler fallback.
 
-Cross-target assembly does not require a sysroot. Linking a foreign executable requires the corresponding linker, runtime libraries, and sysroot.
+## Backend architecture target
+
+Each target backend will own:
+1. Target data layout and ABI lowering.
+2. Instruction selection from Swan's typed low-level IR.
+3. Register allocation and spill handling.
+4. Calling convention and stack-frame layout.
+5. Assembly emission and relocation/symbol conventions.
+6. Target-specific optimization and instruction scheduling.
+
+Planned backends: x86-64, AArch64, ARMv7/Thumb, RISC-V 64, and WebAssembly.
 
 ## Engineering rules
 
-1. Frontend owns Swan semantics and does not depend on code generation.
-2. Code generation consumes a semantically checked AST.
-3. LLVM IR is the backend interface; C is not an intermediate language.
-4. Driver owns target selection and external tool invocation.
-5. Every backend behavior requires a regression test.
-6. Do not claim a target is supported until assembly generation and validation pass.
+1. Swan source must never be transpiled into C.
+2. Swan must not delegate code generation to LLVM or Clang.
+3. An assembler/linker may consume Swan-emitted assembly; it is not a compiler backend.
+4. Never advertise an architecture until its Swan-owned backend and ABI tests pass.
+5. Every backend requires instruction-level tests, ABI tests, executable tests, and cross-target artifact validation.
