@@ -169,8 +169,9 @@ static int emit_source(const char *source,Target t,Buffer *out){
             if(depth)loops[depth-1].has_body=1;
             Loop *l=&loops[depth];memset(l,0,sizeof(*l));strcpy(l->name,name);l->indent=indent;
             int spill_depth=(t==X86_64&&depth>=2)?depth-2:depth;
+            int spill_base=(t==X86_64&&depth>=2)?32:0;
             l->reg_pair=(t==X86_64&&depth<2)?depth+1:0;
-            l->index_slot=(spill_depth*2+1)*8;l->limit_slot=(spill_depth*2+2)*8;
+            l->index_slot=spill_base+(spill_depth*2+1)*8;l->limit_slot=spill_base+(spill_depth*2+2)*8;
             snprintf(l->start,sizeof l->start,".Lswan_loop_%u",loop_id);
             snprintf(l->step_label,sizeof l->step_label,".Lswan_step_%u",loop_id);snprintf(l->end,sizeof l->end,".Lswan_end_%u",loop_id++);
             emit_loop_open(&code,t,l,first,last);depth++;if(depth>max_depth)max_depth=depth;continue;
