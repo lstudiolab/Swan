@@ -146,6 +146,8 @@ def main() -> None:
                   f"wall, {metrics['total_cpu_seconds']:.6f}s CPU, "
                   f"{metrics['peak_rss_mib']:.3f} MiB peak RSS", flush=True)
 
+        shutil.copyfile(assembly, ROOT / "swan-only-benchmark.s")
+
         report = {
             "benchmark": "Swan-only one-billion nested-loop stress test",
             "commit": os.environ.get("GITHUB_SHA"),
