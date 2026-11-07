@@ -33,6 +33,22 @@ test "$("$TMP/control")" = "0
 0"
 printf 'PASS: nested indentation-based control flow\n'
 
+cat > "$TMP/multi-dedent.swan" <<'SWAN'
+fn main():
+    if true
+        while false
+            if true
+                log "unreachable"
+        log "inner blocks closed together"
+    log "outer block closed"
+    return 0
+SWAN
+"$SWAN" "$TMP/multi-dedent.swan" -o "$TMP/multi-dedent.c"
+${CC:-cc} -std=c11 -Wall -Wextra -Werror "$TMP/multi-dedent.c" -o "$TMP/multi-dedent"
+test "$("$TMP/multi-dedent")" = "inner blocks closed together
+outer block closed"
+printf 'PASS: one dedent closes multiple nested blocks\n'
+
 cat > "$TMP/functions.swan" <<'SWAN'
 fn answer():
     return 42
