@@ -86,8 +86,8 @@ class LLVMIRGenerator {
             for (; index < structure->fields.size(); ++index)
                 if (structure->fields[index].name == e->token.value) break;
             if (index == structure->fields.size()) throw CompileError("unknown struct field '" + e->token.value + "'");
-            auto base = emitExpr(e->left.get()), p = tmp();
-            line(p + " = getelementptr inbounds %swan." + structName + ", ptr " + base.value +
+            auto base = e->left->kind == Expr::Kind::Name ? lookup(e->left->token.value) : address(e->left.get()), p = tmp();
+            line(p + " = getelementptr inbounds %swan." + structName + ", ptr " + base +
                  ", i32 0, i32 " + std::to_string(index));
             return p;
         }
