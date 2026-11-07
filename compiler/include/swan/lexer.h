@@ -1,13 +1,15 @@
 #ifndef SWAN_LEXER_H
 #define SWAN_LEXER_H
 #include "swan/core.h"
-static inline TokenKind swan_keyword(const char *s) {
- if(!strcmp(s,"fn"))return T_FN;if(!strcmp(s,"let"))return T_LET;if(!strcmp(s,"var"))return T_VAR;
- if(!strcmp(s,"const"))return T_CONST;if(!strcmp(s,"return"))return T_RETURN;if(!strcmp(s,"log"))return T_LOG;
- if(!strcmp(s,"if"))return T_IF;if(!strcmp(s,"else"))return T_ELSE;if(!strcmp(s,"while"))return T_WHILE;
- if(!strcmp(s,"break"))return T_BREAK;if(!strcmp(s,"continue"))return T_CONTINUE;if(!strcmp(s,"pass"))return T_PASS;
- if(!strcmp(s,"true"))return T_TRUE;if(!strcmp(s,"false"))return T_FALSE;if(!strcmp(s,"none"))return T_NONE;
- if(!strcmp(s,"and"))return T_AND;if(!strcmp(s,"or"))return T_OR;if(!strcmp(s,"not"))return T_NOT;return T_IDENT;
+static inline TokenKind swan_keyword(const char *s,size_t n) {
+ #define SWAN_KW(word,kind) if(n==sizeof(word)-1&&!memcmp(s,word,sizeof(word)-1))return kind
+ SWAN_KW("fn",T_FN);SWAN_KW("let",T_LET);SWAN_KW("var",T_VAR);SWAN_KW("const",T_CONST);
+ SWAN_KW("return",T_RETURN);SWAN_KW("log",T_LOG);SWAN_KW("if",T_IF);SWAN_KW("else",T_ELSE);
+ SWAN_KW("while",T_WHILE);SWAN_KW("break",T_BREAK);SWAN_KW("continue",T_CONTINUE);
+ SWAN_KW("pass",T_PASS);SWAN_KW("true",T_TRUE);SWAN_KW("false",T_FALSE);SWAN_KW("none",T_NONE);
+ SWAN_KW("and",T_AND);SWAN_KW("or",T_OR);SWAN_KW("not",T_NOT);
+ #undef SWAN_KW
+ return T_IDENT;
 }
 static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
  if(ts->count>=SWAN_MAX_TOKENS){Token t={0};swan_error(err,&t,"source has too many tokens");return false;}
@@ -30,7 +32,7 @@ static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
   if(c=='#'){while(i<ts->length&&src[i]!='\n'){i++;col++;}continue;}
   if(c=='\n'){if(!swan_emit(ts,T_NEWLINE,"",0,line,col,err))return false;i++;line++;col=1;line_start=true;continue;}
   unsigned sl=line,sc=col;size_t st=i;
-  if(isalpha((unsigned char)c)||c=='_'){while(i<ts->length&&(isalnum((unsigned char)src[i])||src[i]=='_')){i++;col++;}size_t n=i-st;char word[SWAN_MAX_TEXT];if(n>=sizeof(word)){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"identifier too long");return false;}memcpy(word,src+st,n);word[n]=0;if(!swan_emit(ts,swan_keyword(word),word,n,sl,sc,err))return false;continue;}
+  if(isalpha((unsigned char)c)||c=='_'){while(i<ts->length&&(isalnum((unsigned char)src[i])||src[i]=='_')){i++;col++;}size_t n=i-st;if(n>=SWAN_MAX_TEXT){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"identifier too long");return false;}if(!swan_emit(ts,swan_keyword(src+st,n),src+st,n,sl,sc,err))return false;continue;}
   if(isdigit((unsigned char)c)){while(i<ts->length&&isdigit((unsigned char)src[i])){i++;col++;}TokenKind k=T_INT;if(i+1<ts->length&&src[i]=='.'&&isdigit((unsigned char)src[i+1])){k=T_FLOAT;i++;col++;while(i<ts->length&&isdigit((unsigned char)src[i])){i++;col++;}}if(!swan_emit(ts,k,src+st,i-st,sl,sc,err))return false;continue;}
   if(c=='"'||c=='\''){char quote=c;i++;col++;char value[SWAN_MAX_TEXT];size_t n=0;bool closed=false;while(i<ts->length){c=src[i++];col++;if(c==quote){closed=true;break;}if(c=='\\'){if(i>=ts->length)break;c=src[i++];col++;switch(c){case 'n':c='\n';break;case 'r':c='\r';break;case 't':c='\t';break;case '\\':case '"':case '\'':break;default:{Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unknown string escape");return false;}}}if(n+1>=sizeof(value)){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"string literal too long");return false;}value[n++]=c;}if(!closed){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unterminated string");return false;}if(!swan_emit(ts,T_STRING,value,n,sl,sc,err))return false;continue;}
   TokenKind k=T_EOF;size_t n=1;
