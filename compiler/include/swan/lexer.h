@@ -19,13 +19,14 @@ static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,
  if(ts->count>=SWAN_MAX_TOKENS){Token t={0};swan_error(err,&t,"source has too many tokens");return false;}
  if(ts->count==ts->capacity){size_t cap=ts->capacity?ts->capacity*2:256;if(cap>SWAN_MAX_TOKENS)cap=SWAN_MAX_TOKENS;Token *items=realloc(ts->items,cap*sizeof(*items));if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}ts->items=items;ts->capacity=cap;}
  if(n>=SWAN_MAX_TEXT){Token t={0};t.line=line;t.col=col;swan_error(err,&t,"token is too long");return false;}
- if(n+1>ts->text_capacity-ts->text_used){size_t need=ts->text_used+n+1,cap=ts->text_capacity?ts->text_capacity:64;while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}char *storage=realloc(ts->text_storage,cap);if(!storage){swan_error(err,NULL,"out of memory storing token text");return false;}ts->text_storage=storage;ts->text_capacity=cap;}
- Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;t->text=ts->text_storage+ts->text_used;memcpy(ts->text_storage+ts->text_used,s,n);ts->text_storage[ts->text_used+n]=0;ts->text_used+=n+1;return true;
+ if(n&&n+1>ts->text_capacity-ts->text_used){size_t need=ts->text_used+n+1,cap=ts->text_capacity?ts->text_capacity:64;while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}char *storage=realloc(ts->text_storage,cap);if(!storage){swan_error(err,NULL,"out of memory storing token text");return false;}ts->text_storage=storage;ts->text_capacity=cap;}
+ Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;
+ if(n){t->text=ts->text_storage+ts->text_used;memcpy(ts->text_storage+ts->text_used,s,n);ts->text_storage[ts->text_used+n]=0;ts->text_used+=n+1;}else t->text="";return true;
 }
 static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
  memset(ts,0,sizeof(*ts));ts->source=src;ts->length=strlen(src);
- if(ts->length>(SIZE_MAX-16)/3){swan_error(err,NULL,"source file is too large");return false;}
- ts->text_capacity=ts->length*3+16;ts->text_storage=malloc(ts->text_capacity);
+ if(ts->length>(SIZE_MAX-16)/2){swan_error(err,NULL,"source file is too large");return false;}
+ ts->text_capacity=ts->length*2+16;ts->text_storage=malloc(ts->text_capacity);
  if(!ts->text_storage){swan_error(err,NULL,"out of memory allocating token text");return false;}
  size_t i=0;unsigned line=1,col=1;unsigned indents[128]={0};size_t depth=1;bool line_start=true;
  while(i<ts->length){
