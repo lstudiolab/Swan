@@ -82,3 +82,15 @@ if "$SWAN" "$TMP/invalid.swan" -o "$TMP/invalid.c" 2>/dev/null; then
   exit 1
 fi
 printf 'PASS: semantic errors rejected\n'
+
+cat > "$TMP/identifier-location.swan" <<'SWAN'
+fn main():
+    log missing
+    return 0
+SWAN
+if "$SWAN" "$TMP/identifier-location.swan" -o "$TMP/identifier-location.c" 2>"$TMP/identifier-location.err"; then
+  echo 'FAIL: unknown identifier accepted' >&2
+  exit 1
+fi
+grep -q "2:9: unknown name 'missing'" "$TMP/identifier-location.err"
+printf 'PASS: identifier source columns\n'
