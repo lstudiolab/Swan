@@ -16,6 +16,7 @@ inline int operatorPrecedence(std::string_view op) noexcept {
         default: return 0;
         }
     case 2:
+        if (op == "//") return 7;
         if (op == "or" || op == "||") return 2;
         if (op == "&&") return 3;
         if (op == "==" || op == "!=") return 4;
