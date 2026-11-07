@@ -108,7 +108,7 @@ def main():
    "C++":["c++","-O3","-march=native","-DNDEBUG","-std=c++17",str(src["C++"]),"-o",str(exe["C++"])],
    "Rust":["rustc","-C","opt-level=3","-C","target-cpu=native",str(src["Rust"]),"-o",str(exe["Rust"])],
    "Goose":[GOOSE,"build","-o",str(exe["Goose"]),str(src["Goose"])],
-   "Swan":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"-o",str(exe["Swan"])],
+   "Swan":[str(ROOT/"build/swan"),"build",str(ROOT/"benchmarks/binary_search.swan"),"--optimize","-o",str(exe["Swan"])],
   }
   results={}
   for name in ("Swan","Goose","Rust","C","C++"):
