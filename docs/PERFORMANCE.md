@@ -10,7 +10,7 @@ Swan currently emits C11. It does not invoke a C compiler as part of its own com
 
 ### 1. Lexing
 
-The scanner visits each source character and creates token values. Token kind and token value are still stored as strings, so token representation remains a larger future optimization. The current pass uses binary search for keyword classification, avoids constructing a temporary two-character string on punctuation checks, and reserves an initial token-vector capacity from source length.
+The scanner visits each source character and creates token values. Token kind and token value are still stored as strings, so token representation remains a larger future optimization. The current pass uses binary search for keyword classification, avoids constructing a temporary two-character string on punctuation checks, scans identifiers and numeric literals directly from the source, and caps the initial token-vector reservation.
 
 Potential future improvements:
 
@@ -41,11 +41,10 @@ Potential future improvements:
 
 ### 4. C generation
 
-The C emitter recursively constructs expression strings. Its inferred-type routine still walks expression nodes again rather than consuming semantic results. The current pass avoids duplicate recursive inference of the same binary operands and writes indentation directly to the output stream.
+The C emitter recursively constructs expression strings. Semantic analysis now records each expression's resolved built-in type in a compact enum on the AST. Code generation consumes that result rather than recursively inferring the type again. Non-built-in types retain the existing fallback path. The emitter also writes indentation directly to the output stream.
 
 Potential future improvements:
 
-- Store resolved expression types on a typed AST or semantic side table.
 - Emit into a shared output buffer instead of returning many intermediate strings.
 - Reuse resolved symbol and type information.
 - Measure generated output size and emission time independently.
@@ -61,7 +60,7 @@ No performance improvement is claimed without a reproducible baseline. Before op
 5. Run repeated trials and report median and spread.
 6. Verify generated program output before comparing timings.
 
-The first benchmark suite should include identifier-heavy input, deeply nested expressions, many declarations, many function calls, and large string literals.
+The benchmark suite currently has two distinct workloads: a deterministic 2,500-declaration compiler workload and an equivalent 50-million-iteration scalar program compiled by Swan, Rust, and Goose. The latter checks output equality and reports compile-pipeline time, runtime, and peak RSS. Neither substitutes for phase-level compiler profiling.
 
 ## Optimization order
 
@@ -73,15 +72,15 @@ The first benchmark suite should include identifier-heavy input, deeply nested e
 
 Correctness and generated-code equivalence take precedence over compile-time improvements.
 
-
 ## Implemented low-risk optimizations
 
-The current optimization pass makes five targeted changes:
+- Keyword classification uses binary search over a sorted, compile-time keyword table.
+- Punctuation scanning checks operator characters directly and avoids a temporary two-character string.
+- The lexer scans identifiers and numeric literals directly from the source and constructs each token value once.
+- Initial token-vector reservation is capped to avoid oversized allocations for whitespace-heavy or unusually large source files.
+- Parser token access returns references to avoid copying complete token objects.
+- Program parsing reserves declaration storage; code generation reserves structure/function indexes and uses a hash map for struct dependency lookup.
+- Semantic analysis stores built-in expression types in a compact enum. Code generation reuses the cached result instead of recursively inferring types again.
+- C output indentation is written directly to the stream rather than allocating a temporary indentation string for every emitted line.
 
-- Keyword classification uses binary search over a sorted, compile-time keyword table instead of a linear scan.
-- Punctuation scanning checks operator characters directly and only constructs a string for a recognized token, avoiding the temporary two-character string on the punctuation path.
-- The lexer reserves an initial token capacity based on source length to reduce repeated vector growth on ordinary source files.
-- Expression type inference evaluates each binary operand's inferred type once. The previous implementation could recursively infer the left subtree twice and the right subtree once, multiplying work on left-heavy expression trees.
-- C output indentation is written directly to the stream instead of allocating a temporary indentation string for every emitted line.
-
-These are algorithmic/allocation reductions, not a claim of a measured percentage improvement. Run the benchmark harness on the same machine before and after changes to quantify end-to-end impact. The harness measures a deterministic 2,500-declaration file; phase-level profiling and peak-memory measurement remain future work.
+These changes reduce known repeated work and avoid selected allocations. They are not a claim of a measured percentage improvement. Use the benchmark harness on the same machine before and after changes to quantify end-to-end impact.
