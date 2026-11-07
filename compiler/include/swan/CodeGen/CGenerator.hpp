@@ -6,7 +6,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
 namespace swan {
 class CGenerator {
 public:
@@ -25,11 +24,10 @@ private:
     std::string output_;
     unsigned indent_ = 0;
     std::unordered_set<std::string> structs_;
-    std::unordered_map<std::string,StmtPtr> functions_;
+    std::unordered_map<std::string,const Stmt*> functions_;
     std::vector<std::unordered_map<std::string,std::string>> scopes_;
 };
 }
-
 #include "swan/CodeGen/ProgramEmitter.hpp"
 #include "swan/CodeGen/ExpressionEmitter.hpp"
 #include "swan/CodeGen/StatementEmitter.hpp"
