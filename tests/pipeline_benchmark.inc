@@ -76,7 +76,7 @@ int main(int argc, char** argv) {
     const std::filesystem::path outputDirectory = argc > 1 ? argv[1] : "build";
     std::filesystem::create_directories(outputDirectory);
 
-    std::cout << "statements,source_bytes,tokens,lex_ms,parse_ms,sema_ms,codegen_ms,frontend_ms,generated_c_bytes\n";
+    std::cout << "statements,source_bytes,tokens,lex_ms,parse_ms,sema_ms,codegen_ms,frontend_ms,c_compile_ms,swan_total_ms,generated_c_bytes\n";
     for (const std::size_t count : {128u, 512u, 2048u, 8192u}) {
         const std::string source = makeSource(count);
         const auto tokenCount = swan::Lexer(source).scan().size();
@@ -114,10 +114,22 @@ int main(int argc, char** argv) {
             return 1;
         }
 
+        output.close();
+        const auto objectPath = outputDirectory / ("pipeline-" + std::to_string(count) + ".o");
+        const std::string compileCommand = "cc -std=c11 -O2 -c \"" +
+            generatedPath.string() + "\" -o \"" + objectPath.string() + "\"";
+        const double cCompileMs = medianMilliseconds([&] {
+            if (std::system(compileCommand.c_str()) != 0) {
+                std::cerr << "C compiler failed for " << generatedPath << '\n';
+                std::exit(1);
+            }
+        });
+
         std::cout << count << ',' << source.size() << ',' << tokenCount << ','
                   << std::fixed << std::setprecision(3)
                   << lexMs << ',' << parseMs << ',' << semaMs << ','
-                  << codegenMs << ',' << frontendMs << ',' << generated.size() << '\n';
+                  << codegenMs << ',' << frontendMs << ',' << cCompileMs << ','
+                  << (frontendMs + cCompileMs) << ',' << generated.size() << '\n';
     }
     return 0;
 }
