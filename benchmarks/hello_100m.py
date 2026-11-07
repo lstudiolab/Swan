@@ -12,6 +12,7 @@ swan_src.write_text('fn main() -> int:\n' + f'    for i in 0..{N}\n' + '        
 
 def measured(command, label):
     memfile = OUT / (label + "-rss.txt")
+    memfile.unlink(missing_ok=True)
     wrapped = ["/usr/bin/time", "-f", "%M", "-o", str(memfile), *map(str, command)]
     start = time.perf_counter()
     p = subprocess.run(wrapped, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -96,6 +97,7 @@ lines = [
     "", "## Interpretation", "",
     "Both compilers receive equivalent 100-million-iteration programs and must produce exactly the same output before runtime results are accepted. Compile time includes language compilation and native executable linking.",
     "", "Peak memory is process maximum resident set size. Output was streamed and counted by the harness, not saved to disk. Timings are specific to this runner.",
+    *(["", "Swan compiler diagnostic: `" + swan_reason.replace("\\", "\\\\").replace("`", "\\`").replace("\n", " ") + "`"] if not swan_supported else []),
     "", "Raw measurements: results.json."
 ]
 (OUT / "results.md").write_text("\n".join(lines) + "\n")
