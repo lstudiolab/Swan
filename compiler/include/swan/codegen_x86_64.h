@@ -37,11 +37,15 @@ static inline bool expr_has_call(Expr *e){
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
 static inline bool add_term_to_r10_supported(Expr *e,Locals *l){
  if(!e)return false;
- if(e->kind==E_INT||e->kind==E_BOOL)return true;
+ if(e->kind==E_INT){
+  char *end=NULL;long long value=strtoll(e->token.text,&end,10);
+  return end&&!*end&&value>=INT32_MIN&&value<=INT32_MAX;
+ }
+ if(e->kind==E_BOOL)return true;
  if(e->kind==E_NAME)return local_find(l,e->token.text)!=NULL;
  if(e->kind==E_BINARY&&e->token.kind==T_STAR&&e->left&&e->left->kind==E_NAME&&e->right&&e->right->kind==E_INT){
-  Local *v=local_find(l,e->left->token.text);char *end=NULL;strtoll(e->right->token.text,&end,10);
-  return v&&end&&!*end;
+  Local *v=local_find(l,e->left->token.text);char *end=NULL;long long value=strtoll(e->right->token.text,&end,10);
+  return v&&end&&!*end&&value>=INT32_MIN&&value<=INT32_MAX;
  }
  return false;
 }
