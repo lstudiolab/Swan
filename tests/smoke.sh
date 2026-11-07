@@ -157,3 +157,9 @@ printf 'PASS: native executable build\n'
 # Explicit run has the same behavior as the shorthand invocation.
 test "$("$SWAN" run "$ROOT/examples/hello.swan")" = "Hello from Swan"
 printf 'PASS: explicit run command\n'
+
+# An explicitly named run output remains available after execution.
+"$SWAN" run "$ROOT/examples/hello.swan" -o "$TMP/hello-run"
+test -x "$TMP/hello-run"
+test "$("$TMP/hello-run")" = "Hello from Swan"
+printf 'PASS: named run executable is preserved\n'
