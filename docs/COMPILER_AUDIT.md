@@ -13,18 +13,15 @@ The system assembler/linker is used only after Swan emits assembly. It does not 
 - Integer arithmetic and signed comparisons.
 - Function calls with up to six arguments.
 - If/else and while control flow.
-- Break and continue.
-- String literals and basic console logging.
-- Heap integer arrays using the platform C runtime allocator.
-- GNU assembler Intel syntax output.
-- AArch64 GNU assembler output and AAPCS64 register calling convention.
-- AArch64 object emission through `aarch64-linux-gnu-as`.
+- String literals in `log` statements and integer console logging.
+- Basic semantic checks for duplicate functions, unknown names/functions, call arity, and immutable bindings.
+- GNU assembler Intel syntax output for x86-64 System V.
 
 ## Known limitations
 
 - Floating-point lowering is not implemented.
 - Struct member lowering is not implemented.
-- Control-flow lowering, arrays, floats, structs, and complete semantic analysis still need to be ported.
+- Arrays, floats, structs, break/continue, full type inference/checking, and lexical shadowing are not implemented in the C port.
 - Only the initial x86-64 System V C backend exists; AArch64 is not yet ported.
 - ARMv7/Thumb, RISC-V, and WebAssembly backends do not exist yet.
 
