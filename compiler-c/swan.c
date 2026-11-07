@@ -11,7 +11,7 @@
 
 typedef enum { X86_64, AARCH64, ARMV7 } Target;
 typedef struct { char *data; size_t len, cap; } Buffer;
-typedef struct { char name[64]; char start[48], step_label[48], end[48]; int indent, index_slot, limit_slot, has_body; } Loop;
+typedef struct { char name[64]; char start[48], step_label[48], end[48]; int indent, index_slot, limit_slot, has_body, reg_pair; } Loop;
 
 static void append_n(Buffer *b,const char *s,size_t n) {
     if(b->len+n+1>b->cap) {
@@ -65,12 +65,9 @@ static int identifier(const char *s){
     for(s++;*s;s++)if(!(isalnum((unsigned char)*s)||*s=='_'))return 0;
     return 1;
 }
-static int loop_slot(const Loop *l,const char *name){
-    return !strcmp(l->name,name)?l->index_slot:0;
-}
-static int find_loop(Loop *loops,int depth,const char *name){
-    for(int i=depth-1;i>=0;i--)if(loop_slot(&loops[i],name))return loops[i].index_slot;
-    return 0;
+static Loop *find_loop(Loop *loops,int depth,const char *name){
+    for(int i=depth-1;i>=0;i--)if(!strcmp(loops[i].name,name))return &loops[i];
+    return NULL;
 }
 static void emit_store_const(Buffer *b,Target t,int slot,long long value){
     char s[256];
@@ -87,7 +84,12 @@ static void emit_loop_open(Buffer *b,Target t,const Loop *l,long long first,long
     emit_store_const(b,t,l->limit_slot,limit);
     append(b,l->start);append(b,":\n");
     if(t==X86_64){
-        char s[160];snprintf(s,sizeof s,"  mov rax, qword ptr [rbp - %d]\n  cmp rax, qword ptr [rbp - %d]\n  jge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
+        char s[240];
+        if(l->reg_pair){
+            const char *index=l->reg_pair==1?"r12":"r14",*limit_reg=l->reg_pair==1?"r13":"r15";
+            snprintf(s,sizeof s,"  movabs %s, %lld\n  movabs %s, %lld\n%s:\n  cmp %s, %s\n  jge %s\n",index,first,limit_reg,limit,l->start,index,limit_reg,l->end);
+        }else snprintf(s,sizeof s,"  mov rax, qword ptr [rbp - %d]\n  cmp rax, qword ptr [rbp - %d]\n  jge %s\n",l->index_slot,l->limit_slot,l->end);
+        append(b,s);
     }else if(t==AARCH64){
         char s[200];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x10, [x9]\n  sub x9, x29, #%d\n  ldr x11, [x9]\n  cmp x10, x11\n  b.ge %s\n",l->index_slot,l->limit_slot,l->end);append(b,s);
     }else{
@@ -97,7 +99,10 @@ static void emit_loop_open(Buffer *b,Target t,const Loop *l,long long first,long
 static void emit_loop_close(Buffer *b,Target t,const Loop *l){
     append(b,l->step_label);append(b,":\n");
     if(t==X86_64){
-        char s[160];snprintf(s,sizeof s,"  add qword ptr [rbp - %d], 1\n  jmp %s\n%s:\n",l->index_slot,l->start,l->end);append(b,s);
+        char s[160];
+        if(l->reg_pair){const char *index=l->reg_pair==1?"r12":"r14";snprintf(s,sizeof s,"  inc %s\n  jmp %s\n%s:\n",index,l->start,l->end);}
+        else snprintf(s,sizeof s,"  add qword ptr [rbp - %d], 1\n  jmp %s\n%s:\n",l->index_slot,l->start,l->end);
+        append(b,s);
     }else if(t==AARCH64){
         char s[200];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x10, [x9]\n  add x10, x10, #1\n  str x10, [x9]\n  b %s\n%s:\n",l->index_slot,l->start,l->end);append(b,s);
     }else{
@@ -117,12 +122,16 @@ static int emit_log(Buffer *code,Buffer *data,Target t,char *value,Loop *loops,i
         return 0;
     }
     if(!identifier(value))return fail("log accepts a string literal or an active for-loop variable");
-    int slot=find_loop(loops,depth,value);
-    if(!slot)return fail("unknown variable in log statement");
+    Loop *loop=find_loop(loops,depth,value);
+    if(!loop)return fail("unknown variable in log statement");
     *needs_int=1;
-    if(t==X86_64){char s[160];snprintf(s,sizeof s,"  mov rsi, qword ptr [rbp - %d]\n  lea rdi, [rip + .Lswan_int_fmt]\n  xor eax, eax\n  call printf@PLT\n",slot);append(code,s);}
-    else if(t==AARCH64){char s[180];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x1, [x9]\n  adrp x0, .Lswan_int_fmt\n  add x0, x0, :lo12:.Lswan_int_fmt\n  bl printf\n",slot);append(code,s);}
-    else{char s[160];snprintf(s,sizeof s,"  sub r2, r11, #%d\n  ldr r1, [r2]\n  ldr r0, =.Lswan_int_fmt\n  bl printf\n",slot);append(code,s);}
+    if(t==X86_64){
+        char s[200];
+        if(loop->reg_pair){const char *index=loop->reg_pair==1?"r12":"r14";snprintf(s,sizeof s,"  mov rsi, %s\n  lea rdi, [rip + .Lswan_int_fmt]\n  xor eax, eax\n  call printf@PLT\n",index);}
+        else snprintf(s,sizeof s,"  mov rsi, qword ptr [rbp - %d]\n  lea rdi, [rip + .Lswan_int_fmt]\n  xor eax, eax\n  call printf@PLT\n",loop->index_slot);
+        append(code,s);
+    }else if(t==AARCH64){char s[180];snprintf(s,sizeof s,"  sub x9, x29, #%d\n  ldr x1, [x9]\n  adrp x0, .Lswan_int_fmt\n  add x0, x0, :lo12:.Lswan_int_fmt\n  bl printf\n",loop->index_slot);append(code,s);}
+    else{char s[160];snprintf(s,sizeof s,"  sub r2, r11, #%d\n  ldr r1, [r2]\n  ldr r0, =.Lswan_int_fmt\n  bl printf\n",loop->index_slot);append(code,s);}
     return 0;
 }
 static int emit_source(const char *source,Target t,Buffer *out){
@@ -156,7 +165,9 @@ static int emit_source(const char *source,Target t,Buffer *out){
             }
             if(depth)loops[depth-1].has_body=1;
             Loop *l=&loops[depth];memset(l,0,sizeof(*l));strcpy(l->name,name);l->indent=indent;
-            l->index_slot=(depth*2+1)*8;l->limit_slot=(depth*2+2)*8;
+            int spill_depth=(t==X86_64&&depth>=2)?depth-2:depth;
+            l->reg_pair=(t==X86_64&&depth<2)?depth+1:0;
+            l->index_slot=(spill_depth*2+1)*8;l->limit_slot=(spill_depth*2+2)*8;
             snprintf(l->start,sizeof l->start,".Lswan_loop_%u",loop_id);
             snprintf(l->step_label,sizeof l->step_label,".Lswan_step_%u",loop_id);snprintf(l->end,sizeof l->end,".Lswan_end_%u",loop_id++);
             emit_loop_open(&code,t,l,first,last);depth++;if(depth>max_depth)max_depth=depth;continue;
@@ -191,15 +202,22 @@ static int emit_source(const char *source,Target t,Buffer *out){
     }
     if(!have_main){free(copy);free(code.data);free(data.data);return fail("program must define fn main()");}
     if(needs_int)asm_string(&data,t==ARMV7?"%d\n":"%lld\n",".Lswan_int_fmt");
-    int frame_size=max_depth*16;
+    int frame_size=(t==X86_64&&max_depth>2)?(max_depth-2)*16:max_depth*16;
+    int saved_pairs=t==X86_64?(max_depth>1?2:max_depth):0;
     char prologue[160],epilogue[160];
     if(t==X86_64){
         append(out,".intel_syntax noprefix\n.section .rodata\n");append_n(out,data.data?data.data:"",data.len);
         append(out,".text\n.globl main\n.type main, @function\nmain:\n  push rbp\n  mov rbp, rsp\n");
+        if(saved_pairs>=1)append(out,"  push r12\n  push r13\n");
+        if(saved_pairs>=2)append(out,"  push r14\n  push r15\n");
         if(frame_size){snprintf(prologue,sizeof prologue,"  sub rsp, %d\n",frame_size);append(out,prologue);}
         append_n(out,code.data?code.data:"",code.len);
         if(!returned)append(out,"  xor eax, eax\n");
-        append(out,".Lswan_exit:\n  leave\n  ret\n.size main, .-main\n.section .note.GNU-stack,\"\",@progbits\n");
+        append(out,".Lswan_exit:\n");
+        if(frame_size){snprintf(epilogue,sizeof epilogue,"  add rsp, %d\n",frame_size);append(out,epilogue);}
+        if(saved_pairs>=2)append(out,"  pop r15\n  pop r14\n");
+        if(saved_pairs>=1)append(out,"  pop r13\n  pop r12\n");
+        append(out,"  leave\n  ret\n.size main, .-main\n.section .note.GNU-stack,\"\",@progbits\n");
     }else if(t==AARCH64){
         append(out,".section .rodata\n");append_n(out,data.data?data.data:"",data.len);
         append(out,".text\n.global main\n.type main, %function\nmain:\n  stp x29, x30, [sp, #-16]!\n  mov x29, sp\n");
