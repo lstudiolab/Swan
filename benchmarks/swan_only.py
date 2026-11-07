@@ -17,7 +17,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 SWAN = ROOT / "build" / "swan"
 ITERATIONS = 1_000_000_000
 COMPILE_REPEATS = 5
-RUNTIME_REPEATS = 5
+RUNTIME_REPEATS = 7
 TIME_BIN = "/usr/bin/time"
 
 
