@@ -32,19 +32,21 @@ Requirements: C++20 compiler and a system assembler/linker (normally provided by
 | Target | Status |
 |---|---|
 | x86-64 System V | Initial Swan-owned assembly backend |
-| AArch64 | Planned |
+| AArch64 / ARM64 (AAPCS64 ELF) | Initial Swan-owned assembly backend |
 | ARMv7 / Thumb | Planned |
 | RISC-V 64 | Planned |
 | WebAssembly | Planned |
 
-The x86-64 backend currently emits GNU assembler Intel syntax. Other architectures are rejected explicitly until their Swan-owned instruction selectors and ABI lowerers are implemented. Swan does not silently fall back to LLVM, Clang, or another compiler backend.
+The x86-64 backend emits GNU assembler Intel syntax. The AArch64 backend emits GNU AArch64 assembly for the AAPCS64 ELF ABI. ARMv7/Thumb, RISC-V, and WebAssembly remain rejected until their Swan-owned backends are implemented. Swan does not silently fall back to LLVM, Clang, or another compiler backend.
 
 ## Assembly and object output
 
     ./build/swan program.swan --target x86_64 --emit-asm -o program.s
     ./build/swan program.swan --target x86_64 --emit-obj -o program.o
+    ./build/swan program.swan --target aarch64 --emit-asm -o program-aarch64.s
+    ./build/swan program.swan --target aarch64 --emit-obj -o program-aarch64.o
 
-`--target native` selects the host backend. The initial backend supports x86-64 System V. Object generation and executable linking use the system `CC` toolchain; set `CC` to select a compatible assembler/linker driver.
+`--target native` selects the host backend. The initial backend supports x86-64 System V. Object generation and executable linking use the system `CC` toolchain; set `CC` for host assembly/linking or `SWAN_AARCH64_AS` to select the GNU AArch64 assembler.
 
 ## Optimization
 
