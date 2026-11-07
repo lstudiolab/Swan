@@ -105,7 +105,7 @@ private:
     void emit(const std::string& value) { text_ += value; text_.push_back('\n'); }
 
     Location allocateLocation() {
-        if (next_register_ < 4)
+        if (next_register_ < sizeof(local_registers_) / sizeof(local_registers_[0]))
             return {local_registers_[next_register_++], 0, true};
         return {{}, 48 + next_spill_++ * 8, false};
     }
