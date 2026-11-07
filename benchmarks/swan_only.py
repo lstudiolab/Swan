@@ -82,7 +82,8 @@ def measured(command: list[str], expected: str | None = None) -> tuple[dict, str
     if expected is not None and output != expected:
         raise RuntimeError(f"wrong result: expected {expected}, got {output!r}")
     metrics = {
-        "wall_seconds": high_resolution_wall,\n        "gnu_time_wall_seconds_rounded": float(wall),
+        "wall_seconds": high_resolution_wall,
+        "gnu_time_wall_seconds_rounded": float(wall),
         "user_cpu_seconds": float(user),
         "system_cpu_seconds": float(system),
         "total_cpu_seconds": float(user) + float(system),
