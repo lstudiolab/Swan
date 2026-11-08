@@ -30,7 +30,8 @@ static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d
 static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",reg);o->stack_depth+=8;}
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
-typedef struct { const char *name; int slot,reg,next; bool mut,array_u32,array_unchecked; } Local;
+static inline bool cg_const_value(Expr *e,int64_t *out);
+typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known; } Local;
 typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
@@ -49,7 +50,10 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  return v;
 }
 static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME){
- if(!strcmp(s->value->left->token.text,"array")||!strcmp(s->value->left->token.text,"array_u32"))v->array_u32=true;
+ if(!strcmp(s->value->left->token.text,"array")||!strcmp(s->value->left->token.text,"array_u32")){
+  v->array_u32=true;int64_t length=0;
+  if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
+ }
  if(!strcmp(s->value->left->token.text,"array_unchecked")||!strcmp(s->value->left->token.text,"array_u32_unchecked")){v->array_u32=true;v->array_unchecked=true;}
 }}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
@@ -339,12 +343,23 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   Local *array=local_find(l,e->left->token.text);
   if(!array||!array->array_u32){swan_error(err,&e->token,"indexing currently requires an array_u32 value");break;}
   Expr *index=e->right;Local *index_local=index&&index->kind==E_NAME?local_find(l,index->token.text):NULL;int64_t index_constant=0;
-  if(index_local){if(index_local->reg>=0)text_add(o,"    mov rcx, %s\n",cg_reg_name(index_local->reg));else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\n",index_local->slot*8);}
-  else if(cg_const_value(index,&index_constant)){if(index_constant>=INT32_MIN&&index_constant<=INT32_MAX)text_add(o,"    mov ecx, %lld\n",(long long)index_constant);else text_add(o,"    movabs rcx, 0x%016llx\n",(unsigned long long)(uint64_t)index_constant);}
-  else{emit_expr(o,index,l,err);text_add(o,"    mov rcx, rax\n");}
+  bool constant_index=cg_const_value(index,&index_constant);
+  bool direct_index=constant_index&&array->array_length_known&&index_constant>=0&&index_constant<array->array_length&&index_constant<=INT32_MAX/4;
+  if(!direct_index){
+   if(index_local){if(index_local->reg>=0)text_add(o,"    mov rcx, %s\n",cg_reg_name(index_local->reg));else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\n",index_local->slot*8);}
+   else if(constant_index){if(index_constant>=INT32_MIN&&index_constant<=INT32_MAX)text_add(o,"    mov ecx, %lld\n",(long long)index_constant);else text_add(o,"    movabs rcx, 0x%016llx\n",(unsigned long long)(uint64_t)index_constant);}
+   else{emit_expr(o,index,l,err);text_add(o,"    mov rcx, rax\n");}
+  }
   bool midpoint_bounds=o->active_midpoint_array&&o->active_midpoint_index&&e->right&&e->right->kind==E_NAME&&!strcmp(e->left->token.text,o->active_midpoint_array)&&!strcmp(e->right->token.text,o->active_midpoint_index);
-  if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked&&!midpoint_bounds)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\n",base);}
-  else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked&&!midpoint_bounds)text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov eax, DWORD PTR [r10 + rcx*4]\n");}
+  if(array->reg>=0){
+   const char *base=cg_reg_name(array->reg);
+   if(!array->array_unchecked&&!midpoint_bounds&&!direct_index){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}
+   if(direct_index)text_add(o,"    mov eax, DWORD PTR [%s + %lld]\n",base,(long long)(index_constant*4));else text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\n",base);
+  }else{
+   text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);
+   if(!array->array_unchecked&&!midpoint_bounds&&!direct_index){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}
+   if(direct_index)text_add(o,"    mov eax, DWORD PTR [r10 + %lld]\n",(long long)(index_constant*4));else text_add(o,"    mov eax, DWORD PTR [r10 + rcx*4]\n");
+  }
   o->uses_array_bounds=true;
   break;
  }
@@ -362,9 +377,16 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     if(!base||base->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local variable");break;}
     Local *array=local_find(l,base->token.text);
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
-    emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
-    if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
-    else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
+    int64_t constant_index=0;bool direct_index=cg_const_value(e->left->right,&constant_index)&&array->array_length_known&&constant_index>=0&&constant_index<array->array_length&&constant_index<=INT32_MAX/4;
+    if(direct_index){
+     emit_expr(o,e->right,l,err);
+     if(array->reg>=0)text_add(o,"    mov DWORD PTR [%s + %lld], eax\n",cg_reg_name(array->reg),(long long)(constant_index*4));
+     else text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n    mov DWORD PTR [r10 + %lld], eax\n",array->slot*8,(long long)(constant_index*4));
+    }else{
+     emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
+     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
+     else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
+    }
     o->uses_array_bounds=true;break;
    }
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");break;}
