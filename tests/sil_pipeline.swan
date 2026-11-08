@@ -12,8 +12,19 @@ fn main() -> int:
     count = sil_emit_const(state, count, 2, 20, 1)
     count = sil_emit_binary(state, count, 18, 3, 1, 2)
     count = sil_emit_return(state, count, 3)
-    if sil_verify(state, count) == 0
+    let valid = sil_verify(state, count)
+    if valid != 1
         echo!("SIL_VERIFY_FAILED")
+        log count
+        log state[0]
+        log state[1]
+        log state[5]
+        log state[6]
+        log state[10]
+        log state[11]
+        log state[15]
+        log state[17]
+        log valid
         return 1
     count = sil_optimize(state, count, live, keep, known, constants)
     if count != 2
