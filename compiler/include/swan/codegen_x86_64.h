@@ -602,6 +602,45 @@ static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
  if(!step||step->kind!=E_BINARY||step->token.kind!=T_PLUS||!step->left||step->left->kind!=E_NAME||strcmp(step->left->token.text,cond->left->token.text)||!step->right||step->right->kind!=E_INT||strcmp(step->right->token.text,"1"))return false;
  return !statements_write_local(s->body,s->body_count-1,cond->left->token.text);
 }
+static inline bool midpoint_stmt_writes_name(Stmt *s,const char *name){
+ if(!s)return false;
+ if(s->kind==S_ASSIGN&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,name))return true;
+ for(size_t i=0;i<s->body_count;i++)if(midpoint_stmt_writes_name(s->body[i],name))return true;
+ for(size_t i=0;i<s->alt_count;i++)if(midpoint_stmt_writes_name(s->alternate[i],name))return true;
+ return false;
+}
+static inline bool midpoint_block_init_nonnegative(Stmt **body,size_t before,const char *name){
+ bool found=false;int64_t value=0;
+ for(size_t i=0;i<before;i++){
+  Stmt *s=body[i];
+  if(s->kind==S_VARIABLE&&s->name&&!strcmp(s->name,name)){found=cg_const_value(s->value,&value)&&value>=0&&value<INT64_MAX;continue;}
+  if(midpoint_stmt_writes_name(s,name))return false;
+ }
+ return found;
+}
+static inline bool midpoint_step_expr(Expr *e,const char *middle,TokenKind op){
+ return e&&e->kind==E_BINARY&&e->token.kind==op&&e->left&&e->left->kind==E_NAME&&!strcmp(e->left->token.text,middle)&&e->right&&e->right->kind==E_INT&&!strcmp(e->right->token.text,"1");
+}
+static inline bool midpoint_loop_updates(Stmt **body,size_t count,const char *target,const char *middle,TokenKind op,bool *found){
+ for(size_t i=0;i<count;i++){
+  Stmt *s=body[i];
+  if(s->kind==S_ASSIGN&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,target)){
+   if(!midpoint_step_expr(s->value->right,middle,op))return false;*found=true;continue;
+  }
+  if(s->kind==S_WHILE&&midpoint_stmt_writes_name(s,target))return false;
+  if(s->kind==S_IF){
+   if(!midpoint_loop_updates(s->body,s->body_count,target,middle,op,found)||!midpoint_loop_updates(s->alternate,s->alt_count,target,middle,op,found))return false;
+  }
+ }
+ return true;
+}
+static inline bool loop_proves_nonnegative_midpoint(Stmt **outer,size_t before,Stmt *loop){
+ if(!loop||loop->kind!=S_WHILE||!loop->condition||loop->condition->kind!=E_BINARY||loop->condition->token.kind!=T_LE||!loop->condition->left||loop->condition->left->kind!=E_NAME||!loop->condition->right||loop->condition->right->kind!=E_NAME||!loop->body_count||!stmt_is_safe_midpoint(loop->body[0],loop->condition))return false;
+ const char *low=loop->condition->left->token.text,*high=loop->condition->right->token.text,*middle=loop->body[0]->name;
+ if(!middle||!midpoint_block_init_nonnegative(outer,before,low)||!midpoint_block_init_nonnegative(outer,before,high))return false;
+ bool low_updated=false,high_updated=false;
+ return midpoint_loop_updates(loop->body,loop->body_count,low,middle,T_PLUS,&low_updated)&&low_updated&&midpoint_loop_updates(loop->body,loop->body_count,high,middle,T_MINUS,&high_updated)&&high_updated;
+}
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
@@ -651,7 +690,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
    case S_WHILE:{
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
     if(o->loop_depth>=128){swan_error(err,&s->token,"loop nesting exceeds 128 levels");break;}o->loop_break[o->loop_depth]=id;o->loop_continue[o->loop_depth]=id;o->loop_depth++;
-    Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr,*saved_active=o->active_loop_condition;o->active_loop_condition=s->body_count&&stmt_is_safe_midpoint(s->body[0],s->condition)?s->condition:NULL;
+    Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr,*saved_active=o->active_loop_condition;o->active_loop_condition=loop_proves_nonnegative_midpoint(body,i,s)?s->condition:NULL;
     Expr *hoist=saved_hoist?NULL:find_loop_hoist(s,l);
     if(hoist){emit_expr(o,hoist,l,err);text_add(o,"    mov r11, rax\n");o->hoist_expr=hoist;}
     long long recurrence_step=0;
