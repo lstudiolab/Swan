@@ -4,8 +4,17 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 BIN="$ROOT/build/swan"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-printf '%s\n' 'fn main(x: i32) -> i32:' '    return x' > "$TMP/main.swan"
+cat > "$TMP/main.swan" <<'SWAN'
+fn main() -> i32:
+    var count: i32 = 0
+    while count < 4:
+        count = count + 1
+    if count == 4:
+        return count * 10
+    else:
+        return 1
+SWAN
 "$BIN" build "$TMP/main.swan" --target armv7 -o "$TMP/main.o"
 test -s "$TMP/main.o"
 readelf -h "$TMP/main.o" | grep -q 'ARM'
-printf 'PASS: Swan emits an ARMv7 ELF object for i32 scalar code\n'
+printf 'PASS: ARMv7 backend emits ELF for loops, branches and mutable locals\n'
