@@ -329,6 +329,30 @@ if grep -q 'mov r11, rbx' "$TMP/array-midpoint.s"; then
 fi
 printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
 
+cat > "$TMP/array-store-register.swan" <<'SWAN'
+fn main():
+    let values = array_unchecked(4)
+    var index = 0
+    var first = 11
+    var second = 22
+    var third = 33
+    var fourth = 44
+    var fifth = 55
+    var sixth = 66
+    var seventh = 77
+    while index < 4
+        values[index] = fourth
+        index = index + 1
+    log first + second + third + fourth + fifth + sixth + seventh
+    log values[3]
+    return 0
+SWAN
+"$SWAN" "$TMP/array-store-register.swan" --emit-asm -o "$TMP/array-store-register.s"
+cc -x assembler "$TMP/array-store-register.s" -o "$TMP/array-store-register"
+test "$("$TMP/array-store-register")" = "308
+44"
+printf 'PASS: array stores preserve live allocated registers\\n'
+
 cat > "$TMP/heapsort.swan" <<'SWAN'
 fn main():
     let values = array_u32_unchecked(10)

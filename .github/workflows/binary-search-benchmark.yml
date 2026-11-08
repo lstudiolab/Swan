@@ -1,16 +1,6 @@
 name: Binary Search Benchmark
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/binary-search-benchmark.yml"
-      - "benchmarks/binary_search.py"
-      - "benchmarks/binary_search.swan"
-      - "benchmarks/binary_search_unchecked.swan"
-      - "compiler/**"
-      - "main.c"
-      - "build.sh"
   workflow_dispatch:
 
 permissions:

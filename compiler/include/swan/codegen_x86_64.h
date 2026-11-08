@@ -299,9 +299,12 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local array variable");break;}
   Local *array=local_find(l,e->left->token.text);
   if(!array||!array->array_u32){swan_error(err,&e->token,"indexing currently requires an array_u32 value");break;}
-  emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n");
-  if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\n",base);}
-  else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov eax, DWORD PTR [r11 + rcx*4]\n");}
+  Expr *index=e->right;Local *index_local=index&&index->kind==E_NAME?local_find(l,index->token.text):NULL;int64_t index_constant=0;
+  if(index_local){if(index_local->reg>=0)text_add(o,"    mov rcx, %s\\n",cg_reg_name(index_local->reg));else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\\n",index_local->slot*8);}
+  else if(cg_const_value(index,&index_constant)){if(index_constant>=INT32_MIN&&index_constant<=INT32_MAX)text_add(o,"    mov ecx, %lld\\n",(long long)index_constant);else text_add(o,"    movabs rcx, 0x%016llx\\n",(unsigned long long)(uint64_t)index_constant);}
+  else{emit_expr(o,index,l,err);text_add(o,"    mov rcx, rax\\n");}
+  if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\\n    jae .Lswan_array_bounds_fail\\n",base);text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\\n",base);}
+  else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\\n    jae .Lswan_array_bounds_fail\\n");text_add(o,"    mov eax, DWORD PTR [r11 + rcx*4]\\n");}
   o->uses_array_bounds=true;
   break;
  }
@@ -319,9 +322,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     if(!base||base->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local variable");break;}
     Local *array=local_find(l,base->token.text);
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
-    bool calls=expr_has_call(e->left->right)||expr_has_call(e->right);
-    if(calls){emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");}
-    else{emit_expr(o,e->left->right,l,err);text_add(o,"    mov r8, rax\n");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, r8\n");}
+    emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
     else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r11 + rcx*4], eax\n");}
     o->uses_array_bounds=true;break;
@@ -355,7 +356,16 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     emit_expr(o,e->left,l,err);
     if(e->token.kind==T_PLUS){text_add(o,"    add rax, %lld\n",imm);break;}
     if(e->token.kind==T_MINUS){text_add(o,"    sub rax, %lld\n",imm);break;}
-    if(e->token.kind==T_STAR){text_add(o,"    imul rax, rax, %lld\n",imm);break;}
+    if(e->token.kind==T_STAR){
+     uint64_t magnitude=imm<0?(uint64_t)(-(imm+1))+1:(uint64_t)imm;
+     if(!magnitude){text_add(o,"    xor eax, eax\n");break;}
+     if(!(magnitude&(magnitude-1))){
+      unsigned shift=0;while((UINT64_C(1)<<shift)!=magnitude)shift++;
+      if(shift)text_add(o,"    shl rax, %u\n",shift);
+      if(imm<0)text_add(o,"    neg rax\n");
+     }else text_add(o,"    imul rax, rax, %lld\n",imm);
+     break;
+    }
     if(e->token.kind==T_EQ||e->token.kind==T_NE||e->token.kind==T_LT||e->token.kind==T_GT||e->token.kind==T_LE||e->token.kind==T_GE){
      const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
      text_add(o,"    cmp rax, %lld\n    %s al\n    movzx rax, al\n",imm,cc);break;
@@ -640,7 +650,7 @@ static inline bool loop_proves_nonnegative_midpoint(Stmt **outer,size_t before,S
  const char *low=loop->condition->left->token.text,*high=loop->condition->right->token.text,*middle=loop->body[0]->name;
  if(!middle||!midpoint_block_init_nonnegative(outer,before,low)||!midpoint_block_init_nonnegative(outer,before,high))return false;
  bool low_updated=false,high_updated=false;
- return midpoint_loop_updates(loop->body,loop->body_count,low,middle,T_PLUS,&low_updated)&&low_updated&&midpoint_loop_updates(loop->body,loop->body_count,high,middle,T_MINUS,&high_updated)&&high_updated;
+ return midpoint_loop_updates(loop->body,loop->body_count,low,middle,T_PLUS,&low_updated)&&midpoint_loop_updates(loop->body,loop->body_count,high,middle,T_MINUS,&high_updated);
 }
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  for(size_t i=0;i<n;i++){
