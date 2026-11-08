@@ -209,7 +209,8 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
 typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
-    {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},\n    {SWAN_IR_PASS_CFG_SIMPLIFY,"cfg-simplification"},
+    {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},
+    {SWAN_IR_PASS_CFG_SIMPLIFY,"cfg-simplification"},
     {SWAN_IR_PASS_ALGEBRAIC,"algebraic-simplification"},
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"common-subexpression-elimination"},
     {SWAN_IR_PASS_DEAD_CODE,"dead-code-elimination"}
