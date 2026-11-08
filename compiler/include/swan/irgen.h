@@ -170,7 +170,7 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
         switch(s->kind) {
             case S_VARIABLE:{
                 if(g->local_count>=256)return swan_irgen_fail(g,&s->token,"local variable limit exceeded");
-                SwanIRType type=swan_irgen_type(s->type);
+                SwanIRType type=s->type?swan_irgen_type(s->type):SWAN_IR_VOID;
                 uint32_t value=0;bool memory=s->mutable_value;
                 if(memory){SwanIRInst alloc={0};alloc.op=SWAN_IR_ALLOCA;alloc.type=SWAN_IR_PTR;value=swan_irgen_emit(g,alloc);}
                 if(s->value){uint32_t init=swan_irgen_expr(g,s->value);if(!init)return false;
