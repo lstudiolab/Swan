@@ -333,7 +333,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
     emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
-    else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
+    else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
     o->uses_array_bounds=true;break;
    }
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");break;}
