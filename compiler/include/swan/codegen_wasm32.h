@@ -19,7 +19,7 @@ static inline bool swan_wasm_name(SwanWasmBuffer *b,const char *s){size_t n=strl
 static inline uint8_t swan_wasm_type(SwanIRType t){return t==SWAN_IR_I1||t==SWAN_IR_I8||t==SWAN_IR_I16||t==SWAN_IR_I32||t==SWAN_IR_PTR?0x7f:t==SWAN_IR_VOID?0x40:0x7e;}
 static inline bool swan_wasm_get(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_set(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x21)&&swan_wasm_u32(b,id-1);}
-static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRInst *in){
+static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRFunction *fn,const SwanIRInst *in){
  if(in->op==SWAN_IR_CONST){
   uint8_t op=(in->type==SWAN_IR_I1||in->type==SWAN_IR_I8||in->type==SWAN_IR_I16||in->type==SWAN_IR_I32)?0x41:0x42;
   return swan_wasm_byte(b,op)&&swan_wasm_s64(b,in->immediate)&&swan_wasm_set(b,in->result);
@@ -34,17 +34,16 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
  }
  if(in->op==SWAN_IR_SELECT)return swan_wasm_get(b,in->b)&&swan_wasm_get(b,in->c)&&swan_wasm_get(b,in->a)&&swan_wasm_byte(b,0x1b)&&swan_wasm_set(b,in->result);
  if(!swan_wasm_get(b,in->a)||!swan_wasm_get(b,in->b))return false;
- bool i32=in->op>=SWAN_IR_ICMP_EQ&&in->op<=SWAN_IR_ICMP_SGE?
-   (swan_ir_value_type_of(NULL,0)==SWAN_IR_VOID):false;
- (void)i32;
+ SwanIRType operand_type=swan_ir_value_type_of(fn,in->a);
+ bool i32=operand_type==SWAN_IR_I1||operand_type==SWAN_IR_I8||operand_type==SWAN_IR_I16||operand_type==SWAN_IR_I32;
  uint8_t op=0;
  switch(in->op){
-  case SWAN_IR_ADD:op=0x7c;break;case SWAN_IR_SUB:op=0x7d;break;case SWAN_IR_MUL:op=0x7e;break;
-  case SWAN_IR_SDIV:op=0x7f;break;case SWAN_IR_UDIV:op=0x80;break;case SWAN_IR_SREM:op=0x81;break;case SWAN_IR_UREM:op=0x82;break;
-  case SWAN_IR_AND:op=0x83;break;case SWAN_IR_OR:op=0x84;break;case SWAN_IR_XOR:op=0x85;break;
-  case SWAN_IR_SHL:op=0x86;break;case SWAN_IR_LSHR:op=0x87;break;case SWAN_IR_ASHR:op=0x88;break;
-  case SWAN_IR_ICMP_EQ:op=0x51;break;case SWAN_IR_ICMP_NE:op=0x52;break;case SWAN_IR_ICMP_SLT:op=0x53;break;
-  case SWAN_IR_ICMP_SGT:op=0x55;break;case SWAN_IR_ICMP_SLE:op=0x57;break;case SWAN_IR_ICMP_SGE:op=0x59;break;
+  case SWAN_IR_ADD:op=i32?0x6a:0x7c;break;case SWAN_IR_SUB:op=i32?0x6b:0x7d;break;case SWAN_IR_MUL:op=i32?0x6c:0x7e;break;
+  case SWAN_IR_SDIV:op=i32?0x6d:0x7f;break;case SWAN_IR_UDIV:op=i32?0x6e:0x80;break;case SWAN_IR_SREM:op=i32?0x6f:0x81;break;case SWAN_IR_UREM:op=i32?0x70:0x82;break;
+  case SWAN_IR_AND:op=i32?0x71:0x83;break;case SWAN_IR_OR:op=i32?0x72:0x84;break;case SWAN_IR_XOR:op=i32?0x73:0x85;break;
+  case SWAN_IR_SHL:op=i32?0x74:0x86;break;case SWAN_IR_LSHR:op=i32?0x75:0x87;break;case SWAN_IR_ASHR:op=i32?0x76:0x88;break;
+  case SWAN_IR_ICMP_EQ:op=i32?0x46:0x51;break;case SWAN_IR_ICMP_NE:op=i32?0x47:0x52;break;case SWAN_IR_ICMP_SLT:op=i32?0x48:0x53;break;
+  case SWAN_IR_ICMP_SGT:op=i32?0x4a:0x55;break;case SWAN_IR_ICMP_SLE:op=i32?0x4c:0x57;break;case SWAN_IR_ICMP_SGE:op=i32?0x4e:0x59;break;
   default:return false;
  }
  return swan_wasm_byte(b,op)&&swan_wasm_set(b,in->result);
@@ -81,7 +80,7 @@ static inline bool swan_codegen_wasm32(const SwanIRModule *m,SwanWasmBuffer *out
    ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type(t));
   }
   const SwanIRBlock *bb=&fn->blocks[0];
-  for(size_t i=0;ok&&i<bb->instruction_count;i++)ok=swan_wasm_emit_inst(&body,m,&bb->instructions[i]);
+  for(size_t i=0;ok&&i<bb->instruction_count;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i]);
   if(ok&&bb->terminator.value)ok=swan_wasm_get(&body,bb->terminator.value);
   if(ok)ok=swan_wasm_byte(&body,0x0f)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_u32(&code,(uint32_t)body.length)&&swan_wasm_bytes(&code,body.data,body.length);
   free(body.data);
