@@ -110,6 +110,42 @@ static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
     }
     return changed;
 }
+static inline size_t swan_ir_use_count(const SwanIRFunction *fn,uint32_t value){
+    size_t uses=0;
+    for(size_t b=0;b<fn->block_count;b++){
+        const SwanIRBlock *bb=&fn->blocks[b];
+        for(size_t i=0;i<bb->instruction_count;i++){
+            const SwanIRInst *in=&bb->instructions[i];
+            uses+=(in->a==value)+(in->b==value)+(in->c==value);
+            for(size_t k=0;k<in->incoming_count;k++)uses+=in->incoming[k].value==value;
+        }
+        uses+=bb->terminator.value==value;
+    }
+    return uses;
+}
+static inline bool swan_ir_inst_has_side_effect(const SwanIRInst *in){
+    return in->op==SWAN_IR_CALL||in->op==SWAN_IR_STORE||in->op==SWAN_IR_LOAD;
+}
+static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
+    bool changed=false,again=true;
+    while(again){
+        again=false;
+        for(size_t f=0;f<module->function_count;f++){
+            SwanIRFunction *fn=&module->functions[f];
+            for(size_t b=0;b<fn->block_count;b++){
+                SwanIRBlock *bb=&fn->blocks[b];size_t out=0;
+                for(size_t i=0;i<bb->instruction_count;i++){
+                    SwanIRInst in=bb->instructions[i];
+                    bool dead=in.result&&!swan_ir_inst_has_side_effect(&in)&&swan_ir_use_count(fn,in.result)==0;
+                    if(dead){free(in.incoming);again=true;changed=true;continue;}
+                    bb->instructions[out++]=in;
+                }
+                bb->instruction_count=out;
+            }
+        }
+    }
+    return changed;
+}
 typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
