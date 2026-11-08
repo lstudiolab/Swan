@@ -15,7 +15,7 @@ The same typed IR is consumed by the AArch64, ARMv7, RISC-V64, WASM32 and WASM64
 - Typed SSA IR with control-flow, PHI nodes, calls and memory operations.
 - IR verifier for SSA bounds/uniqueness, dominance, branch targets, PHI completeness, call signatures and operand types.
 - IR generation for integer/boolean expressions, direct calls, mutable locals, branches, loops, loop control and short-circuit logic.
-- Verified optimization pass manager: width-aware constant folding, select folding, constant-branch/CFG simplification, unreachable-block removal, algebraic simplification, dominance-aware CSE and iterative DCE.
+- Verified optimization pass manager: width-aware constant folding, select folding, constant-branch/CFG simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware CSE, conservative loop-invariant code motion and iterative DCE.
 - Versioned, bounded .swvm serialization and portable SVM execution.
 - Dedicated assembly emitter and linker helper interfaces.
 
