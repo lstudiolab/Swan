@@ -45,7 +45,7 @@ Emit assembly:
 ./build/swan examples/hello.swan --emit-asm -o hello.s
 ```
 
-The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 currently emit cross-target assembly or ELF relocatable objects for the supported scalar IR subset; they do not execute on the host. WebAssembly emits a module for straight-line scalar functions and can be run by a WebAssembly runtime. The portable SVM executes verified IR on the host and supports the broader control-flow subset. Unsupported IR is rejected with a diagnostic rather than silently lowered.
+The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 currently emit cross-target assembly or ELF relocatable objects for the supported scalar IR subset; ARMv7 emits 32-bit ARM objects for `i32` scalar functions; they do not execute on the host. WebAssembly 32- and scalar-only 64-bit targets emit modules for straight-line scalar functions and can be run by a WebAssembly runtime. The portable SVM executes verified IR on the host and supports the broader control-flow subset. Unsupported IR is rejected with a diagnostic rather than silently lowered.
 
 ## Language subset
 
@@ -150,8 +150,8 @@ CI runs the complete suite, including compiler construction, header isolation, p
 | RISC-V 64 | Implemented, limited | Scalar typed IR; emits RV64 assembly and ELF objects |
 | WebAssembly 32-bit | Implemented, limited | Straight-line scalar functions; emits WASM 1.0 modules |
 | Portable SVM | Implemented | Verified IR execution, calls, mutable locals, loops and branches |
-| ARMv7 / Thumb | Not implemented | Registry only |
-| WebAssembly 64-bit / memory64 | Not implemented | Registry only |
+| ARMv7 / ARM mode | Implemented, limited | Scalar i32; emits ARMv7 assembly and ELF objects |
+| WebAssembly 64-bit / memory64 | Implemented, limited | Scalar modules without linear-memory/pointer operations; WASM64 memory64 lowering is not implemented |
 | Windows x64 / Apple Darwin | Not implemented | Registry only |
 
 Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 native backend; array lowering, general multi-block control flow, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. A listed implemented backend does not imply every Swan program can target it.
