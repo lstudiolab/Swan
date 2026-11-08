@@ -241,15 +241,30 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
  if(!strcmp(name,"array")||!strcmp(name,"array_u32")||!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")){
   if(e->argc!=1){swan_error(err,&e->token,"array expects exactly one length argument");return;}
-  cg_save_volatile(o,l);emit_expr(o,e->args[0],l,err);
-  if(!strcmp(name,"array")||!strcmp(name,"array_u32")){
-   text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n");
-   cg_push(o,"rax");
-   text_add(o,"    add rax, 2\n    jo .Lswan_array_bounds_fail\n    mov rdi, rax\n    mov esi, 4\n");
+  int64_t fixed_length=0;
+  bool fixed=cg_const_value(e->args[0],&fixed_length)&&fixed_length>=0&&fixed_length<=INT32_MAX;
+  bool checked=!strcmp(name,"array")||!strcmp(name,"array_u32");
+  cg_save_volatile(o,l);
+  if(checked){
+   if(fixed){
+    text_add(o,"    mov edi, %lld\n    mov esi, 4\n",(long long)(fixed_length+2));
+    cg_call(o,"calloc@PLT");
+    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], %lld\n    add rax, 8\n",(long long)fixed_length);
+   }else{
+    emit_expr(o,e->args[0],l,err);
+    text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n");
+    cg_push(o,"rax");
+    text_add(o,"    add rax, 2\n    jo .Lswan_array_bounds_fail\n    mov rdi, rax\n    mov esi, 4\n");
+    cg_call(o,"calloc@PLT");
+    cg_pop(o,"rcx");
+    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], rcx\n    add rax, 8\n");
+   }
+  }else if(fixed){
+   text_add(o,"    mov edi, %lld\n    mov esi, 4\n",(long long)(fixed_length?fixed_length:1));
    cg_call(o,"calloc@PLT");
-   cg_pop(o,"rcx");
-   text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], rcx\n    add rax, 8\n");
+   text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n");
   }else{
+   emit_expr(o,e->args[0],l,err);
    int id=o->next_label++;text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n    mov rdi, rax\n    test rdi, rdi\n    jnz .Lswan_array_nonzero_%d\n    mov edi, 1\n.Lswan_array_nonzero_%d:\n    mov esi, 4\n",id,id);
    cg_call(o,"calloc@PLT");
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n");
