@@ -30,10 +30,11 @@ The assembler and linker consume only Swan-generated assembly. They do not compi
 - Direct local arithmetic and comparison lowering.
 - Constant folding, short-circuit logical lowering, power-of-two division, small single-return inlining, and loop strength reduction.
 - Bounds-checked and unchecked contiguous `u32` arrays.
+- SAMC compiler-tracked array ownership, automatic function-exit cleanup, manual ownership declarations, and explicit `free` lowering without runtime reference counters.
 - Loop break/continue labels and early-exit-aware loop lowering.
 - Error-checked assembly-buffer growth.
 
-The current backend lowers directly from the AST. It does not yet have a typed, target-independent IR, global liveness analysis, or a mature optimization pipeline.
+The current backend lowers directly from the AST. SAMC conservatively releases non-escaping local array allocations at function exit and on early returns. Arrays that escape through aliases, calls, or returns are not implicitly released. SAMC does not yet have interprocedural ownership analysis or per-block last-use cleanup. The backend does not yet have a typed, target-independent IR, global liveness analysis, or a mature optimization pipeline.
 
 ## Standard library
 
