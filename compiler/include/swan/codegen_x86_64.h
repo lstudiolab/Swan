@@ -31,7 +31,7 @@ static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",r
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
 static inline bool cg_const_value(Expr *e,int64_t *out);
-typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known; } Local;
+typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known,samc_manual,samc_escaped,samc_freed; } Local;
 typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
@@ -49,7 +49,7 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  else v->slot=++l->slots;
  return v;
 }
-static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME){
+static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v){v->samc_manual=s->manual_memory;}if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME){
  if(!strcmp(s->value->left->token.text,"array")||!strcmp(s->value->left->token.text,"array_u32")){
   v->array_u32=true;int64_t length=0;
   if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
@@ -239,6 +239,7 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
 }
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
+ if(!strcmp(name,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME){swan_error(err,&e->token,"free expects one memory variable");return;}Local *v=local_find(l,e->args[0]->token.text);if(!v||!v->array_u32){swan_error(err,&e->token,"free requires an array variable");return;}cg_save_volatile(o,l);if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);text_add(o,"    xor eax, eax\\n");return;}
  if(!strcmp(name,"array")||!strcmp(name,"array_u32")||!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")){
   if(e->argc!=1){swan_error(err,&e->token,"array expects exactly one length argument");return;}
   int64_t fixed_length=0;
@@ -847,6 +848,30 @@ static inline bool loop_proves_array_fill_bounds(Stmt **outer,size_t before,Stmt
  }
  return false;
 }
+static inline void samc_mark_expr(Expr *e,Locals *l,bool escapes){
+ if(!e)return;
+ if(e->kind==E_NAME){if(escapes){Local *v=local_find(l,e->token.text);if(v&&v->array_u32)v->samc_escaped=true;}return;}
+ if(e->kind==E_CALL&&e->left&&e->left->kind==E_NAME){
+  if(!strcmp(e->left->token.text,"free")){if(e->argc==1&&e->args[0]&&e->args[0]->kind==E_NAME){Local *v=local_find(l,e->args[0]->token.text);if(v&&v->array_u32)v->samc_freed=true;}return;}
+  for(size_t i=0;i<e->argc;i++)samc_mark_expr(e->args[i],l,true);
+  return;
+ }
+ if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN){samc_mark_expr(e->left,l,true);samc_mark_expr(e->right,l,true);return;}
+ samc_mark_expr(e->left,l,escapes);samc_mark_expr(e->right,l,escapes);
+ for(size_t i=0;i<e->argc;i++)samc_mark_expr(e->args[i],l,escapes);
+}
+static inline void samc_scan_escapes(Stmt **body,size_t n,Locals *l){
+ for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){if(s->value&&s->value->kind==E_NAME)samc_mark_expr(s->value,l,true);else samc_mark_expr(s->value,l,false);}else if(s->kind==S_RETURN)samc_mark_expr(s->value,l,true);else samc_mark_expr(s->value,l,false);samc_scan_escapes(s->body,s->body_count,l);samc_scan_escapes(s->alternate,s->alt_count,l);}
+}
+static inline void emit_samc_cleanup(Text *o,Locals *l){
+ for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed)continue;
+  cg_save_volatile(o,l);
+  if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));
+  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);
+  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");
+  cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+ }
+}
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
@@ -940,7 +965,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   Stmt *fn=p->functions[i];Locals l={0};o->stack_depth=0;
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
   for(size_t a=0;a<fn->param_count;a++)local_add(&l,fn->params[a],false);
-  collect_locals(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
+  collect_locals(fn->body,fn->body_count,&l);samc_scan_escapes(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
