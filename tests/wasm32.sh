@@ -9,6 +9,12 @@ fn explode() -> bool:
     return 1 / 0 == 0
 fn double(x: int) -> int:
     return x * 2
+fn recurse(n: int) -> int:
+    var value = n
+    if n <= 0:
+        return value
+    else:
+        return value + recurse(n - 1)
 fn main() -> int:
     var count = 0
     var total = 0
@@ -20,7 +26,7 @@ fn main() -> int:
     if false and explode():
         return 1
     if true or explode():
-        return total
+        return total + recurse(4)
     return 0
 SWAN
 "$BIN" build "$TMP/main.swan" --target wasm32 -o "$TMP/main.wasm"
