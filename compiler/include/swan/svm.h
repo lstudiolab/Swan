@@ -8,7 +8,7 @@
  * host CPU without a host-specific instruction selector. */
 #define SWAN_SVM_MAGIC "SWANVM01"
 #define SWAN_SVM_VERSION 1u
-#define SWAN_SVM_MAX_CALL_DEPTH 256u
+#define SWAN_SVM_MAX_CALL_DEPTH 256u\n#define SWAN_SVM_MAX_MODULE_BYTES (UINT64_C(256)*1024u*1024u)
 
 typedef struct {
     const SwanIRModule *module;
@@ -278,7 +278,7 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
         if(error&&cap)snprintf(error,cap,"invalid SVM module header");return false;
     }
     SwanSVMReader header={in,UINT64_MAX,false};
-    if(!swan_svm_read_u32(&header,&version)||!swan_svm_read_u32(&header,&flags)||!swan_svm_read_u64(&header,&size)||version!=SWAN_SVM_VERSION||flags!=0||size>UINT32_MAX*UINT64_C(16)){
+    if(!swan_svm_read_u32(&header,&version)||!swan_svm_read_u32(&header,&flags)||!swan_svm_read_u64(&header,&size)||version!=SWAN_SVM_VERSION||flags!=0||size>SWAN_SVM_MAX_MODULE_BYTES){
         if(error&&cap)snprintf(error,cap,"unsupported or malformed SVM module header");return false;
     }
     SwanSVMReader r={in,size,false};uint32_t functions=0;
@@ -292,7 +292,7 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
         bool ok=true;for(uint32_t p=0;p<params;p++){uint8_t t;if(!swan_svm_read_u8(&r,&t)){ok=false;break;}types[p]=(SwanIRType)t;}
         SwanIRFunction *fn=ok?swan_ir_add_function(m,name,(SwanIRType)ret,types,params):NULL;free(types);
         if(!fn)goto malformed;
-        if(!swan_svm_read_u32(&r,&blocks)||blocks>SWAN_SVM_MAX_ITEMS||!swan_svm_read_u32(&r,&next))goto malformed;
+        if(!swan_svm_read_u32(&r,&blocks)||blocks>SWAN_SVM_MAX_ITEMS||!swan_svm_read_u32(&r,&next)||next>SWAN_SVM_MAX_ITEMS||next<=params)goto malformed;
         fn->next_value=next;
         for(uint32_t b=0;b<blocks;b++){
             char *block_name=swan_svm_read_string(&r);uint32_t count;
