@@ -86,7 +86,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   const SwanIRFunction *fn=&m->functions[f];SwanWasmBuffer body={0};
   uint32_t value_locals=fn->next_value-(uint32_t)fn->parameter_count-1;
   size_t fn_allocas=0;for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)fn_allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
-  uint32_t base_local=value_locals,pc=value_locals+(fn_allocas?1u:0u);
+  uint32_t base_local=(uint32_t)fn->next_value-1,pc=base_local+(fn_allocas?1u:0u);
   ok=swan_wasm_u32(&body,value_locals+(fn_allocas?1u:0u)+(fn->block_count>1?1u:0u));
   for(uint32_t id=(uint32_t)fn->parameter_count+1;ok&&id<fn->next_value;id++){
    SwanIRType t=swan_ir_value_type_of(fn,id);ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type_for(t,memory64));
