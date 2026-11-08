@@ -7,19 +7,29 @@ mkdir -p build
 echo "=== Swan ==="
 /usr/bin/time -f 'Swan compile: %e seconds | compiler peak RSS: %M KiB' ./build/swan benchmarks/sort_1b.swan --emit-asm -o build/sort_swan.s
 /usr/bin/time -f 'Swan link: %e seconds | linker peak RSS: %M KiB' cc -x assembler build/sort_swan.s -o build/sort_swan
+
 run_and_check() {
   local name="$1"; shift
-  local output
+  local output status
   echo "Starting $name 1B sort"
-  output=$(/usr/bin/time -f "$name runtime: %e seconds | user CPU: %U seconds | system CPU: %S seconds | peak RSS: %M KiB" "$@" 2> "build/${name}.time")
-  cat "build/${name}.time"
-  if [[ "$output" != "1" ]]; then echo "$name verification failed: expected 1, got '$output'" >&2; exit 1; fi
+  if output=$(/usr/bin/time -f "$name runtime: %e seconds | user CPU: %U seconds | system CPU: %S seconds | peak RSS: %M KiB" "$@" 2> "build/${name}.time"); then
+    cat "build/${name}.time"
+  else
+    status=$?
+    cat "build/${name}.time"
+    echo "$name process failed with exit code $status" >&2
+    return "$status"
+  fi
+  if [[ "$output" != "1" ]]; then
+    echo "$name verification failed: expected 1, got '$output'" >&2
+    return 1
+  fi
   echo "$name verification: PASS"
 }
 run_and_check Swan ./build/sort_swan
 
 echo "=== Goose ==="
-/usr/bin/time -f 'Goose compile + link: %e seconds | compiler peak RSS: %M KiB' ./goose-build/goose build --cc gcc -o build/sort_goose benchmarks/sort_1b.goose
+/usr/bin/time -f 'Goose compile + link: %e seconds | compiler peak RSS: %M KiB' ./goose-build/goose build --cc gcc --stack-reserve 8G -o build/sort_goose benchmarks/sort_1b.goose
 run_and_check Goose ./build/sort_goose
 
 echo "=== Rust ==="
