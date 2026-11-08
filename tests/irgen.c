@@ -7,21 +7,40 @@
 #include <stdio.h>
 
 int main(void) {
-    const char *source="fn main() -> int:\n    let base = 6\n    return base * 7\n";
+    const char *source=
+        "fn double(x: int) -> int:\n"
+        "    return x * 2\n"
+        "fn main() -> int:\n"
+        "    var i = 0\n"
+        "    var total = 0\n"
+        "    while i < 10:\n"
+        "        i = i + 1\n"
+        "        if i == 3:\n"
+        "            continue\n"
+        "        if i == 8:\n"
+        "            break\n"
+        "        total = total + double(i)\n"
+        "    return total\n";
     SwanError error={0}; TokenStream tokens={0}; Program program={0};
     assert(swan_lex(source,&tokens,&error));
     assert(swan_parse(&tokens,&program,&error));
     assert(swan_semantic_check(&program,&error));
     SwanIRModule module={0};
     assert(swan_irgen_program(&program,&module,&error));
-    char verify[256]={0};
-    assert(swan_ir_optimize(&module,verify,sizeof(verify)));
+    char detail[256]={0};
+    assert(swan_ir_optimize(&module,detail,sizeof(detail)));
     int64_t result=0;
-    assert(swan_svm_run(&module,"main",1000,&result,verify,sizeof(verify)));
-    assert(result==42);
-    swan_ir_destroy(&module);
-    swan_program_destroy(&program);
-    free(tokens.items); free(tokens.text_storage);
-    puts("PASS: .swan source -> typed IR -> optimized SVM execution");
+    assert(swan_svm_run(&module,"main",10000,&result,detail,sizeof(detail)));
+    assert(result==50);
+    FILE *artifact=tmpfile();assert(artifact);
+    assert(swan_svm_write_module(artifact,&module));rewind(artifact);
+    SwanIRModule loaded={0};
+    assert(swan_svm_read_module(artifact,&loaded,detail,sizeof(detail)));
+    fclose(artifact);
+    result=0;assert(swan_svm_run(&loaded,"main",10000,&result,detail,sizeof(detail)));
+    assert(result==50);
+    swan_ir_destroy(&loaded);swan_ir_destroy(&module);
+    swan_program_destroy(&program);free(tokens.items);free(tokens.text_storage);
+    puts("PASS: .swan -> typed IR -> optimized SVM, loops, branches, calls and module round-trip");
     return 0;
 }
