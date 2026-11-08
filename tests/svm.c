@@ -103,6 +103,49 @@ int main(void) {
     assert(swan_svm_run(&shared,"main",1000,&result,error,sizeof(error))&&result==99);
     swan_ir_destroy(&shared);
 
+    /* Thousands of calls with local allocations must reuse frame storage. */
+    SwanIRModule repeated={0};
+    SwanIRFunction *touch=swan_ir_add_function(&repeated,"touch",SWAN_IR_I64,NULL,0);assert(touch);
+    SwanIRBlock *te=swan_ir_add_block(touch,"entry");assert(te);
+    SwanIRInst local={0};local.op=SWAN_IR_ALLOCA;local.type=SWAN_IR_PTR;
+    uint32_t ptr=swan_ir_add_inst(touch,te,local);assert(ptr);
+    SwanIRInst seven={0};seven.op=SWAN_IR_CONST;seven.type=SWAN_IR_I64;seven.immediate=7;
+    uint32_t seven_id=swan_ir_add_inst(touch,te,seven);assert(seven_id);
+    SwanIRInst write={0};write.op=SWAN_IR_STORE;write.type=SWAN_IR_VOID;write.a=ptr;write.b=seven_id;
+    assert(!swan_ir_add_inst(touch,te,write));
+    SwanIRInst read={0};read.op=SWAN_IR_LOAD;read.type=SWAN_IR_I64;read.a=ptr;
+    uint32_t read_id=swan_ir_add_inst(touch,te,read);assert(read_id);
+    assert(swan_ir_terminate(te,(SwanIRTerm){SWAN_IR_RET,read_id,0,0}));
+
+    SwanIRFunction *repeat_main=swan_ir_add_function(&repeated,"main",SWAN_IR_I64,NULL,0);assert(repeat_main);
+    SwanIRBlock *re=swan_ir_add_block(repeat_main,"entry"),*rl=swan_ir_add_block(repeat_main,"loop");
+    SwanIRBlock *rb=swan_ir_add_block(repeat_main,"body"),*rx=swan_ir_add_block(repeat_main,"exit");assert(re&&rl&&rb&&rx);
+    SwanIRInst zero={0};zero.op=SWAN_IR_CONST;zero.type=SWAN_IR_I64;zero.immediate=0;
+    uint32_t zero_id=swan_ir_add_inst(repeat_main,re,zero);assert(zero_id);
+    SwanIRInst limit={0};limit.op=SWAN_IR_CONST;limit.type=SWAN_IR_I64;limit.immediate=5000;
+    uint32_t limit_id=swan_ir_add_inst(repeat_main,re,limit);assert(limit_id);
+    assert(swan_ir_terminate(re,(SwanIRTerm){SWAN_IR_BR,0,1,0}));
+    SwanIRInst phi={0};phi.op=SWAN_IR_PHI;phi.type=SWAN_IR_I64;
+    phi.incoming=calloc(2,sizeof(*phi.incoming));assert(phi.incoming);phi.incoming_count=2;
+    phi.incoming[0]=(SwanIRIncoming){zero_id,0};
+    uint32_t index=swan_ir_add_inst(repeat_main,rl,phi);assert(index);
+    SwanIRInst less={0};less.op=SWAN_IR_ICMP_SLT;less.type=SWAN_IR_I1;less.a=index;less.b=limit_id;
+    uint32_t condition=swan_ir_add_inst(repeat_main,rl,less);assert(condition);
+    assert(swan_ir_terminate(rl,(SwanIRTerm){SWAN_IR_COND_BR,condition,2,3}));
+    SwanIRInst invoke={0};invoke.op=SWAN_IR_CALL;invoke.type=SWAN_IR_I64;invoke.symbol="touch";
+    assert(swan_ir_add_inst(repeat_main,rb,invoke));
+    SwanIRInst one={0};one.op=SWAN_IR_CONST;one.type=SWAN_IR_I64;one.immediate=1;
+    uint32_t one_id=swan_ir_add_inst(repeat_main,rb,one);assert(one_id);
+    SwanIRInst add={0};add.op=SWAN_IR_ADD;add.type=SWAN_IR_I64;add.a=index;add.b=one_id;
+    uint32_t next=swan_ir_add_inst(repeat_main,rb,add);assert(next);
+    phi.incoming[1]=(SwanIRIncoming){next,2};
+    assert(swan_ir_terminate(rb,(SwanIRTerm){SWAN_IR_BR,0,1,0}));
+    assert(swan_ir_terminate(rx,(SwanIRTerm){SWAN_IR_RET,index,0,0}));
+    assert(swan_ir_verify(&repeated,error,sizeof(error)));
+    assert(swan_svm_run(&repeated,"main",200000,&result,error,sizeof(error)));
+    assert(result==5000);
+    swan_ir_destroy(&repeated);
+
     swan_ir_destroy(&loaded);
     swan_ir_destroy(&module);
         puts("PASS: SVM executes and optimizes portable typed IR");
