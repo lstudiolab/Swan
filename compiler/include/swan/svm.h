@@ -11,6 +11,8 @@
 #define SWAN_SVM_MAX_CALL_DEPTH 256u
 #define SWAN_SVM_MAX_MODULE_BYTES (UINT64_C(256)*1024u*1024u)
 
+typedef struct { const char *name; size_t index; } SwanVMFunctionSlot;
+
 typedef struct {
     const SwanIRModule *module;
     uint64_t fuel;
@@ -19,7 +21,46 @@ typedef struct {
     size_t error_capacity;
     int64_t memory[4096];
     size_t memory_count;
+    SwanVMFunctionSlot *function_slots;
+    size_t function_slot_count;
 } SwanVM;
+
+static inline uint64_t swan_svm_hash_name(const char *name) {
+    uint64_t hash=UINT64_C(1469598103934665603);
+    for(const unsigned char *p=(const unsigned char*)name;*p;p++){hash^=*p;hash*=UINT64_C(1099511628211);}
+    return hash;
+}
+
+static inline size_t swan_svm_find_function(const SwanVM *vm,const char *name) {
+    if(!vm->function_slot_count||!name)return vm->module->function_count;
+    size_t mask=vm->function_slot_count-1;
+    size_t slot=(size_t)swan_svm_hash_name(name)&mask;
+    for(size_t probes=0;probes<vm->function_slot_count;probes++){
+        const SwanVMFunctionSlot *entry=&vm->function_slots[slot];
+        if(!entry->name)return vm->module->function_count;
+        if(!strcmp(entry->name,name))return entry->index;
+        slot=(slot+1)&mask;
+    }
+    return vm->module->function_count;
+}
+
+static inline bool swan_svm_build_function_index(SwanVM *vm) {
+    size_t capacity=8;
+    if(vm->module->function_count>SIZE_MAX/2)return false;
+    size_t needed=vm->module->function_count*2;
+    while(capacity<needed){if(capacity>SIZE_MAX/2)return false;capacity*=2;}
+    vm->function_slots=calloc(capacity,sizeof(*vm->function_slots));
+    if(!vm->function_slots)return false;
+    vm->function_slot_count=capacity;
+    size_t mask=capacity-1;
+    for(size_t i=0;i<vm->module->function_count;i++){
+        const char *name=vm->module->functions[i].name;
+        size_t slot=(size_t)swan_svm_hash_name(name)&mask;
+        while(vm->function_slots[slot].name)slot=(slot+1)&mask;
+        vm->function_slots[slot]=(SwanVMFunctionSlot){name,i};
+    }
+    return true;
+}
 
 static inline unsigned swan_svm_integer_bits(SwanIRType type){
     switch(type){case SWAN_IR_I1:return 1;case SWAN_IR_I8:return 8;case SWAN_IR_I16:return 16;case SWAN_IR_I32:return 32;case SWAN_IR_I64:return 64;default:return 64;}
@@ -57,11 +98,12 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     size_t value_count = (size_t)fn->next_value + 1;
     int64_t *values = calloc(value_count, sizeof(*values));
     if (!values) return swan_svm_fail(vm, "SVM out of memory allocating registers");
+    size_t memory_mark=vm->memory_count;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = swan_svm_normalize_value(arguments[i],fn->parameter_types[i]);
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
         const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
         if(alloc->op==SWAN_IR_ALLOCA){
-            if(vm->memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
+            if(vm->memory_count>=4095||alloc->result>=value_count){vm->memory_count=memory_mark;free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
             values[alloc->result]=(int64_t)++vm->memory_count;
         }
     }
@@ -124,9 +166,7 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
                     break;
                 }
                 case SWAN_IR_CALL: {
-                    size_t callee = vm->module->function_count;
-                    for (size_t k = 0; k < vm->module->function_count; ++k)
-                        if (!strcmp(vm->module->functions[k].name, in->symbol)) { callee = k; break; }
+                    size_t callee = swan_svm_find_function(vm,in->symbol);
                     if (callee == vm->module->function_count) { ok = swan_svm_fail(vm, "SVM unresolved function call"); break; }
                     if (in->incoming_count > 16) { ok = swan_svm_fail(vm, "SVM call has too many arguments"); break; }
                     int64_t args[16] = {0};
@@ -170,6 +210,7 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
         }
     }
     --vm->depth;
+    vm->memory_count=memory_mark;
     free(values);
     return ok;
 }
@@ -190,7 +231,13 @@ static inline bool swan_svm_run(const SwanIRModule *module, const char *entry,
         return false;
     }
     SwanVM vm = {.module=module,.fuel=fuel?fuel:UINT64_MAX,.depth=0,.error=error,.error_capacity=error_capacity,.memory_count=0};
-    return swan_svm_eval(&vm, index, NULL, 0, result);
+    if(!swan_svm_build_function_index(&vm)){
+        if(error&&error_capacity)snprintf(error,error_capacity,"SVM out of memory building function index");
+        free(vm.function_slots);return false;
+    }
+    bool ok=swan_svm_eval(&vm,index,NULL,0,result);
+    free(vm.function_slots);
+    return ok;
 }
 
 /* Portable SVM module format. All integers are encoded explicitly in
