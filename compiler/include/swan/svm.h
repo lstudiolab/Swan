@@ -29,6 +29,12 @@ static inline int64_t swan_svm_signed_value(uint64_t value,unsigned bits){
     return (int64_t)((value^sign)-sign);
 }
 
+static inline int64_t swan_svm_normalize_value(int64_t value,SwanIRType type){
+    if(type==SWAN_IR_PTR)return value;
+    unsigned bits=swan_svm_integer_bits(type);
+    return swan_svm_signed_value(swan_svm_truncate((uint64_t)value,bits),bits);
+}
+
 static inline bool swan_svm_fail(SwanVM *vm, const char *message) {
     if (vm->error && vm->error_capacity)
         snprintf(vm->error, vm->error_capacity, "%s", message);
