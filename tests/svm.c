@@ -82,6 +82,27 @@ int main(void) {
     assert(swan_ir_optimize(&narrow,error,sizeof(error)));
     assert(swan_svm_run(&narrow,"wrap8",100,&result,error,sizeof(error)));assert(result==-128);
     swan_ir_destroy(&narrow);
+    SwanIRModule shared={0};
+    SwanIRType pointer_param[]={SWAN_IR_PTR};
+    SwanIRFunction *mutator=swan_ir_add_function(&shared,"mutate",SWAN_IR_VOID,pointer_param,1);assert(mutator);
+    SwanIRBlock *mutator_entry=swan_ir_add_block(mutator,"entry");assert(mutator_entry);
+    SwanIRInst replacement={0};replacement.op=SWAN_IR_CONST;replacement.type=SWAN_IR_I64;replacement.immediate=99;
+    uint32_t replacement_id=swan_ir_add_inst(mutator,mutator_entry,replacement);
+    SwanIRInst write={0};write.op=SWAN_IR_STORE;write.type=SWAN_IR_VOID;write.a=1;write.b=replacement_id;
+    assert(!swan_ir_add_inst(mutator,mutator_entry,write));
+    assert(swan_ir_terminate(mutator_entry,(SwanIRTerm){SWAN_IR_RET,0,0,0}));
+    SwanIRFunction *caller=swan_ir_add_function(&shared,"main",SWAN_IR_I64,NULL,0);assert(caller);
+    SwanIRBlock *caller_entry=swan_ir_add_block(caller,"entry");assert(caller_entry);
+    SwanIRInst allocation={0};allocation.op=SWAN_IR_ALLOCA;allocation.type=SWAN_IR_PTR;uint32_t pointer=swan_ir_add_inst(caller,caller_entry,allocation);
+    SwanIRInst initial={0};initial.op=SWAN_IR_CONST;initial.type=SWAN_IR_I64;initial.immediate=7;uint32_t initial_id=swan_ir_add_inst(caller,caller_entry,initial);
+    SwanIRInst initial_store={0};initial_store.op=SWAN_IR_STORE;initial_store.type=SWAN_IR_VOID;initial_store.a=pointer;initial_store.b=initial_id;assert(!swan_ir_add_inst(caller,caller_entry,initial_store));
+    SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_VOID;call.symbol="mutate";call.incoming=calloc(1,sizeof(*call.incoming));assert(call.incoming);call.incoming_count=1;call.incoming[0].value=pointer;assert(!swan_ir_add_inst(caller,caller_entry,call));free(call.incoming);
+    SwanIRInst read={0};read.op=SWAN_IR_LOAD;read.type=SWAN_IR_I64;read.a=pointer;uint32_t read_id=swan_ir_add_inst(caller,caller_entry,read);
+    assert(swan_ir_terminate(caller_entry,(SwanIRTerm){SWAN_IR_RET,read_id,0,0}));
+    assert(swan_ir_verify(&shared,error,sizeof(error)));
+    assert(swan_svm_run(&shared,"main",1000,&result,error,sizeof(error))&&result==99);
+    swan_ir_destroy(&shared);
+
     swan_ir_destroy(&loaded);
     swan_ir_destroy(&module);
         puts("PASS: SVM executes and optimizes portable typed IR");
