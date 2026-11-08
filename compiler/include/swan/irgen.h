@@ -179,8 +179,7 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
             if(!e->left||e->left->kind!=E_NAME){swan_irgen_fail(g,&e->token,"assignment target must be a local variable");return 0;}
             SwanIRLocal *local=swan_irgen_local(g,e->left->token.text);
             if(!local||!local->memory){swan_irgen_fail(g,&e->token,"assignment target is not mutable");return 0;}
-            uint32_t v=swan_irgen_expr(g,e->right);if(!v)return 0;
-            if(swan_ir_value_type_of(g->function,v)!=local->type){swan_irgen_fail(g,&e->token,"assignment type mismatch");return 0;}
+            uint32_t v=swan_irgen_expr_as(g,e->right,local->type);if(!v)return 0;
             SwanIRInst in={0};in.op=SWAN_IR_STORE;in.type=SWAN_IR_VOID;in.a=local->value;in.b=v;
             swan_irgen_emit(g,in);return v;
         }
@@ -248,17 +247,15 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
                 SwanIRType type=s->type?swan_irgen_type(s->type):SWAN_IR_VOID;
                 uint32_t value=0;bool memory=s->mutable_value;
                 if(memory){SwanIRInst alloc={0};alloc.op=SWAN_IR_ALLOCA;alloc.type=SWAN_IR_PTR;value=swan_irgen_emit(g,alloc);}
-                if(s->value){uint32_t init=swan_irgen_expr(g,s->value);if(!init)return false;
+                if(s->value){uint32_t init=type==SWAN_IR_VOID?swan_irgen_expr(g,s->value):swan_irgen_expr_as(g,s->value,type);if(!init)return false;
                     if(type==SWAN_IR_VOID)type=swan_ir_value_type_of(g->function,init);
-                    if(type!=swan_ir_value_type_of(g->function,init))return swan_irgen_fail(g,&s->token,"local initializer type mismatch");
                     if(memory){SwanIRInst store={0};store.op=SWAN_IR_STORE;store.type=SWAN_IR_VOID;store.a=value;store.b=init;swan_irgen_emit(g,store);}else value=init;
                 }else if(!memory)return swan_irgen_fail(g,&s->token,"immutable local requires an initializer");
                 if(type==SWAN_IR_VOID)return swan_irgen_fail(g,&s->token,"unsupported local variable type");
                 g->locals[g->local_count++]=(SwanIRLocal){s->name,value,type,memory};break;
             }
             case S_RETURN:{
-                uint32_t value=s->value?swan_irgen_expr(g,s->value):0;if(s->value&&!value)return false;
-                if(s->value&&swan_ir_value_type_of(g->function,value)!=g->function->return_type)return swan_irgen_fail(g,&s->token,"return type mismatch");
+                uint32_t value=s->value?swan_irgen_expr_as(g,s->value,g->function->return_type):0;if(s->value&&!value)return false;
                 if(!s->value&&g->function->return_type!=SWAN_IR_VOID)return swan_irgen_fail(g,&s->token,"non-void function must return a value");
                 if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_RET,value,0,0}))return false;break;
             }
