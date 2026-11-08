@@ -90,19 +90,18 @@ Each backend must provide target data layout and ABI, instruction selection, reg
 
 ## Current status
 
-The production native path remains the established C11 lexer/parser/semantic checker and direct AST-to-x86-64 code generator. Existing `.swan` compiler and standard-library tests continue to exercise that path.
-
-The following components now exist and are exercised independently:
+SIL has deliberately not been started. The work immediately below is the pre-SIL foundation and is now implemented and exercised independently:
 
 - `ast.h` owns AST structures and arena lifetime helpers; `parser.h` constructs those nodes.
-- `ir.h` defines typed SSA IR and a structural verifier.
-- `irgen.h` lowers a conservative scalar subset (integer/boolean literals, parameters, immutable scalar locals, unary operations, arithmetic/comparisons and a single explicit return) from AST to IR. Unsupported constructs fail explicitly.
-- `optimization.h` runs verified target-independent scalar constant folding.
-- `svm.h` implements a portable register-based IR interpreter with fuel limits, call-depth checks, arithmetic traps, branches and PHI handling. Memory instructions are not implemented. The versioned little-endian module header exists, but a complete standalone module serializer/loader does not.
-- `codegen.h` is the target dispatch boundary; x86-64 remains the only native machine-code backend.
-- `emitter.h` and `linker.h` expose separated assembly-output and host-linking helpers. The legacy driver still uses parts of its inline output/linking path.
-- `main.c` now owns CLI/compiler orchestration; `compiler.h` supplies reusable compiler support functions.
+- `ir.h` defines typed SSA IR, control-flow blocks, PHI nodes, calls and memory operations. Its verifier checks definitions, dominance, branch targets, complete PHI predecessor coverage, call signatures, operand types and register ranges.
+- `irgen.h` lowers typed integer/boolean functions, calls, immutable and mutable locals, assignments, if/else, while, break/continue, and short-circuit logical operators. Unsupported AST constructs fail explicitly rather than being miscompiled.
+- `optimization.h` contains a verified pass manager with constant folding, select folding and iterative dead-code elimination. Each pass verifies the module after transformation.
+- `svm.h` is a portable register-based interpreter. It executes arithmetic, calls, mutable stack locals, control flow and PHI nodes; it enforces execution fuel and call-depth limits and traps invalid arithmetic/memory operations. Its versioned little-endian `.swvm` format has a bounded reader/writer and module-owned string lifetime.
+- `codegen_aarch64.h`, `codegen_armv7.h`, `codegen_riscv64.h` and `codegen_wasm32.h` lower supported IR to target output. Native cross-target backends handle control flow, PHI edge copies and mutable stack locals; WebAssembly uses structured dispatch, linear memory and per-invocation stack frames. WASM64 emits memory64 memory declarations and pointer operations.
+- `main.c` owns CLI orchestration. The target registry only marks a backend available when its implementation is wired into the driver. Cross-target object generation is distinct from executing that object on the host.
 
-The `.swan -> AST -> typed IR -> optimization -> SVM execution` path is covered by `tests/irgen.sh`. The native `.swan` compiler suite, IR verifier, SVM runtime tests and IR-generation integration tests run in CI.
+CI covers the existing native compiler/stdlib regression suite, typed IR verification, the optimization pass manager, source-to-IR-to-SVM execution, SVM serialization round-trips, short-circuit behavior, WebAssembly runtime execution including recursion, and AArch64/ARMv7/RISC-V64 ELF object emission.
 
-Still not implemented: complete lowering for the language, mutable-variable/control-flow lowering in IRGen, memory and full call ABI support in SVM, a standalone SVM binary serializer/loader, a machine-code JIT in SVM, a fully integrated IR-first production pipeline, SIL/demand/pass infrastructure, and native AArch64, ARMv7, RISC-V64, WASM32 and WASM64 backends. These targets must remain unavailable until their code generators and ABI/execution tests exist. This is a tested foundation, not universal native binary support.
+The cross-target implementations are still not full replacements for the mature x86-64 frontend/backend. The current IR generator does not yet lower array/slice operations, strings and logging, floating-point arithmetic, or runtime-lazy imports. ARMv7 division needs runtime helpers. The non-x86 targets therefore advertise a tested integer/scalar subset, not universal support for every Swan source file. Windows x64 and Apple Darwin ABIs are not implemented.
+
+The production x86-64 path continues to use its established direct AST backend for the full currently supported language features. The new IR pipeline is not silently substituted for that path until feature parity and differential execution tests establish equivalence. SIL work should begin only after these pre-SIL contracts, feature boundaries and test gates are accepted; SIL must not be used to hide missing backend or IR behavior.
