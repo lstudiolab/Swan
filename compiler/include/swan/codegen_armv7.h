@@ -7,7 +7,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(fn->parameter_count>4||fn->return_type==SWAN_IR_I64||fn->return_type==SWAN_IR_F32||fn->return_type==SWAN_IR_F64){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports at most four i32 parameters and i32/void returns");return false;}
+  if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I32&&fn->return_type!=SWAN_IR_I1){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32/i1 and void returns");return false;}
   for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I32){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32 parameters only");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
