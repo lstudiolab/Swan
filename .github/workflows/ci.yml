@@ -19,5 +19,7 @@ jobs:
         run: sh tests/ir.sh
       - name: Verify portable SVM and IR optimization
         run: sh tests/svm.sh
+      - name: Verify .swan to IR to SVM integration
+        run: sh tests/irgen.sh
       - name: Verify compiler version
         run: ./build/swan --version
