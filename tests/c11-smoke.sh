@@ -413,6 +413,29 @@ test "$("$TMP/array-store-register")" = "308
 44"
 printf 'PASS: array stores preserve live allocated registers\n'
 
+cat > "$TMP/add-scratch-preservation.swan" <<'SWAN'
+fn main():
+    let a = 1
+    let b = 2
+    let c = 3
+    let d = 4
+    let e = 5
+    let f = 6
+    let g = 7
+    let h = 8
+    let i = 9
+    let j = 10
+    let values = array(4)
+    values[0] = 12
+    var index = 0
+    log a + values[index] + (b % 97)
+    return 0
+SWAN
+"$SWAN" "$TMP/add-scratch-preservation.swan" --emit-asm -o "$TMP/add-scratch-preservation.s"
+cc -x assembler "$TMP/add-scratch-preservation.s" -o "$TMP/add-scratch-preservation"
+test "$("$TMP/add-scratch-preservation")" = "15"
+printf 'PASS: addition accumulators survive spilled-array and remainder scratch use\n'
+
 cat > "$TMP/heapsort.swan" <<'SWAN'
 fn main():
     let values = array_u32_unchecked(10)
