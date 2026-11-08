@@ -18,13 +18,15 @@ fn sil_demand(state: int, count: int, live: int, keep: int) -> int:
         if opcode == 10
             keep[index] = 1
             live[left] = 1
-        if opcode != 10 and destination > 0 and destination < 256 and live[destination] == 1
+        if opcode >= 2 and opcode <= 8 and live[destination] == 1
             keep[index] = 1
-            if opcode >= 2 and opcode <= 8
-                live[left] = 1
-                live[right] = 1
-            if opcode == 9
-                live[left] = 1
+            live[left] = 1
+            live[right] = 1
+        if opcode == 9 and live[destination] == 1
+            keep[index] = 1
+            live[left] = 1
+        if opcode == 1 and live[destination] == 1
+            keep[index] = 1
         index = index - 1
     var kept = 0
     index = 0
