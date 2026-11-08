@@ -271,39 +271,43 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
                 if(edge&&!loop[pred]){preheader=pred;outside_preds++;}
             }
             if(outside_preds!=1)continue;
-            size_t move_count=0;
-            for(size_t b=0;b<n;b++)if(loop[b]){
-                const SwanIRBlock *bb=&fn->blocks[b];
-                for(size_t i=0;i<bb->instruction_count;i++){
-                    const SwanIRInst *in=&bb->instructions[i];
-                    if(!in->result||!swan_ir_licm_opcode(in->op)||
-                       (in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I8&&in->type!=SWAN_IR_I16&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64))continue;
-                    bool invariant=!swan_ir_value_defined_in_loop(fn,in->a,loop);
-                    if(in->op!=SWAN_IR_SELECT)invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop);
-                    else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop)&&!swan_ir_value_defined_in_loop(fn,in->c,loop);
-                    if(invariant)move_count++;
+            for(;;){
+                size_t move_count=0;
+                for(size_t b=0;b<n;b++)if(loop[b]){
+                    const SwanIRBlock *bb=&fn->blocks[b];
+                    for(size_t i=0;i<bb->instruction_count;i++){
+                        const SwanIRInst *in=&bb->instructions[i];
+                        if(!in->result||!swan_ir_licm_opcode(in->op)||
+                           (in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I8&&in->type!=SWAN_IR_I16&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64))continue;
+                        bool invariant=!swan_ir_value_defined_in_loop(fn,in->a,loop);
+                        if(in->op!=SWAN_IR_SELECT)invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop);
+                        else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop)&&!swan_ir_value_defined_in_loop(fn,in->c,loop);
+                        if(invariant)move_count++;
+                    }
                 }
-            }
-            if(!move_count)continue;
-            SwanIRBlock *pre=&fn->blocks[preheader];
-            if(!swan_ir_reserve((void**)&pre->instructions,&pre->instruction_capacity,
-                                pre->instruction_count+move_count,sizeof(*pre->instructions))){
-                free(loop);free(queue);if(error&&cap)snprintf(error,cap,"out of memory hoisting loop-invariant IR");return false;
-            }
-            for(size_t b=0;b<n;b++)if(loop[b]){
-                SwanIRBlock *bb=&fn->blocks[b];size_t out=0;
-                for(size_t i=0;i<bb->instruction_count;i++){
-                    SwanIRInst in=bb->instructions[i];
-                    bool invariant=in.result&&swan_ir_licm_opcode(in.op)&&
-                        (in.type==SWAN_IR_I1||in.type==SWAN_IR_I8||in.type==SWAN_IR_I16||in.type==SWAN_IR_I32||in.type==SWAN_IR_I64)&&
-                        !swan_ir_value_defined_in_loop(fn,in.a,loop);
-                    if(in.op==SWAN_IR_SELECT)invariant=invariant&&
-                        !swan_ir_value_defined_in_loop(fn,in.b,loop)&&!swan_ir_value_defined_in_loop(fn,in.c,loop);
-                    else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in.b,loop);
-                    if(invariant){pre->instructions[pre->instruction_count++]=in;}
-                    else bb->instructions[out++]=in;
+                if(!move_count)break;
+                SwanIRBlock *pre=&fn->blocks[preheader];
+                if(!swan_ir_reserve((void**)&pre->instructions,&pre->instruction_capacity,
+                                    pre->instruction_count+move_count,sizeof(*pre->instructions))){
+                    free(loop);free(queue);if(error&&cap)snprintf(error,cap,"out of memory hoisting loop-invariant IR");return false;
                 }
-                bb->instruction_count=out;
+                size_t moved=0;
+                for(size_t b=0;b<n;b++)if(loop[b]){
+                    SwanIRBlock *bb=&fn->blocks[b];size_t out=0;
+                    for(size_t i=0;i<bb->instruction_count;i++){
+                        SwanIRInst in=bb->instructions[i];
+                        bool invariant=in.result&&swan_ir_licm_opcode(in.op)&&
+                            (in.type==SWAN_IR_I1||in.type==SWAN_IR_I8||in.type==SWAN_IR_I16||in.type==SWAN_IR_I32||in.type==SWAN_IR_I64)&&
+                            !swan_ir_value_defined_in_loop(fn,in.a,loop);
+                        if(in.op==SWAN_IR_SELECT)invariant=invariant&&
+                            !swan_ir_value_defined_in_loop(fn,in.b,loop)&&!swan_ir_value_defined_in_loop(fn,in.c,loop);
+                        else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in.b,loop);
+                        if(invariant){pre->instructions[pre->instruction_count++]=in;moved++;}
+                        else bb->instructions[out++]=in;
+                    }
+                    bb->instruction_count=out;
+                }
+                if(!moved)break;
             }
         }
         free(loop);free(queue);
