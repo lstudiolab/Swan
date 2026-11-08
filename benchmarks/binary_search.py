@@ -17,13 +17,14 @@ C = r"""
 #include <stdlib.h>
 #define N 20000000LL
 int main(void) {
- int64_t *a = calloc((size_t)N, sizeof(*a)); if (!a) return 2;
+ uint32_t *a = calloc((size_t)N, sizeof(*a)); if (!a) return 2;
  for (int64_t i=0;i<N;i++) a[i]=i;
  int64_t sum=0;
  for (int64_t q=0;q<N;q++) {
   int64_t target=(q*7919)%N, low=0, high=N-1, found=-1;
   while(low<=high) { int64_t mid=low+(high-low)/2, v=a[mid];
-   if(v==target){found=v;break;} if(v<target)low=mid+1;else high=mid-1;
+   int64_t value=(int64_t)a[mid];
+   if(value==target){found=value;break;} if(value<target)low=mid+1;else high=mid-1;
   } sum+=found;
  }
  printf("%" PRId64 "\n",sum); free(a); return 0;
@@ -34,13 +35,13 @@ CPP = r"""
 #include <cstdio>
 #include <vector>
 int main() {
- constexpr int64_t n=20000000; std::vector<int64_t>a((size_t)n);
+ constexpr int64_t n=20000000; std::vector<uint32_t>a((size_t)n);
  for(int64_t i=0;i<n;i++)a[(size_t)i]=i;
  int64_t sum=0;
  for(int64_t q=0;q<n;q++){
   int64_t target=(q*7919)%n,low=0,high=n-1,found=-1;
   while(low<=high){int64_t mid=low+(high-low)/2,v=a[(size_t)mid];
-   if(v==target){found=v;break;}if(v<target)low=mid+1;else high=mid-1;
+   int64_t value=(int64_t)v; if(value==target){found=value;break;}if(value<target)low=mid+1;else high=mid-1;
   }sum+=found;
  }
  std::printf("%lld\n",(long long)sum);
@@ -49,13 +50,13 @@ int main() {
 RUST = r"""
 const N:i64=20_000_000;
 fn main(){
- let mut a=vec![0_i64;N as usize];
+ let mut a=vec![0_u32;N as usize];
  for i in 0..N{a[i as usize]=i;}
  let mut sum=0_i64;
  for q in 0..N{
   let target=(q*7919)%N;let(mut low,mut high,mut found)=(0_i64,N-1,-1_i64);
   while low<=high{let mid=low+(high-low)/2;let v=a[mid as usize];
-   if v==target{found=v;break;}if v<target{low=mid+1;}else{high=mid-1;}
+   let value=v as i64; if value==target{found=value;break;}if value<target{low=mid+1;}else{high=mid-1;}
   }sum+=found;
  }
  println!("{}",std::hint::black_box(sum));
@@ -67,7 +68,7 @@ import std;
 let N = 20000000;
 
 fn main() {
- var values:i64[]=[0;N];
+ var values:u32[]=[0;N];
  for i in 0..N { values[i]=i; }
  var sum:i64=0;
  for query in 0..N {
@@ -75,7 +76,7 @@ fn main() {
   var low=0; var high=N-1; var found=-1;
   while low<=high {
    let middle=low+(high-low)/2;
-   let value=values[middle];
+   let value=values[middle] as i64;
    if value==target { found=value; break; }
    if value<target { low=middle+1; } else { high=middle-1; }
   }

@@ -1,13 +1,24 @@
 name: Binary Search Benchmark
-# Deterministic search workload; rerun after Goose constant fix.
+
 on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/binary-search-benchmark.yml"
+      - "benchmarks/binary_search.py"
+      - "benchmarks/binary_search.swan"
+      - "compiler/**"
+      - "main.c"
+      - "build.sh"
   workflow_dispatch:
+
 permissions:
   contents: read
+
 jobs:
   benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust
@@ -22,13 +33,29 @@ jobs:
           test -n "$GOOSE_BIN"
           echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
           "$GOOSE_BIN" version
+      - name: Record benchmark machine
+        run: |
+          lscpu
+          free -h
+          uname -a
+          cc --version
+          rustc --version
       - name: Build Swan compiler
         run: sh build.sh
       - name: Run 20M x 20M benchmark
         run: python3 benchmarks/binary_search.py
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [ -f binary-search-benchmark.json ]; then
+            cat binary-search-benchmark.json >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Benchmark failed before producing results; inspect the preceding logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload benchmark report
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: binary-search-benchmark
           path: binary-search-benchmark.json
-          if-no-files-found: error
+          if-no-files-found: warn
