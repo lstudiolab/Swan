@@ -1,27 +1,14 @@
 $ErrorActionPreference = "Stop"
+if (-not (Get-Command wsl -ErrorAction SilentlyContinue)) {
+    throw "Swan currently targets Linux x86-64. Install WSL 2 with a Linux distribution, then run this installer again."
+}
 $Root = Split-Path -Parent $MyInvocation.MyCommand.Path
-if (-not (Get-Command clang -ErrorAction SilentlyContinue)) {
-    throw "Install Clang/LLVM and ensure clang is on PATH. Swan uses LLVM for native code generation."
+$WslRoot = (& wsl wslpath -a "$Root").Trim()
+if ($LASTEXITCODE -ne 0 -or -not $WslRoot) {
+    throw "Could not resolve the Swan repository path inside WSL."
 }
-$Build = Join-Path $Root "build"
-$Main = Join-Path $Root "main.cpp"
-$Include = Join-Path $Root "compiler/include"
-New-Item -ItemType Directory -Force -Path $Build | Out-Null
-$Output = Join-Path $Build "swan.exe"
-
-if (Get-Command clang++ -ErrorAction SilentlyContinue) {
-    & clang++ -std=c++20 -O2 -Wall -Wextra -Wpedantic "-I$Include" $Main -o $Output
-} elseif (Get-Command g++ -ErrorAction SilentlyContinue) {
-    & g++ -std=c++20 -O2 -Wall -Wextra -Wpedantic "-I$Include" $Main -o $Output
-} elseif (Get-Command cl -ErrorAction SilentlyContinue) {
-    Push-Location $Root
-    try {
-        & cl /nologo /std:c++20 /O2 /EHsc /W4 "/I$Include" $Main "/Fe:$Output"
-    } finally {
-        Pop-Location
-    }
-} else {
-    throw "Install a C++20 compiler (Clang, GCC, or MSVC) first."
+& wsl sh "$WslRoot/install.sh"
+if ($LASTEXITCODE -ne 0) {
+    throw "Swan installation failed inside WSL."
 }
-if ($LASTEXITCODE -ne 0) { throw "Swan build failed." }
-Write-Host "Built $Output"
+Write-Host "Swan installed inside WSL. Run it from your WSL terminal."

@@ -1,6 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+cd "$ROOT"
 sh "$ROOT/build.sh"
 sh "$ROOT/tests/headers.sh"
 sh "$ROOT/tests/c11-smoke.sh"

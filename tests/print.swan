@@ -1,6 +1,6 @@
-struct PrintingName:
-    name1: string
+import foundation
 
 fn main():
-    log "printingName.var.name1"
+    echo!("Foundation output works")
+    echo_int(42)
     return 0
