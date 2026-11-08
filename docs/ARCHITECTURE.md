@@ -25,7 +25,7 @@ Cross-target AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM consume the docum
 - Lexer, indentation-aware parser, AST, import resolution, and semantic analysis.
 - Typed SSA IR with integer widths, booleans, pointers, arithmetic, comparisons, branches, PHI nodes, calls, and local memory.
 - IR verifier for SSA definitions, use-before-definition, dominance, CFG edges, PHI predecessor coverage, operand types, and call signatures.
-- Verified optimization passes: width-aware constant folding, constant-select folding, CFG simplification, algebraic simplification, dominance-aware common-subexpression elimination, and iterative dead-code elimination.
+- Verified optimization passes: width-aware constant folding, constant-select folding, CFG simplification, algebraic simplification, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, and iterative dead-code elimination.
 - Portable `.swvm` artifact serialization with versioning, bounded reads, malformed-input checks, and explicit ownership of decoded strings.
 - SVM execution with typed integer semantics, calls, local memory, PHI/CFG execution, fuel limits, and call-depth limits.
 - Swan-owned x86-64 System V AST compatibility and typed-IR code generation.
