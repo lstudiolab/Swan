@@ -5,6 +5,7 @@
 #endif
 #include "swan/codegen_x86_64.h"
 #include "swan/target.h"
+#include "swan/ir.h"
 #include "swan/sema.h"
 #include <unistd.h>
 #include <sys/wait.h>
