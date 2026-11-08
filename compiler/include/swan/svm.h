@@ -39,6 +39,13 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     if (!values) return swan_svm_fail(vm, "SVM out of memory allocating registers");
     int64_t memory[4096]={0}; size_t memory_count=0;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = arguments[i];
+    for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
+        const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
+        if(alloc->op==SWAN_IR_ALLOCA){
+            if(memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
+            values[alloc->result]=(int64_t)++memory_count;
+        }
+    }
     ++vm->depth;
     size_t block_index = 0, predecessor = SIZE_MAX;
     bool returned = false, ok = true;
@@ -109,9 +116,7 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
                     if (ok && !swan_svm_eval(vm, callee, args, in->incoming_count, &v)) ok = false;
                     break;
                 }
-                case SWAN_IR_ALLOCA:
-                    if(memory_count>=4095){ok=swan_svm_fail(vm,"SVM local memory limit exceeded");break;}
-                    v=(int64_t)++memory_count;break;
+                case SWAN_IR_ALLOCA: v=values[in->result];break;
                 case SWAN_IR_LOAD:
                     if(a<=0||(uint64_t)a>memory_count){ok=swan_svm_fail(vm,"SVM invalid memory load");break;}
                     v=memory[a];break;
