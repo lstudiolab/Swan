@@ -40,7 +40,7 @@ typedef struct {
  size_t parameter_count; SwanIRBlock *blocks; size_t block_count, block_capacity;
  uint32_t next_value;
 } SwanIRFunction;
-typedef struct { SwanIRFunction *functions; size_t function_count, function_capacity; } SwanIRModule;
+typedef struct { SwanIRFunction *functions; size_t function_count, function_capacity; char **owned_strings; size_t owned_string_count, owned_string_capacity; } SwanIRModule;
 
 static inline const char *swan_ir_type_name(SwanIRType t) {
  static const char *names[]={"void","i1","i8","i16","i32","i64","f32","f64","ptr"};
@@ -55,6 +55,11 @@ static inline bool swan_ir_reserve(void **p,size_t *capacity,size_t need,size_t 
  if(n>SIZE_MAX/item_size)return false;
  void *q=realloc(*p,n*item_size);if(!q)return false;*p=q;*capacity=n;return true;
 }
+static inline bool swan_ir_own_string(SwanIRModule *m,char *value){
+ if(!value)return false;
+ if(!swan_ir_reserve((void**)&m->owned_strings,&m->owned_string_capacity,m->owned_string_count+1,sizeof(*m->owned_strings)))return false;
+ m->owned_strings[m->owned_string_count++]=value;return true;
+}
 static inline void swan_ir_destroy(SwanIRModule *m) {
  for(size_t f=0;f<m->function_count;f++){
   SwanIRFunction *fn=&m->functions[f];
@@ -65,7 +70,7 @@ static inline void swan_ir_destroy(SwanIRModule *m) {
   }
   free(fn->blocks);free(fn->parameter_types);
  }
- free(m->functions);memset(m,0,sizeof(*m));
+ free(m->functions);for(size_t i=0;i<m->owned_string_count;i++)free(m->owned_strings[i]);free(m->owned_strings);memset(m,0,sizeof(*m));
 }
 static inline SwanIRFunction *swan_ir_add_function(SwanIRModule *m,const char *name,SwanIRType ret,const SwanIRType *params,size_t count) {
  if(!name||!swan_ir_type_valid(ret)||!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
