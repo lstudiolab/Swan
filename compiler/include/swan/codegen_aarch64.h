@@ -45,8 +45,8 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
      case SWAN_IR_CALL:{
       size_t stack_count=in->incoming_count>8?in->incoming_count-8:0,outgoing=(stack_count*8u+15u)&~(size_t)15u;
       if(outgoing)text_add(o,"    sub sp, sp, #%zu\n",outgoing);
-      for(size_t k=8;k<in->incoming_count;k++)text_add(o,"    ldr x9, [sp, #%d]\n    str x9, [sp, #%zu]\n",swan_a64_value_offset(in->incoming[k].value), (k-8u)*8u);
-      for(size_t k=0;k<in->incoming_count&&k<8;k++)text_add(o,"    ldr x%zu, [sp, #%d]\n",k,swan_a64_value_offset(in->incoming[k].value));
+      for(size_t k=8;k<in->incoming_count;k++)text_add(o,"    sub x10, x29, #%zu\n    ldr x9, [x10]\n    str x9, [sp, #%zu]\n",frame+(size_t)swan_a64_value_offset(in->incoming[k].value),(k-8u)*8u);
+      for(size_t k=0;k<in->incoming_count&&k<8;k++)text_add(o,"    sub x10, x29, #%zu\n    ldr x%zu, [x10]\n",frame+(size_t)swan_a64_value_offset(in->incoming[k].value),k);
       text_add(o,"    bl %s\n",in->symbol);
       if(outgoing)text_add(o,"    add sp, sp, #%zu\n",outgoing);
       if(in->type!=SWAN_IR_VOID)text_add(o,"    str x0, [sp, #%d]\n",dst);break;}
