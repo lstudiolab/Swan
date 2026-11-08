@@ -71,6 +71,7 @@ int main(void) {
     assert(swan_ir_add_inst(loop, body, increment) == 4);
     assert(swan_ir_terminate(body, (SwanIRTerm){SWAN_IR_BR, 0, 1, 0}));
     assert(swan_ir_terminate(exit, (SwanIRTerm){SWAN_IR_RET, 3, 0, 0}));
+    if (!swan_ir_verify(&m, error, sizeof(error))) fprintf(stderr, "loop PHI verifier: %s\n", error);
     assert(swan_ir_verify(&m, error, sizeof(error)));
 
     swan_ir_destroy(&m);
