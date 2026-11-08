@@ -61,8 +61,8 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
         const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
         if(alloc->op==SWAN_IR_ALLOCA){
-            if(vm->vm->memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
-            values[alloc->result]=(int64_t)++vm->vm->memory_count;
+            if(vm->memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
+            values[alloc->result]=(int64_t)++vm->memory_count;
         }
     }
     ++vm->depth;
