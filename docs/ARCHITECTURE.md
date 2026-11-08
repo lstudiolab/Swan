@@ -1,24 +1,30 @@
 # Compiler Architecture
 
-Swan owns its frontend and machine-code generation. There is no C transpilation stage and no LLVM or Clang backend.
+Swan owns its frontend, intermediate representations, optimization passes, and machine-code generation. There is no C transpilation stage and no LLVM or Clang backend.
+
+The intended multi-stage architecture and migration plan are documented in [PIPELINE_DESIGN.md](PIPELINE_DESIGN.md). That document explicitly distinguishes planned stages from implemented stages.
 
 ## Implementation model
 
-The compiler is C11. `main.c` is the only compiled translation unit; all compiler subsystems are headers under `compiler/include/swan/`.
+The compiler is C11. `main.c` is the only compiled translation unit; compiler subsystems are headers under `compiler/include/swan/`.
 
 ## Active pipeline
+
+The current implementation is still the original direct-AST backend:
 
 ```text
 .swan source
   -> lexer and indentation tokens
-  -> parser and AST
+  -> parser constructs AST
   -> standard-library import resolution
   -> semantic name/scope validation
   -> direct AST-to-x86-64 lowering
-  -> GNU assembler Intel syntax
+  -> Swan-generated GNU assembler Intel syntax
   -> system assembler and linker
   -> executable
 ```
+
+The compiler currently does not execute the planned SIL, target-independent IR, separate emitter, or separate linker-driver stages. The planned filenames (silgen.swan, sildemand.swan, silpass.swan, siloptimization.swan, irgen.h, codegen.h, optimization.h, emitter.h and linker.h) are architectural components to introduce incrementally, not existing active modules. The AST data model currently lives in core.h; ast.h is a planned extraction.
 
 The assembler and linker consume only Swan-generated assembly. They do not compile Swan source or select Swan instructions.
 
