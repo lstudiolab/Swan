@@ -1,36 +1,39 @@
 # Compiler Correctness Audit
 
-## Current C11 implementation
+## Active implementation
 
-The active compiler is C11. \`main.c\` is the only compiled source file; all compiler subsystems are implemented as headers under \`compiler/include/swan/\`. The previous C++ compiler files have been removed from the repository.
+- C11 compiler; `main.c` is the only compiled translation unit.
+- Header-only compiler modules under `compiler/include/swan/`.
+- Direct Swan-owned x86-64 System V assembly generation.
+- GNU assembler Intel syntax; system assembler/linker used only after code generation.
+- Source-level `import` resolution for standard-library modules.
+- Root license: Apache License 2.0.
 
-Swan emits x86-64 System V assembly directly. The host assembler and linker only assemble and link the emitted assembly.
+## Implemented language and backend subset
 
-## Implemented subset
-
-- Integer and boolean literals.
-- Local variables and function parameters.
-- Integer arithmetic and signed comparisons.
-- Function calls with up to six arguments.
-- \`if\`/\`else\` and \`while\` control flow.
-- String literals in \`log\` statements.
-- Integer and string console logging.
-- Semantic checks for duplicate functions, unresolved names/functions, function call arity, and assignment to immutable bindings.
-- GNU assembler Intel syntax output for x86-64 System V.
+- Signed 64-bit integer and boolean expressions.
+- Local bindings, function parameters, functions, and direct calls with up to six arguments.
+- `if` / `else`, `while`, `break`, and `continue`.
+- Arithmetic, signed comparisons, `and`, `or`, `not`, and short-circuit condition lowering.
+- String literals in `log` and `echo!(...)` output statements.
+- Checked and unchecked contiguous `u32` arrays.
+- Semantic checks for duplicate functions, unresolved names/functions, function arity, immutable assignment, loop-control placement, and duplicate imports.
+- x86-64 System V stack alignment and preservation of volatile local registers around calls.
+- Fixed-register local allocation with stack spills, constant folding, power-of-two division, small single-return inlining, and selected loop strength reductions.
 
 ## Known limitations
 
-- Arrays, floating point, structs, member access, break/continue, and general string values are not implemented in the C port.
-- Type inference and complete static type checking are not implemented.
-- Lexical shadowing and complete scope rules are not implemented.
-- More than six call arguments are rejected.
-- Nested calls inside expressions require further ABI/stack-alignment validation.
-- Only x86-64 System V on Linux is implemented in the C port.
-- AArch64, ARMv7/Thumb, RISC-V, and WebAssembly backends are not ported yet.
-- Register allocation and mature optimization passes are not implemented.
+- Only x86-64 System V Linux is implemented.
+- Floating-point execution, general string values, structs, member access, closures, exceptions, and aggregate ABI lowering are not implemented.
+- Static type checking is incomplete; declared type annotations are not yet a full type system.
+- Calls with more than six arguments are rejected.
+- The register allocator is local and heuristic; it is not liveness-based and does not optimize register pressure across complex control flow.
+- Bounds-check elimination is limited; use of unchecked arrays remains an explicit programmer responsibility.
+- There is no target-independent IR, SSA, global data-flow optimizer, or instruction scheduler.
+- AArch64, ARMv7/Thumb, RISC-V, WebAssembly, Apple, and Windows backends are not implemented.
 
-These gaps must remain explicit. The compiler must never silently fall back to LLVM, Clang, or a C transpilation stage.
+These limitations must remain explicit. The compiler must not silently fall back to LLVM, Clang, or C transpilation.
 
-## Required next tests
+## Required tests
 
-Add positive and negative tests for every newly ported language construct, recursion, nested calls, ABI stack alignment, register preservation, aggregate layout, memory operations, and generated-code execution. Each architecture backend requires its own ABI and execution test suite before it is advertised as supported.
+Every new construct requires positive and negative tests, diagnostics, generated-assembly inspection where relevant, and native execution. Every backend requires ABI, object-format, and executable tests on an appropriate runner.

@@ -4,43 +4,57 @@ Swan owns its frontend and machine-code generation. There is no C transpilation 
 
 ## Implementation model
 
-The compiler implementation is C11 and header-only apart from \`main.c\`. Exactly one translation unit is compiled. Header modules own the AST, lexer, parser, diagnostics, semantic checks, driver, and code generator.
+The compiler is C11. `main.c` is the only compiled translation unit; all compiler subsystems are headers under `compiler/include/swan/`.
 
-## Current pipeline
+## Active pipeline
 
-~~~text
-.swan -> C lexer -> C parser -> semantic analysis -> Swan AST
-      -> Swan-owned x86-64 code generator -> GNU assembly
-      -> system assembler/linker -> executable
-~~~
+```text
+.swan source
+  -> lexer and indentation tokens
+  -> parser and AST
+  -> standard-library import resolution
+  -> semantic name/scope validation
+  -> direct AST-to-x86-64 lowering
+  -> GNU assembler Intel syntax
+  -> system assembler and linker
+  -> executable
+```
 
-The host assembler and linker are used only after Swan has emitted assembly. They do not compile Swan source or choose machine instructions.
+The assembler and linker consume only Swan-generated assembly. They do not compile Swan source or select Swan instructions.
 
-## Current implementation
+## Implemented backend components
 
-- One compiled source file: \`main.c\`.
-- Header-only C11 implementation in \`compiler/include/swan/\`.
-- Direct AST-to-x86-64 System V assembly emission.
-- GNU assembler Intel syntax.
-- Semantic checks for duplicate functions, name resolution, function existence/arity, and immutable bindings.
-- No C++ source or headers in the active implementation.
+- x86-64 System V function entry, stack-frame layout, and call alignment.
+- Up to six integer/pointer arguments through the standard register argument sequence.
+- Callee-saved and caller-saved local register allocation, with stack spills.
+- Direct local arithmetic and comparison lowering.
+- Constant folding, short-circuit logical lowering, power-of-two division, small single-return inlining, and loop strength reduction.
+- Bounds-checked and unchecked contiguous `u32` arrays.
+- Loop break/continue labels and early-exit-aware loop lowering.
+- Error-checked assembly-buffer growth.
+
+The current backend lowers directly from the AST. It does not yet have a typed, target-independent IR, global liveness analysis, or a mature optimization pipeline.
+
+## Standard library
+
+Top-level `import module` declarations are resolved from the configured standard-library directory. Module source buffers remain alive until semantic analysis and code generation finish. Repeated imports are loaded once, and nested imports are resolved before semantic checking.
 
 ## Backend architecture target
 
-Each target backend will own:
+Each additional target must own:
 1. Target data layout and ABI lowering.
-2. Instruction selection from Swan's typed low-level IR.
+2. Instruction selection from a typed low-level IR.
 3. Register allocation and spill handling.
 4. Calling convention and stack-frame layout.
 5. Assembly emission and relocation/symbol conventions.
 6. Target-specific optimization and instruction scheduling.
 
-Planned C backends: AArch64, ARMv7/Thumb, RISC-V, and WebAssembly.
+Planned Swan-owned backends: AArch64, ARMv7/Thumb, RISC-V 64, and WebAssembly.
 
 ## Engineering rules
 
-1. Swan source must never be transpiled into C.
-2. Swan must not delegate code generation to LLVM or Clang.
-3. An assembler/linker may consume Swan-emitted assembly; it is not a compiler backend.
-4. Never advertise an architecture until its Swan-owned backend and ABI tests pass.
-5. Every backend requires instruction-level tests, ABI tests, executable tests, and cross-target artifact validation.
+1. Never transpile Swan source into C.
+2. Never delegate Swan code generation to LLVM or Clang.
+3. System assemblers/linkers may consume Swan-emitted assembly.
+4. Never advertise a target until its own backend passes ABI and execution tests.
+5. Every optimization requires correctness tests and reproducible performance measurements.

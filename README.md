@@ -1,75 +1,119 @@
 # Swan
 
-Swan is a compiled language with its own C11 compiler implementation and Swan-owned assembly code generation. It does not transpile Swan source to C and does not use LLVM or Clang.
+Swan is an open-source compiled programming language. Its compiler is implemented in C11 and emits x86-64 System V assembly directly. It does not transpile Swan source to C and does not delegate code generation to LLVM or Clang.
 
-## Compiler architecture
+The repository is licensed under Apache License 2.0.
 
-The compiler is implemented in C11. \`main.c\` is the only compiled source file. All compiler subsystems are header-only C modules under \`compiler/include/swan/\`.
+## Compiler pipeline
 
-~~~text
+```text
 .swan source
-  -> C header-only lexer
-  -> C header-only parser
-  -> C semantic analysis
+  -> C11 lexer
+  -> indentation-aware parser
+  -> standard-library module loader
+  -> semantic analysis
   -> Swan AST
-  -> Swan-owned x86-64 assembly generator
+  -> Swan-owned x86-64 code generator
   -> GNU assembler / system linker
-  -> executable
-~~~
+  -> native executable
+```
 
-The system assembler and linker only consume assembly emitted by Swan. They do not compile Swan source or select Swan instructions.
+`main.c` is the only compiled compiler translation unit. Compiler subsystems are C headers under `compiler/include/swan/`. The system assembler and linker only consume assembly already emitted by Swan.
 
 ## Build and run
 
-Requirements: a C11 compiler and a system assembler/linker (\`cc\` on Linux).
+Requirements: a C11 compiler and a Linux x86-64 assembler/linker available through `cc`.
 
-~~~sh
+```sh
 sh build.sh
-./build/swan examples/hello.swan
-~~~
+./build/swan run examples/hello.swan
+```
 
-Emit assembly without assembling or running:
+Build an executable without running it:
 
-~~~sh
+```sh
+./build/swan build examples/hello.swan -o hello
+./hello
+```
+
+Emit assembly:
+
+```sh
 ./build/swan examples/hello.swan --emit-asm -o hello.s
-~~~
+```
 
-## Arrays
+The compiler also accepts `--target x86_64`. Other architecture targets are rejected until their Swan-owned backends exist.
 
-The x86-64 backend supports contiguous 32-bit unsigned integer arrays:
+## Language subset
 
-- `array_u32(length)` allocates a zero-initialized array with bounds-checked indexing.
-- `array_u32_unchecked(length)` allocates the same contiguous storage without per-access bounds checks for performance-critical code.
-- Read an element with `values[index]` and write with `values[index] = value`.
-- Array allocation uses the system C allocator; the operating system reclaims the memory when the process exits.
+The current x86-64 backend supports:
 
-The one-billion-element native sorting workload is in `benchmarks/sort_1b.swan`. It uses approximately 4 GB for the array and performs generation, in-place heapsort, and an orderedness verification pass. It is intentionally not run in ordinary CI because it requires substantial memory and execution time; CI compiles and links it and runs a small heapsort correctness test.
+- Signed 64-bit integer and boolean expressions.
+- Mutable and immutable local bindings.
+- Functions and up to six call arguments.
+- `if`, `else`, `while`, `break`, and `continue`.
+- Arithmetic, comparisons, short-circuit `and` / `or`, and `not`.
+- Constant folding, small single-return function inlining, register locals, direct local arithmetic, and loop strength reduction.
+- Contiguous zero-initialized `u32` arrays.
+- String literals in `log` and `echo!(...)` output statements.
 
-Run the complete timed workload with `sh benchmarks/run_sort_1b.sh`. The script reports compiler build, Swan source compilation, assembly/link, and sort-plus-verification times in seconds. Use a machine with at least 4 GB of available memory (more is recommended for the operating system and toolchain).
+Complete static type checking, floating-point execution, structs, general string values, closures, recursion-specific optimization, and more than six call arguments remain outside the implemented subset.
 
-## Translation-unit policy
+## Arrays and memory
 
-- Exactly one compiled source file: \`main.c\`.
-- No C++ source files or C++ headers remain.
-- Compiler modules are C headers and are included by \`main.c\`.
-- The build uses \`cc -std=c11\`; it does not require a C++ compiler.
+`array(length)` and `array_u32(length)` allocate zero-initialized, bounds-checked `u32` arrays. The array length is stored in an eight-byte header immediately before the data.
 
-## Backend status
+`array_unchecked(length)` and `array_u32_unchecked(length)` allocate contiguous `u32` storage without per-access bounds checks. This is intended for code where the caller can prove every index is valid.
 
-| Target | C backend status |
-|---|---|
-| x86-64 System V (Linux) | Initial implementation; tested |
-| AArch64 / ARM64 | Not ported yet |
-| ARMv7 / Thumb | Not ported yet |
-| RISC-V | Not ported yet |
-| WebAssembly | Not ported yet |
+Both modes use the system allocator. The unchecked form avoids the eight-byte length header, keeping the data allocation compact.
 
-The current C backend is an initial subset. It supports integer and boolean expressions, local variables, function calls, \`if\`/\`else\`, \`while\`, and console logging. Arrays, floating point, structs, \`break\`/\`continue\`, full type checking, and other targets still need to be ported.
+## Foundation standard library
+
+Foundation is a source-level standard-library module under `stdlib/foundation.swan`.
+
+```swan
+import foundation
+
+fn main():
+    echo!("Hello from Swan")
+    echo_int(abs_int(-42))
+    return 0
+```
+
+`echo!("text")` is a compiler-recognized output intrinsic that emits a direct `puts` call for a string literal. Foundation also provides integer helpers such as `abs_int`, `min_int`, `max_int`, `clamp_int`, `factorial_int`, `sum_to_int`, `is_even`, and `is_odd`.
+
+Set `SWAN_STDLIB` or pass `--stdlib <directory>` to use a different standard-library directory. The installer places Foundation beside the installed compiler and configures the `swan` launcher to find it.
+
+## Benchmarks
+
+Run the 20-million-element / 20-million-query comparison through GitHub Actions or locally with:
+
+```sh
+sh build.sh
+python3 benchmarks/binary_search.py
+```
+
+The comparison checks every result against the same checksum and records compile time, runtime samples, peak RSS, and executable size. It includes checked and unchecked Swan, Goose, Rust, C, and C++.
+
+The repository also contains larger sorting and multi-language workloads. The one-billion-element sort is intentionally excluded from ordinary CI because of its memory and runtime requirements.
 
 ## Tests
 
-~~~sh
+```sh
 sh test.sh
-~~~
+```
 
-CI verifies the one-file C11 build, standalone C headers, semantic checks, emitted x86-64 assembly, and native execution.
+CI runs the complete suite, including compiler construction, header isolation, parser and semantic checks, native execution, arrays, loop control, ABI alignment, Foundation imports, and architecture-target rejection.
+
+## Backend status
+
+| Target | Status |
+|---|---|
+| x86-64 System V Linux | Implemented and tested |
+| AArch64 / ARM64 | Not implemented |
+| ARMv7 / Thumb | Not implemented |
+| RISC-V | Not implemented |
+| WebAssembly | Not implemented |
+| Windows x64 / Apple Darwin | Not implemented |
+
+Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
