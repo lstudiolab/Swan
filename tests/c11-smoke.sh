@@ -332,12 +332,17 @@ printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
 cat > "$TMP/power-two-multiply.swan" <<'SWAN'
 fn main():
     var value = 7
+    var dividend = -43
     log value * 8
     log -value * 8
     log value * -8
     log value * 1
     log value * -1
     log value * 0
+    log dividend / 8
+    log dividend / -8
+    log dividend % 8
+    log dividend % -8
     return 0
 SWAN
 "$SWAN" "$TMP/power-two-multiply.swan" --emit-asm -o "$TMP/power-two-multiply.s"
@@ -347,9 +352,18 @@ test "$("$TMP/power-two-multiply")" = "56
 -56
 7
 -7
-0"
+0
+-5
+5
+-3
+-3"
 grep -q 'shl rax, 3' "$TMP/power-two-multiply.s"
-printf 'PASS: signed power-of-two multiplication lowering\\n'
+grep -q 'neg rax' "$TMP/power-two-multiply.s"
+if grep -q 'idiv' "$TMP/power-two-multiply.s"; then
+    echo "FAIL: signed power-of-two division/remainder used idiv" >&2
+    exit 1
+fi
+printf 'PASS: signed power-of-two multiplication, division, and remainder lowering\\n'
 
 cat > "$TMP/array-store-register.swan" <<'SWAN'
 fn main():
