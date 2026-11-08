@@ -158,24 +158,145 @@ static inline bool swan_svm_run(const SwanIRModule *module, const char *entry,
     return swan_svm_eval(&vm, index, NULL, 0, result);
 }
 
-/* Stable, versioned container header for portable SVM modules. The IR payload
- * serializer is deliberately separate so format evolution cannot change VM
- * execution semantics. */
-typedef struct {
-    char magic[8];
-    uint32_t version;
-    uint32_t flags;
-    uint64_t payload_size;
-} SwanSVMHeader;
+/* Portable SVM module format. All integers are encoded explicitly in
+ * little-endian order; no host struct layout or pointer value is serialized. */
+#define SWAN_SVM_MAX_ITEMS 1000000u
+typedef struct { FILE *file; uint64_t remaining; bool failed; } SwanSVMReader;
 
-static inline bool swan_svm_write_header(FILE *out, uint64_t payload_size) {
-    static const unsigned char magic[8]={'S','W','A','N','V','M','0','1'};
-    unsigned char fields[16];
-    for (unsigned i=0;i<4;i++) fields[i]=(unsigned char)(SWAN_SVM_VERSION>>(i*8));
-    for (unsigned i=0;i<4;i++) fields[4+i]=0;
-    for (unsigned i=0;i<8;i++) fields[8+i]=(unsigned char)(payload_size>>(i*8));
-    return fwrite(magic,1,sizeof(magic),out)==sizeof(magic) &&
-           fwrite(fields,1,sizeof(fields),out)==sizeof(fields);
+static inline bool swan_svm_write_bytes(FILE *f,const void *p,size_t n) {
+    return n==0 || fwrite(p,1,n,f)==n;
+}
+static inline bool swan_svm_write_u8(FILE *f,uint8_t v) { return swan_svm_write_bytes(f,&v,1); }
+static inline bool swan_svm_write_u32(FILE *f,uint32_t v) {
+    uint8_t b[4];for(unsigned i=0;i<4;i++)b[i]=(uint8_t)(v>>(i*8));
+    return swan_svm_write_bytes(f,b,4);
+}
+static inline bool swan_svm_write_u64(FILE *f,uint64_t v) {
+    uint8_t b[8];for(unsigned i=0;i<8;i++)b[i]=(uint8_t)(v>>(i*8));
+    return swan_svm_write_bytes(f,b,8);
+}
+static inline bool swan_svm_write_string(FILE *f,const char *s) {
+    size_t n=s?strlen(s):0;if(n>UINT32_MAX)return false;
+    return swan_svm_write_u32(f,(uint32_t)n)&&swan_svm_write_bytes(f,s,n);
+}
+static inline bool swan_svm_read_bytes(SwanSVMReader *r,void *p,size_t n) {
+    if(r->failed||n>r->remaining){r->failed=true;return false;}
+    if(n&&fread(p,1,n,r->file)!=n){r->failed=true;return false;}
+    r->remaining-=n;return true;
+}
+static inline bool swan_svm_read_u8(SwanSVMReader *r,uint8_t *v) { return swan_svm_read_bytes(r,v,1); }
+static inline bool swan_svm_read_u32(SwanSVMReader *r,uint32_t *v) {
+    uint8_t b[4];if(!swan_svm_read_bytes(r,b,4))return false;
+    *v=(uint32_t)b[0]|((uint32_t)b[1]<<8)|((uint32_t)b[2]<<16)|((uint32_t)b[3]<<24);return true;
+}
+static inline bool swan_svm_read_u64(SwanSVMReader *r,uint64_t *v) {
+    uint8_t b[8];if(!swan_svm_read_bytes(r,b,8))return false;
+    *v=0;for(unsigned i=0;i<8;i++)*v|=(uint64_t)b[i]<<(i*8);return true;
+}
+static inline char *swan_svm_read_string(SwanSVMReader *r) {
+    uint32_t n;if(!swan_svm_read_u32(r,&n)||n>r->remaining||n>16u*1024u*1024u)return NULL;
+    char *s=malloc((size_t)n+1);if(!s)return NULL;
+    if(!swan_svm_read_bytes(r,s,n)){free(s);return NULL;}s[n]=0;return s;
+}
+static inline bool swan_svm_write_module(FILE *out,const SwanIRModule *m) {
+    char verify[256];if(!out||!swan_ir_verify(m,verify,sizeof(verify)))return false;
+    FILE *payload=tmpfile();if(!payload)return false;
+    bool ok=swan_svm_write_u32(payload,(uint32_t)m->function_count);
+    for(size_t f=0;ok&&f<m->function_count;f++){
+        const SwanIRFunction *fn=&m->functions[f];
+        if(fn->parameter_count>SWAN_SVM_MAX_ITEMS||fn->block_count>SWAN_SVM_MAX_ITEMS){ok=false;break;}
+        ok=swan_svm_write_string(payload,fn->name)&&swan_svm_write_u8(payload,(uint8_t)fn->return_type)&&swan_svm_write_u32(payload,(uint32_t)fn->parameter_count);
+        for(size_t p=0;ok&&p<fn->parameter_count;p++)ok=swan_svm_write_u8(payload,(uint8_t)fn->parameter_types[p]);
+        ok=ok&&swan_svm_write_u32(payload,(uint32_t)fn->block_count)&&swan_svm_write_u32(payload,fn->next_value);
+        for(size_t b=0;ok&&b<fn->block_count;b++){
+            const SwanIRBlock *bb=&fn->blocks[b];
+            if(bb->instruction_count>SWAN_SVM_MAX_ITEMS){ok=false;break;}
+            ok=swan_svm_write_string(payload,bb->name)&&swan_svm_write_u32(payload,(uint32_t)bb->instruction_count);
+            for(size_t x=0;ok&&x<bb->instruction_count;x++){
+                const SwanIRInst *in=&bb->instructions[x];
+                if(in->incoming_count>SWAN_SVM_MAX_ITEMS){ok=false;break;}
+                ok=swan_svm_write_u8(payload,(uint8_t)in->op)&&swan_svm_write_u8(payload,(uint8_t)in->type)&&
+                   swan_svm_write_u32(payload,in->result)&&swan_svm_write_u32(payload,in->a)&&
+                   swan_svm_write_u32(payload,in->b)&&swan_svm_write_u32(payload,in->c)&&
+                   swan_svm_write_u64(payload,(uint64_t)in->immediate)&&
+                   swan_svm_write_string(payload,in->symbol)&&swan_svm_write_u32(payload,(uint32_t)in->incoming_count);
+                for(size_t k=0;ok&&k<in->incoming_count;k++)
+                    ok=swan_svm_write_u32(payload,in->incoming[k].value)&&swan_svm_write_u32(payload,in->incoming[k].block);
+            }
+            ok=ok&&swan_svm_write_u8(payload,(uint8_t)bb->terminator.kind)&&
+               swan_svm_write_u32(payload,bb->terminator.value)&&
+               swan_svm_write_u32(payload,bb->terminator.target)&&
+               swan_svm_write_u32(payload,bb->terminator.alternate);
+        }
+    }
+    long end=ok?ftell(payload):-1;
+    if(end<0||fseek(payload,0,SEEK_SET)!=0)ok=false;
+    static const uint8_t magic[8]={'S','W','A','N','V','M','0','1'};
+    if(ok)ok=swan_svm_write_bytes(out,magic,8)&&swan_svm_write_u32(out,SWAN_SVM_VERSION)&&
+             swan_svm_write_u32(out,0)&&swan_svm_write_u64(out,(uint64_t)end);
+    uint8_t buffer[8192];while(ok){size_t n=fread(buffer,1,sizeof(buffer),payload);if(n&&!swan_svm_write_bytes(out,buffer,n)){ok=false;break;}if(n<sizeof(buffer)){if(ferror(payload))ok=false;break;}}
+    fclose(payload);return ok&&fflush(out)==0;
+}
+static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,size_t cap) {
+    if(!in||!m)return false;memset(m,0,sizeof(*m));
+    uint8_t magic[8],expected[8]={'S','W','A','N','V','M','0','1'};
+    uint32_t version,flags;uint64_t size;
+    if(fread(magic,1,8,in)!=8||memcmp(magic,expected,8)||
+       !swan_svm_read_u32(&(SwanSVMReader){in,UINT64_MAX,false},&version)) {
+        if(error&&cap)snprintf(error,cap,"invalid SVM module header");return false;
+    }
+    SwanSVMReader header={in,UINT64_MAX,false};
+    if(!swan_svm_read_u32(&header,&version)||!swan_svm_read_u32(&header,&flags)||!swan_svm_read_u64(&header,&size)||version!=SWAN_SVM_VERSION||flags!=0||size>UINT32_MAX*UINT64_C(16)){
+        if(error&&cap)snprintf(error,cap,"unsupported or malformed SVM module header");return false;
+    }
+    SwanSVMReader r={in,size,false};uint32_t functions=0;
+    if(!swan_svm_read_u32(&r,&functions)||functions>SWAN_SVM_MAX_ITEMS)goto malformed;
+    for(uint32_t f=0;f<functions;f++){
+        char *name=swan_svm_read_string(&r);uint8_t ret;uint32_t params,blocks,next;
+        if(!name||!swan_svm_read_u8(&r,&ret)||!swan_svm_read_u32(&r,&params)||params>1024){free(name);goto malformed;}
+        SwanIRType *types=params?malloc((size_t)params*sizeof(*types)):NULL;
+        if(params&&!types){free(name);goto malformed;}
+        bool ok=true;for(uint32_t p=0;p<params;p++){uint8_t t;if(!swan_svm_read_u8(&r,&t)){ok=false;break;}types[p]=(SwanIRType)t;}
+        SwanIRFunction *fn=ok?swan_ir_add_function(m,name,(SwanIRType)ret,types,params):NULL;free(types);
+        if(!fn){free(name);goto malformed;}free(name);
+        if(!swan_svm_read_u32(&r,&blocks)||blocks>SWAN_SVM_MAX_ITEMS||!swan_svm_read_u32(&r,&next))goto malformed;
+        fn->next_value=next;
+        for(uint32_t b=0;b<blocks;b++){
+            char *block_name=swan_svm_read_string(&r);uint32_t count;
+            if(!block_name||!swan_svm_read_u32(&r,&count)||count>SWAN_SVM_MAX_ITEMS){free(block_name);goto malformed;}
+            SwanIRBlock *bb=swan_ir_add_block(fn,block_name);free(block_name);if(!bb)goto malformed;
+            for(uint32_t x=0;x<count;x++){
+                SwanIRInst in={0};uint8_t op,type;uint64_t imm;uint32_t incoming;
+                if(!swan_svm_read_u8(&r,&op)||!swan_svm_read_u8(&r,&type)||
+                   !swan_svm_read_u32(&r,&in.result)||!swan_svm_read_u32(&r,&in.a)||
+                   !swan_svm_read_u32(&r,&in.b)||!swan_svm_read_u32(&r,&in.c)||
+                   !swan_svm_read_u64(&r,&imm))goto malformed;
+                in.op=(SwanIROp)op;in.type=(SwanIRType)type;in.immediate=(int64_t)imm;
+                in.symbol=swan_svm_read_string(&r);if(r.failed)goto malformed;
+                if(!swan_svm_read_u32(&r,&incoming)||incoming>SWAN_SVM_MAX_ITEMS){free((void*)in.symbol);goto malformed;}
+                if(incoming){in.incoming=calloc(incoming,sizeof(*in.incoming));if(!in.incoming){free((void*)in.symbol);goto malformed;}}
+                in.incoming_count=incoming;
+                for(uint32_t k=0;k<incoming;k++)if(!swan_svm_read_u32(&r,&in.incoming[k].value)||!swan_svm_read_u32(&r,&in.incoming[k].block)){free((void*)in.symbol);free(in.incoming);goto malformed;}
+                if(!swan_ir_reserve((void**)&bb->instructions,&bb->instruction_capacity,bb->instruction_count+1,sizeof(*bb->instructions))){free((void*)in.symbol);free(in.incoming);goto malformed;}
+                bb->instructions[bb->instruction_count++]=in;
+            }
+            uint8_t term;SwanIRTerm t={0};
+            if(!swan_svm_read_u8(&r,&term)||!swan_svm_read_u32(&r,&t.value)||!swan_svm_read_u32(&r,&t.target)||!swan_svm_read_u32(&r,&t.alternate))goto malformed;
+            t.kind=(SwanIRTermKind)term;bb->terminator=t;bb->terminated=true;
+        }
+    }
+    if(r.failed||r.remaining!=0)goto malformed;
+    if(!swan_ir_verify(m,error,cap)){swan_ir_destroy(m);return false;}
+    if(error&&cap)error[0]=0;return true;
+malformed:
+    swan_ir_destroy(m);if(error&&cap)snprintf(error,cap,"truncated or malformed SVM module payload");return false;
+}
+static inline bool swan_svm_run_file(const char *path,const char *entry,uint64_t fuel,
+                                     int64_t *result,char *error,size_t cap) {
+    FILE *f=fopen(path,"rb");if(!f){if(error&&cap)snprintf(error,cap,"cannot open SVM module");return false;}
+    SwanIRModule module={0};bool ok=swan_svm_read_module(f,&module,error,cap);fclose(f);
+    if(ok)ok=swan_svm_run(&module,entry,fuel,result,error,cap);
+    swan_ir_destroy(&module);return ok;
 }
 
 #endif
