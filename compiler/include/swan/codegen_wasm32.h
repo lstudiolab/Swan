@@ -30,7 +30,7 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
  bool i32=in->type==SWAN_IR_I1||in->type==SWAN_IR_I8||in->type==SWAN_IR_I16||in->type==SWAN_IR_I32;
  bool ptr64=memory64;
  if(in->op==SWAN_IR_PHI)return true;
- if(in->op==SWAN_IR_CONST)return swan_wasm_const(b,i32||in->type==SWAN_IR_PTR&&!memory64,in->immediate)&&swan_wasm_set(b,in->result);
+ if(in->op==SWAN_IR_CONST)return swan_wasm_const(b,!i32&&!(in->type==SWAN_IR_PTR&&!memory64),in->immediate)&&swan_wasm_set(b,in->result);
  if(in->op==SWAN_IR_ALLOCA){uint64_t addr=16u+(*alloca_index)++*8u;return swan_wasm_const(b,ptr64,(int64_t)addr)&&swan_wasm_set(b,in->result);}
  if(in->op==SWAN_IR_LOAD){bool i32=in->type==SWAN_IR_I32||in->type==SWAN_IR_I1;return swan_wasm_get(b,in->a)&&swan_wasm_byte(b,i32?0x28:0x29)&&swan_wasm_u32(b,i32?2:3)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0))&&swan_wasm_set(b,in->result);}
  if(in->op==SWAN_IR_STORE){SwanIRType vt=swan_ir_value_type_of(fn,in->b);bool i32=vt==SWAN_IR_I32||vt==SWAN_IR_I1;return swan_wasm_get(b,in->a)&&swan_wasm_get(b,in->b)&&swan_wasm_byte(b,i32?0x36:0x37)&&swan_wasm_u32(b,i32?2:3)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0));}
