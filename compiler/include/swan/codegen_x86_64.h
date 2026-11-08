@@ -95,6 +95,29 @@ static inline bool add_chain_supported(Expr *e,Locals *l){
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS)return add_chain_supported(e->left,l)&&add_chain_supported(e->right,l);
  return add_term_to_r10_supported(e,l);
 }
+static inline bool cg_const_value(Expr *e,int64_t *out);
+static inline bool expr_clobbers_r10(Expr *e,Locals *l){
+ if(!e)return false;
+ if(e->kind==E_INDEX&&e->left&&e->left->kind==E_NAME){
+  Local *base=local_find(l,e->left->token.text);if(base&&base->reg<0)return true;
+ }
+ if(e->kind==E_BINARY){
+  if(e->token.kind==T_ASSIGN&&e->left&&e->left->kind==E_INDEX&&e->left->left&&e->left->left->kind==E_NAME){
+   Local *base=local_find(l,e->left->left->token.text);if(base&&base->reg<0)return true;
+  }
+  if(e->token.kind==T_PLUS&&!expr_has_call(e)&&!add_chain_supported(e,l))return true;
+  if(e->token.kind==T_PERCENT){
+   int64_t divisor=0;
+   if(cg_const_value(e->right,&divisor)&&divisor){
+    uint64_t magnitude=divisor<0?(uint64_t)(-(divisor+1))+1:(uint64_t)divisor;
+    if(magnitude>1&&(magnitude&(magnitude-1))!=0)return true;
+   }
+  }
+ }
+ if(expr_clobbers_r10(e->left,l)||expr_clobbers_r10(e->right,l))return true;
+ for(size_t i=0;i<e->argc;i++)if(expr_clobbers_r10(e->args[i],l))return true;
+ return false;
+}
 static inline void emit_term_r10(Text *o,Expr *e,Locals *l){
  if(o->hoist_expr==e){text_add(o,"    mov r10, r11\n");return;}
  if(o->recurrence_expr==e){text_add(o,"    mov r10, r15\n");return;}
@@ -141,9 +164,13 @@ static inline void emit_add_terms(Text *o,Expr *e,Locals *l,SwanError *err,bool 
  if(e&&e->kind==E_BINARY&&e->token.kind==T_PLUS){
   emit_add_terms(o,e->left,l,err,first);emit_add_terms(o,e->right,l,err,first);return;
  }
- emit_expr(o,e,l,err);
- if(*first){text_add(o,"    mov r10, rax\n");*first=false;}
- else text_add(o,"    add r10, rax\n");
+ if(*first){emit_expr(o,e,l,err);text_add(o,"    mov r10, rax\n");*first=false;}
+ else{
+  bool preserve=expr_clobbers_r10(e,l);if(preserve)cg_push(o,"r10");
+  emit_expr(o,e,l,err);
+  if(preserve)cg_pop(o,"r10");
+  text_add(o,"    add r10, rax\n");
+ }
 }
 static inline bool expr_writes_local(Expr *e,const char *name);
 static inline bool emit_accumulate_statement(Text *o,Expr *e,Locals *l,SwanError *err){
