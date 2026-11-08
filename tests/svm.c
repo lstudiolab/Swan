@@ -96,7 +96,7 @@ int main(void) {
     SwanIRInst allocation={0};allocation.op=SWAN_IR_ALLOCA;allocation.type=SWAN_IR_PTR;uint32_t pointer=swan_ir_add_inst(caller,caller_entry,allocation);
     SwanIRInst initial={0};initial.op=SWAN_IR_CONST;initial.type=SWAN_IR_I64;initial.immediate=7;uint32_t initial_id=swan_ir_add_inst(caller,caller_entry,initial);
     SwanIRInst initial_store={0};initial_store.op=SWAN_IR_STORE;initial_store.type=SWAN_IR_VOID;initial_store.a=pointer;initial_store.b=initial_id;assert(!swan_ir_add_inst(caller,caller_entry,initial_store));
-    SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_VOID;call.symbol="mutate";call.incoming=calloc(1,sizeof(*call.incoming));assert(call.incoming);call.incoming_count=1;call.incoming[0].value=pointer;assert(!swan_ir_add_inst(caller,caller_entry,call));free(call.incoming);
+    SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_VOID;call.symbol="mutate";call.incoming=calloc(1,sizeof(*call.incoming));assert(call.incoming);call.incoming_count=1;call.incoming[0].value=pointer;assert(!swan_ir_add_inst(caller,caller_entry,call));
     SwanIRInst read={0};read.op=SWAN_IR_LOAD;read.type=SWAN_IR_I64;read.a=pointer;uint32_t read_id=swan_ir_add_inst(caller,caller_entry,read);
     assert(swan_ir_terminate(caller_entry,(SwanIRTerm){SWAN_IR_RET,read_id,0,0}));
     assert(swan_ir_verify(&shared,error,sizeof(error)));
