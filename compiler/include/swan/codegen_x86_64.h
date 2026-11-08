@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg,*active_loop_condition; const char *inline_param,*active_midpoint_array,*active_midpoint_index; Program *program; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg,*active_loop_condition; const char *inline_param,*active_midpoint_array,*active_midpoint_index,*active_fill_array,*active_fill_index; Program *program; } Text;
 static inline bool text_reserve(Text *t,size_t extra){
  if(extra>SIZE_MAX-t->len-1)return false;
  size_t need=t->len+extra+1;
@@ -366,9 +366,10 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
    else{emit_expr(o,index,l,err);text_add(o,"    mov rcx, rax\n");}
   }
   bool midpoint_bounds=o->active_midpoint_array&&o->active_midpoint_index&&e->right&&e->right->kind==E_NAME&&!strcmp(e->left->token.text,o->active_midpoint_array)&&!strcmp(e->right->token.text,o->active_midpoint_index);
+  bool fill_bounds=o->active_fill_array&&o->active_fill_index&&e->right&&e->right->kind==E_NAME&&!strcmp(e->left->token.text,o->active_fill_array)&&!strcmp(e->right->token.text,o->active_fill_index);
   if(array->reg>=0){
    const char *base=cg_reg_name(array->reg);
-   if(!array->array_unchecked&&!midpoint_bounds&&!direct_index){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}
+   if(!array->array_unchecked&&!midpoint_bounds&&!fill_bounds&&!direct_index){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}
    if(direct_index)text_add(o,"    mov eax, DWORD PTR [%s + %lld]\n",base,(long long)(index_constant*4));else text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\n",base);
   }else{
    text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);
@@ -393,13 +394,14 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     Local *array=local_find(l,base->token.text);
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
     int64_t constant_index=0;bool direct_index=cg_const_value(e->left->right,&constant_index)&&array->array_length_known&&constant_index>=0&&constant_index<array->array_length&&constant_index<=INT32_MAX/4;
+    bool fill_store_bounds=o->active_fill_array&&o->active_fill_index&&e->left->right&&e->left->right->kind==E_NAME&&!strcmp(base->token.text,o->active_fill_array)&&!strcmp(e->left->right->token.text,o->active_fill_index);
     if(direct_index){
      emit_expr(o,e->right,l,err);
      if(array->reg>=0)text_add(o,"    mov DWORD PTR [%s + %lld], eax\n",cg_reg_name(array->reg),(long long)(constant_index*4));
      else text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n    mov DWORD PTR [r10 + %lld], eax\n",array->slot*8,(long long)(constant_index*4));
     }else{
      emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
-     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
+     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
      else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
     }
     o->uses_array_bounds=true;break;
@@ -804,6 +806,26 @@ static inline bool loop_proves_midpoint_array_bounds(Stmt **outer,size_t before,
  }
  return false;
 }
+static inline bool loop_proves_array_fill_bounds(Stmt **outer,size_t before,Stmt *loop,Locals *locals,const char **array_name,const char **index_name){
+ if(!loop||loop->kind!=S_WHILE||!loop->condition||loop->condition->kind!=E_BINARY||loop->condition->token.kind!=T_LT||!loop->condition->left||loop->condition->left->kind!=E_NAME||!loop->condition->right)return false;
+ if(!loop_bottom_test_candidate(loop,locals))return false;
+ const char *index=loop->condition->left->token.text;int64_t bound=0,initial=0;
+ if(!cg_const_value(loop->condition->right,&bound)||bound<=0||!midpoint_block_init_value(outer,before,index,&initial)||initial!=0)return false;
+ for(size_t i=0;i<before;i++){
+  Stmt *s=outer[i];
+  if(s->kind!=S_VARIABLE||!s->name||s->mutable_value||!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME)continue;
+  if(strcmp(s->value->left->token.text,"array")&&strcmp(s->value->left->token.text,"array_u32"))continue;
+  Local *array=local_find(locals,s->name);
+  if(!array||!array->array_u32||!array->array_length_known||array->array_length!=bound)continue;
+  bool stable=true;
+  for(size_t j=i+1;j<before;j++)if(midpoint_stmt_writes_name(outer[j],s->name)){stable=false;break;}
+  if(!stable||statements_write_local(loop->body,loop->body_count,s->name))continue;
+  if(array_name)*array_name=s->name;
+  if(index_name)*index_name=index;
+  return true;
+ }
+ return false;
+}
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  for(size_t i=0;i<n;i++){
   Stmt *s=body[i];
@@ -854,11 +876,12 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
     if(o->loop_depth>=128){swan_error(err,&s->token,"loop nesting exceeds 128 levels");break;}o->loop_break[o->loop_depth]=id;o->loop_continue[o->loop_depth]=id;o->loop_depth++;
     Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr,*saved_active=o->active_loop_condition;
-    const char *saved_midpoint_array=o->active_midpoint_array,*saved_midpoint_index=o->active_midpoint_index;
+    const char *saved_midpoint_array=o->active_midpoint_array,*saved_midpoint_index=o->active_midpoint_index,*saved_fill_array=o->active_fill_array,*saved_fill_index=o->active_fill_index;
     o->active_loop_condition=loop_proves_nonnegative_midpoint(body,i,s)?s->condition:NULL;
-    o->active_midpoint_array=NULL;o->active_midpoint_index=NULL;
+    o->active_midpoint_array=NULL;o->active_midpoint_index=NULL;o->active_fill_array=NULL;o->active_fill_index=NULL;
     const char *midpoint_array=NULL,*midpoint_index=NULL;
     if(loop_proves_midpoint_array_bounds(body,i,s,&midpoint_array,&midpoint_index)){o->active_midpoint_array=midpoint_array;o->active_midpoint_index=midpoint_index;}
+    if(loop_proves_array_fill_bounds(body,i,s,l,&midpoint_array,&midpoint_index)){o->active_fill_array=midpoint_array;o->active_fill_index=midpoint_index;}
     Expr *hoist=saved_hoist?NULL:find_loop_hoist(s,l);
     if(hoist){emit_expr(o,hoist,l,err);text_add(o,"    mov r11, rax\n");o->hoist_expr=hoist;}
     long long recurrence_step=0;
@@ -881,7 +904,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);
     }
     o->hoist_expr=saved_hoist;o->recurrence_expr=saved_recurrence;o->active_loop_condition=saved_active;
-    o->active_midpoint_array=saved_midpoint_array;o->active_midpoint_index=saved_midpoint_index;
+    o->active_midpoint_array=saved_midpoint_array;o->active_midpoint_index=saved_midpoint_index;o->active_fill_array=saved_fill_array;o->active_fill_index=saved_fill_index;
     if(recurrence)cg_pop(o,"r15");
     o->loop_depth--;
     break;
