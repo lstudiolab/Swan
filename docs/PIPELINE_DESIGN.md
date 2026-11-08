@@ -54,7 +54,7 @@ The x86-64 compatibility path can still lower frontend constructs not yet repres
 - IR generation: integer/boolean literals and expressions, direct calls, immutable and mutable locals, assignment, if/else, while, break/continue and short-circuit AND/OR.
 - SVM: register-based execution, recursive calls, local memory, PHI/CFG execution, typed integer-width behavior, traps, fuel and call-depth limits.
 - .swvm: versioned little-endian artifact with bounded reader/writer, malformed/truncated/trailing-data checks and explicit string ownership.
-- IR optimization: constant folding with declared integer widths, constant select folding, constant-branch folding and unreachable-block removal, algebraic identities, block-local common-subexpression elimination and iterative dead-code elimination. Potentially trapping division/remainder and memory loads are not discarded as dead pure instructions.
+- IR optimization: constant folding with declared integer widths, constant select folding, constant-branch folding and unreachable-block removal, algebraic identities, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion and iterative dead-code elimination. Potentially trapping division/remainder and memory loads are not discarded as dead pure instructions.
 
 ## Target status
 
