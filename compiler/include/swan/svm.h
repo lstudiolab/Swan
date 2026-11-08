@@ -17,6 +17,8 @@ typedef struct {
     unsigned depth;
     char *error;
     size_t error_capacity;
+    int64_t memory[4096];
+    size_t memory_count;
 } SwanVM;
 
 static inline unsigned swan_svm_integer_bits(SwanIRType type){
@@ -55,13 +57,12 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     size_t value_count = (size_t)fn->next_value + 1;
     int64_t *values = calloc(value_count, sizeof(*values));
     if (!values) return swan_svm_fail(vm, "SVM out of memory allocating registers");
-    int64_t memory[4096]={0}; size_t memory_count=0;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = swan_svm_normalize_value(arguments[i],fn->parameter_types[i]);
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
         const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
         if(alloc->op==SWAN_IR_ALLOCA){
-            if(memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
-            values[alloc->result]=(int64_t)++memory_count;
+            if(vm->vm->memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
+            values[alloc->result]=(int64_t)++vm->memory_count;
         }
     }
     ++vm->depth;
@@ -140,10 +141,10 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
                 case SWAN_IR_ALLOCA: v=values[in->result];break;
                 case SWAN_IR_LOAD:
                     if(a<=0||(uint64_t)a>memory_count){ok=swan_svm_fail(vm,"SVM invalid memory load");break;}
-                    v=memory[a];break;
+                    v=vm->memory[a];break;
                 case SWAN_IR_STORE:
                     if(a<=0||(uint64_t)a>memory_count){ok=swan_svm_fail(vm,"SVM invalid memory store");break;}
-                    memory[a]=b;break;
+                    vm->memory[a]=b;break;
                 default: ok = swan_svm_fail(vm, "SVM encountered an unsupported IR opcode"); break;
             }
             if (ok && in->result) {
