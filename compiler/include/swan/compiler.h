@@ -87,7 +87,7 @@ static inline void swan_mark_block(Program *p,Stmt **body,size_t count){
  for(size_t i=0;i<count;i++){Stmt *s=body[i];swan_mark_expr(p,s->value);swan_mark_expr(p,s->condition);swan_mark_block(p,s->body,s->body_count);swan_mark_block(p,s->alternate,s->alt_count);}
 }
 static inline void swan_compute_reachability(Program *p){
- memset(p->function_reachable,0,sizeof(p->function_reachable));
+ memset(p->function_reachable,0,sizeof(p->function_reachable));p->reachability_computed=true;
  Stmt *main_fn=swan_find_function(p,"main");size_t index=swan_function_index(p,main_fn);
  if(index!=SIZE_MAX){p->function_reachable[index]=true;swan_mark_block(p,main_fn->body,main_fn->body_count);}
 }
