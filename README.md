@@ -21,6 +21,8 @@ The repository is licensed under Apache License 2.0.
   -> target assembler and linker (native ELF targets)
 ```
 
+The typed-IR optimizer currently runs width-aware constant folding, CFG simplification, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, a post-hoisting CSE pass, and dead-code elimination. Every pass is followed by IR verification. These passes apply only to the typed-IR path; the established AST compatibility backend retains its own optimizations.
+
 `main.c` is the only compiled compiler translation unit. Compiler subsystems are C headers under `compiler/include/swan/`. The system assembler and linker only consume assembly already emitted by Swan.
 
 ## Build and run
