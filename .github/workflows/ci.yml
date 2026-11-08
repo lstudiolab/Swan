@@ -23,5 +23,7 @@ jobs:
         run: sh tests/irgen.sh
       - name: Verify portable SVM CLI target
         run: sh tests/svm-cli.sh
+      - name: Verify IR control-flow lowering
+        run: sh tests/irgen-control.sh
       - name: Verify compiler version
         run: ./build/swan --version
