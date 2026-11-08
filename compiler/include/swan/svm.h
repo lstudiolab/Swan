@@ -8,7 +8,8 @@
  * host CPU without a host-specific instruction selector. */
 #define SWAN_SVM_MAGIC "SWANVM01"
 #define SWAN_SVM_VERSION 1u
-#define SWAN_SVM_MAX_CALL_DEPTH 256u\n#define SWAN_SVM_MAX_MODULE_BYTES (UINT64_C(256)*1024u*1024u)
+#define SWAN_SVM_MAX_CALL_DEPTH 256u
+#define SWAN_SVM_MAX_MODULE_BYTES (UINT64_C(256)*1024u*1024u)
 
 typedef struct {
     const SwanIRModule *module;
