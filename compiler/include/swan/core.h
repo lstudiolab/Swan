@@ -29,7 +29,7 @@ typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTI
 typedef struct Stmt Stmt;
 struct Stmt { StmtKind kind; Token token; const char *name,*type; bool mutable_value,manual_memory; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; size_t param_count; Stmt *next; };
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
-typedef struct { Stmt *functions[1024]; size_t count; const char *imports[64]; size_t import_count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; } Program;
+typedef struct { Stmt *functions[1024]; size_t count; const char *imports[64]; size_t import_count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; size_t source_function_count,module_count,module_starts[64],module_ends[64]; const char *module_names[64]; bool function_reachable[1024]; } Program;
 static inline void *swan_arena_alloc(Program *p,size_t size){
  const size_t align=_Alignof(max_align_t);size=(size+align-1)&~(align-1);
  SwanArenaChunk *c=p->arena;
