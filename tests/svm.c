@@ -22,6 +22,15 @@ int main(void) {
     assert(swan_ir_optimize(&module,error,sizeof(error)));
     assert(swan_svm_run(&module,"main",100,&result,error,sizeof(error)));
     assert(result==42);
+    FILE *artifact=tmpfile(); assert(artifact);
+    assert(swan_svm_write_module(artifact,&module));
+    rewind(artifact);
+    SwanIRModule loaded={0};
+    assert(swan_svm_read_module(artifact,&loaded,error,sizeof(error)));
+    fclose(artifact);
+    assert(swan_svm_run(&loaded,"main",100,&result,error,sizeof(error)));
+    assert(result==42);
+    swan_ir_destroy(&loaded);
     swan_ir_destroy(&module);
     puts("PASS: SVM executes and optimizes portable typed IR");
     return 0;
