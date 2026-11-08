@@ -108,8 +108,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
      if(ok)ok=swan_wasm_byte(&body,0x05)&&swan_wasm_emit_edge(&body,fn,b,t->alternate)&&swan_wasm_const(&body,false,(int64_t)t->alternate)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));
     }else ok=false;
    }
-   for(size_t b=0;b<fn->block_count&&ok;b++)ok=swan_wasm_byte(&body,0x0b);
-   if(ok)ok=swan_wasm_byte(&body,0x00)&&swan_wasm_byte(&body,0x0b);
+   if(ok)ok=swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x00)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x00);
   }else if(ok){
    const SwanIRBlock *bb=&fn->blocks[0];
    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index);
