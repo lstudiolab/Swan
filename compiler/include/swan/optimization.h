@@ -131,7 +131,7 @@ static inline size_t swan_ir_use_count(const SwanIRFunction *fn,uint32_t value){
     return uses;
 }
 static inline bool swan_ir_inst_has_side_effect(const SwanIRInst *in){
-    return in->op==SWAN_IR_CALL||in->op==SWAN_IR_STORE||in->op==SWAN_IR_LOAD;
+    return in->op==SWAN_IR_CALL||in->op==SWAN_IR_STORE||in->op==SWAN_IR_LOAD||in->op==SWAN_IR_SDIV||in->op==SWAN_IR_UDIV||in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM;
 }
 static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
     bool changed=false,again=true;
@@ -166,7 +166,13 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
         for(size_t f=0;f<module->function_count;f++)
             for(size_t b=0;b<module->functions[f].block_count;b++)
                 for(size_t i=0;i<module->functions[f].blocks[b].instruction_count;i++)
-                    (void)swan_ir_fold_instruction(&module->functions[f],&module->functions[f].blocks[b].instructions[i]);
+                    {
+                        SwanIRInst *in=&module->functions[f].blocks[b].instructions[i];
+                        if(in->op==SWAN_IR_CONST&&in->type!=SWAN_IR_PTR){
+                            unsigned bits=swan_ir_integer_bits(in->type);
+                            in->immediate=swan_ir_signed_value((uint64_t)in->immediate&swan_ir_width_mask(bits),bits);
+                        }else (void)swan_ir_fold_instruction(&module->functions[f],in);
+                    }
         return swan_ir_verify(module,error,cap);
     }
     if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
