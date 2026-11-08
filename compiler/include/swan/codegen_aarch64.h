@@ -26,13 +26,13 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
   size_t value_bytes=((size_t)fn->next_value+1)*8u,frame=(value_bytes+allocas*8u+15u)&~(size_t)15u;
   if(frame<16)frame=16;
   text_add(o,".text\n.p2align 2\n.global %s\n.type %s, %%function\n%s:\n    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n    sub sp, sp, #%zu\n",fn->name,fn->name,fn->name,frame);
-  for(size_t p=0;p<fn->parameter_count;p++)text_add(o,"    str x%zu, [sp, #%d]\n",p,swan_a64_value_offset((uint32_t)p+1));
+  for(size_t p=0;p<fn->parameter_count;p++)text_add(o,fn->parameter_types[p]<=SWAN_IR_I32?"    str w%zu, [sp, #%d]\\n":"    str x%zu, [sp, #%d]\\n",p,swan_a64_value_offset((uint32_t)p+1));
   size_t ai=0;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];
    text_add(o,".Lsw_f%zu_b%zu:\n",f,b);
    for(size_t i=0;i<bb->instruction_count;i++){
-    const SwanIRInst *in=&bb->instructions[i];int dst=swan_a64_value_offset(in->result),a=swan_a64_value_offset(in->a),z=swan_a64_value_offset(in->b);
+    const SwanIRInst *in=&bb->instructions[i];int dst=swan_a64_value_offset(in->result),a=swan_a64_value_offset(in->a),z=swan_a64_value_offset(in->b);bool narrow=in->type<=SWAN_IR_I32;const char *r9=narrow?"w9":"x9",*r10=narrow?"w10":"x10",*r11=narrow?"w11":"x11";
     switch(in->op){
      case SWAN_IR_PHI:break;
      case SWAN_IR_CONST:text_add(o,"    ldr x9, =%lld\n    str x9, [sp, #%d]\n",(long long)in->immediate,dst);break;
