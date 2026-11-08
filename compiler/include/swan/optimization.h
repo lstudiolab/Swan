@@ -111,6 +111,7 @@ static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
             else if(ca&&a==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR))replacement=in->b;
             else if(cz&&z==1&&in->op==SWAN_IR_MUL)replacement=in->a;
             else if(ca&&a==1&&in->op==SWAN_IR_MUL)replacement=in->b;
+            else if(ca&&a==0&&in->op==SWAN_IR_MUL){in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=0;changed=true;continue;}
             else if(cz&&z==0&&in->op==SWAN_IR_MUL){in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=0;changed=true;continue;}
             if(replacement){swan_ir_replace_uses(fn,in->result,replacement);changed=true;}
         }
