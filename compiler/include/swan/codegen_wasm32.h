@@ -43,7 +43,7 @@ static inline bool swan_codegen_wasm32(const SwanIRModule *m,SwanWasmBuffer *out
   if(error&&cap)snprintf(error,cap,"WASM32 backend currently requires straight-line functions");return false;
  }
  SwanWasmBuffer type={0},func={0},exports={0},code={0},module={0};
- bool ok=swan_wasm_u32(&type,(uint32_t)m->function_count);
+ bool ok=swan_wasm_u32(&type,(uint32_t)m->function_count)&&swan_wasm_u32(&func,(uint32_t)m->function_count);
  for(size_t f=0;ok&&f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];ok=swan_wasm_byte(&type,0x60)&&swan_wasm_u32(&type,(uint32_t)fn->parameter_count);
   for(size_t p=0;ok&&p<fn->parameter_count;p++)ok=swan_wasm_byte(&type,swan_wasm_type(fn->parameter_types[p]));
