@@ -135,12 +135,13 @@ static inline bool swan_irgen_if(SwanIRGen *g,Stmt *s) {
     if(!swan_ir_add_block(g->function,"if.else"))return swan_irgen_fail(g,&s->token,"out of memory creating else block");
     size_t merge_id=g->function->block_count;
     if(!swan_ir_add_block(g->function,"if.end"))return swan_irgen_fail(g,&s->token,"out of memory creating merge block");
+    size_t local_mark=g->local_count;
     if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_COND_BR,cond,(uint32_t)then_id,(uint32_t)else_id}))return false;
     g->block=then_id;if(!swan_irgen_statements(g,s->body,s->body_count))return false;
-    bool then_live=swan_irgen_open(g);
+    bool then_live=swan_irgen_open(g);g->local_count=local_mark;
     if(then_live&&!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)merge_id,0}))return false;
     g->block=else_id;if(!swan_irgen_statements(g,s->alternate,s->alt_count))return false;
-    bool else_live=swan_irgen_open(g);
+    bool else_live=swan_irgen_open(g);g->local_count=local_mark;
     if(else_live&&!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)merge_id,0}))return false;
     g->block=merge_id;
     if(!then_live&&!else_live){swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_UNREACHABLE,0,0,0});}
@@ -156,7 +157,8 @@ static inline bool swan_irgen_while(SwanIRGen *g,Stmt *s) {
     if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_COND_BR,cond,(uint32_t)body_id,(uint32_t)end_id}))return false;
     if(g->loop_depth>=64)return swan_irgen_fail(g,&s->token,"loop nesting limit exceeded");
     g->break_targets[g->loop_depth]=end_id;g->continue_targets[g->loop_depth]=cond_id;g->loop_depth++;
-    g->block=body_id;bool ok=swan_irgen_statements(g,s->body,s->body_count);g->loop_depth--;if(!ok)return false;
+    size_t local_mark=g->local_count;
+    g->block=body_id;bool ok=swan_irgen_statements(g,s->body,s->body_count);g->loop_depth--;g->local_count=local_mark;if(!ok)return false;
     if(swan_irgen_open(g)&&!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)cond_id,0}))return false;
     g->block=end_id;return true;
 }
