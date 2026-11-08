@@ -216,7 +216,7 @@ SWAN
 "$SWAN" "$TMP/call-hotpath.swan" --emit-asm -o "$TMP/call-hotpath.s"
 cc -x assembler "$TMP/call-hotpath.s" -o "$TMP/call-hotpath"
 test "$("$TMP/call-hotpath")" = "466"
-grep -q 'test r12, 1' "$TMP/call-hotpath.s"
+grep -Eq 'test (r12|rdi|rsi|rdx|r8|r9), 1' "$TMP/call-hotpath.s"
 if grep -q 'call swan_fn_transform' "$TMP/call-hotpath.s"; then
     echo 'FAIL: eligible single-return function was not inlined' >&2
     exit 1
@@ -404,11 +404,11 @@ cc -x assembler "$TMP/volatile-preservation.s" -o "$TMP/volatile-preservation"
 test "$("$TMP/volatile-preservation")" = "315"
 grep -q 'mov QWORD PTR \[rbp - .*\], rbx' "$TMP/volatile-preservation.s"
 grep -q 'mov QWORD PTR \[rbp - .*\], r12' "$TMP/volatile-preservation.s"
-if grep -q 'push rdi' "$TMP/volatile-preservation.s"; then
-    echo 'FAIL: callee-saved local allocation regressed to volatile-register spills' >&2
+if ! grep -q 'push rdi' "$TMP/volatile-preservation.s" || ! grep -q 'pop rdi' "$TMP/volatile-preservation.s"; then
+    echo 'FAIL: volatile locals were not preserved around function calls' >&2
     exit 1
 fi
-printf 'PASS: immutable locals stay in callee-saved registers across calls\n'
+printf 'PASS: callee-saved and volatile local preservation across calls\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
     log (6 * 7) + (9 - 2)

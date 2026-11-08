@@ -40,8 +40,9 @@ static inline Local *local_find(Locals *l,const char *name){unsigned b=cg_name_h
 static inline Local *local_add(Locals *l,const char *name,bool mut){
  if(l->count>=1024)return NULL;
  size_t i=l->count++;unsigned b=cg_name_hash(name)&2047u;Local *v=&l->items[i];v->name=name;v->mut=mut;v->reg=-1;v->slot=0;v->next=l->buckets[b];l->buckets[b]=(int)i+1;
- if(l->caller_saved&&l->reg_count<5)v->reg=5+l->reg_count++;
- else if(!l->caller_saved&&l->reg_count<5){v->reg=l->reg_count++;l->saved_reg_count++;}
+ if(!l->caller_saved&&l->saved_reg_count<5){v->reg=l->saved_reg_count++;l->reg_count++;}
+ else if(l->volatile_reg_count<5){v->reg=5+l->volatile_reg_count++;l->reg_count++;}
+ else if(l->saved_reg_count<5){v->reg=l->saved_reg_count++;l->reg_count++;}
  else v->slot=++l->slots;
  return v;
 }
@@ -201,12 +202,12 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
    text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n");
    cg_push(o,"rax");
    text_add(o,"    add rax, 2\n    jo .Lswan_array_bounds_fail\n    mov rdi, rax\n    mov esi, 4\n");
-   cg_call(o,"calloc@PLT");
+   cg_save_volatile(o,l);cg_call(o,"calloc@PLT");cg_restore_volatile(o,l);
    cg_pop(o,"rcx");
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], rcx\n    add rax, 8\n");
   }else{
    int id=o->next_label++;text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n    mov rdi, rax\n    test rdi, rdi\n    jnz .Lswan_array_nonzero_%d\n    mov edi, 1\n.Lswan_array_nonzero_%d:\n    mov esi, 4\n",id,id);
-   cg_call(o,"calloc@PLT");
+   cg_save_volatile(o,l);cg_call(o,"calloc@PLT");cg_restore_volatile(o,l);
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n");
   }
   o->uses_array_bounds=true;
@@ -564,8 +565,9 @@ static inline Expr *find_induction_product(Expr *e,const char *name,long long *c
  for(size_t i=0;i<e->argc;i++){found=find_induction_product(e->args[i],name,coefficient);if(found)return found;}
  return NULL;
 }
+static inline bool local_uses_reg(Locals *l,int reg){for(size_t i=0;i<l->count;i++)if(l->items[i].reg==reg)return true;return false;}
 static inline Expr *find_loop_recurrence(Stmt *s,Locals *l,long long *coefficient){
- if(!loop_bottom_test_candidate(s,l)||l->reg_count>=5||statements_have_loop(s->body,s->body_count)||statements_have_call(s->body,s->body_count)||statements_have_early_exit(s->body,s->body_count))return NULL;
+ if(!loop_bottom_test_candidate(s,l)||local_uses_reg(l,4)||statements_have_loop(s->body,s->body_count)||statements_have_call(s->body,s->body_count)||statements_have_early_exit(s->body,s->body_count))return NULL;
  const char *name=s->condition->left->token.text;
  for(size_t i=0;i<s->body_count;i++){
   Stmt *item=s->body[i];
