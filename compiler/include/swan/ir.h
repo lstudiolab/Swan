@@ -99,14 +99,56 @@ static inline SwanIRType swan_ir_value_type_of(const SwanIRFunction *f,uint32_t 
   if(f->blocks[b].instructions[i].result==id)return f->blocks[b].instructions[i].type;
  return SWAN_IR_VOID;
 }
+/* A definition dominates a use when every path from entry to the use
+ * passes through the definition block. This path test naturally supports
+ * forward-numbered blocks and loop backedges without relying on block order. */
+static inline bool swan_ir_block_dominates(const SwanIRFunction *f,size_t def_block,size_t use_block) {
+ size_t n=f->block_count;
+ if(def_block>=n||use_block>=n)return false;
+ if(def_block==use_block)return true;
+ bool *seen=calloc(n,sizeof(*seen));
+ size_t *queue=malloc(n*sizeof(*queue));
+ if(!seen||!queue){free(seen);free(queue);return false;}
+ size_t head=0,tail=0;
+ seen[0]=true;queue[tail++]=0;
+ bool reachable=false;
+ while(head<tail){
+  size_t b=queue[head++];
+  if(b==use_block){reachable=true;break;}
+  const SwanIRTerm *t=&f->blocks[b].terminator;
+  size_t targets[2],count=0;
+  if(t->kind==SWAN_IR_BR)targets[count++]=t->target;
+  else if(t->kind==SWAN_IR_COND_BR){targets[count++]=t->target;targets[count++]=t->alternate;}
+  for(size_t k=0;k<count;k++)if(targets[k]<n&&!seen[targets[k]]){seen[targets[k]]=true;queue[tail++]=targets[k];}
+ }
+ if(!reachable){free(seen);free(queue);return false;}
+ memset(seen,0,n*sizeof(*seen));head=tail=0;
+ seen[0]=true;queue[tail++]=0;
+ bool bypass=false;
+ while(head<tail){
+  size_t b=queue[head++];
+  if(b==def_block)continue;
+  if(b==use_block){bypass=true;break;}
+  const SwanIRTerm *t=&f->blocks[b].terminator;
+  size_t targets[2],count=0;
+  if(t->kind==SWAN_IR_BR)targets[count++]=t->target;
+  else if(t->kind==SWAN_IR_COND_BR){targets[count++]=t->target;targets[count++]=t->alternate;}
+  for(size_t k=0;k<count;k++)if(targets[k]<n&&!seen[targets[k]]){seen[targets[k]]=true;queue[tail++]=targets[k];}
+ }
+ free(seen);free(queue);
+ return !bypass;
+}
 static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t use_block,size_t use_inst,char *error,size_t cap) {
  if(!id)return swan_ir_fail(error,cap,"undefined value",f->name,use_block,use_inst);
  if(id<=f->parameter_count)return true;
  for(size_t b=0;b<f->block_count;b++)for(size_t i=0;i<f->blocks[b].instruction_count;i++){
   const SwanIRInst *def=&f->blocks[b].instructions[i];
   if(def->result!=id)continue;
-  if(b==use_block&&i>=use_inst)return swan_ir_fail(error,cap,"value used before its definition",f->name,use_block,use_inst);
-  if(b>use_block)return swan_ir_fail(error,cap,"value defined in a later block",f->name,use_block,use_inst);
+  if(b==use_block){
+   if(i>=use_inst)return swan_ir_fail(error,cap,"value used before its definition",f->name,use_block,use_inst);
+   return true;
+  }
+  if(!swan_ir_block_dominates(f,b,use_block))return swan_ir_fail(error,cap,"definition does not dominate use",f->name,use_block,use_inst);
   return true;
  }
  return swan_ir_fail(error,cap,"use of undefined value",f->name,use_block,use_inst);
@@ -136,7 +178,10 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
      if(!in->incoming_count||!in->incoming)return swan_ir_fail(error,cap,"phi has no incoming edges",fn->name,b,i);
      for(size_t k=0;k<in->incoming_count;k++){
       SwanIRIncoming edge=in->incoming[k];
-      if(edge.block>=b||!swan_ir_verify_use(fn,edge.value,edge.block,fn->blocks[edge.block].instruction_count,error,cap))return swan_ir_fail(error,cap,"phi incoming edge must reference a prior block and defined value",fn->name,b,i);
+      if(edge.block>=fn->block_count||!swan_ir_verify_use(fn,edge.value,edge.block,fn->blocks[edge.block].instruction_count,error,cap))return false;
+      const SwanIRTerm *pred_term=&fn->blocks[edge.block].terminator;
+      bool is_pred=(pred_term->kind==SWAN_IR_BR&&pred_term->target==b)||(pred_term->kind==SWAN_IR_COND_BR&&(pred_term->target==b||pred_term->alternate==b));
+      if(!is_pred)return swan_ir_fail(error,cap,"phi incoming block is not a predecessor",fn->name,b,i);
       if(swan_ir_value_type_of(fn,edge.value)!=in->type)return swan_ir_fail(error,cap,"phi incoming type mismatch",fn->name,b,i);
       for(size_t j=0;j<k;j++)if(in->incoming[j].block==edge.block)return swan_ir_fail(error,cap,"phi has duplicate predecessor",fn->name,b,i);
      }
