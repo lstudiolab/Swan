@@ -81,18 +81,18 @@ static inline int swan_run(int argc,char **argv){
  if(!swan_codegen_x86_64(&p,&assembly,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  if(mode==SWAN_EMIT){
   const char *dest=output?output:"a.s";FILE *of=fopen(dest,"wb");
-  if(!of){perror(dest);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
-  bool ok=fwrite(assembly.data,1,assembly.len,of)==assembly.len&&fclose(of)==0;
-  if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+  if(!of){perror(dest);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
+  bool ok=fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(fclose(of)!=0)ok=false;
+  if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
   free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 0;
  }
  char temp[]="/tmp/swan-XXXXXX";int fd=mkstemp(temp);
- if(fd<0){perror("mkstemp");free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ if(fd<0){perror("mkstemp");free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  FILE *af=fdopen(fd,"wb");
- if(!af){close(fd);unlink(temp);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ if(!af){close(fd);unlink(temp);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  bool written=fwrite(assembly.data,1,assembly.len,af)==assembly.len;
  if(fclose(af)!=0)written=false;
- if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  char exe[1024];
  bool temporary_output=output==NULL;
  if(output)snprintf(exe,sizeof(exe),"%s",output);
@@ -101,7 +101,7 @@ static inline int swan_run(int argc,char **argv){
  char *cc_args[]={"cc","-x","assembler",temp,"-o",exe,NULL};
  int result=swan_exec(cc_args,true);unlink(temp);
  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return result<0?1:result;}
- free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);
+ free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);
  if(mode==SWAN_BUILD)return 0;
  char *run_args[]={exe,NULL};result=swan_exec(run_args,false);
  if(temporary_output)unlink(exe);
