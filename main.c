@@ -60,10 +60,10 @@ static int swan_run(int argc,char **argv){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(mode==SWAN_EMIT?"aarch64.s":"aarch64.o");int result=0;
-  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
+  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
   else {
    char temp[]="/tmp/swan-a64-XXXXXX";int fd=mkstemp(temp);if(fd<0)result=1;
-   else {FILE *of=fdopen(fd,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
+   else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
    if(result)fprintf(stderr,"swan: AArch64 assembly failed; install a Clang toolchain with AArch64 support\n");
   }
   free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
@@ -76,10 +76,10 @@ static int swan_run(int argc,char **argv){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(mode==SWAN_EMIT?"armv7.s":"armv7.o");int result=0;
-  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
+  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
   else {
    char temp[]="/tmp/swan-armv7-XXXXXX";int fd=mkstemp(temp);if(fd<0)result=1;
-   else {FILE *of=fdopen(fd,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=armv7-unknown-linux-gnueabihf","-marm","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
+   else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=armv7-unknown-linux-gnueabihf","-marm","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
    if(result)fprintf(stderr,"swan: ARMv7 assembly failed; install a Clang toolchain with ARM support\n");
   }
   free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
@@ -92,10 +92,10 @@ static int swan_run(int argc,char **argv){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(mode==SWAN_EMIT?"riscv64.s":"riscv64.o");int result=0;
-  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
+  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
   else {
    char temp[]="/tmp/swan-rv64-XXXXXX";int fd=mkstemp(temp);if(fd<0)result=1;
-   else {FILE *of=fdopen(fd,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=riscv64-unknown-linux-gnu","-march=rv64gc","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
+   else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=riscv64-unknown-linux-gnu","-march=rv64gc","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
    if(result)fprintf(stderr,"swan: RISC-V64 assembly failed; install a Clang toolchain with RISC-V support\n");
   }
   free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
@@ -133,7 +133,7 @@ static int swan_run(int argc,char **argv){
  if(mode==SWAN_EMIT){
   const char *dest=output?output:"a.s";FILE *of=fopen(dest,"wb");
   if(!of){perror(dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
-  bool ok=fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(fclose(of)!=0)ok=false;
+  bool ok=swan_emit_assembly(of,&assembly);if(fclose(of)!=0)ok=false;
   if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
   if(runtime_source[0])unlink(runtime_source);
   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 0;
@@ -142,7 +142,7 @@ static int swan_run(int argc,char **argv){
  if(fd<0){perror("mkstemp");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  FILE *af=fdopen(fd,"wb");
  if(!af){close(fd);unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
- bool written=fwrite(assembly.data,1,assembly.len,af)==assembly.len;
+ bool written=swan_emit_assembly(af,&assembly);
  if(fclose(af)!=0)written=false;
  if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  int result=0;
