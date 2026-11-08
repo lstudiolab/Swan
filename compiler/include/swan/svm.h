@@ -241,8 +241,7 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
     if(!in||!m)return false;memset(m,0,sizeof(*m));
     uint8_t magic[8],expected[8]={'S','W','A','N','V','M','0','1'};
     uint32_t version,flags;uint64_t size;
-    if(fread(magic,1,8,in)!=8||memcmp(magic,expected,8)||
-       !swan_svm_read_u32(&(SwanSVMReader){in,UINT64_MAX,false},&version)) {
+    if(fread(magic,1,8,in)!=8||memcmp(magic,expected,8)) {
         if(error&&cap)snprintf(error,cap,"invalid SVM module header");return false;
     }
     SwanSVMReader header={in,UINT64_MAX,false};
@@ -258,13 +257,13 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
         if(params&&!types){free(name);goto malformed;}
         bool ok=true;for(uint32_t p=0;p<params;p++){uint8_t t;if(!swan_svm_read_u8(&r,&t)){ok=false;break;}types[p]=(SwanIRType)t;}
         SwanIRFunction *fn=ok?swan_ir_add_function(m,name,(SwanIRType)ret,types,params):NULL;free(types);
-        if(!fn){free(name);goto malformed;}free(name);
+        if(!fn){free(name);goto malformed;}
         if(!swan_svm_read_u32(&r,&blocks)||blocks>SWAN_SVM_MAX_ITEMS||!swan_svm_read_u32(&r,&next))goto malformed;
         fn->next_value=next;
         for(uint32_t b=0;b<blocks;b++){
             char *block_name=swan_svm_read_string(&r);uint32_t count;
             if(!block_name||!swan_svm_read_u32(&r,&count)||count>SWAN_SVM_MAX_ITEMS){free(block_name);goto malformed;}
-            SwanIRBlock *bb=swan_ir_add_block(fn,block_name);free(block_name);if(!bb)goto malformed;
+            SwanIRBlock *bb=swan_ir_add_block(fn,block_name);if(!bb){free(block_name);goto malformed;}
             for(uint32_t x=0;x<count;x++){
                 SwanIRInst in={0};uint8_t op,type;uint64_t imm;uint32_t incoming;
                 if(!swan_svm_read_u8(&r,&op)||!swan_svm_read_u8(&r,&type)||
