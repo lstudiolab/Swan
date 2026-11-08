@@ -31,6 +31,8 @@ jobs:
         run: sh tests/wasm64.sh
       - name: Verify AArch64 ELF emission
         run: sh tests/aarch64.sh
+      - name: Verify ARMv7 ELF emission
+        run: sh tests/armv7.sh
       - name: Verify RISC-V64 ELF emission
         run: sh tests/riscv64.sh
       - name: Verify compiler version
