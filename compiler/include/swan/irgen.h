@@ -62,6 +62,37 @@ static inline SwanIRLocal *swan_irgen_local(SwanIRGen *g,const char *name) {
     return NULL;
 }
 static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e);
+static inline bool swan_irgen_integer_literal(Expr *e,int64_t *value){
+    if(!e)return false;
+    bool negative=false;
+    if(e->kind==E_UNARY&&e->token.kind==T_MINUS&&e->left&&e->left->kind==E_INT){negative=true;e=e->left;}
+    if(e->kind!=E_INT)return false;
+    errno=0;char *end=NULL;unsigned long long magnitude=strtoull(e->token.text,&end,10);
+    if(errno==ERANGE||!end||end==e->token.text||*end)return false;
+    if(negative){
+        if(magnitude>(unsigned long long)INT64_MAX+1u)return false;
+        *value=magnitude==(unsigned long long)INT64_MAX+1u?INT64_MIN:-(int64_t)magnitude;
+    }else{
+        if(magnitude>(unsigned long long)INT64_MAX)return false;
+        *value=(int64_t)magnitude;
+    }
+    return true;
+}
+static inline uint32_t swan_irgen_expr_as(SwanIRGen *g,Expr *e,SwanIRType expected){
+    int64_t literal;
+    if(swan_irgen_integer_literal(e,&literal)){
+        unsigned bits=expected==SWAN_IR_I1?1:expected==SWAN_IR_I8?8:expected==SWAN_IR_I16?16:expected==SWAN_IR_I32?32:expected==SWAN_IR_I64?64:0;
+        if(!bits){swan_irgen_fail(g,&e->token,"integer literal cannot initialize this type");return 0;}
+        int64_t min=bits==64?INT64_MIN:-(INT64_C(1)<<(bits-1));
+        int64_t max=bits==64?INT64_MAX:(INT64_C(1)<<(bits-1))-1;
+        if(literal<min||literal>max){swan_irgen_fail(g,&e->token,"integer literal is outside the destination type range");return 0;}
+        return swan_irgen_const(g,expected,literal);
+    }
+    uint32_t value=swan_irgen_expr(g,e);if(!value)return 0;
+    if(swan_ir_value_type_of(g->function,value)!=expected){swan_irgen_fail(g,&e->token,"expression type does not match its context");return 0;}
+    return value;
+}
+
 static inline SwanIRType swan_irgen_infer_expr_type(SwanIRGen *g,Expr *e){
     if(!e)return SWAN_IR_VOID;
     if(e->kind==E_BOOL)return SWAN_IR_I1;
@@ -117,7 +148,7 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
         if(e->argc){in.incoming=calloc(e->argc,sizeof(*in.incoming));if(!in.incoming){swan_irgen_fail(g,&e->token,"out of memory lowering call arguments");return 0;}}
         in.incoming_count=e->argc;
         for(size_t i=0;i<e->argc;i++){
-            uint32_t v=swan_irgen_expr(g,e->args[i]);if(!v){free(in.incoming);return 0;}
+            uint32_t v=swan_irgen_expr_as(g,e->args[i],callee->parameter_types[i]);if(!v){free(in.incoming);return 0;}
             if(swan_ir_value_type_of(g->function,v)!=callee->parameter_types[i]){free(in.incoming);swan_irgen_fail(g,&e->token,"function call argument type mismatch");return 0;}
             in.incoming[i].value=v;
         }
