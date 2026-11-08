@@ -15,7 +15,7 @@ The same typed IR is consumed by the AArch64, ARMv7, RISC-V64, WASM32 and WASM64
 - Typed SSA IR with control-flow, PHI nodes, calls and memory operations.
 - IR verifier for SSA bounds/uniqueness, dominance, branch targets, PHI completeness, call signatures and operand types.
 - IR generation for integer/boolean expressions, direct calls, mutable locals, branches, loops, loop control and short-circuit logic.
-- Verified optimization pass manager: width-aware constant folding, select folding, constant-branch/CFG simplification, unreachable-block removal, algebraic simplification, block-local CSE and iterative DCE.
+- Verified optimization pass manager: width-aware constant folding, select folding, constant-branch/CFG simplification, unreachable-block removal, algebraic simplification, dominance-aware CSE and iterative DCE.
 - Versioned, bounded .swvm serialization and portable SVM execution.
 - Dedicated assembly emitter and linker helper interfaces.
 
@@ -30,7 +30,7 @@ The IR backends currently use stack/register slots and conservative lowering. Th
 ## Remaining performance work before SIL
 
 1. Implement liveness analysis and global register allocation for IR backends.
-2. Add copy propagation, global CSE and loop-invariant code motion with dominance-aware tests.
+2. Add copy propagation, loop-invariant code motion, and further global value numbering with dominance-aware tests.
 3. Add target-aware instruction selection and scheduling.
 4. Add array/slice IR, bounds-check semantics and native lowering.
 5. Add floating-point IR semantics, SVM execution and target instruction selection.
@@ -39,4 +39,4 @@ The IR backends currently use stack/register slots and conservative lowering. Th
 8. Differentially test the IR x86-64 path against the legacy AST path over the existing source corpus.
 9. Measure runtime and compile-time deltas on identical benchmark workloads before adopting IR optimizations in the default fast path.
 
-SIL is intentionally deferred until the typed IR, codegen, artifact and target support boundaries above are stable.
+SIL is intentionally not part of this work. It remains deferred until the typed IR, codegen, artifact and target support boundaries above are stable.
