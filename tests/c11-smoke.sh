@@ -346,7 +346,7 @@ fn main():
     return 0
 SWAN
 "$SWAN" "$TMP/unsafe-midpoint.swan" --emit-asm -o "$TMP/unsafe-midpoint.s"
-if ! grep -Eq 'cmp rcx, QWORD PTR \[[a-z0-9]+ - 8\]' "$TMP/unsafe-midpoint.s"; then
+if ! grep -Eq 'cmp rcx, (8|QWORD PTR \[[a-z0-9]+ - 8\])' "$TMP/unsafe-midpoint.s"; then
     echo "FAIL: midpoint bounds check was removed after a bound mutation" >&2
     cat "$TMP/unsafe-midpoint.s" >&2
     exit 1

@@ -181,6 +181,32 @@ expected=$(printf '0\n3\n6\n9\n12\n15\n18\n21\n84')
 if [ "$actual" != "$expected" ]; then echo "FAIL: array workload expected scaled sequence and sum, got [$actual]" >&2; exit 1; fi
 printf 'PASS: heap integer arrays, indexed writes, and indexed reads\n'
 
+# Constant-sized checked arrays keep their length in compiler metadata.
+# Dynamic indices compare against an immediate; in-range constant indices use
+# a direct displacement and need neither an index register nor a bounds branch.
+cat > "$TMP/array-known-length.swan" <<'SWAN'
+fn main():
+    let values = array(8)
+    values[3] = 41
+    var index = 2
+    values[index] = 17
+    log values[3]
+    log values[index]
+    return 0
+SWAN
+"$SWAN" "$TMP/array-known-length.swan" --emit-asm -o "$TMP/array-known-length.s"
+grep -Eq 'cmp rcx, 8' "$TMP/array-known-length.s"
+grep -Eq 'DWORD PTR \[[a-z0-9]+ \+ 12\]' "$TMP/array-known-length.s"
+grep -Eq 'mov edi, 10' "$TMP/array-known-length.s"
+if grep -q 'add rax, 2' "$TMP/array-known-length.s"; then
+  echo 'FAIL: constant array allocation retained dynamic length arithmetic' >&2
+  exit 1
+fi
+${CC:-cc} -x assembler "$TMP/array-known-length.s" -o "$TMP/array-known-length"
+test "$("$TMP/array-known-length")" = "41
+17"
+printf 'PASS: fixed-length array bounds and constant-index fast paths\\n'
+
 
 # Nested calls and calls inside expressions must preserve stack alignment.
 cat > "$TMP/nested-calls.swan" <<'SWAN'
