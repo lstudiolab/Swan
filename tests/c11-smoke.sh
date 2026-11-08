@@ -341,13 +341,14 @@ fn main():
     while low <= high
         var middle = low + (high - low) // 2
         log values[middle]
-        log (low = -1)
+        low = -1
         break
     return 0
 SWAN
 "$SWAN" "$TMP/unsafe-midpoint.swan" --emit-asm -o "$TMP/unsafe-midpoint.s"
 if ! grep -Eq 'cmp rcx, QWORD PTR \[[a-z0-9]+ - 8\]' "$TMP/unsafe-midpoint.s"; then
-    echo "FAIL: midpoint bounds check was removed after a nested bound mutation" >&2
+    echo "FAIL: midpoint bounds check was removed after a bound mutation" >&2
+    cat "$TMP/unsafe-midpoint.s" >&2
     exit 1
 fi
 printf 'PASS: midpoint bounds-check elimination rejects mutated bounds\n'
