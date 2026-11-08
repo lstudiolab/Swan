@@ -7,6 +7,11 @@
 #include "swan/target.h"
 #include "swan/ir.h"
 #include "swan/sema.h"
+#include "swan/irgen.h"
+#include "swan/optimization.h"
+#include "swan/svm.h"
+#include "swan/emitter.h"
+#include "swan/linker.h"
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
