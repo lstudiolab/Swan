@@ -69,6 +69,7 @@ static inline Stmt *cg_find_function(Program *p,const char *name){
  for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];
  return NULL;
 }
+static inline int cg_function_module_index(Program *p,const char *name){Stmt *fn=cg_find_function(p,name);return fn&&fn->imported?fn->module_index:-1;}
 static inline bool expr_is_nonnegative_midpoint(Expr *division,Expr *condition){
  if(!division||division->kind!=E_BINARY||(division->token.kind!=T_SLASH&&division->token.kind!=T_FLOORDIV)||!division->right||division->right->kind!=E_INT)return false;
  if(!condition||condition->kind!=E_BINARY||(condition->token.kind!=T_LE&&condition->token.kind!=T_LT)||!condition->left||!condition->right||condition->left->kind!=E_NAME||condition->right->kind!=E_NAME)return false;
@@ -274,7 +275,8 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   return;
  }
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
- if(o->program&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
+ int target_module=o->program?cg_function_module_index(o->program,name):-1;
+ if(o->program&&(target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
   Stmt *fn=cg_find_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
    const char *parameter=fn->params[0];Expr *body=fn->body[0]->value;
@@ -288,7 +290,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   }
  }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
- char symbol[SWAN_MAX_TEXT+16];if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
+ char symbol[SWAN_MAX_TEXT+32];if(target_module>=0&&o->program&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);else if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
  cg_save_volatile(o,l);
  if(!nested){
@@ -965,7 +967,10 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
-  Stmt *fn=p->functions[i];Locals l={0};o->stack_depth=0;
+  Stmt *fn=p->functions[i];
+  if(p->codegen_module_index<0&&fn->imported)continue;
+  if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
+  Locals l={0};o->stack_depth=0;
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
   for(size_t a=0;a<fn->param_count;a++)local_add(&l,fn->params[a],false);
   collect_locals(fn->body,fn->body_count,&l);samc_scan_escapes(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
@@ -975,6 +980,13 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
   for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){size_t index=a-1;Local *v=local_find(&l,fn->params[index]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);}}
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
+ }
+ for(size_t i=0;i<p->count;i++){
+  Stmt *fn=p->functions[i];
+  if(!fn->imported||!p->function_reachable[i]||fn->module_index==p->codegen_module_index)continue;
+  const char *module=p->module_names[fn->module_index];
+  text_add(o,".section .rodata\n.Lswan_lazy_module_%s:\n    .string \"%s\"\n.Lswan_lazy_symbol_%s:\n    .string \"swan_fn_%s\"\n",fn->name,module,fn->name,fn->name);
+  text_add(o,".section .data\n.p2align 3\n.Lswan_lazy_slot_%s:\n    .quad 0\n.text\n.globl swan_lazy_%s\nswan_lazy_%s:\n    mov rax, QWORD PTR [rip + .Lswan_lazy_slot_%s]\n    test rax, rax\n    jne .Lswan_lazy_ready_%s\n    push rdi\n    push rsi\n    push rdx\n    push rcx\n    push r8\n    push r9\n    sub rsp, 8\n    lea rdi, [rip + .Lswan_lazy_module_%s]\n    lea rsi, [rip + .Lswan_lazy_symbol_%s]\n    call swan_resolve@PLT\n    add rsp, 8\n    mov QWORD PTR [rip + .Lswan_lazy_slot_%s], rax\n    pop r9\n    pop r8\n    pop rcx\n    pop rdx\n    pop rsi\n    pop rdi\n.Lswan_lazy_ready_%s:\n    jmp QWORD PTR [rip + .Lswan_lazy_slot_%s]\n",fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name);
  }
  if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
  text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\n\"\n.section .note.GNU-stack,\"\",@progbits\n");

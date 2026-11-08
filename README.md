@@ -92,6 +92,14 @@ fn main():
 
 SAMC conservatively leaves arrays allocated when their ownership escapes through a return, alias assignment, or function argument. This prevents premature frees in code where the compiler cannot prove that the current function is the final owner. Those escaped allocations require an explicit ownership strategy; SAMC does not yet perform interprocedural lifetime analysis or per-block last-use cleanup. Manual allocations are never implicitly freed.
 
+## Lazy imports and library tree shaking
+
+Standard-library imports are resolved and type-checked during compilation, but imported code is no longer linked into the executable eagerly. Swan follows the call graph from `main`, builds only the imported functions reachable from that entry point into per-module shared libraries, and omits unused library functions.
+
+Imported functions are called through small cached dispatch stubs. The first call resolves the function with `dlopen` / `dlsym`; subsequent calls jump directly to the cached function pointer. A module that is never called is never loaded, even if a call exists on a runtime branch that is not taken. The shared libraries are stored beside the executable in a `.modules/` directory, so keep that directory with the executable.
+
+This applies to `swan build` and `swan run`. `--emit-asm` currently rejects programs that need runtime-lazy imported functions because a standalone assembly file cannot carry the generated module bundle and resolver runtime.
+
 ## Foundation standard library
 
 Foundation is a source-level standard-library module under `stdlib/foundation.swan`.

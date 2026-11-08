@@ -1,6 +1,6 @@
 # Swan Standard Library
 
-The standard library is written in Swan and lives under `stdlib/`.
+The standard library is written in Swan and lives under `stdlib/`. Imports are checked during compilation, but module binaries are loaded only when an imported function is first called. Swan also excludes unused functions from each generated module binary.
 
 ## Foundation
 
