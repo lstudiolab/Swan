@@ -37,7 +37,10 @@ grep -q "addi sp, sp" "$TMP/riscv64.s"
 "$SWAN" --list-targets > "$TMP/targets.txt"
 grep -q "x86_64.*implemented" "$TMP/targets.txt"
 grep -q "aarch64.*implemented" "$TMP/targets.txt"
-grep -q "riscv64.*implemented" "$TMP/targets.txt"\ngrep -q "wasm32.*implemented" "$TMP/targets.txt"
+grep -q "riscv64.*implemented" "$TMP/targets.txt"
+grep -q "wasm32.*implemented" "$TMP/targets.txt"
+grep -q "wasm64.*implemented" "$TMP/targets.txt"
+grep -q "svm.*implemented" "$TMP/targets.txt"
 if "$SWAN" "$TMP/native.swan" --target madeup 2>"$TMP/unknown.err"; then
     echo "FAIL: unknown target was accepted" >&2
     exit 1
