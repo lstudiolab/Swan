@@ -69,6 +69,7 @@ int main(void) {
     swan_ir_destroy(&shared);
 
     /* Thousands of calls with local allocations must reuse frame storage. */
+    {
     SwanIRModule repeated={0};
     SwanIRFunction *touch=swan_ir_add_function(&repeated,"touch",SWAN_IR_I64,NULL,0);assert(touch);
     SwanIRBlock *te=swan_ir_add_block(touch,"entry");assert(te);
@@ -110,6 +111,7 @@ int main(void) {
     assert(swan_svm_run(&repeated,"main",200000,&result,error,sizeof(error)));
     assert(result==5000);
     swan_ir_destroy(&repeated);
+    }
 
     swan_ir_destroy(&loaded);
     swan_ir_destroy(&module);
