@@ -150,7 +150,7 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
      if(!swan_ir_verify_use(fn,in->a,b,i,error,cap)||!swan_ir_verify_use(fn,in->b,b,i,error,cap))return false;
      SwanIRType a=swan_ir_value_type_of(fn,in->a),c=swan_ir_value_type_of(fn,in->b);
      bool cmp=in->op>=SWAN_IR_ICMP_EQ&&in->op<=SWAN_IR_ICMP_SGE;
-     if(a!=c||a!=in->type||(cmp&&in->type!=SWAN_IR_I1))return swan_ir_fail(error,cap,"binary operand type mismatch",fn->name,b,i);
+     if(a!=c||(cmp?in->type!=SWAN_IR_I1:a!=in->type))return swan_ir_fail(error,cap,"binary operand type mismatch",fn->name,b,i);
     }
    }
    const SwanIRTerm *t=&bb->terminator;
