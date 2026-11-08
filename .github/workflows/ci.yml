@@ -21,5 +21,7 @@ jobs:
         run: sh tests/svm.sh
       - name: Verify .swan to IR to SVM integration
         run: sh tests/irgen.sh
+      - name: Verify portable SVM CLI target
+        run: sh tests/svm-cli.sh
       - name: Verify compiler version
         run: ./build/swan --version
