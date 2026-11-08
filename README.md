@@ -154,6 +154,6 @@ CI runs the complete suite, including compiler construction, header isolation, p
 | WebAssembly 64-bit / memory64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges, memory64 stack frames and mutable locals |
 | Windows x64 / Apple Darwin | Not implemented | Registry only |
 
-Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 frontend; array/slice lowering, floating-point arithmetic, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. ARMv7 currently has no integer division helper. Cross-target backends are intentionally a supported subset rather than claiming full frontend parity. A listed implemented backend does not imply every Swan program can target it.
+Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 frontend; array/slice lowering, floating-point arithmetic, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. ARMv7 lowers integer division and remainder through the AAPCS EABI helpers with explicit zero and signed-overflow traps. Cross-target backends are intentionally a supported subset rather than claiming full frontend parity. A listed implemented backend does not imply every Swan program can target it.
 
 Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
