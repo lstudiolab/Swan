@@ -8,4 +8,16 @@ typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTI
 typedef struct Stmt Stmt;
 struct Stmt { StmtKind kind; Token token; const char *name,*type; bool mutable_value,manual_memory; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; size_t param_count; Stmt *next; int module_index; bool imported; };
 typedef struct { Stmt *functions[1024]; size_t count; const char *imports[64]; size_t import_count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; size_t source_function_count,module_count,module_starts[64],module_ends[64]; const char *module_names[64]; bool function_reachable[1024]; int codegen_module_index; } Program;
+static inline void *swan_arena_alloc(Program *p,size_t size){
+ const size_t align=_Alignof(max_align_t);size=(size+align-1)&~(align-1);
+ SwanArenaChunk *c=p->arena;
+ if(!c||size>c->capacity-c->used){
+  size_t cap=size>65536?size:65536;
+  c=malloc(sizeof(*c)+cap);if(!c)return NULL;c->next=p->arena;c->used=0;c->capacity=cap;p->arena=c;
+ }
+ void *result=c->data+c->used;c->used+=size;memset(result,0,size);return result;
+}
+static inline void swan_program_destroy(Program *p){
+ SwanArenaChunk *c=p->arena;while(c){SwanArenaChunk *next=c->next;free(c);c=next;}p->arena=NULL;
+}
 #endif
