@@ -25,5 +25,7 @@ jobs:
         run: sh tests/svm-cli.sh
       - name: Verify IR control-flow lowering
         run: sh tests/irgen-control.sh
+      - name: Verify WASM32 binary emission
+        run: sh tests/wasm32.sh
       - name: Verify compiler version
         run: ./build/swan --version
