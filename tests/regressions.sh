@@ -147,14 +147,14 @@ fn main():
     let values = array(4)
     var i = 0
     while i < 4
-        values[i] = i + 1
+        values[i] = i
         i = i + 1
     log values[3]
     return 0
 SWAN
 "$SWAN" "$TMP/proven-array-fill.swan" --emit-asm -o "$TMP/proven-array-fill.s"
 cc -x assembler "$TMP/proven-array-fill.s" -o "$TMP/proven-array-fill"
-test "$("$TMP/proven-array-fill")" = "4"
+test "$("$TMP/proven-array-fill")" = "3"
 if grep -q 'cmp rcx, 4' "$TMP/proven-array-fill.s"; then
     echo 'FAIL: proven array-fill loop retained a bounds check' >&2
     exit 1
