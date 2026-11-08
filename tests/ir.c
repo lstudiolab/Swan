@@ -37,6 +37,7 @@ int main(void) {
     assert(strstr(error, "before its definition"));
 
     entry->instructions[0].a = 1;
+    entry->instructions[0].type = SWAN_IR_I64;
     assert(swan_ir_verify(&m, error, sizeof(error)));
 
     entry->instructions[0].type = SWAN_IR_I32;
