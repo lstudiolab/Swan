@@ -9,13 +9,16 @@ fn main() -> int:
     let known = array_unchecked(256)
     let constants = array_unchecked(256)
     var count = sil_emit_const(state, 0, 1, 10, 1)
+    log count
     count = sil_emit_const(state, count, 2, 20, 1)
+    log count
     count = sil_emit_binary(state, count, 18, 3, 1, 2)
+    log count
     count = sil_emit_return(state, count, 3)
+    log count
     let valid = sil_verify(state, count)
     if valid != 1
         echo!("SIL_VERIFY_FAILED")
-        log count
         log state[0]
         log state[1]
         log state[5]
