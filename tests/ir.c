@@ -47,12 +47,12 @@ int main(void) {
     SwanIRType loop_params[] = {SWAN_IR_I64, SWAN_IR_I1};
     SwanIRFunction *loop = swan_ir_add_function(&m, "loop_phi", SWAN_IR_I64, loop_params, 2);
     assert(loop);
-    SwanIRBlock *entry = swan_ir_add_block(loop, "entry");
+    SwanIRBlock *loop_entry = swan_ir_add_block(loop, "entry");
     SwanIRBlock *header = swan_ir_add_block(loop, "header");
     SwanIRBlock *body = swan_ir_add_block(loop, "body");
     SwanIRBlock *exit = swan_ir_add_block(loop, "exit");
-    assert(entry && header && body && exit);
-    assert(swan_ir_terminate(entry, (SwanIRTerm){SWAN_IR_BR, 0, 1, 0}));
+    assert(loop_entry && header && body && exit);
+    assert(swan_ir_terminate(loop_entry, (SwanIRTerm){SWAN_IR_BR, 0, 1, 0}));
     SwanIRIncoming incoming[] = {{1, 0}, {4, 2}};
     SwanIRInst phi = {0};
     phi.op = SWAN_IR_PHI;
