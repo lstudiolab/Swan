@@ -197,20 +197,20 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
  if(!strcmp(name,"array")||!strcmp(name,"array_u32")||!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")){
   if(e->argc!=1){swan_error(err,&e->token,"array expects exactly one length argument");return;}
-  emit_expr(o,e->args[0],l,err);
+  cg_save_volatile(o,l);emit_expr(o,e->args[0],l,err);
   if(!strcmp(name,"array")||!strcmp(name,"array_u32")){
    text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n");
    cg_push(o,"rax");
    text_add(o,"    add rax, 2\n    jo .Lswan_array_bounds_fail\n    mov rdi, rax\n    mov esi, 4\n");
-   cg_save_volatile(o,l);cg_call(o,"calloc@PLT");cg_restore_volatile(o,l);
+   cg_call(o,"calloc@PLT");
    cg_pop(o,"rcx");
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], rcx\n    add rax, 8\n");
   }else{
    int id=o->next_label++;text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n    mov rdi, rax\n    test rdi, rdi\n    jnz .Lswan_array_nonzero_%d\n    mov edi, 1\n.Lswan_array_nonzero_%d:\n    mov esi, 4\n",id,id);
-   cg_save_volatile(o,l);cg_call(o,"calloc@PLT");cg_restore_volatile(o,l);
+   cg_call(o,"calloc@PLT");
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n");
   }
-  o->uses_array_bounds=true;
+  cg_restore_volatile(o,l);o->uses_array_bounds=true;
   return;
  }
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
@@ -629,7 +629,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
       else if(*q<32)text_add(o,"\\%03o",*q);
       else text_add(o,"%c",*q);
      }
-     text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n",id);cg_save_volatile(o,l);cg_call(o,"puts@PLT");cg_restore_volatile(o,l);
+     cg_save_volatile(o,l);text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n",id);cg_call(o,"puts@PLT");cg_restore_volatile(o,l);
     }else{emit_expr(o,s->value,l,err);cg_save_volatile(o,l);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");cg_restore_volatile(o,l);}
     break;
     case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
