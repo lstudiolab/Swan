@@ -62,8 +62,7 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
       if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)text_add(o,"    msub x11, x11, x10, x9\\n");
       text_add(o,"    str x11, [sp, #%d]\\n    b .Lsw_a64_divdone_%d\\n.Lsw_a64_divzero_%d:\\n    brk #0\\n.Lsw_a64_divdone_%d:\\n",dst,id,id,id);break;
      }
-     case SWAN_IR_SREM:case SWAN_IR_UREM:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    %s x11, x9, x10\n    msub x11, x11, x10, x9\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_SREM?"sdiv":"udiv",dst);break;
-     case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
+          case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    cmp x9, x10\n    cset x11, %s\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_ICMP_EQ?"eq":in->op==SWAN_IR_ICMP_NE?"ne":in->op==SWAN_IR_ICMP_SLT?"lt":in->op==SWAN_IR_ICMP_SLE?"le":in->op==SWAN_IR_ICMP_SGT?"gt":"ge",dst);break;
      default:if(error&&cap)snprintf(error,cap,"AArch64 backend encountered unsupported IR opcode %u",(unsigned)in->op);return false;
     }
