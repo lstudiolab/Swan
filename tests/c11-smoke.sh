@@ -331,12 +331,13 @@ printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
 
 cat > "$TMP/power-two-multiply.swan" <<'SWAN'
 fn main():
-    log 7 * 8
-    log -7 * 8
-    log 7 * -8
-    log 7 * 1
-    log 7 * -1
-    log 7 * 0
+    var value = 7
+    log value * 8
+    log -value * 8
+    log value * -8
+    log value * 1
+    log value * -1
+    log value * 0
     return 0
 SWAN
 "$SWAN" "$TMP/power-two-multiply.swan" --emit-asm -o "$TMP/power-two-multiply.s"
