@@ -74,7 +74,9 @@ ${CC:-cc} -x assembler "$TMP/int64.s" -o "$TMP/int64"
 test "$("$TMP/int64")" = "3000000000"
 printf 'PASS: 64-bit integer lowering\n'
 
-# Struct declarations are not part of the active C11 subset yet.\n\ncat > "$TMP/invalid.swan" <<'SWAN'
+# Struct declarations are not part of the active C11 subset yet.
+
+cat > "$TMP/invalid.swan" <<'SWAN'
 fn main():
     log missing
     return 0
