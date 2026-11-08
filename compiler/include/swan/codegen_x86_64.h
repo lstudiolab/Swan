@@ -400,9 +400,30 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
      if(array->reg>=0)text_add(o,"    mov DWORD PTR [%s + %lld], eax\n",cg_reg_name(array->reg),(long long)(constant_index*4));
      else text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n    mov DWORD PTR [r10 + %lld], eax\n",array->slot*8,(long long)(constant_index*4));
     }else{
-     emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
-     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
-     else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
+     Local *index_local=e->left->right&&e->left->right->kind==E_NAME?local_find(l,e->left->right->token.text):NULL;
+     Local *value_local=e->right&&e->right->kind==E_NAME?local_find(l,e->right->token.text):NULL;
+     int64_t immediate_value=0;
+     bool direct_register_store=index_local&&value_local&&value_local->reg>=0;
+     bool direct_immediate_store=index_local&&cg_const_value(e->right,&immediate_value)&&immediate_value>=INT32_MIN&&immediate_value<=INT32_MAX;
+     if(direct_register_store||direct_immediate_store){
+      if(index_local->reg>=0)text_add(o,"    mov rcx, %s\n",cg_reg_name(index_local->reg));
+      else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\n",index_local->slot*8);
+      if(array->reg>=0){
+       const char *array_base=cg_reg_name(array->reg);
+       if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",array_base);}
+       if(direct_register_store)text_add(o,"    mov DWORD PTR [%s + rcx*4], %s\n",array_base,cg_reg_low_name(value_local->reg));
+       else text_add(o,"    mov DWORD PTR [%s + rcx*4], %lld\n",array_base,(long long)immediate_value);
+      }else{
+       text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);
+       if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}
+       if(direct_register_store)text_add(o,"    mov DWORD PTR [r10 + rcx*4], %s\n",cg_reg_low_name(value_local->reg));
+       else text_add(o,"    mov DWORD PTR [r10 + rcx*4], %lld\n",(long long)immediate_value);
+      }
+     }else{
+      emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
+      if(array->reg>=0){const char *array_base=cg_reg_name(array->reg);if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",array_base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",array_base);}
+      else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
+     }
     }
     o->uses_array_bounds=true;break;
    }
