@@ -43,6 +43,36 @@ int main(void) {
     assert(!swan_ir_verify(&m, error, sizeof(error)));
     assert(strstr(error, "operand type mismatch"));
 
+    /* Loop-carried PHI: the backedge comes from a later-numbered block. */
+    SwanIRType loop_params[] = {SWAN_IR_I64, SWAN_IR_I1};
+    SwanIRFunction *loop = swan_ir_add_function(&m, "loop_phi", SWAN_IR_I64, loop_params, 2);
+    assert(loop);
+    SwanIRBlock *entry = swan_ir_add_block(loop, "entry");
+    SwanIRBlock *header = swan_ir_add_block(loop, "header");
+    SwanIRBlock *body = swan_ir_add_block(loop, "body");
+    SwanIRBlock *exit = swan_ir_add_block(loop, "exit");
+    assert(entry && header && body && exit);
+    assert(swan_ir_terminate(entry, (SwanIRTerm){SWAN_IR_BR, 0, 1, 0}));
+    SwanIRIncoming incoming[] = {{1, 0}, {4, 2}};
+    SwanIRInst phi = {0};
+    phi.op = SWAN_IR_PHI;
+    phi.type = SWAN_IR_I64;
+    phi.incoming = malloc(sizeof(incoming));
+    assert(phi.incoming);
+    memcpy(phi.incoming, incoming, sizeof(incoming));
+    phi.incoming_count = 2;
+    assert(swan_ir_add_inst(loop, header, phi) == 3);
+    assert(swan_ir_terminate(header, (SwanIRTerm){SWAN_IR_COND_BR, 2, 2, 3}));
+    SwanIRInst increment = {0};
+    increment.op = SWAN_IR_ADD;
+    increment.type = SWAN_IR_I64;
+    increment.a = 3;
+    increment.b = 1;
+    assert(swan_ir_add_inst(loop, body, increment) == 4);
+    assert(swan_ir_terminate(body, (SwanIRTerm){SWAN_IR_BR, 0, 1, 0}));
+    assert(swan_ir_terminate(exit, (SwanIRTerm){SWAN_IR_RET, 3, 0, 0}));
+    assert(swan_ir_verify(&m, error, sizeof(error)));
+
     swan_ir_destroy(&m);
     return 0;
 }
