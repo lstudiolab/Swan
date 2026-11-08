@@ -319,7 +319,7 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
             t.kind=(SwanIRTermKind)term;bb->terminator=t;bb->terminated=true;
         }
     }
-    if(r.failed||r.remaining!=0)goto malformed;
+    if(r.failed||r.remaining!=0||fgetc(in)!=EOF||ferror(in))goto malformed;
     if(!swan_ir_verify(m,error,cap)){swan_ir_destroy(m);return false;}
     if(error&&cap)error[0]=0;return true;
 malformed:
