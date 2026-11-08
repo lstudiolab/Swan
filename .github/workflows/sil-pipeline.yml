@@ -1,0 +1,25 @@
+name: Swan SIL Pipeline
+
+on:
+  push:
+    paths:
+      - 'compiler/sil/**'
+      - 'tests/sil*'
+      - '.github/workflows/sil-pipeline.yml'
+      - 'main.c'
+      - 'compiler/include/swan/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sil:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Swan
+        run: sh build.sh
+      - name: Execute Swan-authored SIL pipeline
+        run: sh tests/sil.sh

@@ -1,0 +1,64 @@
+# Structural and typed SSA verifier for the initial SIL scalar subset.
+fn sil_verify(state: int, count: int) -> int:
+    if count < 1 or count > 256
+        return 0
+    let defined = array_unchecked(256)
+    let value_types = array_unchecked(256)
+    var index = 0
+    var returned = 0
+    while index < count
+        let base = index * 5
+        let encoded = state[base]
+        let opcode = encoded % 16
+        let type = encoded / 16
+        let destination = state[base + 1]
+        let left = state[base + 2]
+        let right = state[base + 3]
+        if returned == 1
+            return 0
+        if opcode == 1
+            if destination <= 0 or destination >= 256 or type < 1 or type > 3
+                return 0
+            if defined[destination] == 1
+                return 0
+            defined[destination] = 1
+            value_types[destination] = type
+        else
+            if opcode >= 2 and opcode <= 8
+                if destination <= 0 or destination >= 256 or left <= 0 or left >= 256 or right <= 0 or right >= 256
+                    return 0
+                if defined[left] == 0 or defined[right] == 0
+                    return 0
+                if value_types[left] != value_types[right]
+                    return 0
+                if opcode >= 2 and opcode <= 6
+                    if type != value_types[left] or type < 1 or type > 2
+                        return 0
+                else
+                    if type != 3
+                        return 0
+                if defined[destination] == 1
+                    return 0
+                defined[destination] = 1
+                value_types[destination] = type
+            else
+                if opcode == 9
+                    if destination <= 0 or destination >= 256 or left <= 0 or left >= 256
+                        return 0
+                    if defined[left] == 0 or defined[destination] == 1 or type != value_types[left]
+                        return 0
+                    defined[destination] = 1
+                    value_types[destination] = type
+                else
+                    if opcode == 10
+                        if index != count - 1 or left <= 0 or left >= 256
+                            return 0
+                        if defined[left] == 0
+                            return 0
+                        returned = 1
+                    else
+                        return 0
+        index = index + 1
+    if returned == 0
+        return 0
+    return 1

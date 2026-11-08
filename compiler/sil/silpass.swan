@@ -1,0 +1,81 @@
+# SIL canonicalization and constant propagation pass.
+fn sil_fold_constants(state: int, count: int, known: int, constants: int) -> int:
+    if count < 1 or count > 256
+        return -1
+    var index = 0
+    while index < 256
+        known[index] = 0
+        constants[index] = 0
+        index = index + 1
+    index = 0
+    while index < count
+        let base = index * 5
+        let encoded = state[base]
+        let opcode = encoded % 16
+        let type = encoded / 16
+        let destination = state[base + 1]
+        let left = state[base + 2]
+        let right = state[base + 3]
+        if opcode == 1
+            known[destination] = 1
+            constants[destination] = state[base + 4]
+        else
+            if opcode >= 2 and opcode <= 8
+                if known[left] == 1 and known[right] == 1
+                    let a = constants[left]
+                    let b = constants[right]
+                    var folded = 0
+                    var can_fold = 1
+                    if opcode == 2
+                        folded = a + b
+                    else
+                        if opcode == 3
+                            folded = a - b
+                        else
+                            if opcode == 4
+                                folded = a * b
+                            else
+                                if opcode == 5
+                                    if b == 0
+                                        can_fold = 0
+                                    else
+                                        folded = a / b
+                                else
+                                    if opcode == 6
+                                        if b == 0
+                                            can_fold = 0
+                                        else
+                                            folded = a % b
+                                    else
+                                        if opcode == 7
+                                            if a == b
+                                                folded = 1
+                                            else
+                                                folded = 0
+                                        else
+                                            if a < b
+                                                folded = 1
+                                            else
+                                                folded = 0
+                    if can_fold == 1
+                        state[base] = type * 16 + 1
+                        state[base + 2] = 0
+                        state[base + 3] = 0
+                        state[base + 4] = folded
+                        known[destination] = 1
+                        constants[destination] = folded
+                else
+                    known[destination] = 0
+            else
+                if opcode == 9
+                    if known[left] == 1
+                        state[base] = type * 16 + 1
+                        state[base + 2] = 0
+                        state[base + 3] = 0
+                        state[base + 4] = constants[left]
+                        known[destination] = 1
+                        constants[destination] = constants[left]
+                    else
+                        known[destination] = 0
+        index = index + 1
+    return count

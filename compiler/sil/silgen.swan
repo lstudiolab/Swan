@@ -1,0 +1,50 @@
+# Swan SIL generator primitives.
+# SIL is a compact, typed, SSA instruction stream. Each instruction occupies
+# five u32 cells: encoded opcode, result ID, lhs ID, rhs ID, immediate.
+# Opcode encoding: (type * 16) + operation. Types: 1=i32, 2=i64, 3=bool.
+# Operations: 1=const, 2=add, 3=sub, 4=mul, 5=sdiv, 6=srem,
+#             7=icmp_eq, 8=icmp_slt, 9=copy, 10=return.
+
+fn sil_emit_const(state: int, count: int, destination: int, value: int, type: int) -> int:
+    if count < 0 or count >= 256
+        return -1
+    let base = count * 5
+    state[base] = type * 16 + 1
+    state[base + 1] = destination
+    state[base + 2] = 0
+    state[base + 3] = 0
+    state[base + 4] = value
+    return count + 1
+
+fn sil_emit_binary(state: int, count: int, opcode: int, destination: int, left: int, right: int) -> int:
+    if count < 0 or count >= 256
+        return -1
+    let base = count * 5
+    state[base] = opcode
+    state[base + 1] = destination
+    state[base + 2] = left
+    state[base + 3] = right
+    state[base + 4] = 0
+    return count + 1
+
+fn sil_emit_copy(state: int, count: int, destination: int, source: int, type: int) -> int:
+    if count < 0 or count >= 256
+        return -1
+    let base = count * 5
+    state[base] = type * 16 + 9
+    state[base + 1] = destination
+    state[base + 2] = source
+    state[base + 3] = 0
+    state[base + 4] = 0
+    return count + 1
+
+fn sil_emit_return(state: int, count: int, value: int) -> int:
+    if count < 0 or count >= 256
+        return -1
+    let base = count * 5
+    state[base] = 10
+    state[base + 1] = 0
+    state[base + 2] = value
+    state[base + 3] = 0
+    state[base + 4] = 0
+    return count + 1
