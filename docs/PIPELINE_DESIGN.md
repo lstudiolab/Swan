@@ -90,4 +90,19 @@ Each backend must provide target data layout and ABI, instruction selection, reg
 
 ## Current status
 
-The current compiler still uses the existing C11 lexer/parser/semantic checker and direct AST-to-x86-64 code generator. A typed target-independent SSA IR data model and structural verifier now exist in `compiler/include/swan/ir.h`, with standalone tests in `tests/ir.c`. The IR is not yet generated from Swan AST, optimized, or consumed by any backend. SIL, SIL demand/pass infrastructure, IR generation/optimization, separate emitter and separate linker stages remain unimplemented. The migration must be incremental; do not claim a stage is active until it has executable code and tests.
+The production native path remains the established C11 lexer/parser/semantic checker and direct AST-to-x86-64 code generator. Existing `.swan` compiler and standard-library tests continue to exercise that path.
+
+The following components now exist and are exercised independently:
+
+- `ast.h` owns AST structures and arena lifetime helpers; `parser.h` constructs those nodes.
+- `ir.h` defines typed SSA IR and a structural verifier.
+- `irgen.h` lowers a conservative scalar subset (integer/boolean literals, parameters, immutable scalar locals, unary operations, arithmetic/comparisons and a single explicit return) from AST to IR. Unsupported constructs fail explicitly.
+- `optimization.h` runs verified target-independent scalar constant folding.
+- `svm.h` implements a portable register-based IR interpreter with fuel limits, call-depth checks, arithmetic traps, branches and PHI handling. Memory instructions are not implemented. The versioned little-endian module header exists, but a complete standalone module serializer/loader does not.
+- `codegen.h` is the target dispatch boundary; x86-64 remains the only native machine-code backend.
+- `emitter.h` and `linker.h` expose separated assembly-output and host-linking helpers. The legacy driver still uses parts of its inline output/linking path.
+- `main.c` now owns CLI/compiler orchestration; `compiler.h` supplies reusable compiler support functions.
+
+The `.swan -> AST -> typed IR -> optimization -> SVM execution` path is covered by `tests/irgen.sh`. The native `.swan` compiler suite, IR verifier, SVM runtime tests and IR-generation integration tests run in CI.
+
+Still not implemented: complete lowering for the language, mutable-variable/control-flow lowering in IRGen, memory and full call ABI support in SVM, a standalone SVM binary serializer/loader, a machine-code JIT in SVM, a fully integrated IR-first production pipeline, SIL/demand/pass infrastructure, and native AArch64, ARMv7, RISC-V64, WASM32 and WASM64 backends. These targets must remain unavailable until their code generators and ABI/execution tests exist. This is a tested foundation, not universal native binary support.
