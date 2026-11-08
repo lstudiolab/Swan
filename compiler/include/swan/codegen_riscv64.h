@@ -47,11 +47,11 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
       text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    %s t2, t0, t1\n    sd t2, %d(sp)\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_SDIV?"div":in->op==SWAN_IR_UDIV?"divu":in->op==SWAN_IR_SREM?"rem":in->op==SWAN_IR_UREM?"remu":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":in->op==SWAN_IR_XOR?"xor":in->op==SWAN_IR_SHL?"sll":in->op==SWAN_IR_LSHR?"srl":"sra",d);break;
      case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
       int id=o->next_label++;
-      text_add(o,"    ld t0, %d(sp)\\n    ld t1, %d(sp)\\n    beqz t1, .Lsw_rv_divzero_%d\\n",a,z,id);
+      text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    beqz t1, .Lsw_rv_divzero_%d\n",a,z,id);
       if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM)
-       text_add(o,"    li t2, 0x8000000000000000\\n    bne t0, t2, .Lsw_rv_divsafe_%d\\n    li t2, -1\\n    beq t1, t2, .Lsw_rv_divzero_%d\\n.Lsw_rv_divsafe_%d:\\n",id,id,id);
-      text_add(o,"    %s t2, t0, t1\\n",in->op==SWAN_IR_SDIV?"div":in->op==SWAN_IR_UDIV?"divu":in->op==SWAN_IR_SREM?"rem":"remu");
-      text_add(o,"    sd t2, %d(sp)\\n    j .Lsw_rv_divdone_%d\\n.Lsw_rv_divzero_%d:\\n    ebreak\\n.Lsw_rv_divdone_%d:\\n",d,id,id,id);break;
+       text_add(o,"    li t2, 0x8000000000000000\n    bne t0, t2, .Lsw_rv_divsafe_%d\n    li t2, -1\n    beq t1, t2, .Lsw_rv_divzero_%d\n.Lsw_rv_divsafe_%d:\n",id,id,id);
+      text_add(o,"    %s t2, t0, t1\n",in->op==SWAN_IR_SDIV?"div":in->op==SWAN_IR_UDIV?"divu":in->op==SWAN_IR_SREM?"rem":"remu");
+      text_add(o,"    sd t2, %d(sp)\n    j .Lsw_rv_divdone_%d\n.Lsw_rv_divzero_%d:\n    ebreak\n.Lsw_rv_divdone_%d:\n",d,id,id,id);break;
      }
      case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
       text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n",a,z);
