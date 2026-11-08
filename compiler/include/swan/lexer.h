@@ -33,6 +33,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
    break;
   case 6:
    if(s[0]=='i'&&!memcmp(s,"import",6))return T_IMPORT;
+    if(s[0]=='m'&&!memcmp(s,"manual",6))return T_MANUAL;
    if(s[0]=='r'&&!memcmp(s,"return",6))return T_RETURN;
    break;
   case 8:
