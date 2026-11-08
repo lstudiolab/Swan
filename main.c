@@ -151,8 +151,7 @@ static int swan_run(int argc,char **argv){
   result=swan_exec(cc_args,true);unlink(temp);unlink(runtime_source);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);if(temporary_output)swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }else{
-  char *cc_args[]={"cc","-x","assembler",temp,"-o",exe,NULL};
-  result=swan_exec(cc_args,true);unlink(temp);
+  result=swan_link_assembly("cc",temp,exe);unlink(temp);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }
  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
