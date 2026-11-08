@@ -863,6 +863,7 @@ static inline void samc_mark_expr(Expr *e,Locals *l,bool escapes){
 static inline void samc_scan_escapes(Stmt **body,size_t n,Locals *l){
  for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){if(s->value&&s->value->kind==E_NAME)samc_mark_expr(s->value,l,true);else samc_mark_expr(s->value,l,false);}else if(s->kind==S_RETURN)samc_mark_expr(s->value,l,true);else samc_mark_expr(s->value,l,false);samc_scan_escapes(s->body,s->body_count,l);samc_scan_escapes(s->alternate,s->alt_count,l);}
 }
+static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed)return true;}return false;}
 static inline void emit_samc_cleanup(Text *o,Locals *l){
  for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed)continue;
   cg_save_volatile(o,l);
@@ -899,7 +900,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);
      for(const unsigned char *q=(const unsigned char*)s->value->token.text;*q;q++){
       if(*q==34||*q==92)text_add(o,"\\%c",*q);
-      else if(*q==10)text_add(o,"\n");
+      else if(*q==10)text_add(o,"\\n");
       else if(*q==9)text_add(o,"\\t");
       else if(*q==13)text_add(o,"\\r");
       else if(*q<32)text_add(o,"\\%03o",*q);
@@ -908,7 +909,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      cg_save_volatile(o,l);text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n",id);cg_call(o,"puts@PLT");cg_restore_volatile(o,l);
     }else{emit_expr(o,s->value,l,err);cg_save_volatile(o,l);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");cg_restore_volatile(o,l);}
     break;
-    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");cg_push(o,"rax");emit_samc_cleanup(o,l);cg_pop(o,"rax");emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
+    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");if(samc_has_cleanup(l)){cg_push(o,"rax");emit_samc_cleanup(o,l);cg_pop(o,"rax");}emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:if(!emit_accumulate_statement(o,s->value,l,err)&&!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
    case S_BREAK:if(!o->loop_depth)swan_error(err,&s->token,"break is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_end_%d\n",o->loop_break[o->loop_depth-1]);break;
