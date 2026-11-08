@@ -13,13 +13,13 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(fn->parameter_count>8){if(error&&cap)snprintf(error,cap,"AArch64 ABI supports at most eight register parameters");return false;}
+  if(fn->parameter_count>16){if(error&&cap)snprintf(error,cap,"AArch64 backend supports at most 16 parameters");return false;}
   if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I1&&fn->return_type!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"AArch64 backend currently supports i1 and i64 return values");return false;}
   for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I1&&fn->parameter_types[p]!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"AArch64 backend currently supports i1 and i64 parameters");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
    if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"AArch64 backend currently supports i1/i64 scalar values and pointers");return false;}
-   if(in->op==SWAN_IR_CALL&&in->incoming_count>8){if(error&&cap)snprintf(error,cap,"AArch64 calls support at most eight register arguments");return false;}
+   if(in->op==SWAN_IR_CALL&&in->incoming_count>16){if(error&&cap)snprintf(error,cap,"AArch64 calls support at most 16 arguments");return false;}
   }
  }
  for(size_t f=0;f<m->function_count;f++){
@@ -28,7 +28,8 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
   size_t value_bytes=((size_t)fn->next_value+1)*8u,frame=(value_bytes+allocas*8u+15u)&~(size_t)15u;
   if(frame<16)frame=16;
   text_add(o,".text\n.p2align 2\n.global %s\n.type %s, %%function\n%s:\n    stp x29, x30, [sp, #-16]!\n    mov x29, sp\n    sub sp, sp, #%zu\n",fn->name,fn->name,fn->name,frame);
-  for(size_t p=0;p<fn->parameter_count;p++)text_add(o,"    str x%zu, [sp, #%d]\n",p,swan_a64_value_offset((uint32_t)p+1));
+  for(size_t p=0;p<fn->parameter_count&&p<8;p++)text_add(o,"    str x%zu, [sp, #%d]\n",p,swan_a64_value_offset((uint32_t)p+1));
+  for(size_t p=8;p<fn->parameter_count;p++)text_add(o,"    ldr x9, [x29, #%zu]\n    str x9, [sp, #%d]\n",16u+(p-8u)*8u,swan_a64_value_offset((uint32_t)p+1));
   size_t ai=0;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];
@@ -41,9 +42,14 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
      case SWAN_IR_ALLOCA:{size_t off=value_bytes+ai++*8u;text_add(o,"    add x9, sp, #%zu\n    str x9, [sp, #%d]\n",off,dst);break;}
      case SWAN_IR_LOAD:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [x9]\n    str x10, [sp, #%d]\n",a,dst);break;
      case SWAN_IR_STORE:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    str x10, [x9]\n",a,z);break;
-     case SWAN_IR_CALL:
-      for(size_t k=0;k<in->incoming_count;k++)text_add(o,"    ldr x%zu, [sp, #%d]\n",k,swan_a64_value_offset(in->incoming[k].value));
-      text_add(o,"    bl %s\n",in->symbol);if(in->type!=SWAN_IR_VOID)text_add(o,"    str x0, [sp, #%d]\n",dst);break;
+     case SWAN_IR_CALL:{
+      size_t stack_count=in->incoming_count>8?in->incoming_count-8:0,outgoing=(stack_count*8u+15u)&~(size_t)15u;
+      if(outgoing)text_add(o,"    sub sp, sp, #%zu\n",outgoing);
+      for(size_t k=8;k<in->incoming_count;k++)text_add(o,"    ldr x9, [sp, #%d]\n    str x9, [sp, #%zu]\n",swan_a64_value_offset(in->incoming[k].value), (k-8u)*8u);
+      for(size_t k=0;k<in->incoming_count&&k<8;k++)text_add(o,"    ldr x%zu, [sp, #%d]\n",k,swan_a64_value_offset(in->incoming[k].value));
+      text_add(o,"    bl %s\n",in->symbol);
+      if(outgoing)text_add(o,"    add sp, sp, #%zu\n",outgoing);
+      if(in->type!=SWAN_IR_VOID)text_add(o,"    str x0, [sp, #%d]\n",dst);break;}
      case SWAN_IR_SELECT:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    ldr x11, [sp, #%d]\n    cmp x9, #0\n    csel x12, x10, x11, ne\n    str x12, [sp, #%d]\n",a,z,swan_a64_value_offset(in->c),dst);break;
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    %s x11, x9, x10\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_SDIV?"sdiv":in->op==SWAN_IR_UDIV?"udiv":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"orr":in->op==SWAN_IR_XOR?"eor":in->op==SWAN_IR_SHL?"lsl":in->op==SWAN_IR_LSHR?"lsr":"asr",dst);break;
