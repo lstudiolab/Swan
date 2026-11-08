@@ -265,18 +265,18 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
     if(!swan_svm_read_u32(&r,&functions)||functions>SWAN_SVM_MAX_ITEMS)goto malformed;
     for(uint32_t f=0;f<functions;f++){
         char *name=swan_svm_read_string(&r);uint8_t ret;uint32_t params,blocks,next;
-        if(!name||!swan_svm_read_u8(&r,&ret)||!swan_svm_read_u32(&r,&params)||params>1024){free(name);goto malformed;}
+        if(!name||!swan_svm_read_u8(&r,&ret)||!swan_svm_read_u32(&r,&params)||params>1024){free(name);goto malformed;}\n        if(!swan_ir_own_string(m,name)){free(name);goto malformed;}
         SwanIRType *types=params?malloc((size_t)params*sizeof(*types)):NULL;
         if(params&&!types){free(name);goto malformed;}
         bool ok=true;for(uint32_t p=0;p<params;p++){uint8_t t;if(!swan_svm_read_u8(&r,&t)){ok=false;break;}types[p]=(SwanIRType)t;}
         SwanIRFunction *fn=ok?swan_ir_add_function(m,name,(SwanIRType)ret,types,params):NULL;free(types);
-        if(!fn){free(name);goto malformed;}
+        if(!fn)goto malformed;
         if(!swan_svm_read_u32(&r,&blocks)||blocks>SWAN_SVM_MAX_ITEMS||!swan_svm_read_u32(&r,&next))goto malformed;
         fn->next_value=next;
         for(uint32_t b=0;b<blocks;b++){
             char *block_name=swan_svm_read_string(&r);uint32_t count;
             if(!block_name||!swan_svm_read_u32(&r,&count)||count>SWAN_SVM_MAX_ITEMS){free(block_name);goto malformed;}
-            SwanIRBlock *bb=swan_ir_add_block(fn,block_name);if(!bb){free(block_name);goto malformed;}
+            SwanIRBlock *bb=swan_ir_add_block(fn,block_name);if(!bb||!swan_ir_own_string(m,block_name)){free(block_name);goto malformed;}
             for(uint32_t x=0;x<count;x++){
                 SwanIRInst in={0};uint8_t op,type;uint64_t imm;uint32_t incoming;
                 if(!swan_svm_read_u8(&r,&op)||!swan_svm_read_u8(&r,&type)||
@@ -284,11 +284,11 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
                    !swan_svm_read_u32(&r,&in.b)||!swan_svm_read_u32(&r,&in.c)||
                    !swan_svm_read_u64(&r,&imm))goto malformed;
                 in.op=(SwanIROp)op;in.type=(SwanIRType)type;in.immediate=(int64_t)imm;
-                in.symbol=swan_svm_read_string(&r);if(r.failed)goto malformed;
-                if(!swan_svm_read_u32(&r,&incoming)||incoming>SWAN_SVM_MAX_ITEMS){free((void*)in.symbol);goto malformed;}
-                if(incoming){in.incoming=calloc(incoming,sizeof(*in.incoming));if(!in.incoming){free((void*)in.symbol);goto malformed;}}
+                in.symbol=swan_svm_read_string(&r);if(r.failed)goto malformed;if(in.symbol&&!swan_ir_own_string(m,(char*)in.symbol)){free((void*)in.symbol);goto malformed;}
+                if(!swan_svm_read_u32(&r,&incoming)||incoming>SWAN_SVM_MAX_ITEMS)goto malformed;
+                if(incoming){in.incoming=calloc(incoming,sizeof(*in.incoming));if(!in.incoming)goto malformed;}
                 in.incoming_count=incoming;
-                for(uint32_t k=0;k<incoming;k++)if(!swan_svm_read_u32(&r,&in.incoming[k].value)||!swan_svm_read_u32(&r,&in.incoming[k].block)){free((void*)in.symbol);free(in.incoming);goto malformed;}
+                for(uint32_t k=0;k<incoming;k++)if(!swan_svm_read_u32(&r,&in.incoming[k].value)||!swan_svm_read_u32(&r,&in.incoming[k].block)){free(in.incoming);goto malformed;}
                 if(!swan_ir_reserve((void**)&bb->instructions,&bb->instruction_capacity,bb->instruction_count+1,sizeof(*bb->instructions))){free((void*)in.symbol);free(in.incoming);goto malformed;}
                 bb->instructions[bb->instruction_count++]=in;
             }
