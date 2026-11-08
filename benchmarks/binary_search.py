@@ -51,7 +51,7 @@ RUST = r"""
 const N:i64=20_000_000;
 fn main(){
  let mut a=vec![0_u32;N as usize];
- for i in 0..N{a[i as usize]=i;}
+ for i in 0..N{a[i as usize]=i as u32;}
  let mut sum=0_i64;
  for q in 0..N{
   let target=(q*7919)%N;let(mut low,mut high,mut found)=(0_i64,N-1,-1_i64);
@@ -69,7 +69,7 @@ let N = 20000000;
 
 fn main() {
  var values:u32[]=[0;N];
- for i in 0..N { values[i]=i; }
+ for i in 0..N { values[i]=i as u32; }
  var sum:i64=0;
  for query in 0..N {
   let target=(query*7919)%N;
