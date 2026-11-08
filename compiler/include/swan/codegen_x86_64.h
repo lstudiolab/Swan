@@ -363,7 +363,17 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
         break;
        }
       }
-      if(e->token.kind==T_STAR){text_add(o,"    imul rax, %s, %lld\n",reg,imm);break;}
+      if(e->token.kind==T_STAR){
+       uint64_t magnitude=imm<0?(uint64_t)(-(imm+1))+1:(uint64_t)imm;
+       if(magnitude&&!(magnitude&(magnitude-1))){
+        text_add(o,"    mov rax, %s\n",reg);
+        unsigned shift=0;while((UINT64_C(1)<<shift)!=magnitude)shift++;
+        if(shift)text_add(o,"    shl rax, %u\n",shift);
+        if(imm<0)text_add(o,"    neg rax\n");
+       }else if(!magnitude)text_add(o,"    xor eax, eax\n");
+       else text_add(o,"    imul rax, %s, %lld\n",reg,imm);
+       break;
+      }
      }
     }
     emit_expr(o,e->left,l,err);
@@ -383,15 +393,25 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
      const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
      text_add(o,"    cmp rax, %lld\n    %s al\n    movzx rax, al\n",imm,cc);break;
     }
-    if((e->token.kind==T_SLASH||e->token.kind==T_FLOORDIV)&&imm>0){uint64_t divisor=(uint64_t)imm;if(divisor>1&&(divisor&(divisor-1))==0){unsigned shift=0;while((UINT64_C(1)<<shift)!=divisor)shift++;if(expr_is_nonnegative_midpoint(e,o->active_loop_condition))text_add(o,"    shr rax, %u\n",shift);else text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %llu\n    add rax, rcx\n    sar rax, %u\n",(unsigned long long)(divisor-1),shift);break;}}
-    if(e->token.kind==T_PERCENT&&imm>1){
-     uint64_t divisor=(uint64_t)imm;
+    if(e->token.kind==T_SLASH||e->token.kind==T_FLOORDIV){
+     uint64_t divisor=imm<0?(uint64_t)(-(imm+1))+1:(uint64_t)imm;
+     if(imm==1)break;
+     if(divisor>1&&(divisor&(divisor-1))==0){
+      unsigned shift=0;while((UINT64_C(1)<<shift)!=divisor)shift++;
+      if(imm>0&&expr_is_nonnegative_midpoint(e,o->active_loop_condition))text_add(o,"    shr rax, %u\n",shift);
+      else{text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %llu\n    add rax, rcx\n    sar rax, %u\n",(unsigned long long)(divisor-1),shift);if(imm<0)text_add(o,"    neg rax\n");}
+      break;
+     }
+    }
+    if(e->token.kind==T_PERCENT&&imm!=0){
+     uint64_t divisor=imm<0?(uint64_t)(-(imm+1))+1:(uint64_t)imm;
+     if(divisor==1){text_add(o,"    xor eax, eax\n");break;}
      if((divisor&(divisor-1))==0){
-      text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %lld\n    add rax, rcx\n    and rax, %lld\n    sub rax, rcx\n",imm-1,imm-1);break;
+      text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %llu\n    add rax, rcx\n    and rax, %llu\n    sub rax, rcx\n",(unsigned long long)(divisor-1),(unsigned long long)(divisor-1));break;
      }
      uint64_t magic=UINT64_MAX/divisor;
-     text_add(o,"    mov r10, rax\n    sar r10, 63\n    xor rax, r10\n    sub rax, r10\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %lld\n    sub rcx, rdx\n    lea rdx, [rcx - %lld]\n    cmp rcx, %lld\n    cmovae rcx, rdx\n    xor rcx, r10\n    sub rcx, r10\n    mov rax, rcx\n",
-      (unsigned long long)magic,imm,imm,imm);break;
+     text_add(o,"    mov r10, rax\n    sar r10, 63\n    xor rax, r10\n    sub rax, r10\n    mov rcx, rax\n    movabs rdx, 0x%llx\n    mul rdx\n    imul rdx, rdx, %llu\n    sub rcx, rdx\n    lea rdx, [rcx - %llu]\n    cmp rcx, %llu\n    cmovae rcx, rdx\n    xor rcx, r10\n    sub rcx, r10\n    mov rax, rcx\n",
+      (unsigned long long)magic,(unsigned long long)divisor,(unsigned long long)divisor,(unsigned long long)divisor);break;
     }
    }
   }
