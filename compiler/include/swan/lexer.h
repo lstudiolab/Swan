@@ -6,13 +6,39 @@ static inline bool swan_ascii_digit(unsigned char c){return c>='0'&&c<='9';}
 static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)||c=='_';}
 static inline bool swan_ident_continue(unsigned char c){return swan_ident_start(c)||swan_ascii_digit(c);}
 static inline TokenKind swan_keyword(const char *s,size_t n) {
- #define SWAN_KW(word,kind) if(n==sizeof(word)-1&&!memcmp(s,word,sizeof(word)-1))return kind
- SWAN_KW("fn",T_FN);SWAN_KW("import",T_IMPORT);SWAN_KW("let",T_LET);SWAN_KW("var",T_VAR);SWAN_KW("const",T_CONST);
- SWAN_KW("return",T_RETURN);SWAN_KW("log",T_LOG);SWAN_KW("if",T_IF);SWAN_KW("else",T_ELSE);
- SWAN_KW("while",T_WHILE);SWAN_KW("break",T_BREAK);SWAN_KW("continue",T_CONTINUE);
- SWAN_KW("pass",T_PASS);SWAN_KW("true",T_TRUE);SWAN_KW("false",T_FALSE);SWAN_KW("none",T_NONE);
- SWAN_KW("and",T_AND);SWAN_KW("or",T_OR);SWAN_KW("not",T_NOT);
- #undef SWAN_KW
+ switch(n){
+  case 2:
+   if(s[0]=='f'&&s[1]=='n')return T_FN;
+   if(s[0]=='i'&&s[1]=='f')return T_IF;
+   if(s[0]=='o'&&s[1]=='r')return T_OR;
+   break;
+  case 3:
+   if(s[0]=='a'&&!memcmp(s,"and",3))return T_AND;
+   if(s[0]=='l'&&!memcmp(s,"let",3))return T_LET;
+   if(s[0]=='l'&&!memcmp(s,"log",3))return T_LOG;
+   if(s[0]=='n'&&!memcmp(s,"not",3))return T_NOT;
+   if(s[0]=='v'&&!memcmp(s,"var",3))return T_VAR;
+   break;
+  case 4:
+   if(s[0]=='e'&&!memcmp(s,"else",4))return T_ELSE;
+   if(s[0]=='n'&&!memcmp(s,"none",4))return T_NONE;
+   if(s[0]=='p'&&!memcmp(s,"pass",4))return T_PASS;
+   if(s[0]=='t'&&!memcmp(s,"true",4))return T_TRUE;
+   break;
+  case 5:
+   if(s[0]=='b'&&!memcmp(s,"break",5))return T_BREAK;
+   if(s[0]=='c'&&!memcmp(s,"const",5))return T_CONST;
+   if(s[0]=='f'&&!memcmp(s,"false",5))return T_FALSE;
+   if(s[0]=='w'&&!memcmp(s,"while",5))return T_WHILE;
+   break;
+  case 6:
+   if(s[0]=='i'&&!memcmp(s,"import",6))return T_IMPORT;
+   if(s[0]=='r'&&!memcmp(s,"return",6))return T_RETURN;
+   break;
+  case 8:
+   if(s[0]=='c'&&!memcmp(s,"continue",8))return T_CONTINUE;
+   break;
+ }
  return T_IDENT;
 }
 static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
