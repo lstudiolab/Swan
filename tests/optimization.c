@@ -33,6 +33,16 @@ int main(void){
  assert(swan_ir_optimize(&cfg,error,sizeof(error)));assert(gf->block_count==2);
  assert(swan_svm_run(&cfg,"main",100,&folded,error,sizeof(error))&&folded==2);
  swan_ir_destroy(&cfg);
+ SwanIRModule global={0};SwanIRType gp[]={SWAN_IR_I64,SWAN_IR_I64};
+ SwanIRFunction *g=swan_ir_add_function(&global,"global_cse",SWAN_IR_I64,gp,2);assert(g);
+ SwanIRBlock *ge=swan_ir_add_block(g,"entry"),*gb=swan_ir_add_block(g,"dominated");assert(ge&&gb);
+ SwanIRInst ga={0};ga.op=SWAN_IR_ADD;ga.type=SWAN_IR_I64;ga.a=1;ga.b=2;uint32_t first=swan_ir_add_inst(g,ge,ga);assert(first);
+ assert(swan_ir_terminate(ge,(SwanIRTerm){SWAN_IR_BR,0,1,0}));
+ uint32_t duplicate=swan_ir_add_inst(g,gb,ga);assert(duplicate);
+ assert(swan_ir_terminate(gb,(SwanIRTerm){SWAN_IR_RET,duplicate,0,0}));
+ assert(swan_ir_optimize(&global,error,sizeof(error)));assert(swan_ir_verify(&global,error,sizeof(error)));
+ assert(g->blocks[0].instruction_count==1&&g->blocks[1].instruction_count==0);
+ swan_ir_destroy(&global);
  puts("PASS: verified optimization pass manager, constant folding, algebraic simplification, common-subexpression elimination and dead-code elimination");
  return 0;
 }
