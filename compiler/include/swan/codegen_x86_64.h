@@ -404,7 +404,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
      Local *value_local=e->right&&e->right->kind==E_NAME?local_find(l,e->right->token.text):NULL;
      int64_t immediate_value=0;
      bool direct_register_store=index_local&&value_local&&value_local->reg>=0;
-     bool direct_immediate_store=cg_const_value(e->right,&immediate_value)&&immediate_value>=INT32_MIN&&immediate_value<=INT32_MAX;
+     bool direct_immediate_store=index_local&&cg_const_value(e->right,&immediate_value)&&immediate_value>=INT32_MIN&&immediate_value<=INT32_MAX;
      if(direct_register_store||direct_immediate_store){
       if(index_local->reg>=0)text_add(o,"    mov rcx, %s\n",cg_reg_name(index_local->reg));
       else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\n",index_local->slot*8);
