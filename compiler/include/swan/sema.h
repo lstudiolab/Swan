@@ -59,7 +59,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
   default:return true;
  }
 }
-static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymbols *symbols,SwanError *err){
+static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymbols *symbols,SwanError *err,unsigned loop_depth){
  for(size_t i=0;i<count;i++){
   Stmt *s=body[i];
   switch(s->kind){
@@ -68,15 +68,21 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     if(!swan_symbol_add(symbols,s->name,s->mutable_value)){swan_error(err,&s->token,"too many local variables");return false;}break;
    case S_LOG:case S_RETURN:case S_EXPR:if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;break;
-   case S_IF:case S_WHILE:{
+   case S_IF:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
     size_t mark=symbols->count;
-    if(!swan_check_block(p,s->body,s->body_count,symbols,err)){swan_symbols_leave(symbols,mark);return false;}
+    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,mark);return false;}
     swan_symbols_leave(symbols,mark);mark=symbols->count;
-    if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err)){swan_symbols_leave(symbols,mark);return false;}
+    if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,mark);return false;}
     swan_symbols_leave(symbols,mark);break;
    }
-   case S_BREAK:case S_CONTINUE:swan_error(err,&s->token,"break and continue lowering are not yet ported to the C backend");return false;
+   case S_WHILE:{
+    if(!swan_check_expr(p,s->condition,symbols,err))return false;
+    size_t mark=symbols->count;
+    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,mark);return false;}
+    swan_symbols_leave(symbols,mark);break;
+   }
+   case S_BREAK:case S_CONTINUE:if(!loop_depth){swan_error(err,&s->token,"break and continue are only valid inside a loop");return false;}break;
    default:break;
   }
  }
@@ -98,7 +104,7 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    if(!swan_symbol_add(&symbols,fn->params[a],false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
   }
-  if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err);
+  if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);
  }
  free(symbols.items);return ok;
 }
