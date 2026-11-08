@@ -1,6 +1,7 @@
 #ifndef SWAN_PARSER_H
 #define SWAN_PARSER_H
 #include "swan/lexer.h"
+#include "swan/ast.h"
 typedef struct { TokenStream *ts; Program *program; SwanError *err; bool failed; } Parser;
 static inline Token *pk(Parser *p){return &p->ts->items[p->ts->pos<p->ts->count?p->ts->pos:p->ts->count-1];}
 static inline bool is(Parser *p,TokenKind k){return pk(p)->kind==k;}
