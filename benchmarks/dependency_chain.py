@@ -12,17 +12,17 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 SWAN = ROOT / "build" / "swan"
 N = 20_000_000
-MASK = 0x7fffffff
+MODULUS = 2147483647
 SEED = 1
-MULTIPLIER = 1664525
-INCREMENT = 1013904223
+MULTIPLIER = 48271
+INCREMENT = 1
 REPEATS = 7
 
 
 def expected_value():
     state = SEED
     for _ in range(N):
-        state = (state * MULTIPLIER + INCREMENT) & MASK
+        state = (state * MULTIPLIER + INCREMENT) % MODULUS
     return state
 
 
@@ -31,7 +31,7 @@ SOURCES = {
     var state = {SEED}
     var i = 0
     while i < {N}
-        state = (state * {MULTIPLIER} + {INCREMENT}) & {MASK}
+        state = (state * {MULTIPLIER} + {INCREMENT}) % {MODULUS}
         i = i + 1
     log state
     return 0
@@ -41,7 +41,7 @@ fn main() {{
     var state: i64 = {SEED};
     var i: i64 = 0;
     while i < {N} {{
-        state = (state * {MULTIPLIER} + {INCREMENT}) & {MASK};
+        state = (state * {MULTIPLIER} + {INCREMENT}) % {MODULUS};
         i += 1;
     }}
     print(state);
@@ -50,7 +50,7 @@ fn main() {{
     "Rust": f"""fn main() {{
     let mut state: i64 = {SEED};
     for _ in 0..{N} {{
-        state = (state * {MULTIPLIER} + {INCREMENT}) & {MASK};
+        state = (state * {MULTIPLIER} + {INCREMENT}) % {MODULUS};
     }}
     println!("{{}}", std::hint::black_box(state));
 }}
@@ -61,7 +61,7 @@ fn main() {{
 int main(void) {{
     int64_t state = {SEED};
     for (int64_t i = 0; i < {N}; ++i)
-        state = (state * {MULTIPLIER} + {INCREMENT}) & INT64_C({MASK});
+        state = (state * {MULTIPLIER} + {INCREMENT}) % INT64_C({MODULUS});
     printf("%" PRId64 "\\n", state);
     return 0;
 }}
@@ -133,7 +133,7 @@ def main():
                 samples[name].append(elapsed)
 
         print("Swan dependency-chain benchmark")
-        print(f"Workload: {N:,} dependent 32-bit LCG iterations")
+        print(f"Workload: {N:,} dependent modular LCG iterations")
         print(f"state = (state * {MULTIPLIER} + {INCREMENT}) & {MASK}")
         print(f"Verified final state: {expected}")
         print(f"Host: {platform.platform()} / {platform.machine()}")
