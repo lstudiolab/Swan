@@ -7,6 +7,7 @@ on:
       - ".github/workflows/binary-search-benchmark.yml"
       - "benchmarks/binary_search.py"
       - "benchmarks/binary_search.swan"
+      - "benchmarks/binary_search_unchecked.swan"
       - "compiler/**"
       - "main.c"
       - "build.sh"
@@ -23,6 +24,14 @@ jobs:
       - uses: actions/checkout@v4
       - name: Install Rust
         uses: dtolnay/rust-toolchain@stable
+      - name: Install Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: "1.23"
+      - name: Install Zig
+        uses: mlugg/setup-zig@v2
+        with:
+          version: "0.13.0"
       - name: Install Goose
         shell: bash
         run: |
@@ -40,9 +49,11 @@ jobs:
           uname -a
           cc --version
           rustc --version
+          go version
+          zig version
       - name: Build Swan compiler
         run: sh build.sh
-      - name: Run 20M x 20M checked/unchecked benchmark
+      - name: Run balanced 20M x 20M benchmark
         run: python3 benchmarks/binary_search.py
       - name: Publish benchmark summary
         if: always()
@@ -52,10 +63,13 @@ jobs:
           else
             echo "Benchmark failed before producing results; inspect the preceding logs." >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload benchmark report
+      - name: Upload benchmark report and generated Swan assembly
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: binary-search-benchmark
-          path: binary-search-benchmark.json
+          path: |
+            binary-search-benchmark.json
+            binary-search-swan-checked.s
+            binary-search-swan-unchecked.s
           if-no-files-found: warn
