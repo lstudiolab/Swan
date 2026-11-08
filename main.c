@@ -52,6 +52,22 @@ static int swan_run(int argc,char **argv){
   if(!saved)fprintf(stderr,"swan: failed to write WebAssembly module '%s'\n",dest);
   free(wasm.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return saved?0:1;
  }
+ if(target->architecture==SWAN_ARCH_AARCH64){
+  if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+  if(has_lazy){fprintf(stderr,"swan: AArch64 object backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+  SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
+  if(!swan_irgen_program(&p,&ir,&err)||!swan_ir_optimize(&ir,detail,sizeof(detail))||!swan_codegen_aarch64_ir(&ir,&assembly,detail,sizeof(detail))){
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+  }
+  const char *dest=output?output:(mode==SWAN_EMIT?"aarch64.s":"aarch64.o");int result=0;
+  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
+  else {
+   char temp[]="/tmp/swan-a64-XXXXXX";int fd=mkstemp(temp);if(fd<0)result=1;
+   else {FILE *of=fdopen(fd,"wb");bool ok=of&&fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
+   if(result)fprintf(stderr,"swan: AArch64 assembly failed; install a Clang toolchain with AArch64 support\n");
+  }
+  free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
+ }
  if(target->architecture==SWAN_ARCH_SVM){
   if(mode==SWAN_EMIT){fprintf(stderr,"swan: --emit-asm is not valid for the SVM target\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   SwanIRModule ir={0};char vm_error[256]={0};
