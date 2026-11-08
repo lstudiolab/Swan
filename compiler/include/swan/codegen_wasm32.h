@@ -93,4 +93,15 @@ static inline bool swan_codegen_wasm32(const SwanIRModule *m,SwanWasmBuffer *out
  if(!ok){free(module.data);if(error&&cap)snprintf(error,cap,"WASM32 code generation failed or encountered unsupported IR");return false;}
  *out=module;return true;
 }
+static inline bool swan_codegen_wasm64(const SwanIRModule *m,SwanWasmBuffer *out,char *error,size_t cap){
+ /* Scalar-only modules contain no linear-memory addresses, so the WASM
+    binary encoding is identical; memory64-specific lowering is separate. */
+ for(size_t f=0;f<m->function_count;f++)for(size_t b=0;b<m->functions[f].block_count;b++)
+  for(size_t i=0;i<m->functions[f].blocks[b].instruction_count;i++)
+   if(m->functions[f].blocks[b].instructions[i].type==SWAN_IR_PTR){
+    if(error&&cap)snprintf(error,cap,"WASM64 pointer and memory64 operations are not yet supported");
+    return false;
+   }
+ return swan_codegen_wasm32(m,out,error,cap);
+}
 #endif
