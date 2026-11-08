@@ -8,13 +8,15 @@ static inline unsigned swan_name_hash(const char *s){
 }
 static inline Stmt *swan_find_function(Program *p,const char *name){
  if(p->function_indexed){unsigned b=swan_name_hash(name)&2047u;for(int n=p->function_buckets[b];n;n=p->function_next[n-1]){Stmt *fn=p->functions[n-1];if(!strcmp(fn->name,name))return fn;}return NULL;}
- for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
+ for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];
+ return NULL;
 }
 static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *index){
  unsigned b=swan_name_hash(name)&2047u;for(int n=s->buckets[b];n;n=s->items[n-1].previous){if(!strcmp(s->items[n-1].name,name)){if(index)*index=(size_t)(n-1);return true;}}return false;
 }
 static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut){
- if(s->count>=1024)return false;unsigned b=swan_name_hash(name)&2047u;size_t i=s->count++;
+ if(s->count>=1024)return false;
+ unsigned b=swan_name_hash(name)&2047u;size_t i=s->count++;
  SwanSymbol *v=&s->items[i];v->name=name;v->mutable_value=mut;v->previous=s->buckets[b];s->buckets[b]=(int)i+1;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){

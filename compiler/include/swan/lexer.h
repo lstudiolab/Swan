@@ -47,7 +47,8 @@ static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
   TokenKind k=T_EOF;size_t n=1;
   if(i+1<ts->length){char d=src[i+1];if(c=='-'&&d=='>'){k=T_ARROW;n=2;}else if(c=='/'&&d=='/'){k=T_FLOORDIV;n=2;}else if(c=='='&&d=='='){k=T_EQ;n=2;}else if(c=='!'&&d=='='){k=T_NE;n=2;}else if(c=='<'&&d=='='){k=T_LE;n=2;}else if(c=='>'&&d=='='){k=T_GE;n=2;}}
   if(k==T_EOF)switch(c){case '(':k=T_LP;break;case ')':k=T_RP;break;case ':':k=T_COLON;break;case ',':k=T_COMMA;break;case '+':k=T_PLUS;break;case '-':k=T_MINUS;break;case '*':k=T_STAR;break;case '/':k=T_SLASH;break;case '%':k=T_PERCENT;break;case '=':k=T_ASSIGN;break;case '!':k=T_BANG;break;case '<':k=T_LT;break;case '>':k=T_GT;break;case '[':k=T_LB;break;case ']':k=T_RB;break;case '.':k=T_DOT;break;case ';':k=T_SEMI;break;default:{Token t={0};t.line=line;t.col=col;swan_error(err,&t,"unexpected character '%c'",c);return false;}}
-  if(!swan_emit(ts,k,src+i,n,sl,sc,err))return false;i+=n;col+=(unsigned)n;
+  if(!swan_emit(ts,k,src+i,n,sl,sc,err))return false;
+  i+=n;col+=(unsigned)n;
  }
  while(depth>1){depth--;if(!swan_emit(ts,T_DEDENT,"",0,line,col,err))return false;}
  return swan_emit(ts,T_EOF,"",0,line,col,err);

@@ -3,8 +3,10 @@
 #include "swan/parser.h"
 typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg,*active_loop_condition; const char *inline_param; Program *program; } Text;
 static inline bool text_reserve(Text *t,size_t extra){
- if(extra>SIZE_MAX-t->len-1)return false;size_t need=t->len+extra+1;
- if(need<=t->cap)return true;size_t cap=t->cap?t->cap:4096;
+ if(extra>SIZE_MAX-t->len-1)return false;
+ size_t need=t->len+extra+1;
+ if(need<=t->cap)return true;
+ size_t cap=t->cap?t->cap:4096;
  while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}
  char *p=realloc(t->data,cap);if(!p)return false;t->data=p;t->cap=cap;if(!t->len)t->data[0]=0;return true;
 }
@@ -60,7 +62,8 @@ static inline unsigned cg_function_hash(const char *s){uint32_t h=2166136261u;fo
 static inline Stmt *cg_find_function(Program *p,const char *name){
  if(!p)return NULL;
  if(p->function_indexed){unsigned b=cg_function_hash(name)&2047u;for(int n=p->function_buckets[b];n;n=p->function_next[n-1]){Stmt *fn=p->functions[n-1];if(!strcmp(fn->name,name))return fn;}return NULL;}
- for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
+ for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];
+ return NULL;
 }
 static inline bool expr_is_nonnegative_midpoint(Expr *division,Expr *condition){
  if(!division||division->kind!=E_BINARY||(division->token.kind!=T_SLASH&&division->token.kind!=T_FLOORDIV)||!division->right||division->right->kind!=E_INT)return false;
