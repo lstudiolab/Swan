@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
 static inline bool text_reserve(Text *t,size_t extra){
  if(extra>SIZE_MAX-t->len-1)return false;size_t need=t->len+extra+1;
  if(need<=t->cap)return true;size_t cap=t->cap?t->cap:4096;
@@ -10,15 +10,15 @@ static inline bool text_reserve(Text *t,size_t extra){
 }
 static inline void text_add(Text *t,const char *fmt,...){
  if(!strchr(fmt,'%')){
-  size_t n=strlen(fmt);if(!text_reserve(t,n))return;
+  size_t n=strlen(fmt);if(!text_reserve(t,n)){t->failed=true;return;}
   memcpy(t->data+t->len,fmt,n);t->len+=n;t->data[t->len]=0;return;
  }
  va_list ap;va_start(ap,fmt);va_list retry;va_copy(retry,ap);
- if(!text_reserve(t,0)){va_end(retry);va_end(ap);return;}
+ if(!text_reserve(t,0)){t->failed=true;va_end(retry);va_end(ap);return;}
  size_t avail=t->cap-t->len;int n=vsnprintf(t->data+t->len,avail,fmt,ap);
- if(n<0){va_end(retry);va_end(ap);return;}
+ if(n<0){t->failed=true;va_end(retry);va_end(ap);return;}
  if((size_t)n>=avail){
-  if(!text_reserve(t,(size_t)n)){va_end(retry);va_end(ap);return;}
+  if(!text_reserve(t,(size_t)n)){t->failed=true;va_end(retry);va_end(ap);return;}
   vsnprintf(t->data+t->len,t->cap-t->len,fmt,retry);
  }
  t->len+=(size_t)n;va_end(retry);va_end(ap);
@@ -27,7 +27,7 @@ static inline void cg_reserve(Text *o,int n){if(n>0){text_add(o,"    sub rsp, %d
 static inline void cg_release(Text *o,int n){if(n>0){text_add(o,"    add rsp, %d\n",n);o->stack_depth-=n;}}
 static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",reg);o->stack_depth+=8;}
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
-static inline void cg_call(Text *o,const char *symbol){int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
+static inline void cg_call(Text *o,const char *symbol){int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
 typedef struct { const char *name; int slot,reg,next; bool mut,array_u32,array_unchecked; } Local;
 typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
@@ -46,8 +46,8 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  return v;
 }
 static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME){
- if(!strcmp(s->value->left->token.text,"array_u32"))v->array_u32=true;
- if(!strcmp(s->value->left->token.text,"array_u32_unchecked")){v->array_u32=true;v->array_unchecked=true;}
+ if(!strcmp(s->value->left->token.text,"array")||!strcmp(s->value->left->token.text,"array_u32"))v->array_u32=true;
+ if(!strcmp(s->value->left->token.text,"array_unchecked")||!strcmp(s->value->left->token.text,"array_u32_unchecked")){v->array_u32=true;v->array_unchecked=true;}
 }}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
@@ -62,6 +62,7 @@ static inline Stmt *cg_find_function(Program *p,const char *name){
  for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
+static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,const char *target,bool when_true);
 static inline bool add_term_to_r10_supported(Expr *e,Locals *l){
  if(!e)return false;
  if(e->kind==E_INT){
@@ -193,18 +194,18 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
 }
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
- if(!strcmp(name,"array_u32")||!strcmp(name,"array_u32_unchecked")){
-  if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return;}
+ if(!strcmp(name,"array")||!strcmp(name,"array_u32")||!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")){
+  if(e->argc!=1){swan_error(err,&e->token,"array expects exactly one length argument");return;}
   emit_expr(o,e->args[0],l,err);
-  if(!strcmp(name,"array_u32")){
+  if(!strcmp(name,"array")||!strcmp(name,"array_u32")){
    text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n");
    cg_push(o,"rax");
-   text_add(o,"    add rax, 2\n    mov rdi, rax\n    mov esi, 4\n");
+   text_add(o,"    add rax, 2\n    jo .Lswan_array_bounds_fail\n    mov rdi, rax\n    mov esi, 4\n");
    cg_call(o,"calloc@PLT");
    cg_pop(o,"rcx");
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n    mov QWORD PTR [rax], rcx\n    add rax, 8\n");
   }else{
-   text_add(o,"    mov rdi, rax\n    mov esi, 4\n");
+   int id=o->next_label++;text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n    mov rdi, rax\n    test rdi, rdi\n    jnz .Lswan_array_nonzero_%d\n    mov edi, 1\n.Lswan_array_nonzero_%d:\n    mov esi, 4\n",id,id);
    cg_call(o,"calloc@PLT");
    text_add(o,"    test rax, rax\n    jz .Lswan_array_bounds_fail\n");
   }
@@ -230,12 +231,12 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
  cg_save_volatile(o,l);
  if(!nested){
-  int pad=(16-(o->stack_depth%16))%16;cg_reserve(o,pad);
+  int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);
   for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov %s, rax\n",regs[i]);}
   text_add(o,"    call %s\n",symbol);cg_release(o,pad);cg_restore_volatile(o,l);return;
  }
  int area=(int)(((e->argc*8+15)/16)*16);
- int pad=(16-((o->stack_depth+area)%16))%16;
+ int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry+area)%16))%16;
  cg_reserve(o,area+pad);
  for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %d], rax\n",pad+(int)i*8);}
  for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
@@ -247,12 +248,16 @@ static inline bool cg_const_value(Expr *e,int64_t *out){
  if(e->kind==E_BOOL){*out=e->token.kind==T_TRUE;return true;}
  if(e->kind==E_UNARY&&e->token.kind==T_MINUS){int64_t v;if(!cg_const_value(e->left,&v))return false;*out=(int64_t)(0-(uint64_t)v);return true;}
  if(e->kind!=E_BINARY||e->token.kind==T_ASSIGN)return false;
- int64_t a,b;if(!cg_const_value(e->left,&a)||!cg_const_value(e->right,&b))return false;
+ int64_t a,b;if(!cg_const_value(e->left,&a))return false;
+ if(e->token.kind==T_AND&&!a){*out=0;return true;}
+ if(e->token.kind==T_OR&&a){*out=1;return true;}
+ if(!cg_const_value(e->right,&b))return false;
  switch(e->token.kind){
   case T_PLUS:*out=(int64_t)((uint64_t)a+(uint64_t)b);return true;
   case T_MINUS:*out=(int64_t)((uint64_t)a-(uint64_t)b);return true;
   case T_STAR:*out=(int64_t)((uint64_t)a*(uint64_t)b);return true;
   case T_EQ:*out=a==b;return true;case T_NE:*out=a!=b;return true;
+  case T_AND:*out=(a!=0)&&(b!=0);return true;case T_OR:*out=(a!=0)||(b!=0);return true;
   case T_LT:*out=a<b;return true;case T_GT:*out=a>b;return true;
   case T_LE:*out=a<=b;return true;case T_GE:*out=a>=b;return true;
   case T_SLASH:case T_FLOORDIV:case T_PERCENT:
@@ -292,6 +297,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   break;
  }
  case E_BINARY:
+  if(e->token.kind==T_AND||e->token.kind==T_OR){int id=o->next_label++;char target[64];snprintf(target,sizeof(target),".Lswan_logic_true_%d",id);emit_condition_jump(o,e,l,err,target,true);text_add(o,"    xor eax, eax\n    jmp .Lswan_logic_end_%d\n%s:\n    mov eax, 1\n.Lswan_logic_end_%d:\n",id,target,id);break;}
   if(e->token.kind==T_PLUS&&!expr_has_call(e)){
    bool first=true;
    if(add_chain_supported(e,l))emit_add_terms_rax(o,e,l,err,&first);
@@ -347,6 +353,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
      const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
      text_add(o,"    cmp rax, %lld\n    %s al\n    movzx rax, al\n",imm,cc);break;
     }
+    if((e->token.kind==T_SLASH||e->token.kind==T_FLOORDIV)&&imm>0){uint64_t divisor=(uint64_t)imm;if(divisor>1&&(divisor&(divisor-1))==0){unsigned shift=0;while((UINT64_C(1)<<shift)!=divisor)shift++;text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %llu\n    add rax, rcx\n    sar rax, %u\n",(unsigned long long)(divisor-1),shift);break;}}
     if(e->token.kind==T_PERCENT&&imm>1){
      uint64_t divisor=(uint64_t)imm;
      if((divisor&(divisor-1))==0){
@@ -397,6 +404,8 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  }
 }
 static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,const char *target,bool when_true){
+ if(e&&e->kind==E_BINARY&&e->token.kind==T_AND){if(when_true){int id=o->next_label++;char skip[64];snprintf(skip,sizeof(skip),".Lswan_logic_skip_%d",id);emit_condition_jump(o,e->left,l,err,skip,false);emit_condition_jump(o,e->right,l,err,target,true);text_add(o,"%s:\n",skip);}else{emit_condition_jump(o,e->left,l,err,target,false);emit_condition_jump(o,e->right,l,err,target,false);}return;}
+ if(e&&e->kind==E_BINARY&&e->token.kind==T_OR){if(when_true){emit_condition_jump(o,e->left,l,err,target,true);emit_condition_jump(o,e->right,l,err,target,true);}else{int id=o->next_label++;char skip[64];snprintf(skip,sizeof(skip),".Lswan_logic_skip_%d",id);emit_condition_jump(o,e->left,l,err,skip,true);emit_condition_jump(o,e->right,l,err,target,false);text_add(o,"%s:\n",skip);}return;}
  if(e&&e->kind==E_UNARY&&e->token.kind==T_NOT){emit_condition_jump(o,e->left,l,err,target,!when_true);return;}
  if(e&&e->kind==E_BINARY){
   const char *cc=NULL;
@@ -571,7 +580,7 @@ static inline void emit_recurrence_init(Text *o,Locals *l,const char *name,long 
  else text_add(o,"    imul r15, QWORD PTR [rbp - %d], %lld\n",v->slot*8,coefficient);
 }
 static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
- if(!s||s->kind!=S_WHILE||!s->condition||s->condition->kind!=E_BINARY)return false;
+ if(!s||s->kind!=S_WHILE||statements_have_early_exit(s->body,s->body_count)||!s->condition||s->condition->kind!=E_BINARY)return false;
  Expr *cond=s->condition;
  if((cond->token.kind!=T_LT&&cond->token.kind!=T_LE)||!cond->left||cond->left->kind!=E_NAME||!cond->right||cond->right->kind!=E_INT)return false;
  char *end=NULL;long long bound=strtoll(cond->right->token.text,&end,10);
@@ -624,7 +633,8 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:if(!emit_accumulate_statement(o,s->value,l,err)&&!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
-   case S_BREAK:case S_CONTINUE:swan_error(err,&s->token,"loop control lowering is not yet supported");break;
+   case S_BREAK:if(!o->loop_depth)swan_error(err,&s->token,"break is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_end_%d\n",o->loop_break[o->loop_depth-1]);break;
+   case S_CONTINUE:if(!o->loop_depth)swan_error(err,&s->token,"continue is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_%d\n",o->loop_continue[o->loop_depth-1]);break;
    case S_IF:{
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_else_%d",id);emit_condition_jump(o,s->condition,l,err,target,false);
     emit_block(o,s->body,s->body_count,l,label,err);text_add(o,"    jmp .Lswan_end_%d\n.Lswan_else_%d:\n",id,id);
@@ -632,6 +642,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
    }
    case S_WHILE:{
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
+    if(o->loop_depth>=128){swan_error(err,&s->token,"loop nesting exceeds 128 levels");break;}o->loop_break[o->loop_depth]=id;o->loop_continue[o->loop_depth]=id;o->loop_depth++;
     Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr;
     Expr *hoist=saved_hoist?NULL:find_loop_hoist(s,l);
     if(hoist){emit_expr(o,hoist,l,err);text_add(o,"    mov r11, rax\n");o->hoist_expr=hoist;}
@@ -656,6 +667,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     }
     o->hoist_expr=saved_hoist;o->recurrence_expr=saved_recurrence;
     if(recurrence)cg_pop(o,"r15");
+    o->loop_depth--;
     break;
    }
    default:break;
@@ -678,6 +690,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  }
  if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
  text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
+ if(o->failed){swan_error(err,NULL,"out of memory while generating assembly");return false;}
  return err->message[0]==0;
 }
 #endif
