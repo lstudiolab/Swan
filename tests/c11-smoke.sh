@@ -363,7 +363,7 @@ if grep -q 'idiv' "$TMP/power-two-multiply.s"; then
     echo "FAIL: signed power-of-two division/remainder used idiv" >&2
     exit 1
 fi
-printf 'PASS: signed power-of-two multiplication, division, and remainder lowering\\n'
+printf 'PASS: signed power-of-two multiplication, division, and remainder lowering\n'
 
 cat > "$TMP/array-store-register.swan" <<'SWAN'
 fn main():
@@ -387,7 +387,7 @@ SWAN
 cc -x assembler "$TMP/array-store-register.s" -o "$TMP/array-store-register"
 test "$("$TMP/array-store-register")" = "308
 44"
-printf 'PASS: array stores preserve live allocated registers\\n'
+printf 'PASS: array stores preserve live allocated registers\n'
 
 cat > "$TMP/heapsort.swan" <<'SWAN'
 fn main():
