@@ -61,8 +61,8 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
         const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
         if(alloc->op==SWAN_IR_ALLOCA){
-            if(vm->memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
-            values[alloc->result]=(int64_t)++vm->memory_count;
+            if(vm->vm->memory_count>=4095||alloc->result>=value_count){free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
+            values[alloc->result]=(int64_t)++vm->vm->memory_count;
         }
     }
     ++vm->depth;
@@ -140,10 +140,10 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
                 }
                 case SWAN_IR_ALLOCA: v=values[in->result];break;
                 case SWAN_IR_LOAD:
-                    if(a<=0||(uint64_t)a>memory_count){ok=swan_svm_fail(vm,"SVM invalid memory load");break;}
+                    if(a<=0||(uint64_t)a>vm->memory_count){ok=swan_svm_fail(vm,"SVM invalid memory load");break;}
                     v=vm->memory[a];break;
                 case SWAN_IR_STORE:
-                    if(a<=0||(uint64_t)a>memory_count){ok=swan_svm_fail(vm,"SVM invalid memory store");break;}
+                    if(a<=0||(uint64_t)a>vm->memory_count){ok=swan_svm_fail(vm,"SVM invalid memory store");break;}
                     vm->memory[a]=b;break;
                 default: ok = swan_svm_fail(vm, "SVM encountered an unsupported IR opcode"); break;
             }
