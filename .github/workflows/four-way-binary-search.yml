@@ -3,7 +3,10 @@ name: Four-language binary-search benchmark
 on:
   push:
     branches:
-      - runtime/four-way-benchmark
+      - main
+    paths:
+      - benchmarks/four_way_binary_search.py
+      - .github/workflows/four-way-binary-search.yml
 
 permissions:
   contents: read
