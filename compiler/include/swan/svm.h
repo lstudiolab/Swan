@@ -73,7 +73,7 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
                 case SWAN_IR_XOR: v = a ^ b; break;
                 case SWAN_IR_SHL: v = (int64_t)((uint64_t)a << ((uint64_t)b & 63u)); break;
                 case SWAN_IR_LSHR: v = (int64_t)((uint64_t)a >> ((uint64_t)b & 63u)); break;
-                case SWAN_IR_ASHR: v = a >> ((uint64_t)b & 63u); break;
+                case SWAN_IR_ASHR: { unsigned shift=(unsigned)((uint64_t)b & 63u); uint64_t bits=(uint64_t)a; v=(int64_t)(shift ? ((bits >> shift) | ((bits >> 63) ? (~UINT64_C(0) << (64u-shift)) : 0)) : bits); break; }
                 case SWAN_IR_ICMP_EQ: v = a == b; break;
                 case SWAN_IR_ICMP_NE: v = a != b; break;
                 case SWAN_IR_ICMP_SLT: v = a < b; break;
@@ -169,9 +169,13 @@ typedef struct {
 } SwanSVMHeader;
 
 static inline bool swan_svm_write_header(FILE *out, uint64_t payload_size) {
-    SwanSVMHeader header = {{'S','W','A','N','V','M','0','1'},
-                            SWAN_SVM_VERSION, 0, payload_size};
-    return fwrite(&header, sizeof(header), 1, out) == 1;
+    static const unsigned char magic[8]={'S','W','A','N','V','M','0','1'};
+    unsigned char fields[16];
+    for (unsigned i=0;i<4;i++) fields[i]=(unsigned char)(SWAN_SVM_VERSION>>(i*8));
+    for (unsigned i=0;i<4;i++) fields[4+i]=0;
+    for (unsigned i=0;i<8;i++) fields[8+i]=(unsigned char)(payload_size>>(i*8));
+    return fwrite(magic,1,sizeof(magic),out)==sizeof(magic) &&
+           fwrite(fields,1,sizeof(fields),out)==sizeof(fields);
 }
 
 #endif
