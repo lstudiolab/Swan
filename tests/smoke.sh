@@ -12,7 +12,7 @@ fn main():
     log "Hello"
     return 0
 SWAN
-"$SWAN" "$TMP/hello.swan" -o "$TMP/hello.s"
+"$SWAN" "$TMP/hello.swan" --emit-asm -o "$TMP/hello.s"
 ${CC:-cc} -x assembler "$TMP/hello.s" -o "$TMP/hello"
 test "$("$TMP/hello")" = "Hello"
 printf 'PASS: indentation-based hello program\n'
@@ -28,7 +28,7 @@ fn main():
         x = x + 1
     return 0
 SWAN
-"$SWAN" "$TMP/control.swan" -o "$TMP/control.s"
+"$SWAN" "$TMP/control.swan" --emit-asm -o "$TMP/control.s"
 ${CC:-cc} -x assembler "$TMP/control.s" -o "$TMP/control"
 test "$("$TMP/control")" = "0
 1
@@ -45,7 +45,7 @@ fn main():
     log "outer block closed"
     return 0
 SWAN
-"$SWAN" "$TMP/multi-dedent.swan" -o "$TMP/multi-dedent.s"
+"$SWAN" "$TMP/multi-dedent.swan" --emit-asm -o "$TMP/multi-dedent.s"
 ${CC:-cc} -x assembler "$TMP/multi-dedent.s" -o "$TMP/multi-dedent"
 test "$("$TMP/multi-dedent")" = "inner blocks closed together
 outer block closed"
@@ -58,7 +58,7 @@ fn main():
     log answer()
     return 0
 SWAN
-"$SWAN" "$TMP/functions.swan" -o "$TMP/functions.s"
+"$SWAN" "$TMP/functions.swan" --emit-asm -o "$TMP/functions.s"
 ${CC:-cc} -x assembler "$TMP/functions.s" -o "$TMP/functions"
 test "$("$TMP/functions")" = "42"
 printf 'PASS: inferred integer return type and inline helper emission\n'
@@ -69,7 +69,7 @@ fn main():
     log large
     return 0
 SWAN
-"$SWAN" "$TMP/int64.swan" -o "$TMP/int64.s"
+"$SWAN" "$TMP/int64.swan" --emit-asm -o "$TMP/int64.s"
 ${CC:-cc} -x assembler "$TMP/int64.s" -o "$TMP/int64"
 test "$("$TMP/int64")" = "3000000000"
 printf 'PASS: 64-bit integer lowering\n'
@@ -81,7 +81,7 @@ struct Point:
 fn main():
     return 0
 SWAN
-"$SWAN" "$TMP/structs.swan" -o "$TMP/structs.s"
+"$SWAN" "$TMP/structs.swan" --emit-asm -o "$TMP/structs.s"
 ${CC:-cc} -x assembler "$TMP/structs.s" -o "$TMP/structs"
 printf 'PASS: indented struct declarations\n'
 
@@ -90,7 +90,7 @@ fn main():
     log missing
     return 0
 SWAN
-if "$SWAN" "$TMP/invalid.swan" -o "$TMP/invalid.s" 2>/dev/null; then
+if "$SWAN" "$TMP/invalid.swan" --emit-asm -o "$TMP/invalid.s" 2>/dev/null; then
   echo 'FAIL: semantic error accepted' >&2
   exit 1
 fi
@@ -101,7 +101,7 @@ fn main():
     log missing
     return 0
 SWAN
-if "$SWAN" "$TMP/identifier-location.swan" -o "$TMP/identifier-location.s" 2>"$TMP/identifier-location.err"; then
+if "$SWAN" "$TMP/identifier-location.swan" --emit-asm -o "$TMP/identifier-location.s" 2>"$TMP/identifier-location.err"; then
   echo 'FAIL: unknown identifier accepted' >&2
   exit 1
 fi
@@ -115,21 +115,21 @@ fn main():
         log "keyword operators preserved"
     return 0
 SWAN
-"$SWAN" "$TMP/keyword-operators.swan" -o "$TMP/keyword-operators.s"
+"$SWAN" "$TMP/keyword-operators.swan" --emit-asm -o "$TMP/keyword-operators.s"
 ${CC:-cc} -x assembler "$TMP/keyword-operators.s" -o "$TMP/keyword-operators"
 test "$("$TMP/keyword-operators")" = "keyword operators preserved"
 printf 'PASS: keyword operators and primitive types\n'
 
 # Tabs count as four indentation columns while occupying one source column.
 printf 'fn main():\n\tlog "tab indentation"\n\treturn 0\n' > "$TMP/tabs.swan"
-"$SWAN" "$TMP/tabs.swan" -o "$TMP/tabs.s"
+"$SWAN" "$TMP/tabs.swan" --emit-asm -o "$TMP/tabs.s"
 ${CC:-cc} -x assembler "$TMP/tabs.s" -o "$TMP/tabs"
 test "$("$TMP/tabs")" = "tab indentation"
 printf 'PASS: tab indentation width and source scanning\n'
 
 # A dedent must match an existing indentation level exactly.
 printf 'fn main():\n    if true\n        log "nested"\n      log "invalid"\n' > "$TMP/bad-indent.swan"
-if "$SWAN" "$TMP/bad-indent.swan" -o "$TMP/bad-indent.s" 2>/dev/null; then
+if "$SWAN" "$TMP/bad-indent.swan" --emit-asm -o "$TMP/bad-indent.s" 2>/dev/null; then
   echo 'FAIL: inconsistent indentation accepted' >&2
   exit 1
 fi
@@ -140,7 +140,7 @@ fn main():
     log "quote: \" slash: \\ newline:\n tab:\t"
     return 0
 SWAN
-"$SWAN" "$TMP/string-escapes.swan" -o "$TMP/string-escapes.s"
+"$SWAN" "$TMP/string-escapes.swan" --emit-asm -o "$TMP/string-escapes.s"
 ${CC:-cc} -x assembler "$TMP/string-escapes.s" -o "$TMP/string-escapes"
 expected=$(printf 'quote: " slash: \\ newline:\n tab:\t')
 test "$("$TMP/string-escapes")" = "$expected"
@@ -183,7 +183,7 @@ fn main():
     log sum
     return 0
 SWAN
-"$SWAN" "$TMP/arrays.swan" -o "$TMP/arrays.s"
+"$SWAN" "$TMP/arrays.swan" --emit-asm -o "$TMP/arrays.s"
 ${CC:-cc} -x assembler "$TMP/arrays.s" -o "$TMP/arrays"
 actual=$( "$TMP/arrays" )
 expected=$(printf '0\n3\n6\n9\n12\n15\n18\n21\n84')
@@ -202,7 +202,7 @@ fn main():
     log add(1, add(2, 3))
     return 0
 SWAN
-"$SWAN" "$TMP/nested-calls.swan" -o "$TMP/nested-calls.s"
+"$SWAN" "$TMP/nested-calls.swan" --emit-asm -o "$TMP/nested-calls.s"
 ${CC:-cc} -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
 test "$("$TMP/nested-calls")" = "12
 6"
@@ -218,7 +218,7 @@ fn main():
     log 5 // 4
     return 0
 SWAN
-"$SWAN" "$TMP/power-two-division.swan" -o "$TMP/power-two-division.s"
+"$SWAN" "$TMP/power-two-division.swan" --emit-asm -o "$TMP/power-two-division.s"
 ${CC:-cc} -x assembler "$TMP/power-two-division.s" -o "$TMP/power-two-division"
 test "$("$TMP/power-two-division")" = "1
 -1
@@ -253,7 +253,7 @@ fn main():
     log positiveModulo
     return 0
 SWAN
-"$SWAN" "$TMP/caller-saved-locals.swan" -o "$TMP/caller-saved-locals.s"
+"$SWAN" "$TMP/caller-saved-locals.swan" --emit-asm -o "$TMP/caller-saved-locals.s"
 ${CC:-cc} -x assembler "$TMP/caller-saved-locals.s" -o "$TMP/caller-saved-locals"
 test "$("$TMP/caller-saved-locals")" = "10
 30
@@ -294,7 +294,7 @@ fn main():
     log checksum
     return 0
 SWAN
-"$SWAN" "$TMP/binary-search.swan" -o "$TMP/binary-search.s"
+"$SWAN" "$TMP/binary-search.swan" --emit-asm -o "$TMP/binary-search.s"
 ${CC:-cc} -x assembler "$TMP/binary-search.s" -o "$TMP/binary-search"
 test "$("$TMP/binary-search")" = "120"
 printf 'PASS: binary search over heap arrays\\n'

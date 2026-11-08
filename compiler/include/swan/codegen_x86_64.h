@@ -612,7 +612,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);
      for(const unsigned char *q=(const unsigned char*)s->value->token.text;*q;q++){
       if(*q==34||*q==92)text_add(o,"\\%c",*q);
-      else if(*q==10)text_add(o,"\n");
+      else if(*q==10)text_add(o,"\\n");
       else if(*q==9)text_add(o,"\\t");
       else if(*q==13)text_add(o,"\\r");
       else if(*q<32)text_add(o,"\\%03o",*q);

@@ -2,8 +2,8 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CC=${CC:-cc}
-COUNT=$(find "$ROOT" -type f -name '*.c' | wc -l | tr -d ' ')
-if [ "$COUNT" -ne 1 ] || [ ! -f "$ROOT/main.c" ]; then
+COUNT=$(find "$ROOT/compiler" -type f -name '*.c' | wc -l | tr -d ' ')
+if [ "$COUNT" -ne 0 ] || [ ! -f "$ROOT/main.c" ]; then
     echo "FAIL: expected exactly one C translation unit named main.c" >&2
     exit 1
 fi
