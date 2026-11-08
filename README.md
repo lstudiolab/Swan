@@ -67,6 +67,31 @@ Complete static type checking, floating-point execution, structs, general string
 
 Both modes use the system allocator. The unchecked form avoids the eight-byte length header, keeping the data allocation compact.
 
+## SAMC memory model
+
+Swan 0.7.0 introduces **SAMC (Swan Automatic Memory Cleanup)**. SAMC uses compiler-tracked ownership and does not use runtime reference counters.
+
+An array declared normally is automatically released when its owning function exits, including early returns:
+
+```swan
+fn main():
+    let values = array(1024)
+    values[0] = 42
+    return 0
+```
+
+Use the `manual` declaration modifier to opt an allocation out of automatic cleanup. Release it explicitly with `free`:
+
+```swan
+fn main():
+    manual let values = array(1024)
+    values[0] = 42
+    free(values)
+    return 0
+```
+
+SAMC conservatively leaves arrays allocated when their ownership escapes through a return, alias assignment, or function argument. This prevents premature frees in code where the compiler cannot prove that the current function is the final owner. Those escaped allocations require an explicit ownership strategy; SAMC does not yet perform interprocedural lifetime analysis or per-block last-use cleanup. Manual allocations are never implicitly freed.
+
 ## Foundation standard library
 
 Foundation is a source-level standard-library module under `stdlib/foundation.swan`.
