@@ -26,12 +26,12 @@ static inline bool swan_wasm_emit_edge(SwanWasmBuffer *b,const SwanIRFunction *f
   if(!found)return false;
  }return true;
 }
-static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRFunction *fn,const SwanIRInst *in,bool memory64,size_t *alloca_index){
+static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRFunction *fn,const SwanIRInst *in,bool memory64,size_t *alloca_index,uint32_t base_local){
  bool i32=in->type==SWAN_IR_I1||in->type==SWAN_IR_I8||in->type==SWAN_IR_I16||in->type==SWAN_IR_I32;
  bool ptr64=memory64;
  if(in->op==SWAN_IR_PHI)return true;
  if(in->op==SWAN_IR_CONST)return swan_wasm_const(b,!i32&&!(in->type==SWAN_IR_PTR&&!memory64),in->immediate)&&swan_wasm_set(b,in->result);
- if(in->op==SWAN_IR_ALLOCA){uint64_t addr=16u+(*alloca_index)++*8u;return swan_wasm_const(b,ptr64,(int64_t)addr)&&swan_wasm_set(b,in->result);}
+ if(in->op==SWAN_IR_ALLOCA){uint64_t off=16u+(*alloca_index)++*8u;uint8_t add=memory64?0x7c:0x6a;return swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,base_local)&&swan_wasm_const(b,memory64,(int64_t)off)&&swan_wasm_byte(b,add)&&swan_wasm_set(b,in->result);}
  if(in->op==SWAN_IR_LOAD){bool i32=in->type==SWAN_IR_I32||in->type==SWAN_IR_I1;return swan_wasm_get(b,in->a)&&swan_wasm_byte(b,i32?0x28:0x29)&&swan_wasm_u32(b,i32?2:3)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0))&&swan_wasm_set(b,in->result);}
  if(in->op==SWAN_IR_STORE){SwanIRType vt=swan_ir_value_type_of(fn,in->b);bool i32=vt==SWAN_IR_I32||vt==SWAN_IR_I1;return swan_wasm_get(b,in->a)&&swan_wasm_get(b,in->b)&&swan_wasm_byte(b,i32?0x36:0x37)&&swan_wasm_u32(b,i32?2:3)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0));}
  if(in->op==SWAN_IR_CALL){size_t index=m->function_count;for(size_t i=0;i<m->function_count;i++)if(in->symbol&&!strcmp(m->functions[i].name,in->symbol)){index=i;break;}if(index==m->function_count)return false;
@@ -64,7 +64,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   }
  }
  if(main_index==m->function_count){if(error&&cap)snprintf(error,cap,"WebAssembly module requires a main function export");return false;}
- SwanWasmBuffer type={0},func={0},exports={0},memory={0},code={0},module={0};
+ SwanWasmBuffer type={0},func={0},exports={0},memory={0},globals={0},code={0},module={0};
  bool ok=swan_wasm_u32(&type,(uint32_t)m->function_count)&&swan_wasm_u32(&func,(uint32_t)m->function_count);
  for(size_t f=0;ok&&f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];ok=swan_wasm_byte(&type,0x60)&&swan_wasm_u32(&type,(uint32_t)fn->parameter_count);
@@ -74,7 +74,13 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   ok=ok&&swan_wasm_u32(&func,(uint32_t)f);
  }
  ok=ok&&swan_wasm_u32(&exports,1)&&swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)main_index);
- if(alloca_total){uint64_t pages=(16u+alloca_total*8u+65535u)/65536u;ok=ok&&swan_wasm_u32(&memory,1)&&swan_wasm_byte(&memory,memory64?4:0)&&(memory64?swan_wasm_u64(&memory,pages):swan_wasm_u32(&memory,(uint32_t)pages));}
+ if(alloca_total){
+  uint64_t max_frame=0;
+  for(size_t f=0;f<m->function_count;f++){size_t n=0;for(size_t b=0;b<m->functions[f].block_count;b++)for(size_t i=0;i<m->functions[f].blocks[b].instruction_count;i++)n+=m->functions[f].blocks[b].instructions[i].op==SWAN_IR_ALLOCA;if(n*8u+16u>max_frame)max_frame=n*8u+16u;}
+  uint64_t pages=(16u+max_frame*256u+65535u)/65536u;
+  ok=ok&&swan_wasm_u32(&memory,1)&&swan_wasm_byte(&memory,memory64?4:0)&&(memory64?swan_wasm_u64(&memory,pages):swan_wasm_u32(&memory,(uint32_t)pages));
+  ok=ok&&swan_wasm_u32(&globals,1)&&swan_wasm_byte(&globals,swan_wasm_type_for(SWAN_IR_PTR,memory64))&&swan_wasm_byte(&globals,1)&&swan_wasm_const(&globals,memory64,16)&&swan_wasm_byte(&globals,0x0b);
+ }
  ok=ok&&swan_wasm_u32(&code,(uint32_t)m->function_count);
  for(size_t f=0;ok&&f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];SwanWasmBuffer body={0};uint32_t local_count=fn->next_value-(uint32_t)fn->parameter_count-1;
@@ -96,10 +102,10 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
    for(size_t b=0;b<fn->block_count&&ok;b++){
     ok=swan_wasm_byte(&body,0x0b);
     const SwanIRBlock *bb=&fn->blocks[b];
-    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index);
+    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local);
     const SwanIRTerm *t=&bb->terminator;
     if(!ok)break;
-    if(t->kind==SWAN_IR_RET){if(t->value)ok=swan_wasm_get(&body,t->value);ok=ok&&swan_wasm_byte(&body,0x0f);}
+    if(t->kind==SWAN_IR_RET){if(t->value)ok=swan_wasm_get(&body,t->value);if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);ok=ok&&swan_wasm_byte(&body,0x0f);}
     else if(t->kind==SWAN_IR_UNREACHABLE)ok=swan_wasm_byte(&body,0x00);
     else if(t->kind==SWAN_IR_BR){ok=swan_wasm_emit_edge(&body,fn,b,t->target)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));}
     else if(t->kind==SWAN_IR_COND_BR){
@@ -111,7 +117,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
    if(ok)ok=swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x00)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x00);
   }else if(ok){
    const SwanIRBlock *bb=&fn->blocks[0];
-   for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index);
+   for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local);
    if(ok&&bb->terminator.value)ok=swan_wasm_get(&body,bb->terminator.value);
    if(ok)ok=swan_wasm_byte(&body,bb->terminator.kind==SWAN_IR_UNREACHABLE?0x00:0x0f);
   }
@@ -119,9 +125,9 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   free(body.data);
  }
  static const uint8_t header[]={0,0x61,0x73,0x6d,1,0,0,0};ok=ok&&swan_wasm_bytes(&module,header,sizeof(header));
- SwanWasmBuffer *sections[]={&type,&func,&memory,&exports,&code};uint8_t ids[]={1,3,5,7,10};
- for(size_t i=0;ok&&i<5;i++)if(sections[i]->length)ok=swan_wasm_byte(&module,ids[i])&&swan_wasm_u32(&module,(uint32_t)sections[i]->length)&&swan_wasm_bytes(&module,sections[i]->data,sections[i]->length);
- free(type.data);free(func.data);free(exports.data);free(memory.data);free(code.data);
+ SwanWasmBuffer *sections[]={&type,&func,&memory,&globals,&exports,&code};uint8_t ids[]={1,3,5,6,7,10};
+ for(size_t i=0;ok&&i<6;i++)if(sections[i]->length)ok=swan_wasm_byte(&module,ids[i])&&swan_wasm_u32(&module,(uint32_t)sections[i]->length)&&swan_wasm_bytes(&module,sections[i]->data,sections[i]->length);
+ free(type.data);free(func.data);free(exports.data);free(memory.data);free(globals.data);free(code.data);
  if(!ok){free(module.data);if(error&&cap)snprintf(error,cap,"WebAssembly code generation failed or encountered unsupported IR");return false;}
  *out=module;return true;
 }
