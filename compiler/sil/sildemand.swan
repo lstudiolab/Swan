@@ -11,23 +11,20 @@ fn sil_demand(state: int, count: int, live: int, keep: int) -> int:
     index = count - 1
     while index >= 0
         let base = index * 5
-        let encoded = state[base]
-        let opcode = encoded % 16
+        let opcode = state[base] % 16
         let destination = state[base + 1]
         let left = state[base + 2]
         let right = state[base + 3]
         if opcode == 10
             keep[index] = 1
             live[left] = 1
-        else
-            if destination > 0 and destination < 256 and live[destination] == 1
-                keep[index] = 1
-                if opcode >= 2 and opcode <= 8
-                    live[left] = 1
-                    live[right] = 1
-                else
-                    if opcode == 9
-                        live[left] = 1
+        if opcode != 10 and destination > 0 and destination < 256 and live[destination] == 1
+            keep[index] = 1
+            if opcode >= 2 and opcode <= 8
+                live[left] = 1
+                live[right] = 1
+            if opcode == 9
+                live[left] = 1
         index = index - 1
     var kept = 0
     index = 0
