@@ -604,7 +604,8 @@ static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
 }
 static inline bool midpoint_stmt_writes_name(Stmt *s,const char *name){
  if(!s)return false;
- if(s->kind==S_ASSIGN&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,name))return true;
+ if(s->kind==S_VARIABLE&&s->name&&!strcmp(s->name,name))return true;
+ if(s->kind==S_EXPR&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,name))return true;
  for(size_t i=0;i<s->body_count;i++)if(midpoint_stmt_writes_name(s->body[i],name))return true;
  for(size_t i=0;i<s->alt_count;i++)if(midpoint_stmt_writes_name(s->alternate[i],name))return true;
  return false;
@@ -624,7 +625,7 @@ static inline bool midpoint_step_expr(Expr *e,const char *middle,TokenKind op){
 static inline bool midpoint_loop_updates(Stmt **body,size_t count,const char *target,const char *middle,TokenKind op,bool *found){
  for(size_t i=0;i<count;i++){
   Stmt *s=body[i];
-  if(s->kind==S_ASSIGN&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,target)){
+  if(s->kind==S_EXPR&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,target)){
    if(!midpoint_step_expr(s->value->right,middle,op))return false;*found=true;continue;
   }
   if(s->kind==S_WHILE&&midpoint_stmt_writes_name(s,target))return false;
