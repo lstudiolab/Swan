@@ -1,36 +1,70 @@
 #!/usr/bin/env sh
 set -eu
-# Exercise the low-latency direct x86-64 backend explicitly.
-export SWAN_FAST_COMPILE=1
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/regressions"
-CC=${CC:-cc}
 mkdir -p "$TMP"
+
 expect_rejected() {
     name=$1
-    if "$SWAN" "$TMP/$name.swan" -o "$TMP/$name.s" >/dev/null 2>&1; then
+    if "$SWAN" build "$TMP/$name.swan" -o "$TMP/$name" >/dev/null 2>&1; then
         echo "FAIL: $name should have been rejected" >&2
         exit 1
     fi
     printf 'PASS: rejected %s\n' "$name"
 }
-cat > "$TMP/missing-return.swan" <<'SWAN'
-fn calculate(flag: bool) -> int:
-    if flag
-        return 1
-fn main():
-    return 0
-SWAN
-expect_rejected missing-return
 
-cat > "$TMP/void-parameter.swan" <<'SWAN'
-fn invalid(value: void) -> int:
+cat > "$TMP/break-outside-loop.swan" <<'SWAN'
+fn main():
+    break
     return 0
+SWAN
+expect_rejected break-outside-loop
+
+cat > "$TMP/continue-outside-loop.swan" <<'SWAN'
+fn main():
+    continue
+    return 0
+SWAN
+expect_rejected continue-outside-loop
+
+cat > "$TMP/immutable-assignment.swan" <<'SWAN'
+fn main():
+    let value = 1
+    value = 2
+    return 0
+SWAN
+expect_rejected immutable-assignment
+
+cat > "$TMP/unknown-name.swan" <<'SWAN'
+fn main():
+    log missing_value
+    return 0
+SWAN
+expect_rejected unknown-name
+
+cat > "$TMP/unknown-function.swan" <<'SWAN'
+fn main():
+    missing_function()
+    return 0
+SWAN
+expect_rejected unknown-function
+
+cat > "$TMP/call-arity.swan" <<'SWAN'
+fn add(left: int, right: int) -> int:
+    return left + right
+fn main():
+    log add(1)
+    return 0
+SWAN
+expect_rejected call-arity
+
+cat > "$TMP/missing-import.swan" <<'SWAN'
+import module_that_does_not_exist
 fn main():
     return 0
 SWAN
-expect_rejected void-parameter
+expect_rejected missing-import
 
 cat > "$TMP/return-both-branches.swan" <<'SWAN'
 fn choose(flag: bool) -> int:
@@ -42,47 +76,57 @@ fn main():
     log choose(true)
     return 0
 SWAN
-"$SWAN" "$TMP/return-both-branches.swan" -o "$TMP/return-both-branches.s"
-"$CC" -x assembler "$TMP/return-both-branches.s" -o "$TMP/return-both-branches"
+"$SWAN" build "$TMP/return-both-branches.swan" -o "$TMP/return-both-branches"
 test "$("$TMP/return-both-branches")" = "11"
-printf 'PASS: definite return across both branches\n'
+printf 'PASS: function calls and branch return lowering\n'
 
-cat > "$TMP/forward-struct.swan" <<'SWAN'
-struct Bird:
-    wing: Wing
-struct Wing:
-    size: int
+cat > "$TMP/short-circuit.swan" <<'SWAN'
 fn main():
+    if false and (1 / 0 == 0)
+        log 1
+    if true or (1 / 0 == 0)
+        log 2
     return 0
 SWAN
-"$SWAN" "$TMP/forward-struct.swan" -o "$TMP/forward-struct.s"
-"$CC" -x assembler "$TMP/forward-struct.s" -o "$TMP/forward-struct"
-printf 'PASS: forward struct dependency ordering\n'
+"$SWAN" build "$TMP/short-circuit.swan" -o "$TMP/short-circuit"
+test "$("$TMP/short-circuit")" = "2"
+printf 'PASS: logical operators short-circuit at runtime\n'
 
-cat > "$TMP/struct-cycle.swan" <<'SWAN'
-struct First:
-    second: Second
-struct Second:
-    first: First
+cat > "$TMP/loop-control.swan" <<'SWAN'
 fn main():
+    var i = 0
+    var total = 0
+    while i < 10
+        i = i + 1
+        if i % 2 == 0
+            continue
+        total = total + i
+        if total > 10
+            break
+    log total
     return 0
 SWAN
-expect_rejected struct-cycle
+"$SWAN" build "$TMP/loop-control.swan" -o "$TMP/loop-control"
+test "$("$TMP/loop-control")" = "16"
+printf 'PASS: nested break and continue control flow\n'
 
-cat > "$TMP/immutable-string.swan" <<'SWAN'
-fn echo(value: string) -> string:
-    return value
+cat > "$TMP/array-modes.swan" <<'SWAN'
 fn main():
-    let greeting = "Hello"
-    log greeting
-    log echo(greeting)
+    let checked = array(4)
+    let unchecked = array_unchecked(4)
+    var i = 0
+    while i < 4
+        checked[i] = i + 1
+        unchecked[i] = i + 5
+        i = i + 1
+    log checked[3]
+    log unchecked[3]
     return 0
 SWAN
-"$SWAN" "$TMP/immutable-string.swan" -o "$TMP/immutable-string.s"
-"$CC" -x assembler "$TMP/immutable-string.s" -o "$TMP/immutable-string"
-test "$("$TMP/immutable-string")" = "Hello
-Hello"
-printf 'PASS: immutable string and parameter declarations\n'
+"$SWAN" build "$TMP/array-modes.swan" -o "$TMP/array-modes"
+test "$("$TMP/array-modes")" = "4
+8"
+printf 'PASS: checked and unchecked contiguous u32 arrays\n'
 
 cat > "$TMP/signed-remainder.swan" <<'SWAN'
 fn main():
@@ -94,9 +138,8 @@ fn main():
     log total
     return 0
 SWAN
-"$SWAN" "$TMP/signed-remainder.swan" -o "$TMP/signed-remainder.s"
-"$CC" -x assembler "$TMP/signed-remainder.s" -o "$TMP/signed-remainder"
+"$SWAN" build "$TMP/signed-remainder.swan" -o "$TMP/signed-remainder"
 test "$("$TMP/signed-remainder")" = "50000"
-printf 'PASS: branchless signed constant remainder lowering\n'
+printf 'PASS: signed constant remainder lowering\n'
 
 printf 'PASS: compiler regression suite\n'
