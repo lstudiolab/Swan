@@ -90,4 +90,4 @@ Each backend must provide target data layout and ABI, instruction selection, reg
 
 ## Current status
 
-The current compiler still uses the existing C11 lexer/parser/semantic checker and direct AST-to-x86-64 code generator. The SIL, target-independent IR, separate emitter and separate linker stages described here are architectural targets, not yet implemented. The migration must be incremental; do not add placeholder stage files or claim a stage is active until it has executable code and tests.
+The current compiler still uses the existing C11 lexer/parser/semantic checker and direct AST-to-x86-64 code generator. A typed target-independent SSA IR data model and structural verifier now exist in `compiler/include/swan/ir.h`, with standalone tests in `tests/ir.c`. The IR is not yet generated from Swan AST, optimized, or consumed by any backend. SIL, SIL demand/pass infrastructure, IR generation/optimization, separate emitter and separate linker stages remain unimplemented. The migration must be incremental; do not claim a stage is active until it has executable code and tests.
