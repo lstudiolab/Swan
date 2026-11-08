@@ -1,5 +1,5 @@
 # Structural and typed SSA verifier for the initial SIL scalar subset.
-fn sil_verify(state: int, count: int) -> int:
+fn sil_verify(state: u32_array, count: int) -> int:
     if count < 1 or count > 256
         return 0
     let defined = array_unchecked(256)

@@ -1,6 +1,5 @@
 # Backward value-demand and instruction-liveness analysis.
-# The flat SSA stream is scanned from its final instruction toward entry.
-fn sil_demand(state: int, count: int, live: int, keep: int) -> int:
+fn sil_demand(state: u32_array, count: int, live: u32_array, keep: u32_array) -> int:
     if count < 1 or count > 256
         return -1
     var index = 0

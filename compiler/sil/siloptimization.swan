@@ -2,9 +2,7 @@ import silpass
 import sildemand
 import silverify
 
-# Full initial SIL optimization pipeline: verify, fold, demand, DCE, verify.
-# Instruction compaction preserves SSA value IDs and original ordering.
-fn sil_optimize(state: int, count: int, live: int, keep: int, known: int, constants: int) -> int:
+fn sil_optimize(state: u32_array, count: int, live: u32_array, keep: u32_array, known: u32_array, constants: u32_array) -> int:
     if sil_verify(state, count) == 0
         return -1
     if sil_fold_constants(state, count, known, constants) < 0

@@ -972,7 +972,12 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
   Locals l={0};o->stack_depth=0;
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
-  for(size_t a=0;a<fn->param_count;a++)local_add(&l,fn->params[a],false);
+  for(size_t a=0;a<fn->param_count;a++){
+   Local *param=local_add(&l,fn->params[a],false);
+   if(param&&fn->param_types&&fn->param_types[a]&&!strcmp(fn->param_types[a],"u32_array")){
+    param->array_u32=true;param->array_unchecked=true;param->samc_escaped=true;
+   }
+  }
   collect_locals(fn->body,fn->body_count,&l);samc_scan_escapes(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
