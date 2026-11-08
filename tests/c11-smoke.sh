@@ -323,6 +323,10 @@ SWAN
 cc -x assembler "$TMP/array-midpoint.s" -o "$TMP/array-midpoint"
 test "$("$TMP/array-midpoint")" = "0"
 grep -q 'shr rax, 1' "$TMP/array-midpoint.s"
+if grep -Eq 'cmp rcx, QWORD PTR \\[[a-z0-9]+ - 8\\]' "$TMP/array-midpoint.s"; then
+    echo "FAIL: proven midpoint array access retained a bounds check" >&2
+    exit 1
+fi
 if grep -q 'mov r11, rbx' "$TMP/array-midpoint.s"; then
     echo 'FAIL: register-resident array base used an unnecessary scratch move' >&2
     exit 1
