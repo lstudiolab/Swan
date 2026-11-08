@@ -394,13 +394,14 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     Local *array=local_find(l,base->token.text);
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
     int64_t constant_index=0;bool direct_index=cg_const_value(e->left->right,&constant_index)&&array->array_length_known&&constant_index>=0&&constant_index<array->array_length&&constant_index<=INT32_MAX/4;
+    bool fill_store_bounds=o->active_fill_array&&o->active_fill_index&&e->left->right&&e->left->right->kind==E_NAME&&!strcmp(base->token.text,o->active_fill_array)&&!strcmp(e->left->right->token.text,o->active_fill_index);
     if(direct_index){
      emit_expr(o,e->right,l,err);
      if(array->reg>=0)text_add(o,"    mov DWORD PTR [%s + %lld], eax\n",cg_reg_name(array->reg),(long long)(constant_index*4));
      else text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n    mov DWORD PTR [r10 + %lld], eax\n",array->slot*8,(long long)(constant_index*4));
     }else{
      emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
-     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
+     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked&&!fill_store_bounds){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);}text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
      else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked){if(array->array_length_known)text_add(o,"    cmp rcx, %lld\n    jae .Lswan_array_bounds_fail\n",(long long)array->array_length);else text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");}text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
     }
     o->uses_array_bounds=true;break;
