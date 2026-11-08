@@ -66,7 +66,7 @@ static int swan_run(int argc,char **argv){
  }
  if(target->architecture==SWAN_ARCH_AARCH64){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
-  if(has_lazy){fprintf(stderr,"swan: AArch64 object backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+
   SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
   if(!swan_irgen_program(&p,&ir,&err)||!swan_ir_optimize(&ir,detail,sizeof(detail))||!swan_codegen_aarch64_ir(&ir,&assembly,detail,sizeof(detail))){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
@@ -82,7 +82,7 @@ static int swan_run(int argc,char **argv){
  }
  if(target->architecture==SWAN_ARCH_ARMV7){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: ARMv7 cross-target output is an ELF object; execute it on an ARMv7 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
-  if(has_lazy){fprintf(stderr,"swan: ARMv7 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+
   SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
   if(!swan_irgen_program(&p,&ir,&err)||!swan_ir_optimize(&ir,detail,sizeof(detail))||!swan_codegen_armv7_ir(&ir,&assembly,detail,sizeof(detail))){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
@@ -98,7 +98,7 @@ static int swan_run(int argc,char **argv){
  }
  if(target->architecture==SWAN_ARCH_RISCV64){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: RISC-V64 cross-target output is an ELF object; execute it on a RISC-V64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
-  if(has_lazy){fprintf(stderr,"swan: RISC-V64 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+
   SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
   if(!swan_irgen_program(&p,&ir,&err)||!swan_ir_optimize(&ir,detail,sizeof(detail))||!swan_codegen_riscv64_ir(&ir,&assembly,detail,sizeof(detail))){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
