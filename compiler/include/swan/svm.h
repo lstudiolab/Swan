@@ -188,7 +188,7 @@ static inline bool swan_svm_run(const SwanIRModule *module, const char *entry,
         if (error && error_capacity) snprintf(error, error_capacity, "SVM entry function not found");
         return false;
     }
-    SwanVM vm = {module, fuel ? fuel : UINT64_MAX, 0, error, error_capacity};
+    SwanVM vm = {.module=module,.fuel=fuel?fuel:UINT64_MAX,.depth=0,.error=error,.error_capacity=error_capacity,.memory_count=0};
     return swan_svm_eval(&vm, index, NULL, 0, result);
 }
 
