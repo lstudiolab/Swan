@@ -18,6 +18,17 @@ typedef struct {
     size_t error_capacity;
 } SwanVM;
 
+static inline unsigned swan_svm_integer_bits(SwanIRType type){
+    switch(type){case SWAN_IR_I1:return 1;case SWAN_IR_I8:return 8;case SWAN_IR_I16:return 16;case SWAN_IR_I32:return 32;case SWAN_IR_I64:return 64;default:return 64;}
+}
+static inline uint64_t swan_svm_width_mask(unsigned bits){return bits>=64?UINT64_MAX:(UINT64_C(1)<<bits)-1;}
+static inline uint64_t swan_svm_truncate(uint64_t value,unsigned bits){return value&swan_svm_width_mask(bits);}
+static inline int64_t swan_svm_signed_value(uint64_t value,unsigned bits){
+    if(bits>=64)return (int64_t)value;
+    uint64_t mask=swan_svm_width_mask(bits),sign=UINT64_C(1)<<(bits-1);value&=mask;
+    return (int64_t)((value^sign)-sign);
+}
+
 static inline bool swan_svm_fail(SwanVM *vm, const char *message) {
     if (vm->error && vm->error_capacity)
         snprintf(vm->error, vm->error_capacity, "%s", message);
@@ -58,36 +69,39 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
             const SwanIRInst *in = &block->instructions[i];
             int64_t a = in->a < value_count ? values[in->a] : 0;
             int64_t b = in->b < value_count ? values[in->b] : 0;
+            unsigned bits=swan_svm_integer_bits(swan_ir_value_type_of(fn,in->a));
+            uint64_t ua=swan_svm_truncate((uint64_t)a,bits),ub=swan_svm_truncate((uint64_t)b,bits);
+            int64_t sa=swan_svm_signed_value(ua,bits),sb=swan_svm_signed_value(ub,bits);
             int64_t v = 0;
             switch (in->op) {
                 case SWAN_IR_CONST: v = in->immediate; break;
-                case SWAN_IR_ADD: v = (int64_t)((uint64_t)a + (uint64_t)b); break;
-                case SWAN_IR_SUB: v = (int64_t)((uint64_t)a - (uint64_t)b); break;
-                case SWAN_IR_MUL: v = (int64_t)((uint64_t)a * (uint64_t)b); break;
+                case SWAN_IR_ADD: v=swan_svm_signed_value(swan_svm_truncate(ua+ub,bits),bits);break;
+                case SWAN_IR_SUB: v=swan_svm_signed_value(swan_svm_truncate(ua-ub,bits),bits);break;
+                case SWAN_IR_MUL: v=swan_svm_signed_value(swan_svm_truncate(ua*ub,bits),bits);break;
                 case SWAN_IR_SDIV:
-                    if (!b || (a == INT64_MIN && b == -1)) { ok = swan_svm_fail(vm, "SVM signed division trap"); break; }
-                    v = a / b; break;
+                    if (!sb || (bits==64&&sa==INT64_MIN&&sb==-1) || (bits<64&&sa==-(INT64_C(1)<<(bits-1))&&sb==-1)) {ok=swan_svm_fail(vm,"SVM signed division trap");break;}
+                    v=swan_svm_signed_value(swan_svm_truncate((uint64_t)(sa/sb),bits),bits);break;
                 case SWAN_IR_UDIV:
-                    if (!b) { ok = swan_svm_fail(vm, "SVM unsigned division by zero"); break; }
-                    v = (int64_t)((uint64_t)a / (uint64_t)b); break;
+                    if (!ub) {ok=swan_svm_fail(vm,"SVM unsigned division by zero");break;}
+                    v=swan_svm_signed_value(swan_svm_truncate(ua/ub,bits),bits);break;
                 case SWAN_IR_SREM:
-                    if (!b || (a == INT64_MIN && b == -1)) { ok = swan_svm_fail(vm, "SVM signed remainder trap"); break; }
-                    v = a % b; break;
+                    if (!sb || (bits==64&&sa==INT64_MIN&&sb==-1) || (bits<64&&sa==-(INT64_C(1)<<(bits-1))&&sb==-1)) {ok=swan_svm_fail(vm,"SVM signed remainder trap");break;}
+                    v=swan_svm_signed_value(swan_svm_truncate((uint64_t)(sa%sb),bits),bits);break;
                 case SWAN_IR_UREM:
-                    if (!b) { ok = swan_svm_fail(vm, "SVM unsigned remainder by zero"); break; }
-                    v = (int64_t)((uint64_t)a % (uint64_t)b); break;
-                case SWAN_IR_AND: v = a & b; break;
-                case SWAN_IR_OR: v = a | b; break;
-                case SWAN_IR_XOR: v = a ^ b; break;
-                case SWAN_IR_SHL: v = (int64_t)((uint64_t)a << ((uint64_t)b & 63u)); break;
-                case SWAN_IR_LSHR: v = (int64_t)((uint64_t)a >> ((uint64_t)b & 63u)); break;
-                case SWAN_IR_ASHR: { unsigned shift=(unsigned)((uint64_t)b & 63u); uint64_t bits=(uint64_t)a; v=(int64_t)(shift ? ((bits >> shift) | ((bits >> 63) ? (~UINT64_C(0) << (64u-shift)) : 0)) : bits); break; }
-                case SWAN_IR_ICMP_EQ: v = a == b; break;
-                case SWAN_IR_ICMP_NE: v = a != b; break;
-                case SWAN_IR_ICMP_SLT: v = a < b; break;
-                case SWAN_IR_ICMP_SLE: v = a <= b; break;
-                case SWAN_IR_ICMP_SGT: v = a > b; break;
-                case SWAN_IR_ICMP_SGE: v = a >= b; break;
+                    if (!ub) {ok=swan_svm_fail(vm,"SVM unsigned remainder by zero");break;}
+                    v=swan_svm_signed_value(swan_svm_truncate(ua%ub,bits),bits);break;
+                case SWAN_IR_AND:v=swan_svm_signed_value(ua&ub,bits);break;
+                case SWAN_IR_OR:v=swan_svm_signed_value(ua|ub,bits);break;
+                case SWAN_IR_XOR:v=swan_svm_signed_value(ua^ub,bits);break;
+                case SWAN_IR_SHL:v=swan_svm_signed_value(swan_svm_truncate(ua<<((uint64_t)b&(bits-1u)),bits),bits);break;
+                case SWAN_IR_LSHR:v=swan_svm_signed_value(ua>>((uint64_t)b&(bits-1u)),bits);break;
+                case SWAN_IR_ASHR:{unsigned shift=(unsigned)((uint64_t)b&(bits-1u));uint64_t fill=(ua>>(bits-1u))?swan_svm_width_mask(bits):0;uint64_t shifted=shift?(ua>>shift)|(fill<<(bits-shift)):ua;v=swan_svm_signed_value(shifted,bits);break;}
+                case SWAN_IR_ICMP_EQ:v=ua==ub;break;
+                case SWAN_IR_ICMP_NE:v=ua!=ub;break;
+                case SWAN_IR_ICMP_SLT:v=sa<sb;break;
+                case SWAN_IR_ICMP_SLE:v=sa<=sb;break;
+                case SWAN_IR_ICMP_SGT:v=sa>sb;break;
+                case SWAN_IR_ICMP_SGE:v=sa>=sb;break;
                 case SWAN_IR_SELECT: v = a ? values[in->b] : values[in->c]; break;
                 case SWAN_IR_PHI: {
                     bool found = false;
