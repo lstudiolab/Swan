@@ -329,6 +329,27 @@ if grep -q 'mov r11, rbx' "$TMP/array-midpoint.s"; then
 fi
 printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
 
+cat > "$TMP/power-two-multiply.swan" <<'SWAN'
+fn main():
+    log 7 * 8
+    log -7 * 8
+    log 7 * -8
+    log 7 * 1
+    log 7 * -1
+    log 7 * 0
+    return 0
+SWAN
+"$SWAN" "$TMP/power-two-multiply.swan" --emit-asm -o "$TMP/power-two-multiply.s"
+cc -x assembler "$TMP/power-two-multiply.s" -o "$TMP/power-two-multiply"
+test "$("$TMP/power-two-multiply")" = "56
+-56
+-56
+7
+-7
+0"
+grep -q 'shl rax, 3' "$TMP/power-two-multiply.s"
+printf 'PASS: signed power-of-two multiplication lowering\\n'
+
 cat > "$TMP/array-store-register.swan" <<'SWAN'
 fn main():
     let values = array_unchecked(4)

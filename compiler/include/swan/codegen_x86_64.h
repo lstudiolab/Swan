@@ -253,7 +253,8 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
  text_add(o,"    call %s\n",symbol);cg_release(o,area+pad);cg_restore_volatile(o,l);
 }
-static inline bool cg_const_value(Expr *e,int64_t *out){
+static inline bool cg_const_value(Expr *e,int64_t *out);
+static inline bool cg_const_value_uncached(Expr *e,int64_t *out){
  if(!e)return false;
  if(e->kind==E_INT){char *end=NULL;errno=0;long long v=strtoll(e->token.text,&end,10);if(errno==ERANGE||!end||*end)return false;*out=(int64_t)v;return true;}
  if(e->kind==E_BOOL){*out=e->token.kind==T_TRUE;return true;}
@@ -276,6 +277,14 @@ static inline bool cg_const_value(Expr *e,int64_t *out){
    *out=e->token.kind==T_PERCENT?a%b:a/b;return true;
   default:return false;
  }
+}
+static inline bool cg_const_value(Expr *e,int64_t *out){
+ if(!e)return false;
+ if(e->constant_checked){if(e->constant_valid)*out=e->constant_value;return e->constant_valid;}
+ int64_t value=0;bool valid=cg_const_value_uncached(e,&value);
+ e->constant_checked=true;e->constant_valid=valid;
+ if(valid){e->constant_value=value;*out=value;}
+ return valid;
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!e)return;
@@ -612,10 +621,17 @@ static inline bool loop_bottom_test_candidate(Stmt *s,Locals *l){
  if(!step||step->kind!=E_BINARY||step->token.kind!=T_PLUS||!step->left||step->left->kind!=E_NAME||strcmp(step->left->token.text,cond->left->token.text)||!step->right||step->right->kind!=E_INT||strcmp(step->right->token.text,"1"))return false;
  return !statements_write_local(s->body,s->body_count-1,cond->left->token.text);
 }
+static inline bool midpoint_expr_writes_name(Expr *e,const char *name){
+ if(!e)return false;
+ if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN&&e->left&&e->left->kind==E_NAME&&!strcmp(e->left->token.text,name))return true;
+ if(midpoint_expr_writes_name(e->left,name)||midpoint_expr_writes_name(e->right,name))return true;
+ for(size_t i=0;i<e->argc;i++)if(midpoint_expr_writes_name(e->args[i],name))return true;
+ return false;
+}
 static inline bool midpoint_stmt_writes_name(Stmt *s,const char *name){
  if(!s)return false;
  if(s->kind==S_VARIABLE&&s->name&&!strcmp(s->name,name))return true;
- if(s->kind==S_EXPR&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,name))return true;
+ if(midpoint_expr_writes_name(s->value,name)||midpoint_expr_writes_name(s->condition,name))return true;
  for(size_t i=0;i<s->body_count;i++)if(midpoint_stmt_writes_name(s->body[i],name))return true;
  for(size_t i=0;i<s->alt_count;i++)if(midpoint_stmt_writes_name(s->alternate[i],name))return true;
  return false;
@@ -636,12 +652,13 @@ static inline bool midpoint_loop_updates(Stmt **body,size_t count,const char *ta
  for(size_t i=0;i<count;i++){
   Stmt *s=body[i];
   if(s->kind==S_EXPR&&s->value&&s->value->kind==E_BINARY&&s->value->token.kind==T_ASSIGN&&s->value->left&&s->value->left->kind==E_NAME&&!strcmp(s->value->left->token.text,target)){
-   if(!midpoint_step_expr(s->value->right,middle,op))return false;*found=true;continue;
+   if(!midpoint_step_expr(s->value->right,middle,op))return false;
+   *found=true;continue;
   }
   if(s->kind==S_WHILE&&midpoint_stmt_writes_name(s,target))return false;
   if(s->kind==S_IF){
-   if(!midpoint_loop_updates(s->body,s->body_count,target,middle,op,found)||!midpoint_loop_updates(s->alternate,s->alt_count,target,middle,op,found))return false;
-  }
+   if(midpoint_expr_writes_name(s->condition,target)||!midpoint_loop_updates(s->body,s->body_count,target,middle,op,found)||!midpoint_loop_updates(s->alternate,s->alt_count,target,middle,op,found))return false;
+  }else if(midpoint_expr_writes_name(s->value,target)||midpoint_expr_writes_name(s->condition,target))return false;
  }
  return true;
 }
