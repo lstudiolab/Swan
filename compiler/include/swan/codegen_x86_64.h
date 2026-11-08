@@ -583,11 +583,25 @@ static inline bool expr_hoist_safe(Expr *e,Locals *l){
 static inline bool expr_has_operator(Expr *e){
  return e&&(e->kind==E_UNARY||e->kind==E_BINARY);
 }
-static inline bool expr_names_stable_in_loop(Expr *e,Stmt **body,size_t n){
+static inline void mark_expr_writes_names(Expr *e,bool *written){
+ if(!e)return;
+ if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN&&e->left&&e->left->kind==E_NAME)written[cg_name_hash(e->left->token.text)&2047u]=true;
+ mark_expr_writes_names(e->left,written);mark_expr_writes_names(e->right,written);
+ for(size_t i=0;i<e->argc;i++)mark_expr_writes_names(e->args[i],written);
+}
+static inline void collect_loop_write_set(Stmt **body,size_t n,bool *written){
+ for(size_t i=0;i<n;i++){
+  Stmt *s=body[i];
+  if(s->kind==S_VARIABLE&&s->name)written[cg_name_hash(s->name)&2047u]=true;
+  mark_expr_writes_names(s->value,written);mark_expr_writes_names(s->condition,written);
+  collect_loop_write_set(s->body,s->body_count,written);collect_loop_write_set(s->alternate,s->alt_count,written);
+ }
+}
+static inline bool expr_names_stable_in_loop(Expr *e,const bool *written){
  if(!e)return true;
- if(e->kind==E_NAME&&statements_write_local(body,n,e->token.text))return false;
- if(!expr_names_stable_in_loop(e->left,body,n)||!expr_names_stable_in_loop(e->right,body,n))return false;
- for(size_t i=0;i<e->argc;i++)if(!expr_names_stable_in_loop(e->args[i],body,n))return false;
+ if(e->kind==E_NAME&&written[cg_name_hash(e->token.text)&2047u])return false;
+ if(!expr_names_stable_in_loop(e->left,written)||!expr_names_stable_in_loop(e->right,written))return false;
+ for(size_t i=0;i<e->argc;i++)if(!expr_names_stable_in_loop(e->args[i],written))return false;
  return true;
 }
 static inline bool statements_have_call(Stmt **body,size_t n){
@@ -605,22 +619,23 @@ static inline bool statements_have_loop(Stmt **body,size_t n){
  }
  return false;
 }
-static inline Expr *find_loop_invariant_expr(Expr *e,const char *induction,Stmt **body,size_t n,Locals *l){
+static inline Expr *find_loop_invariant_expr(Expr *e,const char *induction,const bool *written,Locals *l){
  if(!e)return NULL;
- if(expr_hoist_safe(e,l)&&expr_has_operator(e)&&!expr_uses_local(e,induction)&&expr_names_stable_in_loop(e,body,n))return e;
- Expr *found=find_loop_invariant_expr(e->left,induction,body,n,l);if(found)return found;
- found=find_loop_invariant_expr(e->right,induction,body,n,l);if(found)return found;
- for(size_t i=0;i<e->argc;i++){found=find_loop_invariant_expr(e->args[i],induction,body,n,l);if(found)return found;}
+ if(expr_hoist_safe(e,l)&&expr_has_operator(e)&&!expr_uses_local(e,induction)&&expr_names_stable_in_loop(e,written))return e;
+ Expr *found=find_loop_invariant_expr(e->left,induction,written,l);if(found)return found;
+ found=find_loop_invariant_expr(e->right,induction,written,l);if(found)return found;
+ for(size_t i=0;i<e->argc;i++){found=find_loop_invariant_expr(e->args[i],induction,written,l);if(found)return found;}
  return NULL;
 }
 static inline Expr *find_loop_hoist(Stmt *s,Locals *l){
  if(!s||!s->condition||s->condition->kind!=E_BINARY||!s->condition->left||s->condition->left->kind!=E_NAME)return NULL;
  const char *induction=s->condition->left->token.text;
  if(statements_have_loop(s->body,s->body_count)||statements_have_call(s->body,s->body_count))return NULL;
+ bool written[2048]={0};collect_loop_write_set(s->body,s->body_count,written);
  for(size_t i=0;i<s->body_count;i++){
   Stmt *item=s->body[i];
-  Expr *found=find_loop_invariant_expr(item->value,induction,s->body,s->body_count,l);if(found)return found;
-  found=find_loop_invariant_expr(item->condition,induction,s->body,s->body_count,l);if(found)return found;
+  Expr *found=find_loop_invariant_expr(item->value,induction,written,l);if(found)return found;
+  found=find_loop_invariant_expr(item->condition,induction,written,l);if(found)return found;
  }
  return NULL;
 }
