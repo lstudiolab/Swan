@@ -43,13 +43,13 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
       if(in->type!=SWAN_IR_VOID)text_add(o,"    str r0, [sp, #%d]\n",d);break;}
      case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
       int id=o->next_label++;
-      text_add(o,"    ldr r0, [sp, #%d]\\n    ldr r1, [sp, #%d]\\n    cmp r1, #0\\n    beq .Lsw_divzero_%d\\n",a,z,id);
+      text_add(o,"    ldr r0, [sp, #%d]\n    ldr r1, [sp, #%d]\n    cmp r1, #0\n    beq .Lsw_divzero_%d\n",a,z,id);
       if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM){
-       text_add(o,"    ldr r2, =0x80000000\\n    cmp r0, r2\\n    bne .Lsw_divsafe_%d\\n    cmn r1, #1\\n    beq .Lsw_divzero_%d\\n.Lsw_divsafe_%d:\\n",id,id,id);
+       text_add(o,"    ldr r2, =0x80000000\n    cmp r0, r2\n    bne .Lsw_divsafe_%d\n    cmn r1, #1\n    beq .Lsw_divzero_%d\n.Lsw_divsafe_%d:\n",id,id,id);
       }
-      text_add(o,"    bl %s\\n",in->op==SWAN_IR_SDIV?"__aeabi_idiv":in->op==SWAN_IR_UDIV?"__aeabi_uidiv":in->op==SWAN_IR_SREM?"__aeabi_idivmod":"__aeabi_uidivmod");
-      if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)text_add(o,"    mov r0, r1\\n");
-      text_add(o,"    str r0, [sp, #%d]\\n    b .Lsw_divdone_%d\\n.Lsw_divzero_%d:\\n    udf #0\\n.Lsw_divdone_%d:\\n",d,id,id,id);
+      text_add(o,"    bl %s\n",in->op==SWAN_IR_SDIV?"__aeabi_idiv":in->op==SWAN_IR_UDIV?"__aeabi_uidiv":in->op==SWAN_IR_SREM?"__aeabi_idivmod":"__aeabi_uidivmod");
+      if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)text_add(o,"    mov r0, r1\n");
+      text_add(o,"    str r0, [sp, #%d]\n    b .Lsw_divdone_%d\n.Lsw_divzero_%d:\n    udf #0\n.Lsw_divdone_%d:\n",d,id,id,id);
       break;
      }
      case SWAN_IR_SELECT:text_add(o,"    ldr r0, [sp, #%d]\n    ldr r1, [sp, #%d]\n    ldr r2, [sp, #%d]\n    cmp r0, #0\n    moveq r1, r2\n    str r1, [sp, #%d]\n",a,z,swan_armv7_offset(in->c),d);break;
