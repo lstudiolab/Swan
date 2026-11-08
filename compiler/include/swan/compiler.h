@@ -70,17 +70,21 @@ static inline int swan_run(int argc,char **argv){
  SwanError err={0};TokenStream ts;
  if(!swan_lex(source,&ts,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);free(source);return 1;}
  Program p={0};
- if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
+ if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  free(ts.items);
- if(!swan_semantic_check(&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
+ char *module_sources[64]={0},*module_texts[64]={0};size_t module_count=0;
+ if(!swan_load_imports(&p,"stdlib",module_sources,module_texts,&module_count,&err)){
+  fprintf(stderr,"swan: %s\\n",err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);swan_release_modules(module_sources,module_texts,module_count);return 1;
+ }
+ if(!swan_semantic_check(&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  Text assembly={0};
- if(!swan_codegen_x86_64(&p,&assembly,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ if(!swan_codegen_x86_64(&p,&assembly,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 1;}
  if(mode==SWAN_EMIT){
   const char *dest=output?output:"a.s";FILE *of=fopen(dest,"wb");
   if(!of){perror(dest);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
   bool ok=fwrite(assembly.data,1,assembly.len,of)==assembly.len&&fclose(of)==0;
   if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
-  free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 0;
+  free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return 0;
  }
  char temp[]="/tmp/swan-XXXXXX";int fd=mkstemp(temp);
  if(fd<0){perror("mkstemp");free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
@@ -96,7 +100,7 @@ static inline int swan_run(int argc,char **argv){
  else snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());
  char *cc_args[]={"cc","-x","assembler",temp,"-o",exe,NULL};
  int result=swan_exec(cc_args,true);unlink(temp);
- if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
+ if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);return result<0?1:result;}
  free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);
  if(mode==SWAN_BUILD)return 0;
  char *run_args[]={exe,NULL};result=swan_exec(run_args,false);
