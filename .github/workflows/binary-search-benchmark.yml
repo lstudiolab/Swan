@@ -42,7 +42,7 @@ jobs:
           rustc --version
       - name: Build Swan compiler
         run: sh build.sh
-      - name: Run 20M x 20M benchmark
+      - name: Run 20M x 20M checked/unchecked benchmark
         run: python3 benchmarks/binary_search.py
       - name: Publish benchmark summary
         if: always()

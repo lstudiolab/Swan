@@ -9,7 +9,7 @@ fn main() -> int:
     var query = 0
     var checksum = 0
     while query < 20000000
-        var target = (query * 7919) % 20000000
+        var target = 0
         var low = 0
         var high = 19999999
         var found = -1
@@ -25,6 +25,9 @@ fn main() -> int:
                 else
                     high = middle - 1
         checksum = checksum + found
+        target = target + 7919
+        if target >= 20000000
+            target = target - 20000000
         query = query + 1
     log checksum
     return 0
