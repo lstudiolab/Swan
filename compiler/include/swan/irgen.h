@@ -90,8 +90,8 @@ static inline SwanIRType swan_irgen_infer_expr_type(SwanIRGen *g,Expr *e){
     if(e->kind==E_UNARY)return e->token.kind==T_NOT?SWAN_IR_I1:swan_irgen_infer_expr_type(g,e->left);
     if(e->kind==E_BINARY){
         if(e->token.kind==T_EQ||e->token.kind==T_NE||e->token.kind==T_LT||e->token.kind==T_LE||e->token.kind==T_GT||e->token.kind==T_GE||e->token.kind==T_AND||e->token.kind==T_OR)return SWAN_IR_I1;
-        SwanIRType left=swan_irgen_infer_expr_type(g,e->left);
-        return e->left&&e->left->kind==E_INT?swan_irgen_infer_expr_type(g,e->right):left;
+        SwanIRType left=swan_irgen_infer_expr_type(g,e->left);int64_t literal_value;
+        return swan_irgen_integer_literal(e->left,&literal_value)?swan_irgen_infer_expr_type(g,e->right):left;
     }
     return SWAN_IR_VOID;
 }
@@ -183,7 +183,7 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
             SwanIRInst in={0};in.op=SWAN_IR_STORE;in.type=SWAN_IR_VOID;in.a=local->value;in.b=v;
             swan_irgen_emit(g,in);return v;
         }
-        SwanIRType expected=e->left&&e->left->kind==E_INT?swan_irgen_infer_expr_type(g,e->right):swan_irgen_infer_expr_type(g,e->left);
+        int64_t literal_value;SwanIRType expected=swan_irgen_integer_literal(e->left,&literal_value)?swan_irgen_infer_expr_type(g,e->right):swan_irgen_infer_expr_type(g,e->left);
         uint32_t a=swan_irgen_expr_as(g,e->left,expected);if(!a)return 0;
         uint32_t b=swan_irgen_expr_as(g,e->right,swan_ir_value_type_of(g->function,a));if(!b)return 0;
         SwanIRType t=swan_ir_value_type_of(g->function,a);
