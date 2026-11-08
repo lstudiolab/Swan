@@ -44,7 +44,7 @@ int main(void) {
     assert(swan_svm_write_u32(trailing,0));
     assert(swan_svm_write_u64(trailing,4));
     assert(swan_svm_write_u32(trailing,0));
-    assert(fputc(0xff,trailing)!=EOF);assert(fflush(trailing)==0);assert(fseek(trailing,0,SEEK_END)==0&&ftell(trailing)==25);
+    assert(fputc(0xff,trailing)!=EOF);assert(fflush(trailing)==0);assert(fseek(trailing,0,SEEK_END)==0&&ftell(trailing)==29);
     rewind(trailing);assert(!swan_svm_read_module(trailing,&rejected,error,sizeof(error)));
     fclose(trailing);
     SwanIRModule narrow={0};
