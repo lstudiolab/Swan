@@ -192,20 +192,21 @@ static inline int swan_run(int argc,char **argv){
  bool written=fwrite(assembly.data,1,assembly.len,af)==assembly.len;
  if(fclose(af)!=0)written=false;
  if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ int result=0;
  if(has_lazy){
   char *cc_args[]={"cc","-rdynamic","-x","assembler",temp,"-x","c",runtime_source,"-ldl","-o",exe,NULL};
-  int result=swan_exec(cc_args,true);unlink(temp);unlink(runtime_source);
+  result=swan_exec(cc_args,true);unlink(temp);unlink(runtime_source);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);if(temporary_output)swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }else{
   char *cc_args[]={"cc","-x","assembler",temp,"-o",exe,NULL};
-  int result=swan_exec(cc_args,true);unlink(temp);
+  result=swan_exec(cc_args,true);unlink(temp);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }
  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
- swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);
- if(mode==SWAN_BUILD)return 0;
- char *run_args[]={exe,NULL};int result=swan_exec(run_args,false);
+ if(mode==SWAN_BUILD){swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 0;}
+ char *run_args[]={exe,NULL};result=swan_exec(run_args,false);
  if(temporary_output){unlink(exe);if(has_lazy)swan_remove_lazy_modules(exe,&p);}
+ swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);
  return result<0?1:result;
 }
 #endif
