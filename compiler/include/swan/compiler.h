@@ -4,6 +4,7 @@
 #define _POSIX_C_SOURCE 200809L
 #endif
 #include "swan/codegen_x86_64.h"
+#include "swan/target.h"
 #include "swan/sema.h"
 #include <unistd.h>
 #include <sys/wait.h>
@@ -137,7 +138,8 @@ static inline void swan_remove_lazy_modules(const char *exe,Program *p){
 
 static inline int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target x86_64] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target <target>] [--list-targets] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
@@ -145,14 +147,15 @@ static inline int swan_run(int argc,char **argv){
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target x86_64] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
  const char *input=argv[index++],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
- bool emit_asm=false;
+ bool emit_asm=false;const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--stdlib")&&i+1<argc)stdlib_dir=argv[++i];
   else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
-   const char *target=argv[++i];
-   if(strcmp(target,"x86_64")&&strcmp(target,"x86-64")){fprintf(stderr,"swan: target '%s' is not implemented; available target: x86_64\n",target);return 2;}
+   const char *name=argv[++i];target=swan_target_find(name);
+   if(!target){fprintf(stderr,"swan: unknown target '%s'; use --list-targets\n",name);return 2;}
+   if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);return 2;}
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);return 2;}
  }
  if(emit_asm)mode=SWAN_EMIT;
