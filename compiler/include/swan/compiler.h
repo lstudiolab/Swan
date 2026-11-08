@@ -7,6 +7,7 @@
 #include "swan/sema.h"
 #include <unistd.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 
 static inline char *swan_read_file(const char *path){
  FILE *f=fopen(path,"rb");if(!f)return NULL;
@@ -95,7 +96,7 @@ static inline bool swan_write_temp(const char *pattern,const char *data,size_t l
 static inline bool swan_build_lazy_modules(Program *p,const char *exe,SwanError *err){
  if(!swan_has_lazy_imports(p))return true;
  char directory[1200];int n=snprintf(directory,sizeof(directory),"%s.modules",exe);
- if(n<0||(size_t)n>=sizeof(directory)||mkdir(directory,0755)!=0&&errno!=EEXIST){swan_error(err,NULL,"cannot create lazy-module directory");return false;}
+ if(n<0||(size_t)n>=sizeof(directory)||(mkdir(directory,0755)!=0&&errno!=EEXIST)){swan_error(err,NULL,"cannot create lazy-module directory");return false;}
  for(size_t m=0;m<p->module_count;m++){
   if(!swan_module_is_used(p,m))continue;
   Text module_assembly={0};int previous=p->codegen_module_index;p->codegen_module_index=(int)m;
