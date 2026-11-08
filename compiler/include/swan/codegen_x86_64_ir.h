@@ -7,13 +7,13 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(fn->parameter_count>6){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports six register parameters");return false;}
+  if(fn->parameter_count>16){if(error&&cap)snprintf(error,cap,"x86-64 IR backend supports at most 16 parameters");return false;}
   if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I1&&fn->return_type!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1 and i64 returns");return false;}
   for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I1&&fn->parameter_types[p]!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1 and i64 parameters");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
    if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1/i64 scalar values and pointers");return false;}
-   if(in->op==SWAN_IR_CALL&&in->incoming_count>6){if(error&&cap)snprintf(error,cap,"x86-64 IR calls support at most six arguments");return false;}
+   if(in->op==SWAN_IR_CALL&&in->incoming_count>16){if(error&&cap)snprintf(error,cap,"x86-64 IR calls support at most 16 arguments");return false;}
   }
  }
  static const char *args[]={"rdi","rsi","rdx","rcx","r8","r9"};
@@ -22,7 +22,8 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
   size_t value_bytes=((size_t)fn->next_value+1)*8u,frame=(value_bytes+allocas*8u+15u)&~(size_t)15u;
   text_add(o,".intel_syntax noprefix\n.text\n.globl %s\n.type %s, @function\n%s:\n    push rbp\n    mov rbp, rsp\n    sub rsp, %zu\n",fn->name,fn->name,fn->name,frame);
-  for(size_t p=0;p<fn->parameter_count;p++)text_add(o,"    mov QWORD PTR [rbp-%d], %s\n",swan_x64_slot((uint32_t)p+1),args[p]);
+  for(size_t p=0;p<fn->parameter_count&&p<6;p++)text_add(o,"    mov QWORD PTR [rbp-%d], %s\n",swan_x64_slot((uint32_t)p+1),args[p]);
+  for(size_t p=6;p<fn->parameter_count;p++)text_add(o,"    mov rax, QWORD PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",16u+(p-6u)*8u,swan_x64_slot((uint32_t)p+1));
   size_t ai=0;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];text_add(o,".Lsw_f%zu_b%zu:\n",f,b);
@@ -34,10 +35,14 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
      case SWAN_IR_ALLOCA:{size_t off=value_bytes+ai++*8u;text_add(o,"    lea rax, [rbp-%zu]\n    mov QWORD PTR [rbp-%d], rax\n",off,d);break;}
      case SWAN_IR_LOAD:text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov r10, QWORD PTR [rax]\n    mov QWORD PTR [rbp-%d], r10\n",a,d);break;
      case SWAN_IR_STORE:text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov r10, QWORD PTR [rbp-%d]\n    mov QWORD PTR [rax], r10\n",a,z);break;
-     case SWAN_IR_CALL:
-      for(size_t k=0;k<in->incoming_count;k++)text_add(o,"    mov %s, QWORD PTR [rbp-%d]\n",args[k],swan_x64_slot(in->incoming[k].value));
+     case SWAN_IR_CALL:{
+      size_t stack_count=in->incoming_count>6?in->incoming_count-6:0,outgoing=(stack_count*8u+15u)&~(size_t)15u;
+      if(outgoing)text_add(o,"    sub rsp, %zu\n",outgoing);
+      for(size_t k=6;k<in->incoming_count;k++)text_add(o,"    mov r10, QWORD PTR [rbp-%d]\n    mov QWORD PTR [rsp+%zu], r10\n",swan_x64_slot(in->incoming[k].value),(k-6u)*8u);
+      for(size_t k=0;k<in->incoming_count&&k<6;k++)text_add(o,"    mov %s, QWORD PTR [rbp-%d]\n",args[k],swan_x64_slot(in->incoming[k].value));
       text_add(o,"    xor eax, eax\n    call %s\n",in->symbol);
-      if(in->type!=SWAN_IR_VOID)text_add(o,"    mov QWORD PTR [rbp-%d], rax\n",d);break;
+      if(outgoing)text_add(o,"    add rsp, %zu\n",outgoing);
+      if(in->type!=SWAN_IR_VOID)text_add(o,"    mov QWORD PTR [rbp-%d], rax\n",d);break;}
      case SWAN_IR_SELECT:text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    mov r10, QWORD PTR [rbp-%d]\n    test rax, rax\n    cmovne r10, rcx\n    mov QWORD PTR [rbp-%d], r10\n",a,z,swan_x64_slot(in->c),d);break;
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, rcx\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"imul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":"xor",d);break;
