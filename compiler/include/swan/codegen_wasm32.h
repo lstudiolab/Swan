@@ -16,7 +16,7 @@ static inline bool swan_wasm_bytes(SwanWasmBuffer *b,const void *p,size_t n){if(
 static inline bool swan_wasm_u32(SwanWasmBuffer *b,uint32_t v){do{uint8_t x=(uint8_t)(v&127u);v>>=7;if(v)x|=128;if(!swan_wasm_byte(b,x))return false;}while(v);return true;}
 static inline bool swan_wasm_s64(SwanWasmBuffer *b,int64_t v){bool more=true;while(more){uint8_t x=(uint8_t)(v&127);v>>=7;bool sign=(x&64)!=0;more=!((v==0&&!sign)||(v==-1&&sign));if(more)x|=128;if(!swan_wasm_byte(b,x))return false;}return true;}
 static inline bool swan_wasm_name(SwanWasmBuffer *b,const char *s){size_t n=strlen(s);return n<=UINT32_MAX&&swan_wasm_u32(b,(uint32_t)n)&&swan_wasm_bytes(b,s,n);}
-static inline uint8_t swan_wasm_type(SwanIRType t){return t==SWAN_IR_I1||t==SWAN_IR_I8||t==SWAN_IR_I16||t==SWAN_IR_I32||t==SWAN_IR_PTR?0x7f:t==SWAN_IR_VOID?0x40:0x7e;}
+static inline uint8_t swan_wasm_type(SwanIRType t){return t==SWAN_IR_F32?0x7d:t==SWAN_IR_F64?0x7c:t==SWAN_IR_I1||t==SWAN_IR_I8||t==SWAN_IR_I16||t==SWAN_IR_I32||t==SWAN_IR_PTR?0x7f:t==SWAN_IR_VOID?0x40:0x7e;}
 static inline bool swan_wasm_get(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_set(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x21)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRFunction *fn,const SwanIRInst *in){
