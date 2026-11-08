@@ -2,6 +2,8 @@
 #define SWAN_IRGEN_H
 #include "swan/ir.h"
 #include "swan/ast.h"
+#include <errno.h>
+#include <limits.h>
 
 typedef struct {
     const char *name;
@@ -63,8 +65,8 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e);
 static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
     if(!e)return 0;
     if(e->kind==E_INT||e->kind==E_BOOL) {
-        char *end=NULL;int64_t v=e->kind==E_BOOL?(e->token.kind==T_TRUE):strtoll(e->token.text,&end,10);
-        if(e->kind==E_INT&&(!end||*end)){swan_irgen_fail(g,&e->token,"integer literal is outside the supported IR range");return 0;}
+        char *end=NULL;errno=0;int64_t v=e->kind==E_BOOL?(e->token.kind==T_TRUE):strtoll(e->token.text,&end,10);
+        if(e->kind==E_INT&&(errno==ERANGE||!end||end==e->token.text||*end)){swan_irgen_fail(g,&e->token,"integer literal is outside the supported IR range");return 0;}
         return swan_irgen_const(g,e->kind==E_BOOL?SWAN_IR_I1:SWAN_IR_I64,v);
     }
     if(e->kind==E_NAME) {
@@ -204,6 +206,7 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
     memset(module,0,sizeof(*module));
     for(size_t i=0;i<program->count;i++){
         Stmt *source=program->functions[i];SwanIRType params[16];
+        if(source->param_count>16){swan_error(error,&source->token,"IR backend supports at most 16 parameters per function");goto fail;}
         for(size_t p=0;p<source->param_count;p++){params[p]=swan_irgen_type(source->param_types?source->param_types[p]:NULL);if(params[p]==SWAN_IR_VOID){swan_error(error,&source->token,"unsupported or missing parameter type");goto fail;}}
         SwanIRType ret=swan_irgen_type(source->type);
         SwanIRFunction *fn=swan_ir_add_function(module,source->name,ret,params,source->param_count);
