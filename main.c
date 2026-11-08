@@ -47,7 +47,7 @@ static int swan_run(int argc,char **argv){
   char module_path[1024];bool temporary=output==NULL&&mode!=SWAN_BUILD;
   const char *dest=output?output:(mode==SWAN_BUILD?"a.swvm":"/tmp/swan-module-XXXXXX");
   int fd=-1;
-  if(temporary){fd=mkstemp(module_path);if(fd>=0)close(fd);dest=module_path;}
+  if(temporary){snprintf(module_path,sizeof(module_path),"/tmp/swan-module-XXXXXX");fd=mkstemp(module_path);if(fd>=0)close(fd);dest=module_path;}
   FILE *artifact=fd>=0||!temporary?fopen(dest,"wb"):NULL;
   bool saved=artifact&&swan_svm_write_module(artifact,&ir);
   if(artifact&&fclose(artifact)!=0)saved=false;
