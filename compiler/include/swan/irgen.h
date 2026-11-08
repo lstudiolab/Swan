@@ -192,7 +192,9 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
             SwanIRInst in={0};in.op=SWAN_IR_STORE;in.type=SWAN_IR_VOID;in.a=local->value;in.b=v;
             swan_irgen_emit(g,in);return v;
         }
-        SwanIRType expected=e->left&&e->left->kind==E_INT?swan_irgen_infer_expr_type(g,e->right):swan_irgen_infer_expr_type(g,e->left);\n        uint32_t a=swan_irgen_expr_as(g,e->left,expected);if(!a)return 0;\n        uint32_t b=swan_irgen_expr_as(g,e->right,swan_ir_value_type_of(g->function,a));if(!b)return 0;
+        SwanIRType expected=e->left&&e->left->kind==E_INT?swan_irgen_infer_expr_type(g,e->right):swan_irgen_infer_expr_type(g,e->left);
+        uint32_t a=swan_irgen_expr_as(g,e->left,expected);if(!a)return 0;
+        uint32_t b=swan_irgen_expr_as(g,e->right,swan_ir_value_type_of(g->function,a));if(!b)return 0;
         SwanIRType t=swan_ir_value_type_of(g->function,a);
         if(t!=swan_ir_value_type_of(g->function,b)){swan_irgen_fail(g,&e->token,"binary operand type mismatch");return 0;}
         SwanIROp op;
