@@ -8,9 +8,9 @@ mkdir -p "$TMP"
 cat "$ROOT/stdlib/foundation.swan" > "$TMP/program.swan"
 cat >> "$TMP/program.swan" <<'SWAN'
 fn main():
-    echo("Foundation ready")
+    foundation_hello()
     echo_int(abs_int(-9))
-    echo_float(average_int(4, 7))
+    echo_int(average_int(4, 7))
     echo_bool(is_even(12))
     echo_bool(is_odd(9))
     echo_int(min_int(8, 3))
@@ -26,12 +26,11 @@ fn main():
     return 0
 SWAN
 
-"$SWAN" "$TMP/program.swan" -o "$TMP/program.s"
-${CC:-cc} -x assembler "$TMP/program.s" -o "$TMP/program"
+"$SWAN" build "$TMP/program.swan" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
-Foundation ready
+Foundation standard library ready
 9
-5.5
+5
 1
 1
 3
@@ -47,4 +46,4 @@ Foundation ready
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: Foundation runtime utilities\n'
+printf 'PASS: Foundation standard library and echo! intrinsic\n'

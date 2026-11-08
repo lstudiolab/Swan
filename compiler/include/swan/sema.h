@@ -26,7 +26,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
   case E_NAME:if(!swan_symbol_find(symbols,e->token.text,NULL)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}return true;
   case E_CALL:{
    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"only direct function calls are supported");return false;}
-   if(!strcmp(e->left->token.text,"array_u32")||!strcmp(e->left->token.text,"array_u32_unchecked")){
+   if(!strcmp(e->left->token.text,"array")||!strcmp(e->left->token.text,"array_u32")||!strcmp(e->left->token.text,"array_unchecked")||!strcmp(e->left->token.text,"array_u32_unchecked")){
     if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return false;}
     return swan_check_expr(p,e->args[0],symbols,err);
    }

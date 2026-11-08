@@ -1,30 +1,34 @@
 # Swan Standard Library
 
-The standard library is written in Swan wherever the current language can express the feature.
+The standard library is written in Swan and lives under `stdlib/`.
 
 ## Foundation
 
-foundation.swan is the first standard-library module. It provides echo, echo_int, echo_float, echo_bool; integer helpers abs_int, min_int, max_int, clamp_int, sign_int, square_int, cube_int, power_int, factorial_int, sum_to_int, average_int; and predicates is_even, is_odd, in_range_int.
+`foundation.swan` provides `echo_int`, `echo_bool`, `echo!(...)`, and
+integer helpers including `abs_int`, `min_int`, `max_int`, `clamp_int`,
+`sign_int`, `square_int`, `cube_int`, `power_int`, `factorial_int`,
+`sum_to_int`, `average_int`, `is_even`, `is_odd`, and `in_range_int`.
 
-These are actual Swan function bodies, not compiler-provided placeholders. Boolean output currently prints 1 for true and 0 for false. Negative power exponents and negative factorial inputs return 0.
+`echo!("text")` is a compiler-recognized output intrinsic. It emits a direct
+`puts` call for a string literal; it does not allocate a heap string or
+format the value through `printf`. Integer and boolean output use `log`.
 
 ## Example
 
-    fn main():
-        echo("Foundation ready")
-        echo_int(square_int(5))
-        return 0
+Until source-module imports are implemented, combine the standard-library
+module and application source:
 
-Swan blocks use indentation; no curly braces or end keyword are used.
+```sh
+cat stdlib/foundation.swan main.swan > combined.swan
+sh build.sh
+./build/swan build combined.swan -o app
+./app
+```
 
-Until module resolution is implemented, combine library and application source:
-
-    cat stdlib/foundation.swan main.swan > combined.swan
-    ./build/swan build combined.swan -o combined
-    ./combined
-
-The compiler parses import syntax, but module resolution and linking are not implemented. Therefore import foundation is not supported.
+Swan uses indentation-based blocks and does not use braces or an `end`
+keyword. The compiler currently targets x86-64 System V Linux.
 
 ## Current limitations
 
-String manipulation, input, files, networking, random numbers, and platform APIs need additional runtime/compiler support. The initial native backend targets x86-64 Linux and uses 64-bit integer machine operations; overflow semantics still need a formal language-level specification.
+Module resolution, floating-point execution, general strings, file I/O,
+networking, and additional architecture backends are not yet implemented.
