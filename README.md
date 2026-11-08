@@ -45,7 +45,7 @@ Emit assembly:
 ./build/swan examples/hello.swan --emit-asm -o hello.s
 ```
 
-The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 emit ELF relocatable objects; ARMv7 emits 32-bit ARM ELF objects for its supported `i32` subset. These cross-target objects must be linked for their destination system and cannot execute on the x86-64 host. WebAssembly 32 emits executable modules with control flow, calls, PHI nodes and linear-memory-backed mutable locals. WebAssembly 64 emits memory64 modules for the same supported scalar/control-flow subset. The portable SVM executes verified IR on the host and can also serialize and load standalone `.swvm` modules. Unsupported IR is rejected with a diagnostic rather than silently lowered.\n\nCross-target example: `./build/swan build examples/hello.swan --target aarch64 -o hello-aarch64.o`. For WebAssembly, use `--target wasm32 -o hello.wasm`; for portable bytecode, use `--target svm -o hello.swvm`.
+The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 emit ELF relocatable objects; ARMv7 emits 32-bit ARM ELF objects for its supported `i32` subset. These cross-target objects must be linked for their destination system and cannot execute on the x86-64 host. WebAssembly 32 emits executable modules with control flow, calls, PHI nodes and linear-memory-backed mutable locals. WebAssembly 64 emits memory64 modules for the same supported scalar/control-flow subset. The x86-64 compiler now prefers verified SSA IR for the supported scalar subset and retains the established AST backend as a compatibility path for arrays, logging and lazy imports. The portable SVM executes verified IR on the host and can also serialize and load standalone `.swvm` modules. Unsupported IR is rejected with a diagnostic rather than silently lowered.\n\nCross-target example: `./build/swan build examples/hello.swan --target aarch64 -o hello-aarch64.o`. For WebAssembly, use `--target wasm32 -o hello.wasm`; for portable bytecode, use `--target svm -o hello.swvm`.
 
 ## Language subset
 
@@ -145,7 +145,7 @@ CI runs the complete suite, including compiler construction, header isolation, p
 
 | Target | Status | Current scope |
 |---|---|---|
-| x86-64 System V Linux | Implemented | Full existing native compiler path |
+| x86-64 System V Linux | Implemented | IR-first for supported scalar functions; AST compatibility backend for arrays, logging and lazy imports |
 | AArch64 / ARM64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges and mutable stack locals; emits AArch64 ELF objects |
 | RISC-V 64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges and mutable stack locals; emits RV64 ELF objects |
 | WebAssembly 32-bit | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges and linear-memory-backed mutable locals |
@@ -154,6 +154,6 @@ CI runs the complete suite, including compiler construction, header isolation, p
 | WebAssembly 64-bit / memory64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges, memory64 stack frames and mutable locals |
 | Windows x64 / Apple Darwin | Not implemented | Registry only |
 
-Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 native backend; array/slice lowering, floating-point arithmetic, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. ARMv7 currently has no integer division helper. Cross-target backends are intentionally a supported subset rather than claiming full frontend parity. A listed implemented backend does not imply every Swan program can target it.
+Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 frontend; array/slice lowering, floating-point arithmetic, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. ARMv7 currently has no integer division helper. Cross-target backends are intentionally a supported subset rather than claiming full frontend parity. A listed implemented backend does not imply every Swan program can target it.
 
 Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
