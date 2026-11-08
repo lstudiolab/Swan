@@ -42,7 +42,7 @@ static const SwanTarget swan_targets[] = {
     {"x86_64", "x86_64-unknown-linux-gnu", SWAN_ARCH_X86_64, SWAN_OBJECT_ELF, SWAN_ABI_SYSV, true},
     {"aarch64", "aarch64-unknown-linux-gnu", SWAN_ARCH_AARCH64, SWAN_OBJECT_ELF, SWAN_ABI_AAPCS64, true},
     {"armv7", "armv7-unknown-linux-gnueabihf", SWAN_ARCH_ARMV7, SWAN_OBJECT_ELF, SWAN_ABI_AAPCS32, false},
-    {"riscv64", "riscv64-unknown-linux-gnu", SWAN_ARCH_RISCV64, SWAN_OBJECT_ELF, SWAN_ABI_RISCV, false},
+    {"riscv64", "riscv64-unknown-linux-gnu", SWAN_ARCH_RISCV64, SWAN_OBJECT_ELF, SWAN_ABI_RISCV, true},
     {"wasm32", "wasm32-unknown-unknown", SWAN_ARCH_WASM32, SWAN_OBJECT_WASM, SWAN_ABI_WASM, true},
     {"wasm64", "wasm64-unknown-unknown", SWAN_ARCH_WASM64, SWAN_OBJECT_WASM, SWAN_ABI_WASM, false},
     {"svm", "swanvm-unknown-portable", SWAN_ARCH_SVM, SWAN_OBJECT_WASM, SWAN_ABI_WASM, true}
