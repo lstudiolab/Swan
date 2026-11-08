@@ -21,7 +21,7 @@ int main(void){
  SwanIRInst add2=add1;uint32_t sum2=swan_ir_add_inst(cf,cb,add2);
  SwanIRInst mul={0};mul.op=SWAN_IR_MUL;mul.type=SWAN_IR_I64;mul.a=sum2;mul.b=v0;uint32_t product=swan_ir_add_inst(cf,cb,mul);
  assert(swan_ir_terminate(cb,(SwanIRTerm){SWAN_IR_RET,product,0,0}));
- assert(swan_ir_optimize(&cse,error,sizeof(error)));assert(swan_ir_verify(&cse,error,sizeof(error)));assert(cb->instruction_count==1);assert(cb->instructions[0].op==SWAN_IR_MUL&&cb->instructions[0].a==sum1);
+ assert(swan_ir_optimize(&cse,error,sizeof(error)));assert(swan_ir_verify(&cse,error,sizeof(error)));assert(cb->instruction_count==2);assert(cb->instructions[0].op==SWAN_IR_ADD);assert(cb->instructions[1].op==SWAN_IR_MUL&&cb->instructions[1].a==sum1);
  swan_ir_destroy(&cse);
  puts("PASS: verified optimization pass manager, constant folding, algebraic simplification, common-subexpression elimination and dead-code elimination");
  return 0;
