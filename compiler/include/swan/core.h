@@ -22,14 +22,7 @@ typedef enum { T_EOF,T_IDENT,T_INT,T_FLOAT,T_STRING,T_NEWLINE,T_INDENT,T_DEDENT,
  T_LB,T_RB,T_DOT,T_SEMI } TokenKind;
 typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
-typedef enum { E_INT,E_FLOAT,E_STRING,E_BOOL,E_NAME,E_UNARY,E_BINARY,E_CALL,E_INDEX } ExprKind;
-typedef struct Expr Expr;
-struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t argc; bool contains_call,constant_checked,constant_valid; int64_t constant_value; };
-typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
-typedef struct Stmt Stmt;
-struct Stmt { StmtKind kind; Token token; const char *name,*type; bool mutable_value,manual_memory; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; size_t param_count; Stmt *next; int module_index; bool imported; };
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
-typedef struct { Stmt *functions[1024]; size_t count; const char *imports[64]; size_t import_count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; size_t source_function_count,module_count,module_starts[64],module_ends[64]; const char *module_names[64]; bool function_reachable[1024]; int codegen_module_index; } Program;
 static inline void *swan_arena_alloc(Program *p,size_t size){
  const size_t align=_Alignof(max_align_t);size=(size+align-1)&~(align-1);
  SwanArenaChunk *c=p->arena;
