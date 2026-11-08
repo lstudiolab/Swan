@@ -32,8 +32,8 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
  if(in->op==SWAN_IR_PHI)return true;
  if(in->op==SWAN_IR_CONST)return swan_wasm_const(b,i32||in->type==SWAN_IR_PTR&&!memory64,in->immediate)&&swan_wasm_set(b,in->result);
  if(in->op==SWAN_IR_ALLOCA){uint64_t addr=16u+(*alloca_index)++*8u;return swan_wasm_const(b,ptr64,(int64_t)addr)&&swan_wasm_set(b,in->result);}
- if(in->op==SWAN_IR_LOAD){return swan_wasm_get(b,in->a)&&swan_wasm_byte(b,in->type==SWAN_IR_I32||in->type==SWAN_IR_I1?0x28:0x29)&&swan_wasm_u32(b,3)&&swan_wasm_u32(b,0)&&swan_wasm_set(b,in->result);}
- if(in->op==SWAN_IR_STORE){SwanIRType vt=swan_ir_value_type_of(fn,in->b);return swan_wasm_get(b,in->a)&&swan_wasm_get(b,in->b)&&swan_wasm_byte(b,vt==SWAN_IR_I32||vt==SWAN_IR_I1?0x36:0x37)&&swan_wasm_u32(b,3)&&swan_wasm_u32(b,0);}
+ if(in->op==SWAN_IR_LOAD){bool i32=in->type==SWAN_IR_I32||in->type==SWAN_IR_I1;return swan_wasm_get(b,in->a)&&swan_wasm_byte(b,i32?0x28:0x29)&&swan_wasm_u32(b,i32?2:3)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0))&&swan_wasm_set(b,in->result);}
+ if(in->op==SWAN_IR_STORE){SwanIRType vt=swan_ir_value_type_of(fn,in->b);bool i32=vt==SWAN_IR_I32||vt==SWAN_IR_I1;return swan_wasm_get(b,in->a)&&swan_wasm_get(b,in->b)&&swan_wasm_byte(b,i32?0x36:0x37)&&swan_wasm_u32(b,i32?2:3)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0));}
  if(in->op==SWAN_IR_CALL){size_t index=m->function_count;for(size_t i=0;i<m->function_count;i++)if(in->symbol&&!strcmp(m->functions[i].name,in->symbol)){index=i;break;}if(index==m->function_count)return false;
   for(size_t i=0;i<in->incoming_count;i++)if(!swan_wasm_get(b,in->incoming[i].value))return false;
   if(!swan_wasm_byte(b,0x10)||!swan_wasm_u32(b,(uint32_t)index))return false;return in->type==SWAN_IR_VOID||swan_wasm_set(b,in->result);
@@ -74,7 +74,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   ok=ok&&swan_wasm_u32(&func,(uint32_t)f);
  }
  ok=ok&&swan_wasm_u32(&exports,1)&&swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)main_index);
- if(alloca_total){ok=ok&&swan_wasm_u32(&memory,1)&&swan_wasm_byte(&memory,memory64?4:0)&&swan_wasm_u32(&memory,1);}
+ if(alloca_total){uint64_t pages=(16u+alloca_total*8u+65535u)/65536u;ok=ok&&swan_wasm_u32(&memory,1)&&swan_wasm_byte(&memory,memory64?4:0)&&(memory64?swan_wasm_u64(&memory,pages):swan_wasm_u32(&memory,(uint32_t)pages));}
  ok=ok&&swan_wasm_u32(&code,(uint32_t)m->function_count);
  for(size_t f=0;ok&&f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];SwanWasmBuffer body={0};uint32_t local_count=fn->next_value-(uint32_t)fn->parameter_count-1;
