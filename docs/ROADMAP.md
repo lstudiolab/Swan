@@ -30,7 +30,7 @@ The IR backends currently use stack/register slots and conservative lowering. Th
 ## Remaining performance work before SIL
 
 1. Implement liveness analysis and global register allocation for IR backends.
-2. Add copy propagation, global value numbering improvements, and target-aware value reuse with dominance-aware tests.
+2. Expand global value numbering and target-aware value reuse with dominance-aware tests.
 3. Add target-aware instruction selection and scheduling.
 4. Add array/slice IR, bounds-check semantics and native lowering.
 5. Add floating-point IR semantics, SVM execution and target instruction selection.
