@@ -29,7 +29,7 @@ The x86-64 compatibility path can still lower frontend constructs not yet repres
 | AST | — | AST data model | Own node/type definitions and source spans. |
 | Semantic analysis | AST + imported module interfaces | Validated AST | Resolve names, scopes, types and control-flow constraints. |
 | IR generation | Validated AST | Typed target-independent SSA IR | Explicit values, control-flow blocks, calls, memory operations and terminators. |
-| IR optimization | IR | Verified optimized IR | Constant folding, constant select folding, CFG simplification, algebraic simplification, dominance-aware CSE and iterative DCE. |
+| IR optimization | IR | Verified optimized IR | Constant folding, constant select folding, CFG simplification, algebraic simplification, dominance-aware CSE, conservative loop-invariant code motion, and iterative DCE. |
 | Code generation | Optimized IR + target | Assembly or binary module | Target instruction selection, ABI argument/return handling, frame layout, branch/PHI lowering. |
 | Emitter | Assembly text | File output | Write generated assembly without changing its meaning. |
 | Linker | Assembly/object + toolchain | Object or executable | Invoke the selected assembler/linker; no compiler-backend fallback. |
