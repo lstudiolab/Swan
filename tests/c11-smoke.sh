@@ -323,7 +323,7 @@ SWAN
 cc -x assembler "$TMP/array-midpoint.s" -o "$TMP/array-midpoint"
 test "$("$TMP/array-midpoint")" = "0"
 grep -q 'shr rax, 1' "$TMP/array-midpoint.s"
-if grep -Eq 'cmp rcx, QWORD PTR \\[[a-z0-9]+ - 8\\]' "$TMP/array-midpoint.s"; then
+if grep -Eq 'cmp rcx, QWORD PTR \[[a-z0-9]+ - 8\]' "$TMP/array-midpoint.s"; then
     echo "FAIL: proven midpoint array access retained a bounds check" >&2
     exit 1
 fi
@@ -332,6 +332,25 @@ if grep -q 'mov r11, rbx' "$TMP/array-midpoint.s"; then
     exit 1
 fi
 printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
+
+cat > "$TMP/unsafe-midpoint.swan" <<'SWAN'
+fn main():
+    let values = array(8)
+    var low = 0
+    var high = 7
+    while low <= high
+        var middle = low + (high - low) // 2
+        log values[middle]
+        log (low = -1)
+        break
+    return 0
+SWAN
+"$SWAN" "$TMP/unsafe-midpoint.swan" --emit-asm -o "$TMP/unsafe-midpoint.s"
+if ! grep -Eq 'cmp rcx, QWORD PTR \\[[a-z0-9]+ - 8\\]' "$TMP/unsafe-midpoint.s"; then
+    echo "FAIL: midpoint bounds check was removed after a nested bound mutation" >&2
+    exit 1
+fi
+printf 'PASS: midpoint bounds-check elimination rejects mutated bounds\n'
 
 cat > "$TMP/power-two-multiply.swan" <<'SWAN'
 fn main():
