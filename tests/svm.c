@@ -19,6 +19,8 @@ int main(void) {
     char error[256]={0}; int64_t result=0;
     assert(swan_svm_run(&module,"main",100,&result,error,sizeof(error)));
     assert(result==42);
+    assert(!swan_svm_run(&module,"main",1,&result,error,sizeof(error)));
+    assert(strstr(error,"fuel exhausted")!=NULL);
     assert(swan_ir_optimize(&module,error,sizeof(error)));
     assert(swan_svm_run(&module,"main",100,&result,error,sizeof(error)));
     assert(result==42);
@@ -67,6 +69,18 @@ int main(void) {
     assert(swan_ir_verify(&shared,error,sizeof(error)));
     assert(swan_svm_run(&shared,"main",1000,&result,error,sizeof(error))&&result==99);
     swan_ir_destroy(&shared);
+
+    /* Recursive calls must stop at the configured VM depth limit. */
+    SwanIRModule recursion={0};
+    SwanIRFunction *recursive=swan_ir_add_function(&recursion,"recursive",SWAN_IR_I64,NULL,0);assert(recursive);
+    SwanIRBlock *recursive_entry=swan_ir_add_block(recursive,"entry");assert(recursive_entry);
+    SwanIRInst self_call={0};self_call.op=SWAN_IR_CALL;self_call.type=SWAN_IR_I64;self_call.symbol="recursive";
+    uint32_t recursive_value=swan_ir_add_inst(recursive,recursive_entry,self_call);assert(recursive_value);
+    assert(swan_ir_terminate(recursive_entry,(SwanIRTerm){SWAN_IR_RET,recursive_value,0,0}));
+    assert(swan_ir_verify(&recursion,error,sizeof(error)));
+    assert(!swan_svm_run(&recursion,"recursive",100000,&result,error,sizeof(error)));
+    assert(strstr(error,"maximum call depth")!=NULL);
+    swan_ir_destroy(&recursion);
 
     /* Thousands of calls with local allocations must reuse frame storage. */
     {
