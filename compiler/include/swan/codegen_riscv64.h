@@ -43,6 +43,14 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
       if(outgoing)text_add(o,"    addi sp, sp, %zu\n",outgoing);
       if(in->type!=SWAN_IR_VOID)text_add(o,"    sd a0, %d(sp)\n",d);break;}
      case SWAN_IR_SELECT:text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    ld t2, %d(sp)\n    beqz t0, .Lsw_sel%zu_%zu_%zu\n    sd t1, %d(sp)\n    j .Lsw_sel_end%zu_%zu_%zu\n.Lsw_sel%zu_%zu_%zu:\n    sd t2, %d(sp)\n.Lsw_sel_end%zu_%zu_%zu:\n",a,z,swan_rv_offset(in->c),f,b,i,d,f,b,i,f,b,i,d,f,b,i);break;
+     case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
+      int id=o->next_label++;
+      text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    beqz t1, .Lsw_rv_divzero_%d\n",a,z,id);
+      if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM)
+       text_add(o,"    li t2, -9223372036854775808\n    bne t0, t2, .Lsw_rv_divsafe_%d\n    li t2, -1\n    beq t1, t2, .Lsw_rv_divzero_%d\n.Lsw_rv_divsafe_%d:\n",id,id,id);
+      const char *op=in->op==SWAN_IR_SDIV?"div":in->op==SWAN_IR_UDIV?"divu":in->op==SWAN_IR_SREM?"rem":"remu";
+      text_add(o,"    %s t2, t0, t1\n    sd t2, %d(sp)\n    j .Lsw_rv_divdone_%d\n.Lsw_rv_divzero_%d:\n    ebreak\n.Lsw_rv_divdone_%d:\n",op,d,id,id,id);break;
+     }
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
       text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    %s t2, t0, t1\n    sd t2, %d(sp)\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_SDIV?"div":in->op==SWAN_IR_UDIV?"divu":in->op==SWAN_IR_SREM?"rem":in->op==SWAN_IR_UREM?"remu":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":in->op==SWAN_IR_XOR?"xor":in->op==SWAN_IR_SHL?"sll":in->op==SWAN_IR_LSHR?"srl":"sra",d);break;
      case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
