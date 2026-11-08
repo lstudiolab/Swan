@@ -153,10 +153,63 @@ static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
     }
     return changed;
 }
-typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
+static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char *error,size_t cap){
+    *changed=false;
+    for(size_t fi=0;fi<module->function_count;fi++){
+        SwanIRFunction *fn=&module->functions[fi];size_t n=fn->block_count;
+        for(size_t b=0;b<n;b++){
+            SwanIRTerm *term=&fn->blocks[b].terminator;
+            if(term->kind==SWAN_IR_COND_BR){
+                int64_t condition;
+                if(swan_ir_constant(fn,term->value,&condition)){
+                    term->kind=SWAN_IR_BR;term->target=condition?term->target:term->alternate;term->alternate=0;term->value=0;*changed=true;
+                }
+            }
+            if(term->kind==SWAN_IR_COND_BR&&term->target==term->alternate){
+                term->kind=SWAN_IR_BR;term->alternate=0;term->value=0;*changed=true;
+            }
+        }
+        if(n<=1)continue;
+        bool *reachable=calloc(n,sizeof(*reachable));size_t *queue=malloc(n*sizeof(*queue));
+        if(!reachable||!queue){free(reachable);free(queue);if(error&&cap)snprintf(error,cap,"out of memory simplifying IR control flow");return false;}
+        size_t head=0,tail=0;reachable[0]=true;queue[tail++]=0;
+        while(head<tail){
+            size_t b=queue[head++];const SwanIRTerm *t=&fn->blocks[b].terminator;
+            size_t targets[2],count=0;
+            if(t->kind==SWAN_IR_BR)targets[count++]=t->target;
+            else if(t->kind==SWAN_IR_COND_BR){targets[count++]=t->target;targets[count++]=t->alternate;}
+            for(size_t k=0;k<count;k++)if(targets[k]<n&&!reachable[targets[k]]){reachable[targets[k]]=true;queue[tail++]=targets[k];}
+        }
+        size_t live=0;for(size_t b=0;b<n;b++)live+=reachable[b];
+        if(live<n){
+            size_t *map=malloc(n*sizeof(*map));SwanIRBlock *blocks=calloc(live,sizeof(*blocks));
+            if(!map||!blocks){free(map);free(blocks);free(reachable);free(queue);if(error&&cap)snprintf(error,cap,"out of memory compacting IR control-flow graph");return false;}
+            size_t next=0;for(size_t b=0;b<n;b++)map[b]=reachable[b]?next++:SIZE_MAX;
+            for(size_t b=0;b<n;b++)if(reachable[b])blocks[map[b]]=fn->blocks[b];
+            free(fn->blocks);fn->blocks=blocks;fn->block_count=fn->block_capacity=live;
+            for(size_t b=0;b<live;b++){
+                SwanIRBlock *bb=&fn->blocks[b];SwanIRTerm *t=&bb->terminator;
+                if(t->kind==SWAN_IR_BR)t->target=(uint32_t)map[t->target];
+                else if(t->kind==SWAN_IR_COND_BR){t->target=(uint32_t)map[t->target];t->alternate=(uint32_t)map[t->alternate];}
+                for(size_t i=0;i<bb->instruction_count;i++){
+                    SwanIRInst *in=&bb->instructions[i];if(in->op!=SWAN_IR_PHI)continue;
+                    size_t out=0;
+                    for(size_t k=0;k<in->incoming_count;k++)if(in->incoming[k].block<n&&map[in->incoming[k].block]!=SIZE_MAX){
+                        in->incoming[out]=in->incoming[k];in->incoming[out++].block=(uint32_t)map[in->incoming[k].block];
+                    }
+                    in->incoming_count=out;
+                }
+            }
+            free(map);*changed=true;
+        }
+        free(reachable);free(queue);
+    }
+    return true;
+}
+typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
-    {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},
+    {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},\n    {SWAN_IR_PASS_CFG_SIMPLIFY,"cfg-simplification"},
     {SWAN_IR_PASS_ALGEBRAIC,"algebraic-simplification"},
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"common-subexpression-elimination"},
     {SWAN_IR_PASS_DEAD_CODE,"dead-code-elimination"}
@@ -175,7 +228,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                     }
         return swan_ir_verify(module,error,cap);
     }
-    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify(module,error,cap);}\n    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
