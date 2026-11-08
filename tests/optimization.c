@@ -96,7 +96,7 @@ int main(void){
  bool remains=false;for(size_t i=0;i<lf->blocks[2].instruction_count;i++)remains|=lf->blocks[2].instructions[i].op==SWAN_IR_MUL;
  assert(hoisted&&!remains);
  assert(swan_svm_run(&licm,"main",1000,&folded,error,sizeof(error)));assert(folded==45);
- swan_ir_destroy(&licm); }
+ swan_ir_destroy(&licm);
 
  puts("PASS: verified optimization pass manager, constant folding, algebraic simplification, common-subexpression elimination and dead-code elimination");
  return 0;
