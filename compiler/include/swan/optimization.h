@@ -24,6 +24,13 @@ static inline int64_t swan_ir_signed_value(uint64_t value,unsigned bits){
     return (int64_t)((value^sign)-sign);
 }
 static inline bool swan_ir_fold_instruction(SwanIRFunction *fn,SwanIRInst *in){
+    if(in->op==SWAN_IR_SELECT){
+        int64_t condition,yes,no;
+        if(swan_ir_constant(fn,in->a,&condition)&&swan_ir_constant(fn,in->b,&yes)&&swan_ir_constant(fn,in->c,&no)){
+            in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=condition?yes:no;return true;
+        }
+        return false;
+    }
     if(in->op==SWAN_IR_CONST||in->op==SWAN_IR_PHI||in->op==SWAN_IR_CALL||
        in->op==SWAN_IR_ALLOCA||in->op==SWAN_IR_LOAD||in->op==SWAN_IR_STORE||in->op==SWAN_IR_SELECT)return false;
     int64_t a,b;if(!swan_ir_constant(fn,in->a,&a)||!swan_ir_constant(fn,in->b,&b))return false;
