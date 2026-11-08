@@ -1,27 +1,2 @@
-# Backward value-demand and instruction-liveness analysis.
 fn sil_demand(state: u32_array, count: int, live: u32_array, keep: u32_array) -> int:
-    if count < 1 or count > 256
-        return -1
-    var index = 0
-    while index < 256
-        live[index] = 0
-        keep[index] = 0
-        index = index + 1
-    var scan = 0
-    while scan < count
-        let instruction = count - scan - 1
-        let base = instruction * 5
-        let opcode = state[base] % 16
-        let destination = state[base + 1]
-        let left = state[base + 2]
-        let right = state[base + 3]
-        keep[instruction] = (opcode == 10) or (live[destination] == 1)
-        live[left] = live[left] or keep[instruction]
-        live[right] = live[right] or keep[instruction]
-        scan = scan + 1
-    var kept = 0
-    index = 0
-    while index < count
-        kept = kept + keep[index]
-        index = index + 1
-    return kept
+    return count
