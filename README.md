@@ -148,7 +148,6 @@ CI runs the complete suite, including compiler construction, header isolation, p
 | RISC-V 64 | Planned; backend not implemented |
 | WebAssembly 32-bit | Planned; backend not implemented |
 | WebAssembly 64-bit | Planned; backend not implemented |
-
-| Windows x64 / Apple Darwin | Not implemented |
+| Windows x64 / Apple Darwin | Planned; backend not implemented |
 
 Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
