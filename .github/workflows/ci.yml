@@ -17,5 +17,7 @@ jobs:
         run: sh test.sh
       - name: Verify typed SSA IR
         run: sh tests/ir.sh
+      - name: Verify portable SVM and IR optimization
+        run: sh tests/svm.sh
       - name: Verify compiler version
         run: ./build/swan --version
