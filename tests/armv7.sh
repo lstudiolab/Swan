@@ -16,7 +16,7 @@ readelf -h "$TMP/main.o" | grep -q 'ARM'
 "$BIN" "$TMP/main.swan" --target armv7 --emit-asm -o "$TMP/main.s"
 grep -q '__aeabi_idiv' "$TMP/main.s"
 grep -q '__aeabi_idivmod' "$TMP/main.s"
-if grep -Fq '\\n' "$TMP/main.s"; then
+if grep -Fq '\n' "$TMP/main.s"; then
     echo 'FAIL: literal escaped newline found in generated ARM assembly' >&2
     exit 1
 fi
