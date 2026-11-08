@@ -1,5 +1,6 @@
 #ifndef SWAN_CODEGEN_H
 #define SWAN_CODEGEN_H
+#include "swan/target.h"
 #include "swan/codegen_x86_64.h"
 
 /* Target-dispatch boundary. A target is accepted here only when a real
