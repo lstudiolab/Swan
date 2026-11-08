@@ -161,7 +161,7 @@ static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(!fn->name||!swan_ir_type_valid(fn->return_type))return swan_ir_fail(error,cap,"invalid function signature",fn->name,0,0);
+  if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count)return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
   if(!fn->block_count)return swan_ir_fail(error,cap,"function has no entry block",fn->name,0,0);
@@ -199,7 +199,7 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
      if(predecessor_count!=in->incoming_count)return swan_ir_fail(error,cap,"phi must define one incoming value for every predecessor",fn->name,b,i);
     }else if(in->op==SWAN_IR_ALLOCA){if(in->type!=SWAN_IR_PTR)return swan_ir_fail(error,cap,"alloca must produce ptr",fn->name,b,i);}
     else if(in->op==SWAN_IR_CALL){
-     if(!in->symbol)return swan_ir_fail(error,cap,"call has no callee symbol",fn->name,b,i);
+     if(!in->symbol||(in->incoming_count&&!in->incoming))return swan_ir_fail(error,cap,"call has no callee symbol or argument array",fn->name,b,i);
      const SwanIRFunction *callee=NULL;
      for(size_t ci=0;ci<m->function_count;ci++)if(!strcmp(m->functions[ci].name,in->symbol)){callee=&m->functions[ci];break;}
      if(!callee)return swan_ir_fail(error,cap,"call references an unknown function",fn->name,b,i);
