@@ -24,12 +24,20 @@ SWAN
 "$SWAN" "$TMP/native.swan" --target x86_64 --emit-asm -o "$TMP/native.s"
 cc -x assembler "$TMP/native.s" -o "$TMP/native"
 test "$("$TMP/native")" = "91"
-"$SWAN" "$TMP/native.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
+cat > "$TMP/scalar.swan" <<'SWAN'
+fn twice(x: int) -> int:
+    return x * 2
+fn main() -> int:
+    return twice(21)
+SWAN
+"$SWAN" "$TMP/scalar.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
 grep -q "stp x29, x30" "$TMP/aarch64.s"
+"$SWAN" "$TMP/scalar.swan" --target riscv64 --emit-asm -o "$TMP/riscv64.s"
+grep -q "addi sp, sp" "$TMP/riscv64.s"
 "$SWAN" --list-targets > "$TMP/targets.txt"
 grep -q "x86_64.*implemented" "$TMP/targets.txt"
 grep -q "aarch64.*implemented" "$TMP/targets.txt"
-grep -q "wasm32.*implemented" "$TMP/targets.txt"
+grep -q "riscv64.*implemented" "$TMP/targets.txt"\ngrep -q "wasm32.*implemented" "$TMP/targets.txt"
 if "$SWAN" "$TMP/native.swan" --target madeup 2>"$TMP/unknown.err"; then
     echo "FAIL: unknown target was accepted" >&2
     exit 1
