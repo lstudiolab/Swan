@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fresh dependency-chain benchmark: identical 32-bit LCG workload across languages."""
+"""Fresh dependency-chain benchmark: identical modular LCG workload across languages."""
 import os
 import pathlib
 import platform
@@ -134,7 +134,7 @@ def main():
 
         print("Swan dependency-chain benchmark")
         print(f"Workload: {N:,} dependent modular LCG iterations")
-        print(f"state = (state * {MULTIPLIER} + {INCREMENT}) & {MASK}")
+        print(f"state = (state * {MULTIPLIER} + {INCREMENT}) % {MODULUS}")
         print(f"Verified final state: {expected}")
         print(f"Host: {platform.platform()} / {platform.machine()}")
         print(f"CPU: {platform.processor() or 'not reported'}")
