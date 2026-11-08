@@ -98,6 +98,7 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     size_t value_count = (size_t)fn->next_value + 1;
     int64_t *values = calloc(value_count, sizeof(*values));
     if (!values) return swan_svm_fail(vm, "SVM out of memory allocating registers");
+    size_t memory_base=vm->memory_count;
     size_t memory_mark=vm->memory_count;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = swan_svm_normalize_value(arguments[i],fn->parameter_types[i]);
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
