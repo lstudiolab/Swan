@@ -969,7 +969,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
   if(p->codegen_module_index<0&&fn->imported)continue;
-  if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index))continue;
+  if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
   Locals l={0};o->stack_depth=0;
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
   for(size_t a=0;a<fn->param_count;a++)local_add(&l,fn->params[a],false);
