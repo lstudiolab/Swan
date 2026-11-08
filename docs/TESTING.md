@@ -2,18 +2,24 @@
 
 ## Full test command
 
-Run `sh test.sh` from the repository root. Requirements: C11 compiler and a host system assembler/linker available through `cc`.
+Run `sh test.sh` from the repository root. Requirements: a C11 compiler and a host system assembler/linker available through `cc`.
 
-## Test layers
+## CI test layers
 
 - Build: compile the C11 compiler from the sole `main.c` translation unit.
 - Header isolation: compile every C header independently with strict C11 syntax checks.
-- Architecture: verify x86-64 assembly emission and executable output for the currently ported C subset.
-- Smoke: exercise functions, local variables, strings, integer arithmetic, and native execution in the currently ported C subset.
-- Regressions: verify invalid source is rejected and semantic regressions remain covered.
-
-Every language change requires valid and invalid examples, diagnostic checks, assembly inspection where relevant, and executable tests.
+- Existing source corpus: run the compiler, standard-library and regression suites on the host.
+- Typed IR: verify SSA definitions, dominance, calls, memory operations, PHI predecessor coverage and terminators.
+- Optimization: test constant folding, typed integer-width semantics, CFG simplification, unreachable-block pruning, algebraic simplification, CSE and DCE.
+- IR generation: compile .swan source through semantic analysis, IR generation, optimization and SVM execution; cover calls, recursion, mutable locals, loops, branches and short-circuit logic.
+- SVM: test interpreter behavior, typed integer overflow, .swvm serialization round-trips, truncation rejection and trailing-data rejection.
+- x86-64 IR: execute generated native code and validate the scalar subset against expected results.
+- WASM32: emit a .wasm module and instantiate/execute it with a WebAssembly runtime, including calls, recursion, loops, branches, mutable locals and PHI-based short-circuit behavior.
+- WASM64: validate scalar memory64 module emission and section structure.
+- AArch64, ARMv7 and RISC-V64: emit ELF objects and inspect the object headers to confirm target architecture.
 
 ## Cross-target policy
 
-A target is not supported merely because the command-line parser accepts its name. The corresponding Swan-owned backend must generate valid assembly and pass ABI, object, and execution tests on an appropriate runner. No external compiler backend fallback is allowed; the system assembler/linker may consume Swan-generated assembly.
+A target is not supported merely because the command-line parser accepts its name. Each target must have a Swan-owned generator and a test that validates its actual output format. Object-header tests establish code emission, not runtime ABI correctness on that CPU. Cross-target execution and full system linking must be tested on an appropriate native runner before being advertised as complete.
+
+No external compiler backend fallback is allowed. Clang may be used as an assembler driver on Swan-generated target assembly; it must not generate code from C or another frontend.
