@@ -35,15 +35,6 @@ static inline int64_t swan_svm_normalize_value(int64_t value,SwanIRType type){
     return swan_svm_signed_value(swan_svm_truncate((uint64_t)value,bits),bits);
 }
 
-static inline unsigned swan_svm_type_bits(SwanIRType type){
-    switch(type){case SWAN_IR_I1:return 1;case SWAN_IR_I8:return 8;case SWAN_IR_I16:return 16;case SWAN_IR_I32:return 32;default:return 64;}
-}
-static inline uint64_t swan_svm_mask(unsigned bits){return bits>=64?UINT64_MAX:(UINT64_C(1)<<bits)-1;}
-static inline int64_t swan_svm_signed(uint64_t value,unsigned bits){
-    if(bits>=64)return (int64_t)value;
-    uint64_t sign=UINT64_C(1)<<(bits-1);value&=swan_svm_mask(bits);
-    return (int64_t)((value^sign)-sign);
-}
 static inline bool swan_svm_fail(SwanVM *vm, const char *message) {
     if (vm->error && vm->error_capacity)
         snprintf(vm->error, vm->error_capacity, "%s", message);
@@ -89,7 +80,7 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
             int64_t sa=swan_svm_signed_value(ua,bits),sb=swan_svm_signed_value(ub,bits);
             int64_t v = 0;
             switch (in->op) {
-                case SWAN_IR_CONST: v = swan_svm_signed((uint64_t)in->immediate&swan_svm_mask(swan_svm_type_bits(in->type)),swan_svm_type_bits(in->type)); break;
+                case SWAN_IR_CONST: v = swan_svm_normalize_value(in->immediate,in->type); break;
                 case SWAN_IR_ADD: v=swan_svm_signed_value(swan_svm_truncate(ua+ub,bits),bits);break;
                 case SWAN_IR_SUB: v=swan_svm_signed_value(swan_svm_truncate(ua-ub,bits),bits);break;
                 case SWAN_IR_MUL: v=swan_svm_signed_value(swan_svm_truncate(ua*ub,bits),bits);break;
