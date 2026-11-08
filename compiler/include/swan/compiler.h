@@ -3,7 +3,7 @@
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #endif
-#include "swan/codegen_x86_64.h"
+#include "swan/codegen.h"
 #include "swan/target.h"
 #include "swan/ir.h"
 #include "swan/sema.h"
@@ -102,7 +102,7 @@ static inline bool swan_build_lazy_modules(Program *p,const char *exe,SwanError 
  for(size_t m=0;m<p->module_count;m++){
   if(!swan_module_is_used(p,m))continue;
   Text module_assembly={0};int previous=p->codegen_module_index;p->codegen_module_index=(int)m;
-  bool generated=swan_codegen_x86_64(p,&module_assembly,err);p->codegen_module_index=previous;
+  bool generated=swan_codegen(p,&module_assembly,swan_target_find("x86_64"),err);p->codegen_module_index=previous;
   if(!generated){free(module_assembly.data);return false;}
   char temp[64];if(!swan_write_temp("/tmp/swan-module-XXXXXX",module_assembly.data,module_assembly.len,temp)){free(module_assembly.data);swan_error(err,NULL,"cannot write temporary module assembly");return false;}
   free(module_assembly.data);
@@ -179,7 +179,7 @@ static inline int swan_run(int argc,char **argv){
  else exe_len=snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());
  if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"swan: output path is too long\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  Text assembly={0};
- if(!swan_codegen_x86_64(&p,&assembly,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ if(!swan_codegen(&p,&assembly,target,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  if(has_lazy&&!swan_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"swan: %s\n",err.message);swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  char runtime_source[64]={0};if(has_lazy&&!swan_write_lazy_runtime(runtime_source)){fprintf(stderr,"swan: cannot create lazy import runtime support\n");swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  if(mode==SWAN_EMIT){
