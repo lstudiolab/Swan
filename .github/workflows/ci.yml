@@ -29,5 +29,7 @@ jobs:
         run: sh tests/wasm32.sh
       - name: Verify AArch64 ELF emission
         run: sh tests/aarch64.sh
+      - name: Verify RISC-V64 ELF emission
+        run: sh tests/riscv64.sh
       - name: Verify compiler version
         run: ./build/swan --version
