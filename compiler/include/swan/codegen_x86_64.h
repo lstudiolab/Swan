@@ -239,7 +239,7 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
 }
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=e->left->token.text;
- if(!strcmp(name,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME){swan_error(err,&e->token,"free expects one memory variable");return;}Local *v=local_find(l,e->args[0]->token.text);if(!v||!v->array_u32){swan_error(err,&e->token,"free requires an array variable");return;}cg_save_volatile(o,l);if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);text_add(o,"    xor eax, eax\\n");return;}
+ if(!strcmp(name,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME){swan_error(err,&e->token,"free expects one memory variable");return;}Local *v=local_find(l,e->args[0]->token.text);if(!v||!v->array_u32){swan_error(err,&e->token,"free requires an array variable");return;}cg_save_volatile(o,l);if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);text_add(o,"    xor eax, eax\n");return;}
  if(!strcmp(name,"array")||!strcmp(name,"array_u32")||!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")){
   if(e->argc!=1){swan_error(err,&e->token,"array expects exactly one length argument");return;}
   int64_t fixed_length=0;
@@ -866,9 +866,9 @@ static inline void samc_scan_escapes(Stmt **body,size_t n,Locals *l){
 static inline void emit_samc_cleanup(Text *o,Locals *l){
  for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed)continue;
   cg_save_volatile(o,l);
-  if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));
-  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);
-  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");
+  if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));
+  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);
+  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");
   cg_call(o,"free@PLT");cg_restore_volatile(o,l);
  }
 }
@@ -899,7 +899,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      int id=(*label)++;text_add(o,".section .rodata\n.Lswan_str_%d:\n    .string \"",id);
      for(const unsigned char *q=(const unsigned char*)s->value->token.text;*q;q++){
       if(*q==34||*q==92)text_add(o,"\\%c",*q);
-      else if(*q==10)text_add(o,"\\n");
+      else if(*q==10)text_add(o,"\n");
       else if(*q==9)text_add(o,"\\t");
       else if(*q==13)text_add(o,"\\r");
       else if(*q<32)text_add(o,"\\%03o",*q);
@@ -908,7 +908,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      cg_save_volatile(o,l);text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n",id);cg_call(o,"puts@PLT");cg_restore_volatile(o,l);
     }else{emit_expr(o,s->value,l,err);cg_save_volatile(o,l);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");cg_restore_volatile(o,l);}
     break;
-    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
+    case S_RETURN:if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");cg_push(o,"rax");emit_samc_cleanup(o,l);cg_pop(o,"rax");emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:if(!emit_accumulate_statement(o,s->value,l,err)&&!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
    case S_BREAK:if(!o->loop_depth)swan_error(err,&s->token,"break is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_end_%d\n",o->loop_break[o->loop_depth-1]);break;
@@ -974,7 +974,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
  }
  if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
- text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
+ text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  if(o->failed){swan_error(err,NULL,"out of memory while generating assembly");return false;}
  return err->message[0]==0;
 }
