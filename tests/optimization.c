@@ -43,6 +43,17 @@ int main(void){
  assert(swan_ir_optimize(&global,error,sizeof(error)));assert(swan_ir_verify(&global,error,sizeof(error)));
  assert(g->blocks[0].instruction_count==1&&g->blocks[1].instruction_count==0);
  swan_ir_destroy(&global);
+ SwanIRModule siblings={0};SwanIRType sp[]={SWAN_IR_I64,SWAN_IR_I64,SWAN_IR_I1};
+ SwanIRFunction *sf=swan_ir_add_function(&siblings,"sibling_cse",SWAN_IR_I64,sp,3);assert(sf);
+ SwanIRBlock *se=swan_ir_add_block(sf,"entry"),*sy=swan_ir_add_block(sf,"yes"),*sn=swan_ir_add_block(sf,"no");assert(se&&sy&&sn);
+ assert(swan_ir_terminate(se,(SwanIRTerm){SWAN_IR_COND_BR,3,1,2}));
+ SwanIRInst sa={0};sa.op=SWAN_IR_ADD;sa.type=SWAN_IR_I64;sa.a=1;sa.b=2;
+ uint32_t syv=swan_ir_add_inst(sf,sy,sa),snv=swan_ir_add_inst(sf,sn,sa);assert(syv&&snv);
+ assert(swan_ir_terminate(sy,(SwanIRTerm){SWAN_IR_RET,syv,0,0}));
+ assert(swan_ir_terminate(sn,(SwanIRTerm){SWAN_IR_RET,snv,0,0}));
+ assert(swan_ir_optimize(&siblings,error,sizeof(error)));assert(swan_ir_verify(&siblings,error,sizeof(error)));
+ assert(sf->blocks[1].instruction_count==1&&sf->blocks[2].instruction_count==1);
+ swan_ir_destroy(&siblings);
  puts("PASS: verified optimization pass manager, constant folding, algebraic simplification, common-subexpression elimination and dead-code elimination");
  return 0;
 }
