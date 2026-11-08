@@ -84,7 +84,7 @@ static inline SwanIRBlock *swan_ir_add_block(SwanIRFunction *f,const char *name)
 }
 static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRInst inst) {
  if(!b||b->terminated||!swan_ir_reserve((void**)&b->instructions,&b->instruction_capacity,b->instruction_count+1,sizeof(*b->instructions)))return 0;
- if(inst.type==SWAN_IR_VOID)inst.result=0;else{if(!swan_ir_value_type(inst.type)||f->next_value==0)return 0;inst.result=f->next_value++;}
+ if(inst.type==SWAN_IR_VOID)inst.result=0;else{if(!swan_ir_value_type(inst.type)||f->next_value==0||f->next_value>=(uint32_t)(INT_MAX/8))return 0;inst.result=f->next_value++;}
  b->instructions[b->instruction_count++]=inst;return inst.result;
 }
 static inline bool swan_ir_terminate(SwanIRBlock *b,SwanIRTerm term) {
@@ -161,6 +161,7 @@ static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
+  for(size_t prior=0;prior<f;prior++)if(m->functions[prior].name&&!strcmp(m->functions[prior].name,fn->name))return swan_ir_fail(error,cap,"duplicate function name",fn->name,0,0);
   if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
