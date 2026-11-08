@@ -4,9 +4,21 @@
 /* The executable entry point owns command-line orchestration. The headers
  * provide independently testable compiler stages and shared utilities. */
 static int swan_run(int argc,char **argv){
+ if(argc>=3&&!strcmp(argv[1],"vm")){
+  uint64_t fuel=10000000u;
+  if(argc==5&&!strcmp(argv[3],"--fuel")){char *end=NULL;errno=0;unsigned long long parsed=strtoull(argv[4],&end,10);if(errno||!end||*end||!parsed){fprintf(stderr,"swan: invalid SVM fuel limit '%s'\\n",argv[4]);return 2;}fuel=(uint64_t)parsed;}
+  else if(argc!=3){fprintf(stderr,"Usage: swan vm <file.swvm> [--fuel instructions]\\n");return 2;}
+  FILE *artifact=fopen(argv[2],"rb");if(!artifact){perror(argv[2]);return 1;}
+  SwanIRModule module={0};char detail[256]={0};
+  bool loaded=swan_svm_read_module(artifact,&module,detail,sizeof(detail));fclose(artifact);
+  if(!loaded){fprintf(stderr,"swan: invalid SVM module: %s\\n",detail);swan_ir_destroy(&module);return 1;}
+  int64_t result=0;bool ok=swan_svm_run(&module,"main",fuel,&result,detail,sizeof(detail));
+  if(!ok)fprintf(stderr,"swan: SVM execution failed: %s\\n",detail);
+  swan_ir_destroy(&module);return ok?(int)((uint64_t)result&255u):1;
+ }
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target <target>] [--list-targets] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target>] [-o output] | swan vm <file.swvm> [--fuel instructions]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
