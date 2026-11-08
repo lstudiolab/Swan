@@ -18,7 +18,8 @@ typedef enum {
 
 typedef enum {
     SWAN_OBJECT_ELF,
-    SWAN_OBJECT_WASM
+    SWAN_OBJECT_WASM,
+    SWAN_OBJECT_SVM
 } SwanObjectFormat;
 
 typedef enum {
