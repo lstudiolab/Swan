@@ -172,6 +172,7 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
     const SwanIRInst *in=&bb->instructions[i];
     if((unsigned)in->op>SWAN_IR_CALL||!swan_ir_type_valid(in->type)||(in->type==SWAN_IR_VOID?in->result!=0:in->result==0))return swan_ir_fail(error,cap,"invalid instruction opcode, result type, or ID",fn->name,b,i);
     if(in->result){
+     if(in->result>=fn->next_value)return swan_ir_fail(error,cap,"SSA value ID exceeds function register range",fn->name,b,i);
      if(in->result<=fn->parameter_count)return swan_ir_fail(error,cap,"instruction redefines a parameter",fn->name,b,i);
      for(size_t db=0;db<=b;db++)for(size_t di=0;di<fn->blocks[db].instruction_count;di++){
       if(db==b&&di>=i)break;
@@ -190,8 +191,25 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
       if(swan_ir_value_type_of(fn,edge.value)!=in->type)return swan_ir_fail(error,cap,"phi incoming type mismatch",fn->name,b,i);
       for(size_t j=0;j<k;j++)if(in->incoming[j].block==edge.block)return swan_ir_fail(error,cap,"phi has duplicate predecessor",fn->name,b,i);
      }
+     size_t predecessor_count=0;
+     for(size_t pb=0;pb<fn->block_count;pb++){
+      const SwanIRTerm *pt=&fn->blocks[pb].terminator;
+      if((pt->kind==SWAN_IR_BR&&pt->target==b)||(pt->kind==SWAN_IR_COND_BR&&(pt->target==b||pt->alternate==b)))predecessor_count++;
+     }
+     if(predecessor_count!=in->incoming_count)return swan_ir_fail(error,cap,"phi must define one incoming value for every predecessor",fn->name,b,i);
     }else if(in->op==SWAN_IR_ALLOCA){if(in->type!=SWAN_IR_PTR)return swan_ir_fail(error,cap,"alloca must produce ptr",fn->name,b,i);}
-    else if(in->op==SWAN_IR_CALL){if(!in->symbol)return swan_ir_fail(error,cap,"call has no callee symbol",fn->name,b,i);}
+    else if(in->op==SWAN_IR_CALL){
+     if(!in->symbol)return swan_ir_fail(error,cap,"call has no callee symbol",fn->name,b,i);
+     const SwanIRFunction *callee=NULL;
+     for(size_t ci=0;ci<m->function_count;ci++)if(!strcmp(m->functions[ci].name,in->symbol)){callee=&m->functions[ci];break;}
+     if(!callee)return swan_ir_fail(error,cap,"call references an unknown function",fn->name,b,i);
+     if(callee->return_type!=in->type||callee->parameter_count!=in->incoming_count)return swan_ir_fail(error,cap,"call signature does not match callee",fn->name,b,i);
+     for(size_t ai=0;ai<in->incoming_count;ai++){
+      uint32_t id=in->incoming[ai].value;
+      if(!swan_ir_verify_use(fn,id,b,i,error,cap))return false;
+      if(swan_ir_value_type_of(fn,id)!=callee->parameter_types[ai])return swan_ir_fail(error,cap,"call argument type mismatch",fn->name,b,i);
+     }
+    }
     else if(in->op==SWAN_IR_LOAD||in->op==SWAN_IR_STORE){
      if(!swan_ir_verify_use(fn,in->a,b,i,error,cap)||swan_ir_value_type_of(fn,in->a)!=SWAN_IR_PTR)return swan_ir_fail(error,cap,"memory operation requires a defined pointer",fn->name,b,i);
      if(in->op==SWAN_IR_LOAD&&!swan_ir_value_type(in->type))return swan_ir_fail(error,cap,"load must produce a value",fn->name,b,i);
