@@ -1,0 +1,46 @@
+name: Simple workload benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "benchmarks/simple_workload.py"
+      - ".github/workflows/simple-workload-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Goose
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/aardappel/goose/releases/download/v2026.4/goose-v2026.4-linux-x64.tar.gz -o /tmp/goose.tar.gz
+          mkdir -p /tmp/goose-dist
+          tar -xzf /tmp/goose.tar.gz -C /tmp/goose-dist
+          GOOSE_BIN="$(find /tmp/goose-dist -type f -name goose -perm -u+x | head -n 1)"
+          test -n "$GOOSE_BIN"
+          echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
+          "$GOOSE_BIN" version
+      - name: Build Swan
+        run: sh build.sh
+      - name: Run identical workload
+        run: python3 benchmarks/simple_workload.py | tee simple-workload-benchmark.txt
+      - name: Publish results
+        if: always()
+        run: |
+          if [ -f simple-workload-benchmark.txt ]; then
+            cat simple-workload-benchmark.txt >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: simple-workload-benchmark
+          path: simple-workload-benchmark.txt
+          if-no-files-found: warn
