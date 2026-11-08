@@ -13,9 +13,12 @@ The repository is licensed under Apache License 2.0.
   -> standard-library module loader
   -> semantic analysis
   -> Swan AST
-  -> target-selected Swan backend (currently x86-64 System V)
-  -> GNU assembler / system linker
-  -> native executable
+  -> typed, verified SSA IR (irgen.h)
+  -> target-independent IR optimization
+  -> selected backend:
+       x86-64 System V | AArch64 | RISC-V64 | WebAssembly 32 | portable SVM
+  -> Swan assembly / WebAssembly / SVM module
+  -> target assembler and linker (native ELF targets)
 ```
 
 `main.c` is the only compiled compiler translation unit. Compiler subsystems are C headers under `compiler/include/swan/`. The system assembler and linker only consume assembly already emitted by Swan.
@@ -42,7 +45,7 @@ Emit assembly:
 ./build/swan examples/hello.swan --emit-asm -o hello.s
 ```
 
-The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Only x86-64 System V Linux currently has an executable backend; recognized future targets are reported as planned and rejected clearly until their backends and tests are implemented.
+The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 currently emit cross-target assembly or ELF relocatable objects for the supported scalar IR subset; they do not execute on the host. WebAssembly emits a module for straight-line scalar functions and can be run by a WebAssembly runtime. The portable SVM executes verified IR on the host and supports the broader control-flow subset. Unsupported IR is rejected with a diagnostic rather than silently lowered.
 
 ## Language subset
 
@@ -136,18 +139,21 @@ The repository also contains larger sorting and multi-language workloads. The on
 sh test.sh
 ```
 
-CI runs the complete suite, including compiler construction, header isolation, parser and semantic checks, native execution, arrays, loop control, ABI alignment, Foundation imports, and architecture-target rejection.
+CI runs the complete suite, including compiler construction, header isolation, parser and semantic checks, native execution, arrays, loop control, ABI alignment, Foundation imports, and typed SSA verification, IR lowering, SVM execution, WebAssembly module execution, AArch64 and RISC-V64 object emission.
 
 ## Backend status
 
-| Target | Status |
-|---|---|
-| x86-64 System V Linux | Implemented and tested |
-| AArch64 / ARM64 | Planned; backend not implemented |
-| ARMv7 / Thumb | Planned; backend not implemented |
-| RISC-V 64 | Planned; backend not implemented |
-| WebAssembly 32-bit | Planned; backend not implemented |
-| WebAssembly 64-bit | Planned; backend not implemented |
-| Windows x64 / Apple Darwin | Planned; backend not implemented |
+| Target | Status | Current scope |
+|---|---|---|
+| x86-64 System V Linux | Implemented | Full existing native compiler path |
+| AArch64 / ARM64 | Implemented, limited | Scalar typed IR; emits AArch64 assembly and ELF objects |
+| RISC-V 64 | Implemented, limited | Scalar typed IR; emits RV64 assembly and ELF objects |
+| WebAssembly 32-bit | Implemented, limited | Straight-line scalar functions; emits WASM 1.0 modules |
+| Portable SVM | Implemented | Verified IR execution, calls, mutable locals, loops and branches |
+| ARMv7 / Thumb | Not implemented | Registry only |
+| WebAssembly 64-bit / memory64 | Not implemented | Registry only |
+| Windows x64 / Apple Darwin | Not implemented | Registry only |
+
+Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 native backend; array lowering, general multi-block control flow, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. A listed implemented backend does not imply every Swan program can target it.
 
 Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
