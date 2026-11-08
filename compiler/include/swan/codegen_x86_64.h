@@ -309,11 +309,11 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   Local *array=local_find(l,e->left->token.text);
   if(!array||!array->array_u32){swan_error(err,&e->token,"indexing currently requires an array_u32 value");break;}
   Expr *index=e->right;Local *index_local=index&&index->kind==E_NAME?local_find(l,index->token.text):NULL;int64_t index_constant=0;
-  if(index_local){if(index_local->reg>=0)text_add(o,"    mov rcx, %s\\n",cg_reg_name(index_local->reg));else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\\n",index_local->slot*8);}
-  else if(cg_const_value(index,&index_constant)){if(index_constant>=INT32_MIN&&index_constant<=INT32_MAX)text_add(o,"    mov ecx, %lld\\n",(long long)index_constant);else text_add(o,"    movabs rcx, 0x%016llx\\n",(unsigned long long)(uint64_t)index_constant);}
-  else{emit_expr(o,index,l,err);text_add(o,"    mov rcx, rax\\n");}
-  if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\\n    jae .Lswan_array_bounds_fail\\n",base);text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\\n",base);}
-  else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\\n    jae .Lswan_array_bounds_fail\\n");text_add(o,"    mov eax, DWORD PTR [r11 + rcx*4]\\n");}
+  if(index_local){if(index_local->reg>=0)text_add(o,"    mov rcx, %s\n",cg_reg_name(index_local->reg));else text_add(o,"    mov rcx, QWORD PTR [rbp - %d]\n",index_local->slot*8);}
+  else if(cg_const_value(index,&index_constant)){if(index_constant>=INT32_MIN&&index_constant<=INT32_MAX)text_add(o,"    mov ecx, %lld\n",(long long)index_constant);else text_add(o,"    movabs rcx, 0x%016llx\n",(unsigned long long)(uint64_t)index_constant);}
+  else{emit_expr(o,index,l,err);text_add(o,"    mov rcx, rax\n");}
+  if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\n",base);}
+  else{text_add(o,"    mov r10, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov eax, DWORD PTR [r10 + rcx*4]\n");}
   o->uses_array_bounds=true;
   break;
  }
@@ -333,7 +333,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     if(!array||!array->array_u32){swan_error(err,&e->token,"indexed assignment requires an array_u32 value");break;}
     emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");
     if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
-    else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r11 + rcx*4], eax\n");}
+    else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r10 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r10 + rcx*4], eax\n");}
     o->uses_array_bounds=true;break;
    }
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");break;}
@@ -666,6 +666,7 @@ static inline bool loop_proves_nonnegative_midpoint(Stmt **outer,size_t before,S
  if(!loop||loop->kind!=S_WHILE||!loop->condition||loop->condition->kind!=E_BINARY||loop->condition->token.kind!=T_LE||!loop->condition->left||loop->condition->left->kind!=E_NAME||!loop->condition->right||loop->condition->right->kind!=E_NAME||!loop->body_count||!stmt_is_safe_midpoint(loop->body[0],loop->condition))return false;
  const char *low=loop->condition->left->token.text,*high=loop->condition->right->token.text,*middle=loop->body[0]->name;
  if(!middle||!midpoint_block_init_nonnegative(outer,before,low)||!midpoint_block_init_nonnegative(outer,before,high))return false;
+ for(size_t i=1;i<loop->body_count;i++)if(midpoint_stmt_writes_name(loop->body[i],middle))return false;
  bool low_updated=false,high_updated=false;
  return midpoint_loop_updates(loop->body,loop->body_count,low,middle,T_PLUS,&low_updated)&&midpoint_loop_updates(loop->body,loop->body_count,high,middle,T_MINUS,&high_updated);
 }
