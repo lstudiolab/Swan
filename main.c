@@ -38,15 +38,15 @@ static int swan_run(int argc,char **argv){
  }
  if(!swan_semantic_check(&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  swan_compute_reachability(&p);bool has_lazy=swan_has_lazy_imports(&p);
- if(target->architecture==SWAN_ARCH_WASM32){
+ if(target->architecture==SWAN_ARCH_WASM32||target->architecture==SWAN_ARCH_WASM64){
   if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM32 output is a WebAssembly module; run it with a WebAssembly runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(has_lazy){fprintf(stderr,"swan: WASM32 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   SwanIRModule ir={0};char detail[256]={0};SwanWasmBuffer wasm={0};
-  if(!swan_irgen_program(&p,&ir,&err)||!swan_ir_optimize(&ir,detail,sizeof(detail))||!swan_codegen_wasm32(&ir,&wasm,detail,sizeof(detail))){
+  if(!swan_irgen_program(&p,&ir,&err)||!swan_ir_optimize(&ir,detail,sizeof(detail))||!(target->architecture==SWAN_ARCH_WASM64?swan_codegen_wasm64(&ir,&wasm,detail,sizeof(detail)):swan_codegen_wasm32(&ir,&wasm,detail,sizeof(detail)))){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);
    free(wasm.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
-  const char *dest=output?output:"a.wasm";FILE *wf=fopen(dest,"wb");
+  const char *dest=output?output:(target->architecture==SWAN_ARCH_WASM64?"a64.wasm":"a.wasm");FILE *wf=fopen(dest,"wb");
   bool saved=wf&&fwrite(wasm.data,1,wasm.length,wf)==wasm.length;
   if(wf&&fclose(wf)!=0)saved=false;
   if(!saved)fprintf(stderr,"swan: failed to write WebAssembly module '%s'\n",dest);
