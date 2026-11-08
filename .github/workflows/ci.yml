@@ -15,5 +15,7 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run complete compiler and standard-library test suite
         run: sh test.sh
+      - name: Verify typed SSA IR
+        run: sh tests/ir.sh
       - name: Verify compiler version
         run: ./build/swan --version
