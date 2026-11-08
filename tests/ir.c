@@ -43,6 +43,8 @@ int main(void) {
     entry->instructions[0].type = SWAN_IR_I32;
     assert(!swan_ir_verify(&m, error, sizeof(error)));
     assert(strstr(error, "operand type mismatch"));
+    entry->instructions[0].type = SWAN_IR_I64;
+    assert(swan_ir_verify(&m, error, sizeof(error)));
 
     /* Loop-carried PHI: the backedge comes from a later-numbered block. */
     SwanIRType loop_params[] = {SWAN_IR_I64, SWAN_IR_I1};
