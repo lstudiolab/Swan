@@ -23,18 +23,6 @@ typedef enum { T_EOF,T_IDENT,T_INT,T_FLOAT,T_STRING,T_NEWLINE,T_INDENT,T_DEDENT,
 typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
-static inline void *swan_arena_alloc(Program *p,size_t size){
- const size_t align=_Alignof(max_align_t);size=(size+align-1)&~(align-1);
- SwanArenaChunk *c=p->arena;
- if(!c||size>c->capacity-c->used){
-  size_t cap=size>65536?size:65536;
-  c=malloc(sizeof(*c)+cap);if(!c)return NULL;c->next=p->arena;c->used=0;c->capacity=cap;p->arena=c;
- }
- void *result=c->data+c->used;c->used+=size;memset(result,0,size);return result;
-}
-static inline void swan_program_destroy(Program *p){
- SwanArenaChunk *c=p->arena;while(c){SwanArenaChunk *next=c->next;free(c);c=next;}p->arena=NULL;
-}
 typedef struct { char message[1024]; unsigned line,col; } SwanError;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
  va_list ap; va_start(ap,fmt); vsnprintf(e->message,sizeof(e->message),fmt,ap); va_end(ap);
