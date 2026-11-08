@@ -1,5 +1,5 @@
 # Backward value-demand and instruction-liveness analysis.
-# live[value] marks demanded SSA values; keep[instruction] marks live ops.
+# The flat SSA stream is scanned from its final instruction toward entry.
 fn sil_demand(state: int, count: int, live: int, keep: int) -> int:
     if count < 1 or count > 256
         return -1
@@ -8,26 +8,19 @@ fn sil_demand(state: int, count: int, live: int, keep: int) -> int:
         live[index] = 0
         keep[index] = 0
         index = index + 1
-    index = count - 1
-    while index >= 0
-        let base = index * 5
+    var scan = 0
+    while scan < count
+        let instruction = count - scan - 1
+        let base = instruction * 5
         let opcode = state[base] % 16
         let destination = state[base + 1]
         let left = state[base + 2]
         let right = state[base + 3]
-        if opcode == 10
-            keep[index] = 1
-            live[left] = 1
-        if opcode >= 2 and opcode <= 8 and live[destination] == 1
-            keep[index] = 1
+        if opcode == 10 or live[destination] == 1
+            keep[instruction] = 1
             live[left] = 1
             live[right] = 1
-        if opcode == 9 and live[destination] == 1
-            keep[index] = 1
-            live[left] = 1
-        if opcode == 1 and live[destination] == 1
-            keep[index] = 1
-        index = index - 1
+        scan = scan + 1
     var kept = 0
     index = 0
     while index < count
