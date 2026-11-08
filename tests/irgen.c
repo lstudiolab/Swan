@@ -8,6 +8,8 @@
 
 int main(void) {
     const char *source=
+        "fn explode() -> bool:\n"
+        "    return 1 / 0 == 0\n"
         "fn double(x: int) -> int:\n"
         "    return x * 2\n"
         "fn main() -> int:\n"
@@ -20,7 +22,11 @@ int main(void) {
         "        if i == 8:\n"
         "            break\n"
         "        total = total + double(i)\n"
-        "    return total\n";
+        "    if false and explode():\n"
+        "        return 1\n"
+        "    if true or explode():\n"
+        "        return total\n"
+        "    return 0\n";
     SwanError error={0}; TokenStream tokens={0}; Program program={0};
     assert(swan_lex(source,&tokens,&error));
     assert(swan_parse(&tokens,&program,&error));
