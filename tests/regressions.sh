@@ -169,6 +169,59 @@ if grep -q 'push rax' "$TMP/proven-array-fill.s"; then
     echo 'FAIL: simple array fill retained an unnecessary stack temporary' >&2
     exit 1
 fi
-printf 'PASS: direct register-to-array stores avoid stack temporaries\n'
+printf 'PASS: direct register-to-array stores avoid stack temporaries\\n'
+
+cat > "$TMP/samc-auto.swan" <<'SWAN'
+fn main():
+    let values = array(8)
+    values[0] = 42
+    return 0
+SWAN
+"$SWAN" "$TMP/samc-auto.swan" --emit-asm -o "$TMP/samc-auto.s"
+if ! grep -q 'call free@PLT' "$TMP/samc-auto.s"; then
+    echo 'FAIL: SAMC did not release an automatically managed array' >&2
+    exit 1
+fi
+printf 'PASS: SAMC automatically releases owned arrays\\n'
+
+cat > "$TMP/samc-manual.swan" <<'SWAN'
+fn main():
+    manual let values = array(8)
+    values[0] = 42
+    return 0
+SWAN
+"$SWAN" "$TMP/samc-manual.swan" --emit-asm -o "$TMP/samc-manual.s"
+if grep -q 'call free@PLT' "$TMP/samc-manual.s"; then
+    echo 'FAIL: SAMC automatically released a manual array' >&2
+    exit 1
+fi
+printf 'PASS: manual arrays are excluded from automatic cleanup\\n'
+
+cat > "$TMP/samc-free.swan" <<'SWAN'
+fn main():
+    manual let values = array(8)
+    values[0] = 42
+    free(values)
+    return 0
+SWAN
+"$SWAN" "$TMP/samc-free.swan" --emit-asm -o "$TMP/samc-free.s"
+test "$(grep -c 'call free@PLT' "$TMP/samc-free.s")" = "1"
+printf 'PASS: explicit free releases manually managed arrays once\\n'
+
+cat > "$TMP/samc-escape.swan" <<'SWAN'
+fn consume(value):
+    log value
+    return 0
+fn main():
+    let values = array(8)
+    consume(values)
+    return 0
+SWAN
+"$SWAN" "$TMP/samc-escape.swan" --emit-asm -o "$TMP/samc-escape.s"
+if grep -q 'call free@PLT' "$TMP/samc-escape.s"; then
+    echo 'FAIL: SAMC freed an array passed to another function' >&2
+    exit 1
+fi
+printf 'PASS: escaped arrays are not prematurely released\\n'
 
 printf 'PASS: compiler regression suite\n'
