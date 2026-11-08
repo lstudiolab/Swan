@@ -428,7 +428,8 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
      case T_STAR:text_add(o,"    imul rax, %s\n",src);break;
      case T_SLASH:case T_FLOORDIV:case T_PERCENT:
       text_add(o,"    mov rcx, %s\n    cqo\n    idiv rcx\n",src);
-      if(e->token.kind==T_PERCENT)text_add(o,"    mov rax, rdx\n");break;
+      if(e->token.kind==T_PERCENT)text_add(o,"    mov rax, rdx\n");
+      break;
      case T_EQ:case T_NE:case T_LT:case T_GT:case T_LE:case T_GE:{
       const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
       text_add(o,"    cmp rax, %s\n    %s al\n    movzx rax, al\n",src,cc);break;
