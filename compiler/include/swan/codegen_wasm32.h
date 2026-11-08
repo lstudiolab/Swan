@@ -14,65 +14,28 @@ static inline bool swan_wasm_bytes(SwanWasmBuffer *b,const void *p,size_t n){if(
 static inline bool swan_wasm_u32(SwanWasmBuffer *b,uint32_t v){do{uint8_t x=(uint8_t)(v&127u);v>>=7;if(v)x|=128;if(!swan_wasm_byte(b,x))return false;}while(v);return true;}
 static inline bool swan_wasm_s64(SwanWasmBuffer *b,int64_t v){bool more=true;while(more){uint8_t x=(uint8_t)(v&127);v>>=7;bool sign=(x&64)!=0;more=!((v==0&&!sign)||(v==-1&&sign));if(more)x|=128;if(!swan_wasm_byte(b,x))return false;}return true;}
 static inline bool swan_wasm_name(SwanWasmBuffer *b,const char *s){size_t n=strlen(s);return n<=UINT32_MAX&&swan_wasm_u32(b,(uint32_t)n)&&swan_wasm_bytes(b,s,n);}
-static inline uint8_t swan_wasm_type(SwanIRType t){return t==SWAN_IR_I1||t==SWAN_IR_I8||t==SWAN_IR_I16||t==SWAN_IR_I32?0x7f:t==SWAN_IR_VOID?0x40:0x7e;}
+static inline uint8_t swan_wasm_type(SwanIRType t){return t==SWAN_IR_I1||t==SWAN_IR_I8||t==SWAN_IR_I16||t==SWAN_IR_I32||t==SWAN_IR_PTR?0x7f:t==SWAN_IR_VOID?0x40:0x7e;}
 static inline bool swan_wasm_get(SwanWasmBuffer *b,uint32_t id){return swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_set(SwanWasmBuffer *b,uint32_t id){return swan_wasm_byte(b,0x21)&&swan_wasm_u32(b,id-1);}
-static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRInst *in){
+static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRInst *in){
  if(in->op==SWAN_IR_CONST)return swan_wasm_byte(b,in->type==SWAN_IR_I1||in->type==SWAN_IR_I32?0x41:0x42)&&swan_wasm_s64(b,in->immediate)&&swan_wasm_set(b,in->result);
  if(in->op==SWAN_IR_CALL){
+  size_t index=m->function_count;
+  for(size_t i=0;i<m->function_count;i++)if(in->symbol&&!strcmp(m->functions[i].name,in->symbol)){index=i;break;}
+  if(index==m->function_count)return false;
   for(size_t i=0;i<in->incoming_count;i++)if(!swan_wasm_get(b,in->incoming[i].value))return false;
-  return false; /* Calls require the module's function-index table. */
+  if(!swan_wasm_byte(b,0x10)||!swan_wasm_u32(b,(uint32_t)index))return false;
+  return in->type==SWAN_IR_VOID?true:swan_wasm_set(b,in->result);
  }
  if(in->op==SWAN_IR_SELECT)return swan_wasm_get(b,in->b)&&swan_wasm_get(b,in->c)&&swan_wasm_get(b,in->a)&&swan_wasm_byte(b,0x1b)&&swan_wasm_set(b,in->result);
  if(!swan_wasm_get(b,in->a)||!swan_wasm_get(b,in->b))return false;
- uint8_t op=0;
+ uint8_t op=0;bool i32=in->type==SWAN_IR_I1||in->type==SWAN_IR_I8||in->type==SWAN_IR_I16||in->type==SWAN_IR_I32;
  switch(in->op){
-  case SWAN_IR_ADD:op=0x7c;break;case SWAN_IR_SUB:op=0x7d;break;case SWAN_IR_MUL:op=0x7e;break;
-  case SWAN_IR_SDIV:op=0x7f;break;case SWAN_IR_UDIV:op=0x80;break;case SWAN_IR_SREM:op=0x81;break;case SWAN_IR_UREM:op=0x82;break;
-  case SWAN_IR_AND:op=0x83;break;case SWAN_IR_OR:op=0x84;break;case SWAN_IR_XOR:op=0x85;break;
-  case SWAN_IR_SHL:op=0x86;break;case SWAN_IR_LSHR:op=0x87;break;case SWAN_IR_ASHR:op=0x88;break;
-  case SWAN_IR_ICMP_EQ:op=0x51;break;case SWAN_IR_ICMP_NE:op=0x52;break;case SWAN_IR_ICMP_SLT:op=0x53;break;
-  case SWAN_IR_ICMP_SGT:op=0x55;break;case SWAN_IR_ICMP_SLE:op=0x57;break;case SWAN_IR_ICMP_SGE:op=0x59;break;
+  case SWAN_IR_ADD:op=i32?0x6a:0x7c;break;case SWAN_IR_SUB:op=i32?0x6b:0x7d;break;case SWAN_IR_MUL:op=i32?0x6c:0x7e;break;
+  case SWAN_IR_SDIV:op=i32?0x6d:0x7f;break;case SWAN_IR_UDIV:op=i32?0x6e:0x80;break;case SWAN_IR_SREM:op=i32?0x6f:0x81;break;case SWAN_IR_UREM:op=i32?0x70:0x82;break;
+  case SWAN_IR_AND:op=i32?0x71:0x83;break;case SWAN_IR_OR:op=i32?0x72:0x84;break;case SWAN_IR_XOR:op=i32?0x73:0x85;break;
+  case SWAN_IR_SHL:op=i32?0x74:0x86;break;case SWAN_IR_LSHR:op=i32?0x75:0x87;break;case SWAN_IR_ASHR:op=i32?0x76:0x88;break;
+  case SWAN_IR_ICMP_EQ:op=i32?0x46:0x51;break;case SWAN_IR_ICMP_NE:op=i32?0x47:0x52;break;case SWAN_IR_ICMP_SLT:op=i32?0x48:0x53;break;
+  case SWAN_IR_ICMP_SGT:op=i32?0x4a:0x55;break;case SWAN_IR_ICMP_SLE:op=i32?0x4c:0x57;break;case SWAN_IR_ICMP_SGE:op=i32?0x4e:0x59;break;
   default:return false;
  }
- return swan_wasm_byte(b,op)&&swan_wasm_set(b,in->result);
-}
-static inline bool swan_codegen_wasm32(const SwanIRModule *m,SwanWasmBuffer *out,char *error,size_t cap){
- if(!swan_ir_verify(m,error,cap))return false;
- for(size_t f=0;f<m->function_count;f++)if(m->functions[f].block_count!=1||m->functions[f].blocks[0].terminator.kind!=SWAN_IR_RET){
-  if(error&&cap)snprintf(error,cap,"WASM32 backend currently requires straight-line functions");return false;
- }
- SwanWasmBuffer type={0},func={0},exports={0},code={0},module={0};
- bool ok=swan_wasm_u32(&type,(uint32_t)m->function_count)&&swan_wasm_u32(&func,(uint32_t)m->function_count);
- for(size_t f=0;ok&&f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];ok=swan_wasm_byte(&type,0x60)&&swan_wasm_u32(&type,(uint32_t)fn->parameter_count);
-  for(size_t p=0;ok&&p<fn->parameter_count;p++)ok=swan_wasm_byte(&type,swan_wasm_type(fn->parameter_types[p]));
-  ok=ok&&swan_wasm_u32(&type,fn->return_type==SWAN_IR_VOID?0:1);
-  if(ok&&fn->return_type!=SWAN_IR_VOID)ok=swan_wasm_byte(&type,swan_wasm_type(fn->return_type));
-  ok=ok&&swan_wasm_u32(&func,(uint32_t)f);
- }
- size_t main_index=m->function_count;
- for(size_t f=0;f<m->function_count;f++)if(!strcmp(m->functions[f].name,"main"))main_index=f;
- ok=ok&&main_index<m->function_count&&swan_wasm_u32(&exports,1)&&swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)main_index);
- ok=ok&&swan_wasm_u32(&code,(uint32_t)m->function_count);
- for(size_t f=0;ok&&f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];SwanWasmBuffer body={0};uint32_t locals=fn->next_value-(uint32_t)fn->parameter_count-1;
-  ok=swan_wasm_u32(&body,locals);
-  for(uint32_t id=(uint32_t)fn->parameter_count+1;ok&&id<fn->next_value;id++){
-   SwanIRType t=swan_ir_value_type_of(fn,id);ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type(t));
-  }
-  const SwanIRBlock *bb=&fn->blocks[0];
-  for(size_t i=0;ok&&i<bb->instruction_count;i++)ok=swan_wasm_emit_inst(&body,&bb->instructions[i]);
-  if(ok&&bb->terminator.value)ok=swan_wasm_get(&body,bb->terminator.value);
-  if(ok)ok=swan_wasm_byte(&body,0x0f)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_u32(&code,(uint32_t)body.length)&&swan_wasm_bytes(&code,body.data,body.length);
-  free(body.data);
- }
- static const uint8_t header[]={0,0x61,0x73,0x6d,1,0,0,0};
- ok=ok&&swan_wasm_bytes(&module,header,sizeof(header));
- SwanWasmBuffer *sections[]={&type,&func,&exports,&code};uint8_t ids[]={1,3,7,10};
- for(size_t i=0;ok&&i<4;i++)ok=swan_wasm_byte(&module,ids[i])&&swan_wasm_u32(&module,(uint32_t)sections[i]->length)&&swan_wasm_bytes(&module,sections[i]->data,sections[i]->length);
- free(type.data);free(func.data);free(exports.data);free(code.data);
- if(!ok){free(module.data);if(error&&cap)snprintf(error,cap,"WASM32 code generation failed or encountered an unsupported IR instruction");return false;}
- *out=module;return true;
-}
-#endif
