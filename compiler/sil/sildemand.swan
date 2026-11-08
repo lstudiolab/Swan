@@ -15,7 +15,11 @@ fn sil_demand(state: u32_array, count: int, live: u32_array, keep: u32_array) ->
         let destination = state[base + 1]
         let left = state[base + 2]
         let right = state[base + 3]
-        if opcode == 10 or live[destination] == 1
+        if opcode == 10
+            keep[instruction] = 1
+            live[left] = 1
+            live[right] = 1
+        if live[destination] == 1
             keep[instruction] = 1
             live[left] = 1
             live[right] = 1
