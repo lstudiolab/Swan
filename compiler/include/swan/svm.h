@@ -107,8 +107,9 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
         vm->register_capacities[frame_index]=value_count;
     }
     int64_t *values=vm->register_frames[frame_index];
-    /* Verified SSA guarantees every read is dominated by a write in this
-       invocation, so clearing the entire register frame is unnecessary. */
+    /* Verified SSA guarantees every nonzero read is dominated by a write
+       in this invocation, so clear only the reserved zero register. */
+    values[0]=0;
     size_t memory_mark=vm->memory_count;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = swan_svm_normalize_value(arguments[i],fn->parameter_types[i]);
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
