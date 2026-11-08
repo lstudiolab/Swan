@@ -73,13 +73,13 @@ static inline void swan_ir_destroy(SwanIRModule *m) {
  free(m->functions);for(size_t i=0;i<m->owned_string_count;i++)free(m->owned_strings[i]);free(m->owned_strings);memset(m,0,sizeof(*m));
 }
 static inline SwanIRFunction *swan_ir_add_function(SwanIRModule *m,const char *name,SwanIRType ret,const SwanIRType *params,size_t count) {
- if(!name||!swan_ir_type_valid(ret)||!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
+ if(!name||!swan_ir_type_valid(ret)||count>UINT32_MAX-1u||count>SIZE_MAX/sizeof(*params)||!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
  SwanIRFunction *f=&m->functions[m->function_count++];memset(f,0,sizeof(*f));f->name=name;f->return_type=ret;
  if(count){f->parameter_types=malloc(count*sizeof(*params));if(!f->parameter_types){m->function_count--;return NULL;}memcpy(f->parameter_types,params,count*sizeof(*params));}
  f->parameter_count=count;f->next_value=(uint32_t)count+1;return f;
 }
 static inline SwanIRBlock *swan_ir_add_block(SwanIRFunction *f,const char *name) {
- if(!swan_ir_reserve((void**)&f->blocks,&f->block_capacity,f->block_count+1,sizeof(*f->blocks)))return NULL;
+ if(f->block_count>=UINT32_MAX||!swan_ir_reserve((void**)&f->blocks,&f->block_capacity,f->block_count+1,sizeof(*f->blocks)))return NULL;
  SwanIRBlock *b=&f->blocks[f->block_count++];memset(b,0,sizeof(*b));b->name=name;return b;
 }
 static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRInst inst) {
@@ -161,7 +161,7 @@ static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count)return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
+  if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
   if(!fn->block_count)return swan_ir_fail(error,cap,"function has no entry block",fn->name,0,0);
