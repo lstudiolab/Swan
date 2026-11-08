@@ -88,12 +88,25 @@ static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *m){
         for(size_t b=0;b<fn->block_count;b++){
             SwanIRBlock *bb=&fn->blocks[b];
             for(size_t i=0;i<bb->instruction_count;i++){
-                SwanIRInst *in=&bb->instructions[i];if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
-                uint32_t a=in->a,z=in->b;if(swan_ir_commutative(in->op)&&a>z){uint32_t t=a;a=z;z=t;}
-                for(size_t j=0;j<i;j++){
-                    SwanIRInst *prior=&bb->instructions[j];if(!prior->result||prior->op!=in->op||prior->type!=in->type)continue;
-                    uint32_t pa=prior->a,pz=prior->b;if(swan_ir_commutative(prior->op)&&pa>pz){uint32_t t=pa;pa=pz;pz=t;}
-                    if(pa==a&&pz==z&&prior->c==in->c){swan_ir_replace_uses(fn,in->result,prior->result);changed=true;break;}
+                SwanIRInst *in=&bb->instructions[i];
+                if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
+                uint32_t a=in->a,z=in->b;
+                if(swan_ir_commutative(in->op)&&a>z){uint32_t t=a;a=z;z=t;}
+                bool replaced=false;
+                for(size_t pb=0;pb<fn->block_count&&!replaced;pb++){
+                    if(pb!=b&&!swan_ir_block_dominates(fn,pb,b))continue;
+                    SwanIRBlock *prior_block=&fn->blocks[pb];
+                    size_t limit=pb==b?i:prior_block->instruction_count;
+                    for(size_t j=0;j<limit;j++){
+                        SwanIRInst *prior=&prior_block->instructions[j];
+                        if(!prior->result||prior->op!=in->op||prior->type!=in->type)continue;
+                        uint32_t pa=prior->a,pz=prior->b;
+                        if(swan_ir_commutative(prior->op)&&pa>pz){uint32_t t=pa;pa=pz;pz=t;}
+                        if(pa==a&&pz==z&&prior->c==in->c){
+                            swan_ir_replace_uses(fn,in->result,prior->result);
+                            changed=true;replaced=true;break;
+                        }
+                    }
                 }
             }
         }
