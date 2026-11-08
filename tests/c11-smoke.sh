@@ -308,6 +308,27 @@ test "$("$TMP/array-u32")" = "4294967295
 7
 99"
 printf 'PASS: zero-initialized u32 arrays, indexed loads/stores, and unsigned value preservation\n'
+cat > "$TMP/array-midpoint.swan" <<'SWAN'
+fn main():
+    let values = array(8)
+    var low = 0
+    var high = 7
+    while low <= high
+        var middle = low + (high - low) // 2
+        log values[middle]
+        break
+    return 0
+SWAN
+"$SWAN" "$TMP/array-midpoint.swan" --emit-asm -o "$TMP/array-midpoint.s"
+cc -x assembler "$TMP/array-midpoint.s" -o "$TMP/array-midpoint"
+test "$("$TMP/array-midpoint")" = "0"
+grep -q 'shr rax, 1' "$TMP/array-midpoint.s"
+if grep -q 'mov r11, rbx' "$TMP/array-midpoint.s"; then
+    echo 'FAIL: register-resident array base used an unnecessary scratch move' >&2
+    exit 1
+fi
+printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
+
 cat > "$TMP/heapsort.swan" <<'SWAN'
 fn main():
     let values = array_u32_unchecked(10)

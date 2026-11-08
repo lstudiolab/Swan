@@ -1,7 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
-typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg; const char *inline_param; Program *program; } Text;
+typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg,*active_loop_condition; const char *inline_param; Program *program; } Text;
 static inline bool text_reserve(Text *t,size_t extra){
  if(extra>SIZE_MAX-t->len-1)return false;size_t need=t->len+extra+1;
  if(need<=t->cap)return true;size_t cap=t->cap?t->cap:4096;
@@ -61,6 +61,16 @@ static inline Stmt *cg_find_function(Program *p,const char *name){
  if(!p)return NULL;
  if(p->function_indexed){unsigned b=cg_function_hash(name)&2047u;for(int n=p->function_buckets[b];n;n=p->function_next[n-1]){Stmt *fn=p->functions[n-1];if(!strcmp(fn->name,name))return fn;}return NULL;}
  for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
+}
+static inline bool expr_is_nonnegative_midpoint(Expr *division,Expr *condition){
+ if(!division||division->kind!=E_BINARY||(division->token.kind!=T_SLASH&&division->token.kind!=T_FLOORDIV)||!division->right||division->right->kind!=E_INT)return false;
+ if(!condition||condition->kind!=E_BINARY||(condition->token.kind!=T_LE&&condition->token.kind!=T_LT)||!condition->left||!condition->right||condition->left->kind!=E_NAME||condition->right->kind!=E_NAME)return false;
+ Expr *difference=division->left;
+ return difference&&difference->kind==E_BINARY&&difference->token.kind==T_MINUS&&difference->left&&difference->left->kind==E_NAME&&difference->right&&difference->right->kind==E_NAME&&!strcmp(difference->left->token.text,condition->right->token.text)&&!strcmp(difference->right->token.text,condition->left->token.text);
+}
+static inline bool stmt_is_safe_midpoint(Stmt *statement,Expr *condition){
+ if(!statement||statement->kind!=S_VARIABLE||!statement->value||statement->value->kind!=E_BINARY||statement->value->token.kind!=T_PLUS||!statement->value->left||statement->value->left->kind!=E_NAME||!condition||condition->kind!=E_BINARY||!condition->left||condition->left->kind!=E_NAME||strcmp(statement->value->left->token.text,condition->left->token.text))return false;
+ return expr_is_nonnegative_midpoint(statement->value->right,condition);
 }
 static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err);
 static inline void emit_condition_jump(Text *o,Expr *e,Locals *l,SwanError *err,const char *target,bool when_true);
@@ -290,10 +300,8 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   Local *array=local_find(l,e->left->token.text);
   if(!array||!array->array_u32){swan_error(err,&e->token,"indexing currently requires an array_u32 value");break;}
   emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, rax\n");
-  if(array->reg>=0)text_add(o,"    mov r11, %s\n",cg_reg_name(array->reg));
-  else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);
-  if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");
-  text_add(o,"    mov eax, DWORD PTR [r11 + rcx*4]\n");
+  if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov eax, DWORD PTR [%s + rcx*4]\n",base);}
+  else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov eax, DWORD PTR [r11 + rcx*4]\n");}
   o->uses_array_bounds=true;
   break;
  }
@@ -314,10 +322,8 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
     bool calls=expr_has_call(e->left->right)||expr_has_call(e->right);
     if(calls){emit_expr(o,e->left->right,l,err);cg_push(o,"rax");emit_expr(o,e->right,l,err);cg_pop(o,"rcx");}
     else{emit_expr(o,e->left->right,l,err);text_add(o,"    mov r8, rax\n");emit_expr(o,e->right,l,err);text_add(o,"    mov rcx, r8\n");}
-    if(array->reg>=0)text_add(o,"    mov r11, %s\n",cg_reg_name(array->reg));
-    else text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);
-    if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");
-    text_add(o,"    mov DWORD PTR [r11 + rcx*4], eax\n");
+    if(array->reg>=0){const char *base=cg_reg_name(array->reg);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [%s - 8]\n    jae .Lswan_array_bounds_fail\n",base);text_add(o,"    mov DWORD PTR [%s + rcx*4], eax\n",base);}
+    else{text_add(o,"    mov r11, QWORD PTR [rbp - %d]\n",array->slot*8);if(!array->array_unchecked)text_add(o,"    cmp rcx, QWORD PTR [r11 - 8]\n    jae .Lswan_array_bounds_fail\n");text_add(o,"    mov DWORD PTR [r11 + rcx*4], eax\n");}
     o->uses_array_bounds=true;break;
    }
    if(e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");break;}
@@ -354,7 +360,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
      const char *cc=e->token.kind==T_EQ?"sete":e->token.kind==T_NE?"setne":e->token.kind==T_LT?"setl":e->token.kind==T_GT?"setg":e->token.kind==T_LE?"setle":"setge";
      text_add(o,"    cmp rax, %lld\n    %s al\n    movzx rax, al\n",imm,cc);break;
     }
-    if((e->token.kind==T_SLASH||e->token.kind==T_FLOORDIV)&&imm>0){uint64_t divisor=(uint64_t)imm;if(divisor>1&&(divisor&(divisor-1))==0){unsigned shift=0;while((UINT64_C(1)<<shift)!=divisor)shift++;text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %llu\n    add rax, rcx\n    sar rax, %u\n",(unsigned long long)(divisor-1),shift);break;}}
+    if((e->token.kind==T_SLASH||e->token.kind==T_FLOORDIV)&&imm>0){uint64_t divisor=(uint64_t)imm;if(divisor>1&&(divisor&(divisor-1))==0){unsigned shift=0;while((UINT64_C(1)<<shift)!=divisor)shift++;if(expr_is_nonnegative_midpoint(e,o->active_loop_condition))text_add(o,"    shr rax, %u\n",shift);else text_add(o,"    mov rcx, rax\n    sar rcx, 63\n    and rcx, %llu\n    add rax, rcx\n    sar rax, %u\n",(unsigned long long)(divisor-1),shift);break;}}
     if(e->token.kind==T_PERCENT&&imm>1){
      uint64_t divisor=(uint64_t)imm;
      if((divisor&(divisor-1))==0){
@@ -645,7 +651,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
    case S_WHILE:{
     int id=(*label)++;char target[64];snprintf(target,sizeof(target),".Lswan_loop_end_%d",id);
     if(o->loop_depth>=128){swan_error(err,&s->token,"loop nesting exceeds 128 levels");break;}o->loop_break[o->loop_depth]=id;o->loop_continue[o->loop_depth]=id;o->loop_depth++;
-    Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr;
+    Expr *saved_hoist=o->hoist_expr,*saved_recurrence=o->recurrence_expr,*saved_active=o->active_loop_condition;o->active_loop_condition=s->body_count&&stmt_is_safe_midpoint(s->body[0],s->condition)?s->condition:NULL;
     Expr *hoist=saved_hoist?NULL:find_loop_hoist(s,l);
     if(hoist){emit_expr(o,hoist,l,err);text_add(o,"    mov r11, rax\n");o->hoist_expr=hoist;}
     long long recurrence_step=0;
@@ -667,7 +673,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      text_add(o,".Lswan_loop_%d:\n",id);emit_condition_jump(o,s->condition,l,err,target,false);emit_block(o,s->body,s->body_count,l,label,err);
      text_add(o,"    jmp .Lswan_loop_%d\n.Lswan_loop_end_%d:\n",id,id);
     }
-    o->hoist_expr=saved_hoist;o->recurrence_expr=saved_recurrence;
+    o->hoist_expr=saved_hoist;o->recurrence_expr=saved_recurrence;o->active_loop_condition=saved_active;
     if(recurrence)cg_pop(o,"r15");
     o->loop_depth--;
     break;
