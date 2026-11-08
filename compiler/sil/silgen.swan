@@ -1,12 +1,16 @@
-# Swan SIL generator primitives.
-# Each instruction occupies five u32 cells: encoded opcode, result ID,
-# lhs ID, rhs ID, immediate. Types: 1=i32, 2=i64, 3=bool.
-# Operations: 1=const, 2=add, 3=sub, 4=mul, 5=sdiv, 6=srem,
-#             7=icmp_eq, 8=icmp_slt, 9=copy, 10=return.
+# Swan-authored SIL builder.
+# Record layout: [encoded opcode, result, lhs, rhs, immediate].
+# Opcode = type * 16 + operation; types 1=i32, 2=i64, 3=bool.
+# Operations: const=1, add=2, sub=3, mul=4, sdiv=5, srem=6,
+# icmp_eq=7, icmp_slt=8, copy=9, return=10.
+# Packed builder arguments keep the current Swan ABI at three arguments.
 
-fn sil_emit_const(state: u32_array, count: int, destination: int, value: int, type: int) -> int:
+fn sil_emit_const(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
+    let destination = packed / 1048576
+    let type = (packed / 65536) % 16
+    let value = packed % 65536
     let base = count * 5
     state[base] = type * 16 + 1
     state[base + 1] = destination
@@ -15,25 +19,18 @@ fn sil_emit_const(state: u32_array, count: int, destination: int, value: int, ty
     state[base + 4] = value
     return count + 1
 
-fn sil_emit_binary(state: u32_array, count: int, opcode: int, destination: int, left: int, right: int) -> int:
+fn sil_emit_binary(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
+    let opcode = packed / 16777216
+    let destination = (packed / 65536) % 256
+    let left = (packed / 256) % 256
+    let right = packed % 256
     let base = count * 5
     state[base] = opcode
     state[base + 1] = destination
     state[base + 2] = left
     state[base + 3] = right
-    state[base + 4] = 0
-    return count + 1
-
-fn sil_emit_copy(state: u32_array, count: int, destination: int, source: int, type: int) -> int:
-    if count < 0 or count >= 256
-        return -1
-    let base = count * 5
-    state[base] = type * 16 + 9
-    state[base + 1] = destination
-    state[base + 2] = source
-    state[base + 3] = 0
     state[base + 4] = 0
     return count + 1
 

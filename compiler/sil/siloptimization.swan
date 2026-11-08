@@ -2,19 +2,20 @@ import silpass
 import sildemand
 import silverify
 
-fn sil_optimize(state: u32_array, count: int, live: u32_array, keep: u32_array, known: u32_array, constants: u32_array) -> int:
+# Complete scalar SIL pass pipeline: verify, fold, demand, DCE, verify.
+# Workspace layout is shared by every pass to avoid allocation and ABI churn.
+fn sil_optimize(state: u32_array, count: int, workspace: u32_array) -> int:
     if sil_verify(state, count) == 0
         return -1
-    if sil_fold_constants(state, count, known, constants) < 0
+    if sil_fold_constants(state, count, workspace) < 0
         return -1
-    let kept = sil_demand(state, count, live, keep)
-    if kept < 1
+    if sil_demand(state, count, workspace) < 1
         return -1
     var read = 0
     var write = 0
     while read < count
-        if keep[read] == 1
-            let source = read * 5
+        let source = read * 5
+        if workspace[256 + read] == 1
             let target = write * 5
             state[target] = state[source]
             state[target + 1] = state[source + 1]

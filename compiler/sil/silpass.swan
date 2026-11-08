@@ -1,13 +1,9 @@
-# SIL canonicalization and constant propagation pass.
-fn sil_fold_constants(state: u32_array, count: int, known: u32_array, constants: u32_array) -> int:
+# Swan-authored scalar constant folding.
+# Workspace layout: known[512..767], constants[768..1023].
+fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int:
     if count < 1 or count > 256
         return -1
     var index = 0
-    while index < 256
-        known[index] = 0
-        constants[index] = 0
-        index = index + 1
-    index = 0
     while index < count
         let base = index * 5
         let encoded = state[base]
@@ -17,13 +13,13 @@ fn sil_fold_constants(state: u32_array, count: int, known: u32_array, constants:
         let left = state[base + 2]
         let right = state[base + 3]
         if opcode == 1
-            known[destination] = 1
-            constants[destination] = state[base + 4]
+            workspace[512 + destination] = 1
+            workspace[768 + destination] = state[base + 4]
         else
             if opcode >= 2 and opcode <= 8
-                if known[left] == 1 and known[right] == 1
-                    let a = constants[left]
-                    let b = constants[right]
+                if workspace[512 + left] == 1 and workspace[512 + right] == 1
+                    let a = workspace[768 + left]
+                    let b = workspace[768 + right]
                     var folded = 0
                     var can_fold = 1
                     if opcode == 2
@@ -48,34 +44,17 @@ fn sil_fold_constants(state: u32_array, count: int, known: u32_array, constants:
                                             folded = a % b
                                     else
                                         if opcode == 7
-                                            if a == b
-                                                folded = 1
-                                            else
-                                                folded = 0
+                                            folded = a == b
                                         else
-                                            if a < b
-                                                folded = 1
-                                            else
-                                                folded = 0
+                                            folded = a < b
                     if can_fold == 1
                         state[base] = type * 16 + 1
                         state[base + 2] = 0
                         state[base + 3] = 0
                         state[base + 4] = folded
-                        known[destination] = 1
-                        constants[destination] = folded
+                        workspace[512 + destination] = 1
+                        workspace[768 + destination] = folded
                 else
-                    known[destination] = 0
-            else
-                if opcode == 9
-                    if known[left] == 1
-                        state[base] = type * 16 + 1
-                        state[base + 2] = 0
-                        state[base + 3] = 0
-                        state[base + 4] = constants[left]
-                        known[destination] = 1
-                        constants[destination] = constants[left]
-                    else
-                        known[destination] = 0
+                    workspace[512 + destination] = 0
         index = index + 1
     return count

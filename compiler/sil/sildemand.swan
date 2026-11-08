@@ -1,2 +1,21 @@
-fn sil_demand(state: u32_array, count: int, live: u32_array, keep: u32_array) -> int:
-    return count
+# Swan-authored backwards liveness and value-demand analysis.
+# Workspace layout: live[0..255], keep[256..511].
+fn sil_demand(state: u32_array, count: int, workspace: u32_array) -> int:
+    if count < 1 or count > 256
+        return -1
+    var scan = 0
+    var kept = 0
+    while scan < count
+        let instruction = count - scan - 1
+        let base = instruction * 5
+        let opcode = state[base] % 16
+        let destination = state[base + 1]
+        let left = state[base + 2]
+        let right = state[base + 3]
+        let needed = (opcode == 10) or (workspace[destination] == 1)
+        workspace[256 + instruction] = needed
+        workspace[left] = (workspace[left] == 1) or (needed == 1)
+        workspace[right] = (workspace[right] == 1) or (needed == 1)
+        kept = kept + needed
+        scan = scan + 1
+    return kept

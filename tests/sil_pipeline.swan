@@ -4,32 +4,15 @@ import siloptimization
 
 fn main() -> int:
     let state = array_unchecked(1280)
-    let live = array_unchecked(256)
-    let keep = array_unchecked(256)
-    let known = array_unchecked(256)
-    let constants = array_unchecked(256)
-    var count = sil_emit_const(state, 0, 1, 10, 1)
-    log count
-    count = sil_emit_const(state, count, 2, 20, 1)
-    log count
-    count = sil_emit_binary(state, count, 18, 3, 1, 2)
-    log count
+    let workspace = array_unchecked(1024)
+    var count = sil_emit_const(state, 0, 1 * 1048576 + 1 * 65536 + 10)
+    count = sil_emit_const(state, count, 2 * 1048576 + 1 * 65536 + 20)
+    count = sil_emit_binary(state, count, 18 * 16777216 + 3 * 65536 + 1 * 256 + 2)
     count = sil_emit_return(state, count, 3)
-    log count
-    let valid = sil_verify(state, count)
-    if valid != 1
+    if sil_verify(state, count) != 1
         echo!("SIL_VERIFY_FAILED")
-        log state[0]
-        log state[1]
-        log state[5]
-        log state[6]
-        log state[10]
-        log state[11]
-        log state[15]
-        log state[17]
-        log valid
         return 1
-    count = sil_optimize(state, count, live, keep, known, constants)
+    count = sil_optimize(state, count, workspace)
     if count != 2
         echo!("SIL_OPTIMIZE_COUNT_FAILED")
         log count
