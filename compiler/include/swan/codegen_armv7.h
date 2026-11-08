@@ -12,7 +12,6 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
    if(in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_PTR&&in->type!=SWAN_IR_VOID){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32/i1 scalar values only");return false;}
-   if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_UDIV||in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM){if(error&&cap)snprintf(error,cap,"ARMv7 integer division requires a target runtime helper");return false;}
    if(in->op==SWAN_IR_CALL&&in->incoming_count>16){if(error&&cap)snprintf(error,cap,"ARMv7 calls support at most 16 arguments");return false;}
   }
  }
