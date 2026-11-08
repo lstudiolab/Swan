@@ -32,7 +32,7 @@ grep -q "target 'aarch64' (aarch64-unknown-linux-gnu) is recognized but its back
 "$SWAN" --list-targets > "$TMP/targets.txt"
 grep -q "x86_64.*implemented" "$TMP/targets.txt"
 grep -q "aarch64.*planned" "$TMP/targets.txt"
-grep -q "wasm32.*planned" "$TMP/targets.txt"
+grep -q "wasm32.*implemented" "$TMP/targets.txt"
 if "$SWAN" "$TMP/native.swan" --target madeup 2>"$TMP/unknown.err"; then
     echo "FAIL: unknown target was accepted" >&2
     exit 1
