@@ -1,67 +1,62 @@
 # Compiler Architecture
 
-Swan owns its frontend, intermediate representations, optimization passes, and machine-code generation. There is no C transpilation stage and no LLVM or Clang backend.
-
-The intended multi-stage architecture and migration plan are documented in [PIPELINE_DESIGN.md](PIPELINE_DESIGN.md). That document explicitly distinguishes planned stages from implemented stages.
+Swan owns its frontend, typed intermediate representation, optimization passes, and machine-code generation. It does not transpile Swan source to C and does not delegate code generation to LLVM or Clang.
 
 ## Implementation model
 
 The compiler is C11. `main.c` is the only compiled translation unit; compiler subsystems are headers under `compiler/include/swan/`.
 
-## Active pipeline
+## Active compilation paths
 
-The current implementation is still the original direct-AST backend:
+The x86-64 compiler has two active paths:
 
 ```text
-.swan source
-  -> lexer and indentation tokens
-  -> parser constructs AST
-  -> standard-library import resolution
-  -> semantic name/scope validation
-  -> direct AST-to-x86-64 lowering
-  -> Swan-generated GNU assembler Intel syntax
-  -> system assembler and linker
-  -> executable
+.swan -> lexer -> parser / AST -> imports -> semantic analysis
+  -> typed SSA IR -> verified scalar optimizations -> Swan x86-64 IR backend
+  -> assembly emitter -> system assembler/linker
 ```
 
-The compiler currently does not execute the planned SIL, target-independent IR, separate emitter, or separate linker-driver stages. The planned filenames (silgen.swan, sildemand.swan, silpass.swan, siloptimization.swan, irgen.h, codegen.h, optimization.h, emitter.h and linker.h) are architectural components to introduce incrementally, not existing active modules. The AST data model currently lives in core.h; ast.h is a planned extraction.
+The compatibility path still lowers constructs not yet represented in IR (including the existing array, logging, and runtime-lazy import implementation) directly from the AST to Swan-generated x86-64 assembly.
 
-The assembler and linker consume only Swan-generated assembly. They do not compile Swan source or select Swan instructions.
+Cross-target AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM consume the documented typed-IR subset. Their availability does not imply full language or ABI parity.
 
-## Implemented backend components
+## Implemented compiler components
 
-- x86-64 System V function entry, stack-frame layout, and call alignment.
-- Up to six integer/pointer arguments through the standard register argument sequence.
-- Callee-saved and caller-saved local register allocation, with stack spills.
-- Direct local arithmetic and comparison lowering.
-- Constant folding, short-circuit logical lowering, power-of-two division, small single-return inlining, and loop strength reduction.
-- Bounds-checked and unchecked contiguous `u32` arrays.
-- SAMC compiler-tracked array ownership, automatic function-exit cleanup, manual ownership declarations, and explicit `free` lowering without runtime reference counters.
-- Loop break/continue labels and early-exit-aware loop lowering.
-- Error-checked assembly-buffer growth.
+- Lexer, indentation-aware parser, AST, import resolution, and semantic analysis.
+- Typed SSA IR with integer widths, booleans, pointers, arithmetic, comparisons, branches, PHI nodes, calls, and local memory.
+- IR verifier for SSA definitions, use-before-definition, dominance, CFG edges, PHI predecessor coverage, operand types, and call signatures.
+- Verified optimization passes: width-aware constant folding, constant-select folding, CFG simplification, algebraic simplification, dominance-aware common-subexpression elimination, and iterative dead-code elimination.
+- Portable `.swvm` artifact serialization with versioning, bounded reads, malformed-input checks, and explicit ownership of decoded strings.
+- SVM execution with typed integer semantics, calls, local memory, PHI/CFG execution, fuel limits, and call-depth limits.
+- Swan-owned x86-64 System V AST compatibility and typed-IR code generation.
+- Swan-owned AArch64, ARMv7, RISC-V64, WASM32, and WASM64 typed-IR emitters.
+- Separate assembly emission and linker-driver interfaces.
 
-The current backend lowers directly from the AST. SAMC conservatively releases non-escaping local array allocations at function exit and on early returns. Arrays that escape through aliases, calls, or returns are not implicitly released. SAMC does not yet have interprocedural ownership analysis or per-block last-use cleanup. The backend does not yet have a typed, target-independent IR, global liveness analysis, or a mature optimization pipeline.
+## Current limitations
 
-## Standard library
+The IR generator does not yet lower array/slice operations, strings and logging, floating-point arithmetic, closures, aggregate values, or runtime-lazy imports. Those constructs continue to use the x86-64 compatibility path where supported; unsupported target/language combinations must fail with explicit diagnostics.
 
-Top-level `import module` declarations are resolved from the configured standard-library directory. Module source buffers remain alive until semantic analysis and code generation finish. Repeated imports are loaded once, and nested imports are resolved before semantic checking.
+IR backends currently use conservative stack/register slots. A global liveness-driven register allocator, spill insertion, loop-invariant code motion, broader target instruction selection, and complete cross-target runtime integration remain unfinished.
 
-## Backend architecture target
+SAMC currently provides conservative local array cleanup in the AST backend. Escaping arrays are deliberately not implicitly released; interprocedural ownership and per-block last-use analysis remain future work.
 
-Each additional target must own:
-1. Target data layout and ABI lowering.
-2. Instruction selection from a typed low-level IR.
-3. Register allocation and spill handling.
-4. Calling convention and stack-frame layout.
-5. Assembly emission and relocation/symbol conventions.
-6. Target-specific optimization and instruction scheduling.
+## Target and ABI boundaries
 
-Planned Swan-owned backends: AArch64, ARMv7/Thumb, RISC-V 64, and WebAssembly.
+- x86-64 currently targets the System V Linux ABI.
+- AArch64 targets the AAPCS64 Linux ABI.
+- ARMv7 targets the AAPCS32 ARM-state Linux ABI and uses EABI division helpers for integer division/remainder.
+- RISC-V64 targets the documented Linux integer ABI subset.
+- WASM32 emits a WebAssembly 32-bit memory module.
+- WASM64 emits a WebAssembly memory64 module; runtime interoperability depends on a compatible Memory64 runtime.
+- SVM executes verified typed IR as a portable virtual machine.
+
+Windows x64, Apple Darwin ABIs, ARM Thumb, and additional RISC-V profiles are not implemented.
 
 ## Engineering rules
 
 1. Never transpile Swan source into C.
-2. Never delegate Swan code generation to LLVM or Clang.
-3. System assemblers/linkers may consume Swan-emitted assembly.
-4. Never advertise a target until its own backend passes ABI and execution tests.
+2. Never delegate Swan instruction selection or code generation to LLVM/Clang.
+3. System assemblers and linkers may consume Swan-generated assembly.
+4. Never claim full target parity based only on successful object/module emission.
 5. Every optimization requires correctness tests and reproducible performance measurements.
+6. Keep the pre-SIL IR and compatibility pipelines stable before beginning another IR layer.
