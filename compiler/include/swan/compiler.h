@@ -11,6 +11,7 @@
 #include "swan/optimization.h"
 #include "swan/svm.h"
 #include "swan/codegen_wasm32.h"
+#include "swan/codegen_aarch64.h"
 #include "swan/emitter.h"
 #include "swan/linker.h"
 #include <unistd.h>
