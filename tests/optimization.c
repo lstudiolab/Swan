@@ -54,7 +54,7 @@ int main(void){
  assert(swan_ir_optimize(&siblings,error,sizeof(error)));assert(swan_ir_verify(&siblings,error,sizeof(error)));
  assert(sf->blocks[1].instruction_count==1&&sf->blocks[2].instruction_count==1);
  swan_ir_destroy(&siblings);
- { {
+ {
  SwanIRModule licm={0};SwanIRType lp[]={SWAN_IR_I64};
  SwanIRFunction *lf=swan_ir_add_function(&licm,"work",SWAN_IR_I64,lp,1);assert(lf);
  SwanIRBlock *le=swan_ir_add_block(lf,"entry"),*lh=swan_ir_add_block(lf,"header");
