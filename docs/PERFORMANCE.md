@@ -17,6 +17,8 @@ The current compiler hot paths use:
 - **Indexed backend locals:** compact local records and hash lookup replace repeated reverse scans through large fixed-size local arrays.
 - **Expanded register use:** immutable locals in calling functions can occupy caller-saved registers; the backend preserves those registers around direct calls, nested calls, and logging, while mutable locals retain callee-saved registers or spills.
 - **Cached AST call metadata:** expression trees carry call-presence metadata so call analysis does not repeatedly walk subtrees.
+- **Lexer keyword dispatch:** keyword classification switches on token length and first byte before comparing the short candidate set, avoiding a full keyword-chain scan for every identifier.
+- **Loop-analysis write sets:** loop-invariant analysis builds one compact hashed write set per loop instead of rescanning the full body for each identifier reference.
 - **Scratch-register preservation:** the addition-chain emitter detects operands that can overwrite its `r10` accumulator (spilled-array accesses, non-power-of-two constant remainder, and nested fallback addition) and saves it only for those operands; simple terms retain the register-only path.
 - **Low-overhead assembly emission:** literal instruction strings bypass the formatting library; formatted output uses a single formatting pass unless the output buffer must grow.
 - **Cached constant analysis:** each AST expression caches its constant-folding result, avoiding repeated recursive evaluation during code generation and loop analysis.
