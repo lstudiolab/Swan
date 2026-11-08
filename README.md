@@ -1,6 +1,6 @@
 # Swan
 
-Swan is an open-source compiled programming language. Its compiler is implemented in C11 and emits x86-64 System V assembly directly. It does not transpile Swan source to C and does not delegate code generation to LLVM or Clang.
+Swan is an open-source compiled programming language. Its compiler is implemented in C11 and owns its frontend and code generation. It does not transpile Swan source to C and does not delegate code generation to LLVM or Clang.
 
 The repository is licensed under Apache License 2.0.
 
@@ -13,7 +13,7 @@ The repository is licensed under Apache License 2.0.
   -> standard-library module loader
   -> semantic analysis
   -> Swan AST
-  -> Swan-owned x86-64 code generator
+  -> target-selected Swan backend (currently x86-64 System V)
   -> GNU assembler / system linker
   -> native executable
 ```
@@ -42,7 +42,7 @@ Emit assembly:
 ./build/swan examples/hello.swan --emit-asm -o hello.s
 ```
 
-The compiler also accepts `--target x86_64`. Other architecture targets are rejected until their Swan-owned backends exist.
+The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Only x86-64 System V Linux currently has an executable backend; recognized future targets are reported as planned and rejected clearly until their backends and tests are implemented.
 
 ## Language subset
 
@@ -143,10 +143,12 @@ CI runs the complete suite, including compiler construction, header isolation, p
 | Target | Status |
 |---|---|
 | x86-64 System V Linux | Implemented and tested |
-| AArch64 / ARM64 | Not implemented |
-| ARMv7 / Thumb | Not implemented |
-| RISC-V | Not implemented |
-| WebAssembly | Not implemented |
+| AArch64 / ARM64 | Planned; backend not implemented |
+| ARMv7 / Thumb | Planned; backend not implemented |
+| RISC-V 64 | Planned; backend not implemented |
+| WebAssembly 32-bit | Planned; backend not implemented |
+| WebAssembly 64-bit | Planned; backend not implemented |
+
 | Windows x64 / Apple Darwin | Not implemented |
 
 Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
