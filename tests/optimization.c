@@ -114,6 +114,6 @@ int main(void){
  assert(swan_svm_run(&licm,"main",1000,&folded,error,sizeof(error)));assert(folded==45);
  swan_ir_destroy(&licm);
 
- puts("PASS: verified optimization pass manager, constant folding, algebraic simplification, common-subexpression elimination and dead-code elimination");
+ puts("PASS: constant folding, CFG simplification, algebraic simplification, copy propagation, dominance-aware CSE, LICM and dead-code elimination");
  return 0;
 }
