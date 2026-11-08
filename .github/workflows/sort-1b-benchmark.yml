@@ -1,15 +1,6 @@
 name: Swan 1B Integer Sort Benchmark
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/sort-1b-benchmark.yml"
-      - "benchmarks/sort_1b.swan"
-      - "benchmarks/run_sort_1b.sh"
-      - "compiler/**"
-      - "main.c"
-      - "build.sh"
   workflow_dispatch:
 
 permissions:

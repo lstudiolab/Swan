@@ -1,18 +1,6 @@
 name: Four-language 1B Sort Comparison
 
 on:
-  push:
-    branches: [main]
-    paths:
-      - ".github/workflows/sort-1b-comparison.yml"
-      - "benchmarks/sort_1b.swan"
-      - "benchmarks/sort_1b.goose"
-      - "benchmarks/sort_1b.rs"
-      - "benchmarks/sort_1b.c"
-      - "benchmarks/run_sort_1b_comparison.sh"
-      - "compiler/**"
-      - "main.c"
-      - "build.sh"
   workflow_dispatch:
 
 permissions:

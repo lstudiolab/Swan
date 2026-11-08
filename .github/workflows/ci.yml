@@ -5,16 +5,15 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   compiler-c11:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - name: Build single-translation-unit C compiler
-        run: sh build.sh
-      - name: Verify C header isolation and translation-unit policy
-        run: sh tests/headers.sh
-      - name: Verify native assembly output
-        run: sh tests/c11-smoke.sh
+      - name: Run complete compiler and standard-library test suite
+        run: sh test.sh
       - name: Verify compiler version
         run: ./build/swan --version
