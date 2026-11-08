@@ -54,7 +54,7 @@ int main(void){
  assert(swan_ir_optimize(&siblings,error,sizeof(error)));assert(swan_ir_verify(&siblings,error,sizeof(error)));
  assert(sf->blocks[1].instruction_count==1&&sf->blocks[2].instruction_count==1);
  swan_ir_destroy(&siblings);
- SwanIRModule licm={0};SwanIRType lp[]={SWAN_IR_I64};
+ { SwanIRModule licm={0};SwanIRType lp[]={SWAN_IR_I64};
  SwanIRFunction *lf=swan_ir_add_function(&licm,"work",SWAN_IR_I64,lp,1);assert(lf);
  SwanIRBlock *le=swan_ir_add_block(lf,"entry"),*lh=swan_ir_add_block(lf,"header");
  SwanIRBlock *lb=swan_ir_add_block(lf,"body"),*lx=swan_ir_add_block(lf,"exit");assert(le&&lh&&lb&&lx);
@@ -96,7 +96,8 @@ int main(void){
  bool remains=false;for(size_t i=0;i<lf->blocks[2].instruction_count;i++)remains|=lf->blocks[2].instructions[i].op==SWAN_IR_MUL;
  assert(hoisted&&!remains);
  assert(swan_svm_run(&licm,"main",1000,&folded,error,sizeof(error)));assert(folded==45);
- swan_ir_destroy(&licm);
+ swan_ir_destroy(&licm); }
+
  puts("PASS: verified optimization pass manager, constant folding, algebraic simplification, common-subexpression elimination and dead-code elimination");
  return 0;
 }
