@@ -42,7 +42,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
       if(outgoing)text_add(o,"    add sp, sp, #%zu\n",outgoing);
       if(in->type!=SWAN_IR_VOID)text_add(o,"    str r0, [sp, #%d]\n",d);break;}
      case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
-      int id=(int)(f*4096u+b*64u+i);
+      int id=o->next_label++;
       text_add(o,"    ldr r0, [sp, #%d]\\n    ldr r1, [sp, #%d]\\n    cmp r1, #0\\n    beq .Lsw_divzero_%d\\n",a,z,id);
       if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM){
        text_add(o,"    ldr r2, =0x80000000\\n    cmp r0, r2\\n    bne .Lsw_divsafe_%d\\n    cmn r1, #1\\n    beq .Lsw_divzero_%d\\n.Lsw_divsafe_%d:\\n",id,id,id);
