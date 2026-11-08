@@ -265,7 +265,8 @@ static inline bool swan_svm_read_module(FILE *in,SwanIRModule *m,char *error,siz
     if(!swan_svm_read_u32(&r,&functions)||functions>SWAN_SVM_MAX_ITEMS)goto malformed;
     for(uint32_t f=0;f<functions;f++){
         char *name=swan_svm_read_string(&r);uint8_t ret;uint32_t params,blocks,next;
-        if(!name||!swan_svm_read_u8(&r,&ret)||!swan_svm_read_u32(&r,&params)||params>1024){free(name);goto malformed;}\n        if(!swan_ir_own_string(m,name)){free(name);goto malformed;}
+        if(!name||!swan_svm_read_u8(&r,&ret)||!swan_svm_read_u32(&r,&params)||params>1024){free(name);goto malformed;}
+        if(!swan_ir_own_string(m,name)){free(name);goto malformed;}
         SwanIRType *types=params?malloc((size_t)params*sizeof(*types)):NULL;
         if(params&&!types){free(name);goto malformed;}
         bool ok=true;for(uint32_t p=0;p<params;p++){uint8_t t;if(!swan_svm_read_u8(&r,&t)){ok=false;break;}types[p]=(SwanIRType)t;}
