@@ -1,0 +1,53 @@
+name: Four-language 1B Sort Comparison
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sort-1b-comparison.yml"
+      - "benchmarks/sort_1b.swan"
+      - "benchmarks/sort_1b.goose"
+      - "benchmarks/sort_1b.rs"
+      - "benchmarks/sort_1b.c"
+      - "benchmarks/run_sort_1b_comparison.sh"
+      - "compiler/**"
+      - "main.c"
+      - "build.sh"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build Swan compiler
+        run: sh build.sh
+      - name: Check out Goose compiler
+        uses: actions/checkout@v4
+        with:
+          repository: lstudiolab/goose
+          ref: master
+          path: goose-src
+      - name: Build Goose compiler
+        run: |
+          cmake -S goose-src -B goose-build -DCMAKE_BUILD_TYPE=Release
+          cmake --build goose-build --config Release --parallel 2
+      - name: Run identical 1B workloads
+        shell: bash
+        run: |
+          set -o pipefail
+          bash benchmarks/run_sort_1b_comparison.sh 2>&1 | tee sort-1b-comparison.log
+      - name: Upload comparison results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sort-1b-four-language-${{ github.run_id }}
+          path: |
+            sort-1b-comparison.log
+            build/*.time
+          if-no-files-found: warn
