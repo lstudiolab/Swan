@@ -228,7 +228,8 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                     }
         return swan_ir_verify(module,error,cap);
     }
-    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify(module,error,cap);}\n    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
