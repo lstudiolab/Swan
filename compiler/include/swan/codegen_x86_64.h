@@ -344,9 +344,10 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
    else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);
    break;
   }
-  if(e->right&&e->right->kind==E_INT){
-   char *end=NULL;long long imm=strtoll(e->right->token.text,&end,10);
-   if(end&&*end==0&&imm>=INT32_MIN&&imm<=INT32_MAX){
+  int64_t right_constant=0;
+  if(e->right&&cg_const_value(e->right,&right_constant)){
+   long long imm=(long long)right_constant;
+   if(imm>=INT32_MIN&&imm<=INT32_MAX){
     if(e->left&&e->left->kind==E_NAME){
      Local *v=local_find(l,e->left->token.text);
      if(v&&v->reg>=0){
