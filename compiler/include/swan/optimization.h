@@ -220,13 +220,105 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
     }
     return true;
 }
-typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
+static inline bool swan_ir_licm_opcode(SwanIROp op){
+    return op==SWAN_IR_ADD||op==SWAN_IR_SUB||op==SWAN_IR_MUL||
+        op==SWAN_IR_AND||op==SWAN_IR_OR||op==SWAN_IR_XOR||
+        op==SWAN_IR_SHL||op==SWAN_IR_LSHR||op==SWAN_IR_ASHR||
+        (op>=SWAN_IR_ICMP_EQ&&op<=SWAN_IR_ICMP_SGE)||op==SWAN_IR_SELECT;
+}
+static inline bool swan_ir_value_defined_in_loop(const SwanIRFunction *fn,uint32_t value,const bool *loop){
+    if(!value||value<=fn->parameter_count)return false;
+    for(size_t b=0;b<fn->block_count;b++)
+        for(size_t i=0;i<fn->blocks[b].instruction_count;i++)
+            if(fn->blocks[b].instructions[i].result==value)return loop[b];
+    return false;
+}
+static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char *error,size_t cap){
+    for(size_t fi=0;fi<module->function_count;fi++){
+        SwanIRFunction *fn=&module->functions[fi];size_t n=fn->block_count;
+        if(n<3)continue;
+        bool *loop=calloc(n,sizeof(*loop));size_t *queue=malloc(n*sizeof(*queue));
+        if(!loop||!queue){free(loop);free(queue);if(error&&cap)snprintf(error,cap,"out of memory finding IR natural loops");return false;}
+        for(size_t header=0;header<n;header++){
+            memset(loop,0,n*sizeof(*loop));size_t head=0,tail=0;bool has_latch=false;
+            loop[header]=true;
+            for(size_t latch=0;latch<n;latch++){
+                const SwanIRTerm *t=&fn->blocks[latch].terminator;
+                bool backedge=(t->kind==SWAN_IR_BR&&t->target==header)||
+                    (t->kind==SWAN_IR_COND_BR&&(t->target==header||t->alternate==header));
+                if(backedge&&latch!=header&&swan_ir_block_dominates(fn,header,latch)){
+                    if(!loop[latch]){loop[latch]=true;queue[tail++]=latch;}
+                    has_latch=true;
+                }
+            }
+            if(!has_latch)continue;
+            while(head<tail){
+                size_t node=queue[head++];
+                for(size_t pred=0;pred<n;pred++){
+                    const SwanIRTerm *t=&fn->blocks[pred].terminator;
+                    bool edge=(t->kind==SWAN_IR_BR&&t->target==node)||
+                        (t->kind==SWAN_IR_COND_BR&&(t->target==node||t->alternate==node));
+                    if(edge&&pred!=header&&!loop[pred]&&swan_ir_block_dominates(fn,header,pred)){
+                        loop[pred]=true;queue[tail++]=pred;
+                    }
+                }
+            }
+            size_t preheader=SIZE_MAX,outside_preds=0;
+            for(size_t pred=0;pred<n;pred++){
+                const SwanIRTerm *t=&fn->blocks[pred].terminator;
+                bool edge=(t->kind==SWAN_IR_BR&&t->target==header)||
+                    (t->kind==SWAN_IR_COND_BR&&(t->target==header||t->alternate==header));
+                if(edge&&!loop[pred]){preheader=pred;outside_preds++;}
+            }
+            if(outside_preds!=1)continue;
+            size_t move_count=0;
+            for(size_t b=0;b<n;b++)if(loop[b]){
+                const SwanIRBlock *bb=&fn->blocks[b];
+                for(size_t i=0;i<bb->instruction_count;i++){
+                    const SwanIRInst *in=&bb->instructions[i];
+                    if(!in->result||!swan_ir_licm_opcode(in->op)||
+                       (in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I8&&in->type!=SWAN_IR_I16&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64))continue;
+                    bool invariant=!swan_ir_value_defined_in_loop(fn,in->a,loop);
+                    if(in->op!=SWAN_IR_SELECT)invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop);
+                    else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop)&&!swan_ir_value_defined_in_loop(fn,in->c,loop);
+                    if(invariant)move_count++;
+                }
+            }
+            if(!move_count)continue;
+            SwanIRBlock *pre=&fn->blocks[preheader];
+            if(!swan_ir_reserve((void**)&pre->instructions,&pre->instruction_capacity,
+                                pre->instruction_count+move_count,sizeof(*pre->instructions))){
+                free(loop);free(queue);if(error&&cap)snprintf(error,cap,"out of memory hoisting loop-invariant IR");return false;
+            }
+            for(size_t b=0;b<n;b++)if(loop[b]){
+                SwanIRBlock *bb=&fn->blocks[b];size_t out=0;
+                for(size_t i=0;i<bb->instruction_count;i++){
+                    SwanIRInst in=bb->instructions[i];
+                    bool invariant=in.result&&swan_ir_licm_opcode(in.op)&&
+                        (in.type==SWAN_IR_I1||in.type==SWAN_IR_I8||in.type==SWAN_IR_I16||in.type==SWAN_IR_I32||in.type==SWAN_IR_I64)&&
+                        !swan_ir_value_defined_in_loop(fn,in.a,loop);
+                    if(in.op==SWAN_IR_SELECT)invariant=invariant&&
+                        !swan_ir_value_defined_in_loop(fn,in.b,loop)&&!swan_ir_value_defined_in_loop(fn,in.c,loop);
+                    else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in.b,loop);
+                    if(invariant){pre->instructions[pre->instruction_count++]=in;}
+                    else bb->instructions[out++]=in;
+                }
+                bb->instruction_count=out;
+            }
+        }
+        free(loop);free(queue);
+    }
+    return swan_ir_verify(module,error,cap);
+}
+typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_LOOP_INVARIANT, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
     {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},
     {SWAN_IR_PASS_CFG_SIMPLIFY,"cfg-simplification"},
     {SWAN_IR_PASS_ALGEBRAIC,"algebraic-simplification"},
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"common-subexpression-elimination"},
+    {SWAN_IR_PASS_LOOP_INVARIANT,"loop-invariant-code-motion"},
+    {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"post-licm-common-subexpression-elimination"},
     {SWAN_IR_PASS_DEAD_CODE,"dead-code-elimination"}
 };
 static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,char *error,size_t cap){
@@ -246,6 +338,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
     if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
 }
