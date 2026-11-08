@@ -6,7 +6,12 @@ TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 printf 'fn main() -> int:\n    return 42\n' > "$TMP/hello.swan"
 "$BIN" build "$TMP/hello.swan" --target svm -o "$TMP/hello.swvm"
-test -s "$TMP/hello.swvm"\nset +e\n"$BIN" vm "$TMP/hello.swvm"\nLOADED_STATUS=$?\nset -e\ntest "$LOADED_STATUS" -eq 42
+test -s "$TMP/hello.swvm"
+set +e
+"$BIN" vm "$TMP/hello.swvm"
+LOADED_STATUS=$?
+set -e
+test "$LOADED_STATUS" -eq 42
 set +e
 "$BIN" run "$TMP/hello.swan" --target svm
 STATUS=$?
