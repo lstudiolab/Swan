@@ -1,4 +1,5 @@
-#include "swan/optimization.h"\n#include "swan/svm.h"
+#include "swan/optimization.h"
+#include "swan/svm.h"
 #include <assert.h>
 #include <stdio.h>
 int main(void){
