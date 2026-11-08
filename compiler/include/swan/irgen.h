@@ -102,6 +102,32 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
         return result;
     }
     if(e->kind==E_BINARY) {
+        if(e->token.kind==T_AND||e->token.kind==T_OR){
+            uint32_t lhs=swan_irgen_expr(g,e->left);if(!lhs)return 0;
+            uint32_t condition=swan_irgen_compare_zero(g,lhs);if(!condition)return 0;
+            size_t origin=g->block,rhs_block=g->function->block_count;
+            if(!swan_ir_add_block(g->function,"logic.rhs"))return swan_irgen_fail(g,&e->token,"unable to create short-circuit RHS block");
+            size_t merge_block=g->function->block_count;
+            if(!swan_ir_add_block(g->function,"logic.end"))return swan_irgen_fail(g,&e->token,"unable to create short-circuit merge block");
+            bool is_and=e->token.kind==T_AND;
+            uint32_t short_value=swan_irgen_const(g,SWAN_IR_I1,is_and?0:1);
+            if(!short_value)return 0;
+            if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_COND_BR,condition,(uint32_t)(is_and?rhs_block:merge_block),(uint32_t)(is_and?merge_block:rhs_block)}))return 0;
+            g->block=rhs_block;
+            uint32_t rhs=swan_irgen_expr(g,e->right);if(!rhs)return 0;
+            rhs=swan_irgen_compare_zero(g,rhs);if(!rhs)return 0;
+            size_t rhs_end=g->block;
+            if(!swan_irgen_open(g)||!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)merge_block,0}))return 0;
+            g->block=merge_block;
+            SwanIRInst phi={0};phi.op=SWAN_IR_PHI;phi.type=SWAN_IR_I1;phi.incoming=calloc(2,sizeof(*phi.incoming));
+            if(!phi.incoming)return swan_irgen_fail(g,&e->token,"out of memory creating short-circuit PHI");
+            phi.incoming_count=2;
+            phi.incoming[0]=(SwanIRIncoming){short_value,(uint32_t)origin};
+            phi.incoming[1]=(SwanIRIncoming){rhs,(uint32_t)rhs_end};
+            uint32_t result=swan_irgen_emit(g,phi);
+            if(!result)free(phi.incoming);
+            return result;
+        }
         if(e->token.kind==T_ASSIGN) {
             if(!e->left||e->left->kind!=E_NAME){swan_irgen_fail(g,&e->token,"assignment target must be a local variable");return 0;}
             SwanIRLocal *local=swan_irgen_local(g,e->left->token.text);
