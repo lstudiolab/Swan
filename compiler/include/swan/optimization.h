@@ -80,7 +80,65 @@ static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
     }
     return changed;
 }
-typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
+static inline void swan_ir_replace_uses(SwanIRFunction *fn,uint32_t from,uint32_t to){
+    for(size_t b=0;b<fn->block_count;b++){
+        SwanIRBlock *bb=&fn->blocks[b];
+        for(size_t i=0;i<bb->instruction_count;i++){
+            SwanIRInst *in=&bb->instructions[i];
+            if(in->a==from)in->a=to;if(in->b==from)in->b=to;if(in->c==from)in->c=to;
+            for(size_t k=0;k<in->incoming_count;k++)if(in->incoming[k].value==from)in->incoming[k].value=to;
+        }
+        if(bb->terminator.value==from)bb->terminator.value=to;
+    }
+}
+static inline bool swan_ir_pure_cse_op(SwanIROp op){
+    return op==SWAN_IR_ADD||op==SWAN_IR_SUB||op==SWAN_IR_MUL||
+        op==SWAN_IR_SDIV||op==SWAN_IR_UDIV||op==SWAN_IR_SREM||op==SWAN_IR_UREM||
+        op==SWAN_IR_AND||op==SWAN_IR_OR||op==SWAN_IR_XOR||
+        op==SWAN_IR_SHL||op==SWAN_IR_LSHR||op==SWAN_IR_ASHR||
+        (op>=SWAN_IR_ICMP_EQ&&op<=SWAN_IR_ICMP_SGE)||op==SWAN_IR_SELECT;
+}
+static inline bool swan_ir_commutative(SwanIROp op){
+    return op==SWAN_IR_ADD||op==SWAN_IR_MUL||op==SWAN_IR_AND||op==SWAN_IR_OR||
+        op==SWAN_IR_XOR||op==SWAN_IR_ICMP_EQ||op==SWAN_IR_ICMP_NE;
+}
+static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *m){
+    bool changed=false;
+    for(size_t f=0;f<m->function_count;f++){
+        SwanIRFunction *fn=&m->functions[f];
+        for(size_t b=0;b<fn->block_count;b++){
+            SwanIRBlock *bb=&fn->blocks[b];
+            for(size_t i=0;i<bb->instruction_count;i++){
+                SwanIRInst *in=&bb->instructions[i];if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
+                uint32_t a=in->a,z=in->b;if(swan_ir_commutative(in->op)&&a>z){uint32_t t=a;a=z;z=t;}
+                for(size_t j=0;j<i;j++){
+                    SwanIRInst *prior=&bb->instructions[j];if(!prior->result||prior->op!=in->op||prior->type!=in->type)continue;
+                    uint32_t pa=prior->a,pz=prior->b;if(swan_ir_commutative(prior->op)&&pa>pz){uint32_t t=pa;pa=pz;pz=t;}
+                    if(pa==a&&pz==z&&prior->c==in->c){swan_ir_replace_uses(fn,in->result,prior->result);changed=true;break;}
+                }
+            }
+        }
+    }
+    return changed;
+}
+static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
+    bool changed=false;
+    for(size_t f=0;f<m->function_count;f++){
+        SwanIRFunction *fn=&m->functions[f];
+        for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+            SwanIRInst *in=&fn->blocks[b].instructions[i];if(!in->result||!swan_ir_pure_cse_op(in->op)||in->op==SWAN_IR_SELECT)continue;
+            int64_t a=0,z=0;bool ca=swan_ir_constant(fn,in->a,&a),cz=swan_ir_constant(fn,in->b,&z);uint32_t replacement=0;
+            if(cz&&z==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_SUB||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR||in->op==SWAN_IR_SHL||in->op==SWAN_IR_LSHR||in->op==SWAN_IR_ASHR))replacement=in->a;
+            else if(ca&&a==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR))replacement=in->b;
+            else if(cz&&z==1&&in->op==SWAN_IR_MUL)replacement=in->a;
+            else if(ca&&a==1&&in->op==SWAN_IR_MUL)replacement=in->b;
+            else if(cz&&z==0&&in->op==SWAN_IR_MUL){in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=0;changed=true;continue;}
+            if(replacement){swan_ir_replace_uses(fn,in->result,replacement);changed=true;}
+        }
+    }
+    return changed;
+}
+typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
     {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},
@@ -94,7 +152,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                     (void)swan_ir_fold_instruction(&module->functions[f],&module->functions[f].blocks[b].instructions[i]);
         return swan_ir_verify(module,error,cap);
     }
-    if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}\n    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}\n    if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
 }
 static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t cap) {
