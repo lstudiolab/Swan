@@ -158,21 +158,31 @@ static inline int swan_run(int argc,char **argv){
  char *source=swan_read_file(input);if(!source){perror(input);return 1;}
  SwanError err={0};TokenStream ts;
  if(!swan_lex(source,&ts,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);free(source);return 1;}
- Program p={0};
+ Program p={0};p.codegen_module_index=-1;
  if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
- free(ts.items);
+ free(ts.items);p.source_function_count=p.count;
  char *module_sources[64]={0},*module_texts[64]={0};size_t module_count=0;
  if(!swan_load_imports(&p,stdlib_dir,module_sources,module_texts,&module_count,&err)){
   fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
  }
  if(!swan_semantic_check(&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
+ swan_compute_reachability(&p);bool has_lazy=swan_has_lazy_imports(&p);
+ if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+ char exe[1024];bool temporary_output=output==NULL;int exe_len;
+ if(output)exe_len=snprintf(exe,sizeof(exe),"%s",output);
+ else if(mode==SWAN_BUILD)exe_len=snprintf(exe,sizeof(exe),"a.out");
+ else exe_len=snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());
+ if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"swan: output path is too long\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  Text assembly={0};
  if(!swan_codegen_x86_64(&p,&assembly,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ if(has_lazy&&!swan_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"swan: %s\n",err.message);swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ char runtime_source[64]={0};if(has_lazy&&!swan_write_lazy_runtime(runtime_source)){fprintf(stderr,"swan: cannot create lazy import runtime support\n");swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  if(mode==SWAN_EMIT){
   const char *dest=output?output:"a.s";FILE *of=fopen(dest,"wb");
   if(!of){perror(dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
   bool ok=fwrite(assembly.data,1,assembly.len,of)==assembly.len;if(fclose(of)!=0)ok=false;
   if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+  if(runtime_source[0])unlink(runtime_source);
   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 0;
  }
  char temp[]="/tmp/swan-XXXXXX";int fd=mkstemp(temp);
@@ -182,18 +192,20 @@ static inline int swan_run(int argc,char **argv){
  bool written=fwrite(assembly.data,1,assembly.len,af)==assembly.len;
  if(fclose(af)!=0)written=false;
  if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
- char exe[1024];bool temporary_output=output==NULL;int exe_len;
- if(output)exe_len=snprintf(exe,sizeof(exe),"%s",output);
- else if(mode==SWAN_BUILD)exe_len=snprintf(exe,sizeof(exe),"a.out");
- else exe_len=snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());
- if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"swan: output path is too long\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
- char *cc_args[]={"cc","-x","assembler",temp,"-o",exe,NULL};
- int result=swan_exec(cc_args,true);unlink(temp);
+ if(has_lazy){
+  char *cc_args[]={"cc","-rdynamic","-x","assembler",temp,"-x","c",runtime_source,"-ldl","-o",exe,NULL};
+  int result=swan_exec(cc_args,true);unlink(temp);unlink(runtime_source);
+  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);if(temporary_output)swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
+ }else{
+  char *cc_args[]={"cc","-x","assembler",temp,"-o",exe,NULL};
+  int result=swan_exec(cc_args,true);unlink(temp);
+  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
+ }
  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);
  if(mode==SWAN_BUILD)return 0;
- char *run_args[]={exe,NULL};result=swan_exec(run_args,false);
- if(temporary_output)unlink(exe);
+ char *run_args[]={exe,NULL};int result=swan_exec(run_args,false);
+ if(temporary_output){unlink(exe);if(has_lazy)swan_remove_lazy_modules(exe,&p);}
  return result<0?1:result;
 }
 #endif
