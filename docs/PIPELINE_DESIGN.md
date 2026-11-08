@@ -29,7 +29,7 @@ The x86-64 compatibility path can still lower frontend constructs not yet repres
 | AST | — | AST data model | Own node/type definitions and source spans. |
 | Semantic analysis | AST + imported module interfaces | Validated AST | Resolve names, scopes, types and control-flow constraints. |
 | IR generation | Validated AST | Typed target-independent SSA IR | Explicit values, control-flow blocks, calls, memory operations and terminators. |
-| IR optimization | IR | Verified optimized IR | Constant folding, constant select folding, CFG simplification, algebraic simplification, block-local CSE and iterative DCE. |
+| IR optimization | IR | Verified optimized IR | Constant folding, constant select folding, CFG simplification, algebraic simplification, dominance-aware CSE and iterative DCE. |
 | Code generation | Optimized IR + target | Assembly or binary module | Target instruction selection, ABI argument/return handling, frame layout, branch/PHI lowering. |
 | Emitter | Assembly text | File output | Write generated assembly without changing its meaning. |
 | Linker | Assembly/object + toolchain | Object or executable | Invoke the selected assembler/linker; no compiler-backend fallback. |
@@ -62,7 +62,7 @@ The x86-64 compatibility path can still lower frontend constructs not yet repres
 |---|---|---|
 | x86_64 | Linux ELF executable / assembly | IR scalar subset plus legacy AST compatibility path for arrays, logging and lazy imports |
 | aarch64 | Linux ELF object / assembly | i1/i64 scalar IR, calls, memory locals, CFG and PHI |
-| armv7 | ELF object / assembly | i32/i1 scalar IR, calls within register ABI limit, memory locals and CFG; division requires runtime helpers and is rejected |
+| armv7 | ELF object / assembly | i32/i1 scalar IR, calls within the supported AAPCS32 argument limit, memory locals, CFG, and EABI integer division/remainder helpers |
 | riscv64 | Linux ELF object / assembly | Integer scalar IR, calls, memory locals, CFG and PHI |
 | wasm32 | WebAssembly module | i32/i64 scalar IR, calls, recursion, CFG/PHI, linear memory and per-invocation stack frames |
 | wasm64 | WebAssembly memory64 module | Scalar emission path; memory64 execution depends on runtime support |
@@ -72,7 +72,7 @@ Target availability does not mean every Swan source construct is supported on ev
 
 ## Pre-SIL exit gates
 
-Before SIL begins:
+Before any SIL work begins:
 - Keep the full existing .swan compiler/stdlib suite green.
 - Keep typed IR verifier tests and IR-generation tests green.
 - Keep optimization pass tests green, including CFG/PHI cases and typed integer overflow.
