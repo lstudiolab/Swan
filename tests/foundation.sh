@@ -5,8 +5,9 @@ SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/test/foundation"
 mkdir -p "$TMP"
 
-cat "$ROOT/stdlib/foundation.swan" > "$TMP/program.swan"
-cat >> "$TMP/program.swan" <<'SWAN'
+cat > "$TMP/program.swan" <<'SWAN'
+import foundation
+import foundation
 fn main():
     foundation_hello()
     echo_int(abs_int(-9))
@@ -46,4 +47,4 @@ Foundation standard library ready
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: Foundation standard library and echo! intrinsic\n'
+printf 'PASS: imported Foundation standard library and echo! intrinsic\n'

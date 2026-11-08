@@ -7,7 +7,7 @@ static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)|
 static inline bool swan_ident_continue(unsigned char c){return swan_ident_start(c)||swan_ascii_digit(c);}
 static inline TokenKind swan_keyword(const char *s,size_t n) {
  #define SWAN_KW(word,kind) if(n==sizeof(word)-1&&!memcmp(s,word,sizeof(word)-1))return kind
- SWAN_KW("fn",T_FN);SWAN_KW("let",T_LET);SWAN_KW("var",T_VAR);SWAN_KW("const",T_CONST);
+ SWAN_KW("fn",T_FN);SWAN_KW("import",T_IMPORT);SWAN_KW("let",T_LET);SWAN_KW("var",T_VAR);SWAN_KW("const",T_CONST);
  SWAN_KW("return",T_RETURN);SWAN_KW("log",T_LOG);SWAN_KW("if",T_IF);SWAN_KW("else",T_ELSE);
  SWAN_KW("while",T_WHILE);SWAN_KW("break",T_BREAK);SWAN_KW("continue",T_CONTINUE);
  SWAN_KW("pass",T_PASS);SWAN_KW("true",T_TRUE);SWAN_KW("false",T_FALSE);SWAN_KW("none",T_NONE);

@@ -1,5 +1,8 @@
 #ifndef SWAN_COMPILER_H
 #define SWAN_COMPILER_H
+#ifndef _POSIX_C_SOURCE
+#define _POSIX_C_SOURCE 200809L
+#endif
 #include "swan/codegen_x86_64.h"
 #include "swan/sema.h"
 #include <unistd.h>
@@ -12,6 +15,26 @@ static inline char *swan_read_file(const char *path){
  char *s=malloc((size_t)n+1);if(!s){fclose(f);return NULL;}
  size_t got=fread(s,1,(size_t)n,f);bool failed=ferror(f)!=0;fclose(f);
  if(failed){free(s);return NULL;}s[got]=0;return s;
+}
+static inline void swan_release_modules(char **sources,char **texts,size_t count){for(size_t i=0;i<count;i++){free(sources[i]);free(texts[i]);}}
+static inline bool swan_load_imports(Program *p,const char *stdlib_dir,char **sources,char **texts,size_t *module_count,SwanError *err){
+ const char *loaded[64];size_t loaded_count=0,next=0;
+ while(next<p->import_count){
+  const char *name=p->imports[next++];bool seen=false;
+  for(size_t i=0;i<loaded_count;i++)if(!strcmp(loaded[i],name)){seen=true;break;}
+  if(seen)continue;
+  if(loaded_count>=64||*module_count>=64){swan_error(err,NULL,"standard-library import limit exceeded");return false;}
+  loaded[loaded_count++]=name;
+  char path[2048];int path_len=snprintf(path,sizeof(path),"%s/%s.swan",stdlib_dir,name);
+  if(path_len<0||(size_t)path_len>=sizeof(path)){swan_error(err,NULL,"standard-library path is too long");return false;}
+  char *source=swan_read_file(path);
+  if(!source){swan_error(err,NULL,"cannot load standard-library module '%s' from '%s'",name,path);return false;}
+  TokenStream module_ts;
+  if(!swan_lex(source,&module_ts,err)){free(source);free(module_ts.items);free(module_ts.text_storage);return false;}
+  size_t slot=(*module_count)++;sources[slot]=source;texts[slot]=module_ts.text_storage;free(module_ts.items);
+  if(!swan_parse(&module_ts,p,err)){char detail[sizeof(err->message)];snprintf(detail,sizeof(detail),"%s",err->message);swan_error(err,NULL,"in module '%s': %s",name,detail);return false;}
+ }
+ return true;
 }
 static inline int swan_wait_child(pid_t pid){
  int status=0;while(waitpid(pid,&status,0)<0){if(errno==EINTR)continue;return -1;}
