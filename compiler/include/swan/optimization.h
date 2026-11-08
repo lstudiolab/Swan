@@ -142,6 +142,8 @@ typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
     {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},
+    {SWAN_IR_PASS_ALGEBRAIC,"algebraic-simplification"},
+    {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"common-subexpression-elimination"},
     {SWAN_IR_PASS_DEAD_CODE,"dead-code-elimination"}
 };
 static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,char *error,size_t cap){
@@ -152,7 +154,9 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                     (void)swan_ir_fold_instruction(&module->functions[f],&module->functions[f].blocks[b].instructions[i]);
         return swan_ir_verify(module,error,cap);
     }
-    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}\n    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}\n    if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
 }
 static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t cap) {
