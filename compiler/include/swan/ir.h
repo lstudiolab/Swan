@@ -83,7 +83,10 @@ static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRI
  b->instructions[b->instruction_count++]=inst;return inst.result;
 }
 static inline bool swan_ir_terminate(SwanIRBlock *b,SwanIRTerm term) {
- if(!b||b->terminated)return false;b->terminator=term;b->terminated=true;return true;
+ if(!b||b->terminated)return false;
+ b->terminator=term;
+ b->terminated=true;
+ return true;
 }
 static inline bool swan_ir_fail(char *error,size_t cap,const char *message,const char *fn,size_t block,size_t inst) {
  if(error&&cap)snprintf(error,cap,"%s in %s, block %zu, instruction %zu",message,fn?fn:"<module>",block,inst);
@@ -159,7 +162,11 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
    if(t->kind==SWAN_IR_COND_BR&&(!swan_ir_verify_use(fn,t->value,b,bb->instruction_count,error,cap)||swan_ir_value_type_of(fn,t->value)!=SWAN_IR_I1))return swan_ir_fail(error,cap,"conditional branch requires i1 condition",fn->name,b,bb->instruction_count);
    if(t->kind==SWAN_IR_RET){
     if(fn->return_type==SWAN_IR_VOID){if(t->value)return swan_ir_fail(error,cap,"void function returns a value",fn->name,b,bb->instruction_count);}
-    else if(!t->value||!swan_ir_verify_use(fn,t->value,b,bb->instruction_count,error,cap)||swan_ir_value_type_of(fn,t->value)!=fn->return_type)return swan_ir_fail(error,cap,"return type mismatch",fn->name,b,bb->instruction_count);
+    else {
+     if(!t->value)return swan_ir_fail(error,cap,"return value is missing",fn->name,b,bb->instruction_count);
+     if(!swan_ir_verify_use(fn,t->value,b,bb->instruction_count,error,cap))return false;
+     if(swan_ir_value_type_of(fn,t->value)!=fn->return_type)return swan_ir_fail(error,cap,"return type mismatch",fn->name,b,bb->instruction_count);
+    }
    }
   }
  }
