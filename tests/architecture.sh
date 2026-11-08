@@ -24,14 +24,11 @@ SWAN
 "$SWAN" "$TMP/native.swan" --target x86_64 --emit-asm -o "$TMP/native.s"
 cc -x assembler "$TMP/native.s" -o "$TMP/native"
 test "$("$TMP/native")" = "91"
-if "$SWAN" "$TMP/native.swan" --target aarch64 --emit-asm -o "$TMP/unsupported.s" 2>"$TMP/unsupported.err"; then
-    echo "FAIL: unimplemented AArch64 target was accepted" >&2
-    exit 1
-fi
-grep -q "target 'aarch64' (aarch64-unknown-linux-gnu) is recognized but its backend is not implemented yet" "$TMP/unsupported.err"
+"$SWAN" "$TMP/native.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
+grep -q "stp x29, x30" "$TMP/aarch64.s"
 "$SWAN" --list-targets > "$TMP/targets.txt"
 grep -q "x86_64.*implemented" "$TMP/targets.txt"
-grep -q "aarch64.*planned" "$TMP/targets.txt"
+grep -q "aarch64.*implemented" "$TMP/targets.txt"
 grep -q "wasm32.*implemented" "$TMP/targets.txt"
 if "$SWAN" "$TMP/native.swan" --target madeup 2>"$TMP/unknown.err"; then
     echo "FAIL: unknown target was accepted" >&2
