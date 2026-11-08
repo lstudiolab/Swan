@@ -856,7 +856,8 @@ static inline void samc_mark_expr(Expr *e,Locals *l,bool escapes){
   for(size_t i=0;i<e->argc;i++)samc_mark_expr(e->args[i],l,true);
   return;
  }
- if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN){samc_mark_expr(e->left,l,true);samc_mark_expr(e->right,l,true);return;}
+ if(e->kind==E_BINARY&&e->token.kind==T_ASSIGN){if(e->left&&e->left->kind==E_NAME){samc_mark_expr(e->left,l,true);samc_mark_expr(e->right,l,true);}else{samc_mark_expr(e->left,l,false);samc_mark_expr(e->right,l,false);}return;}
+ if(e->kind==E_INDEX){samc_mark_expr(e->left,l,false);samc_mark_expr(e->right,l,false);return;}
  samc_mark_expr(e->left,l,escapes);samc_mark_expr(e->right,l,escapes);
  for(size_t i=0;i<e->argc;i++)samc_mark_expr(e->args[i],l,escapes);
 }
