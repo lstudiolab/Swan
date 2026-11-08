@@ -245,6 +245,30 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
     }
     return true;
 }
+static inline bool swan_ir_copy_propagation(SwanIRModule *module){
+    bool changed=false;
+    for(size_t f=0;f<module->function_count;f++){
+        SwanIRFunction *fn=&module->functions[f];
+        for(size_t b=0;b<fn->block_count;b++){
+            SwanIRBlock *bb=&fn->blocks[b];
+            for(size_t i=0;i<bb->instruction_count;i++){
+                SwanIRInst *in=&bb->instructions[i];
+                uint32_t replacement=0;
+                if(in->op==SWAN_IR_PHI&&in->incoming_count){
+                    replacement=in->incoming[0].value;
+                    for(size_t k=1;k<in->incoming_count;k++)
+                        if(in->incoming[k].value!=replacement){replacement=0;break;}
+                }else if(in->op==SWAN_IR_SELECT&&in->b==in->c)replacement=in->b;
+                if(replacement&&in->result&&replacement!=in->result){
+                    swan_ir_replace_uses(fn,in->result,replacement);
+                    changed=true;
+                }
+            }
+        }
+    }
+    return changed;
+}
+
 static inline bool swan_ir_licm_opcode(SwanIROp op){
     return op==SWAN_IR_ADD||op==SWAN_IR_SUB||op==SWAN_IR_MUL||
         op==SWAN_IR_AND||op==SWAN_IR_OR||op==SWAN_IR_XOR||
@@ -339,12 +363,13 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
     }
     return swan_ir_verify(module,error,cap);
 }
-typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_LOOP_INVARIANT, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
+typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COPY_PROPAGATION, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_LOOP_INVARIANT, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
 static const SwanIRPass swan_ir_default_passes[]={
     {SWAN_IR_PASS_CONSTANT_FOLD,"constant-folding"},
     {SWAN_IR_PASS_CFG_SIMPLIFY,"cfg-simplification"},
     {SWAN_IR_PASS_ALGEBRAIC,"algebraic-simplification"},
+    {SWAN_IR_PASS_COPY_PROPAGATION,"copy-propagation"},
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"common-subexpression-elimination"},
     {SWAN_IR_PASS_LOOP_INVARIANT,"loop-invariant-code-motion"},
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"post-licm-common-subexpression-elimination"},
@@ -366,6 +391,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
     }
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){(void)swan_ir_copy_propagation(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
     if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
