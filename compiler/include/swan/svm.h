@@ -23,6 +23,8 @@ typedef struct {
     size_t memory_count;
     SwanVMFunctionSlot *function_slots;
     size_t function_slot_count;
+    int64_t *register_frames[SWAN_SVM_MAX_CALL_DEPTH];
+    size_t register_capacities[SWAN_SVM_MAX_CALL_DEPTH];
 } SwanVM;
 
 static inline uint64_t swan_svm_hash_name(const char *name) {
@@ -96,14 +98,22 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     if (argument_count != fn->parameter_count)
         return swan_svm_fail(vm, "SVM function argument count mismatch");
     size_t value_count = (size_t)fn->next_value + 1;
-    int64_t *values = calloc(value_count, sizeof(*values));
-    if (!values) return swan_svm_fail(vm, "SVM out of memory allocating registers");
+    size_t frame_index=vm->depth;
+    if(value_count>vm->register_capacities[frame_index]){
+        if(value_count>SIZE_MAX/sizeof(int64_t))return swan_svm_fail(vm,"SVM register frame size overflow");
+        int64_t *grown=realloc(vm->register_frames[frame_index],value_count*sizeof(int64_t));
+        if(!grown)return swan_svm_fail(vm,"SVM out of memory growing register frame");
+        vm->register_frames[frame_index]=grown;
+        vm->register_capacities[frame_index]=value_count;
+    }
+    int64_t *values=vm->register_frames[frame_index];
+    memset(values,0,value_count*sizeof(*values));
     size_t memory_mark=vm->memory_count;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = swan_svm_normalize_value(arguments[i],fn->parameter_types[i]);
     for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
         const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
         if(alloc->op==SWAN_IR_ALLOCA){
-            if(vm->memory_count>=4095||alloc->result>=value_count){vm->memory_count=memory_mark;free(values);return swan_svm_fail(vm,"SVM local memory limit exceeded");}
+            if(vm->memory_count>=4095||alloc->result>=value_count){vm->memory_count=memory_mark;return swan_svm_fail(vm,"SVM local memory limit exceeded");}
             values[alloc->result]=(int64_t)++vm->memory_count;
         }
     }
@@ -211,7 +221,6 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     }
     --vm->depth;
     vm->memory_count=memory_mark;
-    free(values);
     return ok;
 }
 
@@ -237,6 +246,7 @@ static inline bool swan_svm_run(const SwanIRModule *module, const char *entry,
     }
     bool ok=swan_svm_eval(&vm,index,NULL,0,result);
     free(vm.function_slots);
+    for(size_t i=0;i<SWAN_SVM_MAX_CALL_DEPTH;i++)free(vm.register_frames[i]);
     return ok;
 }
 
