@@ -160,5 +160,15 @@ if grep -q 'cmp rcx, 4' "$TMP/proven-array-fill.s"; then
     exit 1
 fi
 printf 'PASS: proven sequential array-fill loop removes redundant bounds checks\n'
+if ! grep -Eq 'mov DWORD PTR \\[[^]]+rcx\\*4\\], (ebx|r12d|r13d|r14d|r15d|edi|esi|edx|r8d|r9d)' "$TMP/proven-array-fill.s"; then
+    echo 'FAIL: simple array fill did not lower to a direct register store' >&2
+    cat "$TMP/proven-array-fill.s" >&2
+    exit 1
+fi
+if grep -q 'push rax' "$TMP/proven-array-fill.s"; then
+    echo 'FAIL: simple array fill retained an unnecessary stack temporary' >&2
+    exit 1
+fi
+printf 'PASS: direct register-to-array stores avoid stack temporaries\n'
 
 printf 'PASS: compiler regression suite\n'
