@@ -78,20 +78,6 @@ static inline bool swan_irgen_integer_literal(Expr *e,int64_t *value){
     }
     return true;
 }
-static inline uint32_t swan_irgen_expr_as(SwanIRGen *g,Expr *e,SwanIRType expected){
-    int64_t literal;
-    if(swan_irgen_integer_literal(e,&literal)){
-        unsigned bits=expected==SWAN_IR_I1?1:expected==SWAN_IR_I8?8:expected==SWAN_IR_I16?16:expected==SWAN_IR_I32?32:expected==SWAN_IR_I64?64:0;
-        if(!bits){swan_irgen_fail(g,&e->token,"integer literal cannot initialize this type");return 0;}
-        int64_t min=bits==64?INT64_MIN:-(INT64_C(1)<<(bits-1));
-        int64_t max=bits==64?INT64_MAX:(INT64_C(1)<<(bits-1))-1;
-        if(literal<min||literal>max){swan_irgen_fail(g,&e->token,"integer literal is outside the destination type range");return 0;}
-        return swan_irgen_const(g,expected,literal);
-    }
-    uint32_t value=swan_irgen_expr(g,e);if(!value)return 0;
-    if(swan_ir_value_type_of(g->function,value)!=expected){swan_irgen_fail(g,&e->token,"expression type does not match its context");return 0;}
-    return value;
-}
 
 static inline SwanIRType swan_irgen_infer_expr_type(SwanIRGen *g,Expr *e){
     if(!e)return SWAN_IR_VOID;
@@ -110,12 +96,18 @@ static inline SwanIRType swan_irgen_infer_expr_type(SwanIRGen *g,Expr *e){
     return SWAN_IR_VOID;
 }
 static inline uint32_t swan_irgen_expr_as(SwanIRGen *g,Expr *e,SwanIRType expected){
-    if(e&&e->kind==E_INT&&expected>=SWAN_IR_I8&&expected<=SWAN_IR_I64){
-        char *end=NULL;errno=0;long long value=strtoll(e->token.text,&end,10);
-        if(errno==ERANGE||!end||end==e->token.text||*end){swan_irgen_fail(g,&e->token,"integer literal is outside the supported IR range");return 0;}
-        return swan_irgen_const(g,expected,(int64_t)value);
+    int64_t literal;
+    if(swan_irgen_integer_literal(e,&literal)){
+        unsigned bits=expected==SWAN_IR_I1?1:expected==SWAN_IR_I8?8:expected==SWAN_IR_I16?16:expected==SWAN_IR_I32?32:expected==SWAN_IR_I64?64:0;
+        if(!bits){swan_irgen_fail(g,&e->token,"integer literal cannot initialize this type");return 0;}
+        int64_t min=bits==64?INT64_MIN:-(INT64_C(1)<<(bits-1));
+        int64_t max=bits==64?INT64_MAX:(INT64_C(1)<<(bits-1))-1;
+        if(literal<min||literal>max){swan_irgen_fail(g,&e->token,"integer literal is outside the destination type range");return 0;}
+        return swan_irgen_const(g,expected,literal);
     }
-    return swan_irgen_expr(g,e);
+    uint32_t value=swan_irgen_expr(g,e);if(!value)return 0;
+    if(swan_ir_value_type_of(g->function,value)!=expected){swan_irgen_fail(g,&e->token,"expression type does not match its context");return 0;}
+    return value;
 }
 static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
     if(!e)return 0;
