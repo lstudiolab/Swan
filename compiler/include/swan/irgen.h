@@ -274,18 +274,25 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
     }
     return true;
 }
+static inline bool swan_irgen_include_function(const Program *program,size_t index){
+    return !program->reachability_computed||program->function_reachable[index];
+}
 static inline bool swan_irgen_program(Program *program,SwanIRModule *module,SwanError *error) {
     memset(module,0,sizeof(*module));
     for(size_t i=0;i<program->count;i++){
+        if(!swan_irgen_include_function(program,i))continue;
         Stmt *source=program->functions[i];SwanIRType params[16];
         if(source->param_count>16){swan_error(error,&source->token,"IR backend supports at most 16 parameters per function");goto fail;}
         for(size_t p=0;p<source->param_count;p++){params[p]=swan_irgen_type(source->param_types?source->param_types[p]:NULL);if(params[p]==SWAN_IR_VOID){swan_error(error,&source->token,"unsupported or missing parameter type");goto fail;}}
         SwanIRType ret=swan_irgen_type(source->type);
-        SwanIRFunction *fn=swan_ir_add_function(module,source->name,ret,params,source->param_count);
-        if(!fn){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}
+        if(!swan_ir_add_function(module,source->name,ret,params,source->param_count)){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}
     }
+    if(!module->function_count){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
     for(size_t i=0;i<program->count;i++){
-        Stmt *source=program->functions[i];SwanIRFunction *fn=&module->functions[i];
+        if(!swan_irgen_include_function(program,i))continue;
+        Stmt *source=program->functions[i];SwanIRFunction *fn=NULL;
+        for(size_t fi=0;fi<module->function_count;fi++)if(!strcmp(module->functions[fi].name,source->name)){fn=&module->functions[fi];break;}
+        if(!fn){swan_error(error,&source->token,"internal IR function mapping failure");goto fail;}
         SwanIRBlock *entry=swan_ir_add_block(fn,"entry");if(!entry){swan_error(error,&source->token,"out of memory creating entry block");goto fail;}
         SwanIRGen g={0};g.module=module;g.function=fn;g.error=error;g.block=0;
         for(size_t p=0;p<source->param_count;p++){
