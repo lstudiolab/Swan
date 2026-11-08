@@ -15,11 +15,9 @@ int main(void){
  assert(swan_ir_verify(&m,error,sizeof(error)));swan_ir_destroy(&m);
  SwanIRModule cse={0};SwanIRType cparams[]={SWAN_IR_I64,SWAN_IR_I64};SwanIRFunction *cf=swan_ir_add_function(&cse,"cse",SWAN_IR_I64,cparams,2);assert(cf);
  SwanIRBlock *cb=swan_ir_add_block(cf,"entry");assert(cb);
- SwanIRInst c0={0};c0.op=SWAN_IR_CONST;c0.type=SWAN_IR_I64;c0.immediate=7;uint32_t v0=swan_ir_add_inst(cf,cb,c0);
- SwanIRInst c1={0};c1.op=SWAN_IR_CONST;c1.type=SWAN_IR_I64;c1.immediate=9;uint32_t v1=swan_ir_add_inst(cf,cb,c1);
- SwanIRInst add1={0};add1.op=SWAN_IR_ADD;add1.type=SWAN_IR_I64;add1.a=v0;add1.b=v1;uint32_t sum1=swan_ir_add_inst(cf,cb,add1);
+ SwanIRInst add1={0};add1.op=SWAN_IR_ADD;add1.type=SWAN_IR_I64;add1.a=1;add1.b=2;uint32_t sum1=swan_ir_add_inst(cf,cb,add1);
  SwanIRInst add2=add1;uint32_t sum2=swan_ir_add_inst(cf,cb,add2);
- SwanIRInst mul={0};mul.op=SWAN_IR_MUL;mul.type=SWAN_IR_I64;mul.a=sum2;mul.b=v0;uint32_t product=swan_ir_add_inst(cf,cb,mul);
+ SwanIRInst mul={0};mul.op=SWAN_IR_MUL;mul.type=SWAN_IR_I64;mul.a=sum2;mul.b=1;uint32_t product=swan_ir_add_inst(cf,cb,mul);
  assert(swan_ir_terminate(cb,(SwanIRTerm){SWAN_IR_RET,product,0,0}));
  assert(swan_ir_optimize(&cse,error,sizeof(error)));assert(swan_ir_verify(&cse,error,sizeof(error)));assert(cb->instruction_count==2);assert(cb->instructions[0].op==SWAN_IR_ADD);assert(cb->instructions[1].op==SWAN_IR_MUL&&cb->instructions[1].a==sum1);
  swan_ir_destroy(&cse);
