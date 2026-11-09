@@ -27,3 +27,4 @@ fn sil_optimize(state: u32_array, count: int, workspace: u32_array) -> int:
     if sil_verify(state, write) != 1
         return -1
     return write
+
