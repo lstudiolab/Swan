@@ -8,16 +8,17 @@ The repository is licensed under Apache License 2.0.
 
 ```text
 .swan source
-  -> C11 lexer
-  -> indentation-aware parser
-  -> standard-library module loader
-  -> semantic analysis
-  -> Swan AST
+  -> lexer.h
+  -> parser.h / AST
+  -> standard-library import resolution
+  -> sema.h
+  -> Swan-authored SIL generation and verification
+  -> SIL demand analysis and optimization passes
   -> typed, verified SSA IR (irgen.h)
   -> target-independent IR optimization
-  -> selected backend:
-       x86-64 System V | AArch64 | RISC-V64 | WebAssembly 32 | portable SVM
-  -> Swan assembly / WebAssembly / SVM module
+  -> selected Swan-owned backend:
+       x86-64 | AArch64 | ARMv7 | RISC-V64 | WebAssembly | portable SVM
+  -> assembly / WebAssembly / SVM module
   -> target assembler and linker (native ELF targets)
 ```
 
@@ -47,7 +48,7 @@ Emit assembly:
 ./build/swan examples/hello.swan --emit-asm -o hello.s
 ```
 
-The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 emit ELF relocatable objects; ARMv7 emits 32-bit ARM ELF objects for its supported `i32` subset. These cross-target objects must be linked for their destination system and cannot execute on the x86-64 host. WebAssembly 32 emits executable modules with control flow, calls, PHI nodes and linear-memory-backed mutable locals. WebAssembly 64 emits memory64 modules for the same supported scalar/control-flow subset. The x86-64 compiler now prefers verified SSA IR for the supported scalar subset and retains the established AST backend as a compatibility path for arrays, logging and lazy imports. The portable SVM executes verified IR on the host and can also serialize and load standalone `.swvm` modules. Unsupported IR is rejected with a diagnostic rather than silently lowered.\n\nCross-target example: `./build/swan build examples/hello.swan --target aarch64 -o hello-aarch64.o`. For WebAssembly, use `--target wasm32 -o hello.wasm`; for portable bytecode, use `--target svm -o hello.swvm`.
+The compiler accepts `--target <target>` and `--list-targets`. Target names and triples are centralized in `compiler/include/swan/target.h`. Backend availability is reported by `--list-targets`. AArch64 and RISC-V64 emit ELF relocatable objects; ARMv7 emits 32-bit ARM ELF objects for its supported `i32` subset. These cross-target objects must be linked for their destination system and cannot execute on the x86-64 host. WebAssembly 32 emits executable modules with control flow, calls, PHI nodes and linear-memory-backed mutable locals. WebAssembly 64 emits memory64 modules for the same supported scalar/control-flow subset. The x86-64 compiler prefers the Swan-authored SIL path for supported straight-line scalar functions, lowers verified SIL into typed SSA IR, and retains the existing typed-IR and AST paths as compatibility fallbacks for broader constructs. The portable SVM executes verified IR on the host and can also serialize and load standalone `.swvm` modules. Unsupported IR is rejected with a diagnostic rather than silently lowered.\n\nCross-target example: `./build/swan build examples/hello.swan --target aarch64 -o hello-aarch64.o`. For WebAssembly, use `--target wasm32 -o hello.wasm`; for portable bytecode, use `--target svm -o hello.swvm`.
 
 ## Source encoding\n\nSwan source files are UTF-8 by default and are interpreted independently of the host locale. The lexer validates UTF-8 before tokenization, accepts an optional UTF-8 BOM, preserves UTF-8 bytes in string literals, and accepts non-ASCII identifiers. Malformed UTF-8 and embedded NUL bytes in source files are rejected. Identifier classification currently treats non-ASCII Unicode code points as identifier characters; full Unicode XID category tables and Unicode normalization are not implemented.\n\n## Language subset
 
@@ -173,4 +174,4 @@ Swan SIL builder
   -> final SIL verification
 ```
 
-The passes share a caller-owned workspace and are compiled to native code by Swan in `tests/sil.sh`. This SIL implementation is currently a standalone experimental scalar IR pipeline. The production compiler's general typed SSA IR optimizer in `compiler/include/swan/optimization.h` remains the optimizer used by normal `.swan` compilation; the SIL passes have not yet replaced or been wired into that production IR path. The present SIL format is limited to 256 value IDs and a 256-instruction stream, and its packed constant builder currently accepts 16-bit immediate values.
+The passes share a caller-owned workspace and are compiled from Swan source into a native object during `sh build.sh`. The final compiler calls those generated SIL functions. The AST-to-SIL bridge currently accepts straight-line scalar functions with one return expression, scalar parameters, integer/boolean literals, addition, subtraction, multiplication, equality and less-than. Verified, optimized SIL is lowered into the production typed SSA IR before the normal IR optimizer and target backend run. Unsupported constructs continue through the existing typed-IR or AST compatibility paths, so this migration does not remove existing language coverage. The initial SIL format is limited to 256 value IDs and 256 instructions; packed constant construction currently accepts 16-bit immediates. Control-flow blocks, loops, memory operations, calls and imports still need SIL lowering before the compatibility paths can be retired.
