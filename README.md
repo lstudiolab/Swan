@@ -204,7 +204,8 @@ swan build app.swan --link library.o -o app
 Additional object files and libraries can be supplied with repeated `--link`
 options or standard `-L` and `-l` options. This initial header importer supports
 prototypes with up to 16 scalar integer/bool parameters and scalar integer/bool
-or void returns. The active native ABI is x86-64 System V. Pointers, structs,
+or void returns. Signed 32-bit C integers are supported at call boundaries; their
+arithmetic is not yet a general i32 optimization target. The active native ABI is x86-64 System V. Pointers, structs,
 unions, callbacks, variadic functions, floating-point ABI classification,
 C++ name mangling, and other platform calling conventions remain unsupported.
 Clang must be available when compiling a source file that uses `import C`.
