@@ -68,7 +68,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
   Stmt *s=body[i];
   switch(s->kind){
    case S_VARIABLE:
-    if(s->manual_memory&&(!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||(strcmp(s->valucallee,"array")&&strcmp(s->valucallee,"array_u32")&&strcmp(s->valucallee,"array_unchecked")&&strcmp(s->valucallee,"array_u32_unchecked")))){swan_error(err,&s->token,"manual declarations must initialize an array allocation");return false;}
+    if(s->manual_memory&&(!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||(strcmp(s->value->left->token.text,"array")&&strcmp(s->value->left->token.text,"array_u32")&&strcmp(s->value->left->token.text,"array_unchecked")&&strcmp(s->value->left->token.text,"array_u32_unchecked")))){swan_error(err,&s->token,"manual declarations must initialize an array allocation");return false;}
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     if(!swan_symbol_add(symbols,s->name,s->mutable_value)){swan_error(err,&s->token,"too many local variables");return false;}break;
