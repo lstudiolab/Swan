@@ -266,8 +266,11 @@ static inline bool swan_sil_try_irgen_program(Program *program, SwanIRModule *ou
         }
 
         SwanIRFunction *lowered = &sil_function.functions[0];
-        for (size_t b = 0; b < destination->block_count; ++b)
+        for (size_t b = 0; b < destination->block_count; ++b) {
+            for (size_t n = 0; n < destination->blocks[b].instruction_count; ++n)
+                free(destination->blocks[b].instructions[n].incoming);
             free(destination->blocks[b].instructions);
+        }
         free(destination->blocks);
         destination->blocks = lowered->blocks;
         destination->block_count = lowered->block_count;
