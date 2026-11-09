@@ -61,6 +61,7 @@ static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
    if(before==p->ts->pos){swan_error(p->err,pk(p),"parser made no progress");p->failed=true;}
   }
   while(eat(p,T_DEDENT)){}
+  if(p->failed)return false;
   return need(p,T_OUT,"expected 'out' to close block");
  }
  if(!need(p,T_INDENT,"expected indentation"))return false;
