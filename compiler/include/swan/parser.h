@@ -16,8 +16,8 @@ static inline Expr *expression(Parser *p,int min);
 static inline Expr *prefix(Parser *p){
  Token t=take(p);Expr *e=NULL;
  if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE||t.kind==T_NONE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
- else if(t.kind==T_IDENT){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_MINUS||t.kind==T_NOT||(t.kind==T_IDENT&&!strcmp(t.text,"not"))){if(t.kind==T_IDENT)t.kind=T_NOT;e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
+ else if(t.kind==T_IDENT){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
  else{swan_error(p->err,&t,"expected expression");p->failed=true;return NULL;}
  while(e&&!p->failed){
