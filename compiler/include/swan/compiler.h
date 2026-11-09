@@ -7,6 +7,7 @@
 #include "swan/target.h"
 #include "swan/ir.h"
 #include "swan/sema.h"
+#include "swan/c_header.h"
 #include "swan/irgen.h"
 #include "swan/optimization.h"
 #include "swan/svm.h"
