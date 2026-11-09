@@ -39,7 +39,7 @@ static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
 static inline Stmt *statement(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
  if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=false;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
- if(eat(p,T_LOG)||(is(p,T_IDENT)&&!strcmp(pk(p)->text,"log"))){if(pk(p)->kind==T_IDENT)take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
+ if(eat(p,T_PRINT)||(is(p,T_IDENT)&&!strcmp(pk(p)->text,"log"))){if(pk(p)->kind==T_IDENT)take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(is(p,T_IDENT)&&!strcmp(pk(p)->text,"echo")&&p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_BANG){take(p);take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(eat(p,T_RETURN)){s=new_stmt(p,S_RETURN,t);if(s&&!is(p,T_NEWLINE)&&!is(p,T_DEDENT)&&!is(p,T_EOF))s->value=expression(p,1);return s;}
  if(eat(p,T_BREAK))return new_stmt(p,S_BREAK,t);
