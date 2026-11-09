@@ -239,7 +239,7 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
  return false;
 }
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
- const char *name=e->left->token.text;
+ const char *name=swan_expr_terminal_name(e->left);if(!name){swan_error(err,&e->token,"invalid function call target");return;}
  if(!strcmp(name,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME){swan_error(err,&e->token,"free expects one memory variable");return;}Local *v=local_find(l,e->args[0]->token.text);if(!v||!v->array_u32){swan_error(err,&e->token,"free requires an array variable");return;}cg_save_volatile(o,l);if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);text_add(o,"    xor eax, eax\n");return;}
  if(!strcmp(name,"array")||!strcmp(name,"array_u32")||!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")){
   if(e->argc!=1){swan_error(err,&e->token,"array expects exactly one length argument");return;}
