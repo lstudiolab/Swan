@@ -16,9 +16,14 @@ mkdir -p "$ROOT/build"
         printf '\n'
     done
 } > "$ROOT/build/sil_runtime.swan"
+cat >> "$ROOT/build/sil_runtime.swan" <<'SWAN'
+fn main() -> int:
+    return 0
+SWAN
 
 "$ROOT/build/swan-bootstrap" build "$ROOT/build/sil_runtime.swan" \
     --emit-asm -o "$ROOT/build/sil_runtime.s"
+sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_sil_build_stub\2/g' "$ROOT/build/sil_runtime.s"
 "$CC" -c "$ROOT/build/sil_runtime.s" -o "$ROOT/build/sil_runtime.o"
 
 # The final compiler executes Swan-generated SIL before typed IR generation.
