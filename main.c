@@ -23,6 +23,7 @@ static int swan_run(int argc,char **argv){
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
+ if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target x86_64] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
  const char *input=argv[index++],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
@@ -160,9 +161,7 @@ static int swan_run(int argc,char **argv){
  else exe_len=snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());
  if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"swan: output path is too long\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  Text assembly={0};
- stage=swan_profile_start();
  if(!swan_codegen(&p,&assembly,target,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
- swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
  if(has_lazy&&!swan_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"swan: %s\n",err.message);swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  char runtime_source[64]={0};if(has_lazy&&!swan_write_lazy_runtime(runtime_source)){fprintf(stderr,"swan: cannot create lazy import runtime support\n");swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  if(mode==SWAN_EMIT){
@@ -178,7 +177,8 @@ static int swan_run(int argc,char **argv){
  FILE *af=fdopen(fd,"wb");
  if(!af){close(fd);unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  stage=swan_profile_start();bool written=swan_emit_assembly(af,&assembly);
- if(fclose(af)!=0)written=false;swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
+ if(fclose(af)!=0)written=false;
+ swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
  if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  int result=0;
  if(has_lazy){
