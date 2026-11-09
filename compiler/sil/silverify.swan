@@ -106,3 +106,4 @@ fn sil_verify(state: u32_array, count: int) -> int:
     if returned == 0
         return -16
     return 1
+
