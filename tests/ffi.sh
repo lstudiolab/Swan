@@ -51,7 +51,7 @@ grep -q 'call swan_c_double' "$TMP/ffi.s"
 printf 'PASS: imported C symbols preserved in native assembly\n'
 
 cat > "$TMP/missing.swan" <<'SWAN'
-extern fn swan_missing(value: i64) -> i64
+external fn swan_missing(value: i64) -> i64
 fn main() -> int:
     return swan_missing(1)
 SWAN
