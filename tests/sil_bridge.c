@@ -6,8 +6,10 @@ int main(void) {
     const char *source =
         "fn add(a: int, b: int) -> int:\n"
         "    return a + b\n"
+        "out\n"
         "fn main() -> int:\n"
-        "    return 2 + 3 * 4\n";
+        "    return 2 + 3 * 4\n"
+        "out\n";
     SwanError error = {0};
     TokenStream tokens;
     if (!swan_lex(source, &tokens, &error)) {
