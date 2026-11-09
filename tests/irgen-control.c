@@ -28,6 +28,7 @@ int main(void) {
         "        i = i + 1\n"
         "    out\n"
         "    return total\n"
+        "out\n"
         "fn main() -> int:\n"
         "    return sum(10)\n"
         "out\n";
