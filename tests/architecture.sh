@@ -12,6 +12,7 @@ fn sum(n: int) -> int:
         total = total + i
         i = i + 1
     return total
+out
 fn main() -> int:
     let values = array(8)
     var i = 0
@@ -20,6 +21,7 @@ fn main() -> int:
         i = i + 1
     log sum(values[7])
     return 0
+out
 SWAN
 "$SWAN" "$TMP/native.swan" --target x86_64 --emit-asm -o "$TMP/native.s"
 cc -x assembler "$TMP/native.s" -o "$TMP/native"
@@ -27,8 +29,10 @@ test "$("$TMP/native")" = "91"
 cat > "$TMP/scalar.swan" <<'SWAN'
 fn twice(x: int) -> int:
     return x * 2
+out
 fn main() -> int:
     return twice(21)
+out
 SWAN
 "$SWAN" "$TMP/scalar.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
 grep -q "stp x29, x30" "$TMP/aarch64.s"
