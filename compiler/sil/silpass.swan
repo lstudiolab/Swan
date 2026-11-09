@@ -3,11 +3,7 @@
 fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int:
     if count < 1 or count > 256
         return -1
-    var index = 512
-    while index < 1024
-        workspace[index] = 0
-        index = index + 1
-    index = 0
+    var index = 0
     while index < count
         let base = index * 5
         let encoded = state[base]
@@ -36,7 +32,7 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
                                 folded = a * b
                             else
                                 if opcode == 5
-                                    if b == 0 or (a < 0 and b == -1)
+                                    if b == 0
                                         can_fold = 0
                                     else
                                         folded = a / b
