@@ -208,9 +208,12 @@ or void returns. Signed 32-bit C integers are supported at call boundaries; thei
 arithmetic is not yet a general i32 optimization target. The active native ABI is x86-64 System V.
 
 C declarations are first-class external functions in the compiler AST and typed IR.
-They are verified and optimized with the rest of the program. Calls that exceed
-the current SIL expression subset use the general typed-IR lowering fallback;
-native foreign-call lowering inside SIL itself is still a follow-up milestone. Pointers, structs,
+The SIL bridge now keeps those declarations in the same verified IR module while
+applying SIL lowering to Swan functions that fit its current expression subset.
+Functions containing foreign calls use the general typed-IR call lowering, so they
+can still participate in the same optimization and backend pipeline. Native call
+instructions are represented in typed IR; adding a dedicated call opcode to the
+Swan-authored SIL instruction format remains future work. Pointers, structs,
 unions, callbacks, variadic functions, floating-point ABI classification,
 C++ name mangling, and other platform calling conventions remain unsupported.
 Clang must be available when compiling a source file that uses `import C`.
