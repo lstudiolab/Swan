@@ -31,3 +31,5 @@ fn main() -> int:
         query = query + 1
     log checksum
     return 0
+
+out
