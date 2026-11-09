@@ -12,6 +12,7 @@ fn sil_check_constant(state: u32_array, workspace: u32_array, index: int) -> int
     workspace[256 + destination] = type
     return 1
 
+out
 fn sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let type = state[base] / 16
@@ -29,6 +30,7 @@ fn sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> in
     workspace[256 + destination] = type
     return 1
 
+out
 fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let encoded = state[base]
@@ -53,6 +55,7 @@ fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
     workspace[256 + destination] = type
     return 1
 
+out
 fn sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let type = state[base] / 16
@@ -66,6 +69,7 @@ fn sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
     workspace[256 + destination] = type
     return 1
 
+out
 fn sil_check_return(state: u32_array, workspace: u32_array, index: int, count: int) -> int:
     let base = index * 5
     let left = state[base + 2]
@@ -75,6 +79,7 @@ fn sil_check_return(state: u32_array, workspace: u32_array, index: int, count: i
         return -14
     return 2
 
+out
 fn sil_verify(state: u32_array, count: int) -> int:
     if count < 1 or count > 256
         return -1
@@ -107,3 +112,5 @@ fn sil_verify(state: u32_array, count: int) -> int:
         return -16
     return 1
 
+
+out
