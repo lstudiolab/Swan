@@ -21,7 +21,7 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 PROFILE_HEADER = "Swan compiler pipeline profile (seconds)"
 STAGE_LINE = re.compile(
-    r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(([0-9]+(?:\.[0-9]+)?)%\))?\s*$"
+    r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*[0-9]+(?:\.[0-9]+)?%\))?\s*$"
 )
 
 
