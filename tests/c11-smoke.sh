@@ -6,7 +6,7 @@ TMP="$ROOT/build/c11-tests"
 mkdir -p "$TMP"
 cat > "$TMP/hello.swan" <<'SWAN'
 fn main():
-    log "Hello from Swan C"
+    print "Hello from Swan C"
     return 0
 out
 SWAN
@@ -19,7 +19,7 @@ fn main():
     let a: int = 40
     var b: int = 2
     b = b + 1
-    log a + b
+    print a + b
     return 0
 out
 SWAN
@@ -29,13 +29,13 @@ test "$("$TMP/arithmetic")" = "43"
 printf 'PASS: typed locals, mutation, and arithmetic lowering\n'
 cat > "$TMP/remainder.swan" <<'SWAN'
 fn main():
-    log 195 % 97
-    log 194 % 97
-    log 9223372036854775807 % 97
-    log -195 % 97
-    log 13 % 4
-    log -13 % 4
-    log -8 % 4
+    print 195 % 97
+    print 194 % 97
+    print 9223372036854775807 % 97
+    print -195 % 97
+    print 13 % 4
+    print -13 % 4
+    print -8 % 4
     return 0
 out
 SWAN
@@ -54,7 +54,7 @@ fn add(a: int, b: int) -> int:
     return a + b
 out
 fn main():
-    log add(20, 22)
+    print add(20, 22)
     return 0
 out
 SWAN
@@ -67,9 +67,9 @@ fn main():
     var value: int = 0
     while value < 3
         if value == 1
-            log 9
+            print 9
         else
-            log value
+            print value
         value = value + 1
     return 0
 out
@@ -87,7 +87,7 @@ fn main():
     while i < 10
         sum = sum + i
         i = i + 1
-    log sum
+    print sum
     return 0
 out
 SWAN
@@ -106,7 +106,7 @@ fn main():
             total = total + 1
             j = j + 1
         i = i + 1
-    log total
+    print total
     return 0
 out
 SWAN
@@ -127,7 +127,7 @@ fn main():
                 k = k + 1
             j = j + 1
         i = i + 1
-    log total
+    print total
     return 0
 out
 SWAN
@@ -148,7 +148,7 @@ fn main():
     while i < 0
         total = total + 1
         i = i + 1
-    log total
+    print total
     return 0
 out
 SWAN
@@ -165,7 +165,7 @@ fn main():
             i = i + 1
         total = total + 1
         i = i + 1
-    log total
+    print total
     return 0
 out
 SWAN
@@ -175,7 +175,7 @@ test "$("$TMP/loop-fallback")" = "3"
 printf 'PASS: loops with noncanonical induction updates retain top-tested control flow\n'
 cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
-    log missing_name
+    print missing_name
     return 0
 out
 SWAN
@@ -207,7 +207,7 @@ fn wrap(value: int) -> int:
     return add(value, base())
 out
 fn main():
-    log 1 + wrap(21)
+    print 1 + wrap(21)
     return 0
 out
 SWAN
@@ -228,7 +228,7 @@ fn main():
         else
             total = total + transform(i + 1)
         i = i + 1
-    log total
+    print total
     return 0
 out
 SWAN
@@ -259,7 +259,7 @@ fn leaf(a: int, b: int, c: int, d: int, e: int) -> int:
     return (a + b) * (c + d) + e
 out
 fn main():
-    log leaf(1, 2, 3, 4, 5)
+    print leaf(1, 2, 3, 4, 5)
     return 0
 out
 SWAN
@@ -276,7 +276,7 @@ cat > "$TMP/accumulator-side-effect.swan" <<'SWAN'
 fn main():
     var total = 2
     total = total + (total = 5)
-    log total
+    print total
     return 0
 out
 SWAN
@@ -288,12 +288,12 @@ cat > "$TMP/local-operands.swan" <<'SWAN'
 fn main():
     var left = 84
     var right = 7
-    log left + right
-    log left - right
-    log left * right
-    log left / right
-    log left % right
-    log left > right
+    print left + right
+    print left - right
+    print left * right
+    print left / right
+    print left % right
+    print left > right
     return 0
 out
 SWAN
@@ -318,10 +318,10 @@ fn main():
     values[1] = 42
     values[2] = 7
     values[3] = 99
-    log values[0]
-    log values[1]
-    log values[2]
-    log values[3]
+    print values[0]
+    print values[1]
+    print values[2]
+    print values[3]
     return 0
 out
 SWAN
@@ -339,7 +339,7 @@ fn main():
     var high = 7
     while low <= high
         var middle = low + (high - low) // 2
-        log values[middle]
+        print values[middle]
         break
     return 0
 out
@@ -365,7 +365,7 @@ fn main():
     var high = 7
     while low <= high
         var middle = low + (high - low) // 2
-        log values[middle]
+        print values[middle]
         low = -1
         break
     return 0
@@ -383,16 +383,16 @@ cat > "$TMP/power-two-multiply.swan" <<'SWAN'
 fn main():
     var value = 7
     var dividend = -43
-    log value * 8
-    log -value * 8
-    log value * -8
-    log value * 1
-    log value * -1
-    log value * 0
-    log dividend / 8
-    log dividend / -8
-    log dividend % 8
-    log dividend % -8
+    print value * 8
+    print -value * 8
+    print value * -8
+    print value * 1
+    print value * -1
+    print value * 0
+    print dividend / 8
+    print dividend / -8
+    print dividend % 8
+    print dividend % -8
     return 0
 out
 SWAN
@@ -430,8 +430,8 @@ fn main():
     while index < 4
         values[index] = fourth
         index = index + 1
-    log first + second + third + fourth + fifth + sixth + seventh
-    log values[3]
+    print first + second + third + fourth + fifth + sixth + seventh
+    print values[3]
     return 0
 out
 SWAN
@@ -456,7 +456,7 @@ fn main():
     let values = array(4)
     values[0] = 12
     var index = 0
-    log a + values[index] + (b % 97)
+    print a + values[index] + (b % 97)
     return 0
 out
 SWAN
@@ -527,7 +527,7 @@ fn main():
         if values[i - 1] > values[i]
             sorted = 0
         i = i + 1
-    log sorted
+    print sorted
     return 0
 out
 SWAN
@@ -555,7 +555,7 @@ fn main():
     let e = 55
     let f = 66
     let g = 77
-    log combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1)
+    print combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1)
     return 0
 out
 SWAN
@@ -571,7 +571,7 @@ fi
 printf 'PASS: callee-saved and volatile local preservation across calls\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
-    log (6 * 7) + (9 - 2)
+    print (6 * 7) + (9 - 2)
     return 0
 out
 SWAN
@@ -590,7 +590,7 @@ fn main():
     let limit = 5
     while index < limit
         index = index + 1
-    log index
+    print index
     return 0
 out
 SWAN
@@ -613,9 +613,9 @@ fn main():
     value = value * factor
     value = value - 2
     value = value + 1
-    log value
+    print value
     value = value * 8
-    log value
+    print value
     var a = 1
     var b = 2
     var c = 3
@@ -624,7 +624,7 @@ fn main():
     var spilled = 6
     spilled = spilled * factor
     spilled = spilled - value
-    log spilled
+    print spilled
     return 0
 out
 SWAN
