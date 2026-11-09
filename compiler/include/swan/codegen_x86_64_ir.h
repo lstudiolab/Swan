@@ -19,7 +19,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
  }
  static const char *args[]={"rdi","rsi","rdx","rcx","r8","r9"};
  for(size_t f=0;f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];if(fn->external){text_add(o,".extern %s\\n",fn->name);continue;}size_t allocas=0;
+  const SwanIRFunction *fn=&m->functions[f];if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}size_t allocas=0;
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
   size_t value_bytes=((size_t)fn->next_value+1)*8u,frame=(value_bytes+allocas*8u+15u)&~(size_t)15u;
   text_add(o,".intel_syntax noprefix\n.text\n.globl %s\n.type %s, @function\n%s:\n    push rbp\n    mov rbp, rsp\n    sub rsp, %zu\n",fn->name,fn->name,fn->name,frame);
