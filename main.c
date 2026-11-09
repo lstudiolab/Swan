@@ -56,6 +56,7 @@ static int swan_run(int argc,char **argv){
  if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  swan_profile_end(SWAN_PROFILE_PARSE,stage);
  free(ts.items);p.source_function_count=p.count;
+ if(!swan_import_c_headers(&p,&err)){fprintf(stderr,"swan: %s\n",err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  char *module_sources[64]={0},*module_texts[64]={0};size_t module_count=0;
  stage=swan_profile_start();
  if(!swan_load_imports(&p,stdlib_dir,module_sources,module_texts,&module_count,&err)){
