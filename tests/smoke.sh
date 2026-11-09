@@ -29,6 +29,25 @@ ${CC:-cc} -x assembler "$TMP/explicit-out.s" -o "$TMP/explicit-out"
 test "$("$TMP/explicit-out")" = "Hello from Swan"
 printf 'PASS: print built-in and explicit out block terminator\n'
 
+# Legacy words are ordinary identifiers, not reserved keywords.
+cat > "$TMP/legacy-identifiers.swan" <<'SWAN'
+fn main():
+    let log = 1
+    let manual = 2
+    let none = 3
+    let extern = 4
+    let func = 5
+    let and = 6
+    let or = 7
+    let not = 8
+    print log + manual + none + extern + func + and + or + not
+out
+SWAN
+"$SWAN" "$TMP/legacy-identifiers.swan" --emit-asm -o "$TMP/legacy-identifiers.s"
+${CC:-cc} -x assembler "$TMP/legacy-identifiers.s" -o "$TMP/legacy-identifiers"
+test "$("$TMP/legacy-identifiers")" = "36"
+printf 'PASS: removed legacy keywords are valid identifiers\n'
+
 
 cat > "$TMP/control.swan" <<'SWAN'
 fn main():
