@@ -39,7 +39,7 @@ typedef struct {
 } SwanIRBlock;
 typedef struct {
  const char *name; SwanIRType return_type; SwanIRType *parameter_types;
- size_t parameter_count; SwanIRBlock *blocks; size_t block_count, block_capacity;
+ size_t parameter_count; bool external; SwanIRBlock *blocks; size_t block_count, block_capacity;
  uint32_t next_value;
 } SwanIRFunction;
 typedef struct { SwanIRFunction *functions; size_t function_count, function_capacity; char **owned_strings; size_t owned_string_count, owned_string_capacity; } SwanIRModule;
@@ -167,6 +167,7 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
   if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT32_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
+  if(fn->external){if(fn->block_count)return swan_ir_fail(error,cap,"external function must not contain a body",fn->name,0,0);continue;}
   if(!fn->block_count)return swan_ir_fail(error,cap,"function has no entry block",fn->name,0,0);
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];
