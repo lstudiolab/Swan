@@ -178,3 +178,30 @@ Swan SIL builder
 ```
 
 The passes share a caller-owned workspace and are compiled to native code by Swan in `tests/sil.sh`. This SIL implementation is currently a standalone experimental scalar IR pipeline. The production compiler's general typed SSA IR optimizer in `compiler/include/swan/optimization.h` remains the optimizer used by normal `.swan` compilation; the SIL passes have not yet replaced or been wired into that production IR path. The present SIL format is limited to 256 value IDs and a 256-instruction stream, and its packed constant builder currently accepts 16-bit immediate values.
+
+
+## Native C ABI interoperability
+
+Swan can declare external C ABI functions directly in source. External declarations
+are represented as declaration-only functions in typed IR, so normal Swan calls
+remain visible to SIL/IR verification, optimization, and native code generation.
+
+```swan
+extern fn c_add(left: i64, right: i64) -> i64
+
+fn main() -> int:
+    return c_add(20, 22)
+```
+
+Compile C code to an object file and pass it to the native linker:
+
+```sh
+cc -std=c11 -O2 -c library.c -o library.o
+swan build app.swan --link library.o -o app
+```
+
+Additional object files and libraries can be supplied with repeated `--link`
+options or standard `-L` and `-l` options. The current direct-call ABI subset
+is scalar integer and boolean arguments/returns on the x86-64 System V ABI.
+C-header parsing, aggregate layouts, floating-point ABI classification, and
+additional platform calling conventions are not yet implemented.
