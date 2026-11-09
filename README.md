@@ -159,3 +159,18 @@ CI runs the complete suite, including compiler construction, header isolation, p
 Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 frontend; array/slice lowering, floating-point arithmetic, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. ARMv7 lowers integer division and remainder through the AAPCS EABI helpers with explicit zero and signed-overflow traps. Cross-target backends are intentionally a supported subset rather than claiming full frontend parity. A listed implemented backend does not imply every Swan program can target it.
 
 Swan is open source under Apache-2.0. Contributions and reproducible benchmark reports are welcome.
+
+## Swan-authored SIL pipeline
+
+The experimental scalar SIL implementation lives in `compiler/sil/` and is written in Swan itself. Its current linear SSA record format uses five u32 cells per instruction: encoded opcode/type, destination, left operand, right operand, and immediate. The pipeline is:
+
+```text
+Swan SIL builder
+  -> structural and typed SSA verification
+  -> scalar constant folding
+  -> backward value-demand / liveness analysis
+  -> dead-instruction elimination and stream compaction
+  -> final SIL verification
+```
+
+The passes share a caller-owned workspace and are compiled to a native executable by Swan in `tests/sil.sh`; the test also reuses the workspace across optimization runs. This SIL implementation is currently a standalone experimental scalar IR pipeline. The production compiler's general typed SSA IR optimizer in `compiler/include/swan/optimization.h` remains the optimizer used by normal `.swan` compilation; the SIL passes have not yet replaced or been wired into that production IR path. The present SIL format is limited to 256 value IDs and a 256-instruction stream, and its packed constant builder currently accepts 16-bit immediate values.

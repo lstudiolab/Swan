@@ -3,6 +3,10 @@
 fn sil_demand(state: u32_array, count: int, workspace: u32_array) -> int:
     if count < 1 or count > 256
         return -1
+    var index = 0
+    while index < 512
+        workspace[index] = 0
+        index = index + 1
     var scan = 0
     var kept = 0
     while scan < count
