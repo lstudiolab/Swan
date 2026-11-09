@@ -2,8 +2,21 @@
 # Record layout: [encoded opcode, result, lhs, rhs, immediate].
 # Opcode = type * 16 + operation; types 1=i32, 2=i64, 3=bool.
 # Operations: const=1, add=2, sub=3, mul=4, sdiv=5, srem=6,
-# icmp_eq=7, icmp_slt=8, copy=9, return=10.
-# Packed builder arguments keep the current Swan ABI at three arguments.
+# icmp_eq=7, icmp_slt=8, copy=9, return=10, parameter=11.
+
+fn sil_emit_param(state: u32_array, count: int, packed: int) -> int:
+    if count < 0 or count >= 256
+        return -1
+    let destination = packed / 1048576
+    let type = (packed / 65536) % 16
+    let parameter = packed % 65536
+    let base = count * 5
+    state[base] = type * 16 + 11
+    state[base + 1] = destination
+    state[base + 2] = 0
+    state[base + 3] = 0
+    state[base + 4] = parameter
+    return count + 1
 
 fn sil_emit_const(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256

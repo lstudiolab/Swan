@@ -3,7 +3,30 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 CC=${CC:-cc}
 mkdir -p "$ROOT/build"
-"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" "$ROOT/main.c" -o "$ROOT/build/swan"
-printf 'Built Swan C compiler: %s\n' "$ROOT/build/swan"
-printf 'Implementation: C11 headers; one translation unit (main.c)\n'
-printf 'Code generation: Swan-owned x86-64 assembly backend\n'
+
+# Bootstrap the C11 host without linking the not-yet-built Swan SIL object.
+"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -DSWAN_SIL_BOOTSTRAP \
+    -I"$ROOT/compiler/include" "$ROOT/main.c" -o "$ROOT/build/swan-bootstrap"
+
+# The compiler's SIL passes are source files in Swan. Concatenate their
+# function definitions so the bootstrap compiler can emit one linkable object.
+{
+    for stage in silgen silverify sildemand silpass siloptimization; do
+        sed '/^[[:space:]]*import[[:space:]]/d' "$ROOT/compiler/sil/$stage.swan"
+        printf '\n'
+    done
+} > "$ROOT/build/sil_runtime.swan"
+
+"$ROOT/build/swan-bootstrap" build "$ROOT/build/sil_runtime.swan" \
+    --emit-asm -o "$ROOT/build/sil_runtime.s"
+"$CC" -c "$ROOT/build/sil_runtime.s" -o "$ROOT/build/sil_runtime.o"
+
+# The final compiler executes Swan-generated SIL before typed IR generation.
+"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic \
+    -I"$ROOT/compiler/include" "$ROOT/main.c" "$ROOT/build/sil_runtime.o" \
+    -o "$ROOT/build/swan"
+
+printf 'Built Swan compiler: %s\n' "$ROOT/build/swan"
+printf 'Frontend and orchestration: C11 host\n'
+printf 'SIL generation, verification, demand and optimization: Swan source\n'
+printf 'Typed IR, IR optimization and target backends: Swan-owned\n'
