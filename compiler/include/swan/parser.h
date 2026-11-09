@@ -19,7 +19,7 @@ static inline Expr *prefix(Parser *p){
  else if(t.kind==T_MINUS||t.kind==T_NOT||(t.kind==T_IDENT&&!strcmp(t.text,"not"))){if(t.kind==T_IDENT)t.kind=T_NOT;e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
  else if(t.kind==T_IDENT||t.kind==T_FREE){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
- else{swan_error(p->err,&t,"expected expression");p->failed=true;return NULL;}
+ else{swan_error(p->err,&t,"expected expression, found token %d '%s'",(int)t.kind,t.text?t.text:"");p->failed=true;return NULL;}
  while(e&&!p->failed){
   if(eat(p,T_LB)){
    Expr *index=expression(p,1);
