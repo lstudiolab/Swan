@@ -5,7 +5,9 @@
 #include "swan/irgen.h"
 #include "swan/optimization.h"
 #include "swan/codegen_x86_64_ir.h"
+#ifndef SWAN_SIL_BOOTSTRAP
 #include "swan/sil_bridge.h"
+#endif
 
 
 static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module,SwanError *error){
