@@ -57,3 +57,4 @@ fn sil_emit_return(state: u32_array, count: int, value: int) -> int:
     state[base + 3] = 0
     state[base + 4] = 0
     return count + 1
+
