@@ -17,7 +17,7 @@ static inline Expr *prefix(Parser *p){
  Token t=take(p);Expr *e=NULL;
  if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE||t.kind==T_NONE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
  else if(t.kind==T_MINUS||t.kind==T_NOT||(t.kind==T_IDENT&&!strcmp(t.text,"not"))){if(t.kind==T_IDENT)t.kind=T_NOT;e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
- else if(t.kind==T_IDENT||t.kind==T_FREE){e=new_expr(p,E_NAME,t);}
+ else if(t.kind==T_IDENT||t.kind==T_FREE||t.kind==T_SELF){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
  else{swan_error(p->err,&t,"expected expression, found token %d '%s'",(int)t.kind,t.text?t.text:"");p->failed=true;return NULL;}
  while(e&&!p->failed){
@@ -29,6 +29,7 @@ static inline Expr *prefix(Parser *p){
    e=item;
   }
   else if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){call->args=swan_arena_alloc(p->program,16*sizeof(*call->args));if(!call->args){swan_error(p->err,&call->token,"out of memory allocating call arguments");p->failed=true;return e;}do{if(call->argc>=16){swan_error(p->err,pk(p),"too many call arguments");p->failed=true;break;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
+  else if(eat(p,T_DOT)){Token member=take(p);if(!member.text||member.kind==T_EOF||member.kind==T_NEWLINE||member.kind==T_DOT){swan_error(p->err,&member,"expected a member name after '.'");p->failed=true;break;}Expr *field=new_expr(p,E_NAME,member);Expr *access=new_expr(p,E_MEMBER,e->token);if(access){access->left=e;access->right=field;access->contains_call=e->contains_call;}e=access;}
   else break;
  }
  return e;
@@ -39,7 +40,7 @@ static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
 static inline Stmt *statement(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;bool stored=eat(p,T_STORE);
  if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=stored;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
- bool print_intrinsic=eat(p,T_PRINT);if(print_intrinsic||(is(p,T_IDENT)&&!strcmp(pk(p)->text,"log"))){if(!print_intrinsic)take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
+ bool print_intrinsic=eat(p,T_PRINT);if(print_intrinsic||(is(p,T_IDENT)&&!strcmp(pk(p)->text,"log"))){if(!print_intrinsic){take(p);if(eat(p,T_GT)&&!need(p,T_GT,"expected second '>' in log output operator"))return NULL;}s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(is(p,T_IDENT)&&!strcmp(pk(p)->text,"echo")&&p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_BANG){take(p);take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(eat(p,T_RETURN)){s=new_stmt(p,S_RETURN,t);if(s&&!is(p,T_NEWLINE)&&!is(p,T_DEDENT)&&!is(p,T_EOF))s->value=expression(p,1);return s;}
  if(eat(p,T_BREAK))return new_stmt(p,S_BREAK,t);
