@@ -1,0 +1,51 @@
+name: Swan Compiler File Timing
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "benchmarks/compiler_file_timing.py"
+      - ".github/workflows/compiler-file-timing.yml"
+      - "main.c"
+      - "compiler/**"
+      - "build.sh"
+      - "benchmarks/compiler_pipeline.swan"
+
+permissions:
+  contents: read
+
+jobs:
+  compiler-file-timing:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Clang trace tool
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang
+      - name: Build Swan
+        run: sh build.sh
+      - name: Measure time per compiler file
+        run: |
+          python3 -u benchmarks/compiler_file_timing.py --repeats 5 --output-dir benchmark-results | tee compiler-file-timing-console.txt
+      - name: Publish report
+        if: always()
+        run: |
+          if [ -f benchmark-results/compiler-file-timing.md ]; then
+            cat benchmark-results/compiler-file-timing.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Compiler file timing did not produce a report. Inspect the benchmark logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload compiler file timing results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-compiler-file-timing
+          path: |
+            benchmark-results/compiler-file-timing.md
+            benchmark-results/compiler-file-timing.json
+            compiler-file-timing-console.txt
+          if-no-files-found: warn
+          retention-days: 30
