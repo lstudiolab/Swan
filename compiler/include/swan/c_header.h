@@ -21,6 +21,7 @@ static inline const char *swan_c_header_scalar_type(const char *type) {
     if (!strncmp(type,"volatile ",9)) type += 9;
     if (!strcmp(type,"void")) return "void";
     if (!strcmp(type,"_Bool") || !strcmp(type,"bool")) return "bool";
+    if (!strcmp(type,"int") || !strcmp(type,"signed int") || !strcmp(type,"int32_t")) return "i32";
     if (!strcmp(type,"int64_t") || !strcmp(type,"uint64_t") ||
         !strcmp(type,"long") || !strcmp(type,"long int") ||
         !strcmp(type,"signed long") || !strcmp(type,"signed long int") ||
