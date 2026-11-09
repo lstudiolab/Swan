@@ -14,6 +14,16 @@ SWAN
 cc -x assembler "$TMP/hello.s" -o "$TMP/hello"
 test "$("$TMP/hello")" = "Hello from Swan C"
 printf 'PASS: C11 frontend emits native x86-64 assembly and string output\n'
+cat > "$TMP/log-operator.swan" <<'SWAN'
+fn main():
+    log >> "Hello, World!";
+    return 0
+out
+SWAN
+"$SWAN" "$TMP/log-operator.swan" --emit-asm -o "$TMP/log-operator.s"
+cc -x assembler "$TMP/log-operator.s" -o "$TMP/log-operator"
+test "$("$TMP/log-operator")" = "Hello, World!"
+printf 'PASS: log >> output operator\n'
 cat > "$TMP/arithmetic.swan" <<'SWAN'
 fn main():
     let a: int = 40
