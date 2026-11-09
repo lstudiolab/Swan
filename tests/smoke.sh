@@ -17,6 +17,22 @@ ${CC:-cc} -x assembler "$TMP/hello.s" -o "$TMP/hello"
 test "$("$TMP/hello")" = "Hello"
 printf 'PASS: indentation-based hello program\n'
 
+# Explicit ':' / 'out' blocks are delimiter-based, not indentation-based.
+cat > "$TMP/explicit-out.swan" <<'SWAN'
+fn main():
+    let message = "Hello from Swan"
+    if true:
+        print message
+    out
+    return 0
+out
+SWAN
+"$SWAN" "$TMP/explicit-out.swan" --emit-asm -o "$TMP/explicit-out.s"
+${CC:-cc} -x assembler "$TMP/explicit-out.s" -o "$TMP/explicit-out"
+test "$("$TMP/explicit-out")" = "Hello from Swan"
+printf 'PASS: explicit colon/out blocks\\n'
+
+
 # Swan's current spelling uses print as a built-in and out as the block closer.
 cat > "$TMP/explicit-out.swan" <<'SWAN'
 fn main():
