@@ -44,6 +44,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
       for(size_t k=0;k<in->incoming_count&&k<6;k++)text_add(o,"    mov %s, QWORD PTR [rbp-%d]\n",args[k],swan_x64_slot(in->incoming[k].value));
       text_add(o,"    xor eax, eax\n    call %s\n",in->symbol);
       if(outgoing)text_add(o,"    add rsp, %zu\n",outgoing);
+      if(in->type==SWAN_IR_I32)text_add(o,"    movsxd rax, eax\n");else if(in->type==SWAN_IR_I1)text_add(o,"    movzx eax, al\n");
       if(in->type!=SWAN_IR_VOID)text_add(o,"    mov QWORD PTR [rbp-%d], rax\n",d);break;}
      case SWAN_IR_SELECT:text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    mov r10, QWORD PTR [rbp-%d]\n    test rax, rax\n    cmovne r10, rcx\n    mov QWORD PTR [rbp-%d], r10\n",a,z,swan_x64_slot(in->c),d);break;
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:
