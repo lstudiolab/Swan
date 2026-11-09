@@ -2,32 +2,32 @@
 # Workspace: defined values [0..255], value types [256..511].
 fn sil_check_constant(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
-    let type = state[base] / 16
+    let value_type = state[base] / 16
     let destination = state[base + 1]
-    if destination <= 0 or destination >= 256 or type < 1 or type > 3
+    if destination <= 0 or destination >= 256 or value_type < 1 or value_type > 3
         return -3
     if workspace[destination] == 1
         return -4
     workspace[destination] = 1
-    workspace[256 + destination] = type
+    workspace[256 + destination] = value_type
     return 1
 
 out
 fn sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
-    let type = state[base] / 16
+    let value_type = state[base] / 16
     let destination = state[base + 1]
     let left = state[base + 2]
     let right = state[base + 3]
     let parameter = state[base + 4]
-    if destination <= 0 or destination >= 256 or type < 1 or type > 3
+    if destination <= 0 or destination >= 256 or value_type < 1 or value_type > 3
         return -17
     if left != 0 or right != 0 or parameter >= 255
         return -18
     if destination != parameter + 1 or workspace[destination] == 1
         return -19
     workspace[destination] = 1
-    workspace[256 + destination] = type
+    workspace[256 + destination] = value_type
     return 1
 
 out
@@ -35,7 +35,7 @@ fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let encoded = state[base]
     let opcode = encoded % 16
-    let type = encoded / 16
+    let value_type = encoded / 16
     let destination = state[base + 1]
     let left = state[base + 2]
     let right = state[base + 3]
@@ -45,28 +45,28 @@ fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
         return -6
     if workspace[256 + left] != workspace[256 + right]
         return -7
-    if opcode <= 6 and (type != workspace[256 + left] or type < 1 or type > 2)
+    if opcode <= 6 and (value_type != workspace[256 + left] or value_type < 1 or value_type > 2)
         return -8
-    if opcode >= 7 and type != 3
+    if opcode >= 7 and value_type != 3
         return -9
     if workspace[destination] == 1
         return -10
     workspace[destination] = 1
-    workspace[256 + destination] = type
+    workspace[256 + destination] = value_type
     return 1
 
 out
 fn sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
-    let type = state[base] / 16
+    let value_type = state[base] / 16
     let destination = state[base + 1]
     let left = state[base + 2]
     if destination <= 0 or destination >= 256 or left <= 0 or left >= 256
         return -11
-    if workspace[left] == 0 or workspace[destination] == 1 or type != workspace[256 + left]
+    if workspace[left] == 0 or workspace[destination] == 1 or value_type != workspace[256 + left]
         return -12
     workspace[destination] = 1
-    workspace[256 + destination] = type
+    workspace[256 + destination] = value_type
     return 1
 
 out
