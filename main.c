@@ -67,6 +67,12 @@ static int swan_run(int argc,char **argv){
  swan_profile_end(SWAN_PROFILE_SEMA,stage);
  stage=swan_profile_start();
  swan_compute_reachability(&p);swan_profile_end(SWAN_PROFILE_REACHABILITY,stage);
+ if(target->architecture!=SWAN_ARCH_X86_64){
+  for(size_t i=0;i<p.count;i++)if(p.function_reachable[i]&&p.functions[i]->external){
+   fprintf(stderr,"swan: external C ABI calls are currently supported only by the x86_64 System V backend\\n");
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;
+  }
+ }
  bool has_lazy=swan_has_lazy_imports(&p);
  if(target->architecture==SWAN_ARCH_WASM32||target->architecture==SWAN_ARCH_WASM64){
   if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM32 output is a WebAssembly module; run it with a WebAssembly runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
