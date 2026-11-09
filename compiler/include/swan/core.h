@@ -46,12 +46,12 @@ static inline void swan_profile_print(void){
  if(!swan_profile_enabled)return;
  uint64_t total=swan_profile_clock(),begin=(uint64_t)swan_profile_total_start.tv_sec*UINT64_C(1000000000)+(uint64_t)swan_profile_total_start.tv_nsec;
  uint64_t elapsed=total>=begin?total-begin:0;
- fprintf(stderr,"\\nSwan compiler pipeline profile (seconds)\\n");
+ fprintf(stderr,"\nSwan compiler pipeline profile (seconds)\n");
  for(size_t i=0;i<SWAN_PROFILE_COUNT;i++)if(swan_profile_ns[i]){
   double seconds=(double)swan_profile_ns[i]/1e9;
-  fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\\n",swan_profile_names[i],seconds,elapsed?(double)swan_profile_ns[i]*100.0/(double)elapsed:0.0);
+  fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\n",swan_profile_names[i],seconds,elapsed?(double)swan_profile_ns[i]*100.0/(double)elapsed:0.0);
  }
- fprintf(stderr,"  %-30s %0.9f s\\n","Total wall time",(double)elapsed/1e9);
+ fprintf(stderr,"  %-30s %0.9f s\n","Total wall time",(double)elapsed/1e9);
 }
 #define SWAN_VERSION "0.7.0-samc"
 #define SWAN_MEMORY_MODEL "SAMC"
