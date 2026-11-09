@@ -7,7 +7,7 @@ struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
 typedef struct Stmt Stmt;
 struct Stmt { StmtKind kind; Token token; const char *name,*type; bool mutable_value,manual_memory; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; const char **param_types; size_t param_count; Stmt *next; int module_index; bool imported,external; };
-typedef struct { Stmt *functions[1024]; size_t count; const char *imports[64]; size_t import_count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; size_t source_function_count,module_count,module_starts[64],module_ends[64]; const char *module_names[64]; bool function_reachable[1024]; bool reachability_computed; int codegen_module_index; } Program;
+typedef struct { Stmt *functions[1024]; size_t count; const char *imports[64]; size_t import_count; const char *c_headers[64]; size_t c_header_count; SwanArenaChunk *arena; int function_buckets[2048]; unsigned short function_next[1024]; bool function_indexed; size_t source_function_count,module_count,module_starts[64],module_ends[64]; const char *module_names[64]; bool function_reachable[1024]; bool reachability_computed; int codegen_module_index; } Program;
 static inline void *swan_arena_alloc(Program *p,size_t size){
  const size_t align=_Alignof(max_align_t);size=(size+align-1)&~(align-1);
  SwanArenaChunk *c=p->arena;
