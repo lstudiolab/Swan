@@ -230,31 +230,54 @@ static inline bool swan_sil_lower_function(const Stmt *fn, SwanIRModule *module)
 static inline bool swan_sil_try_irgen_program(Program *program, SwanIRModule *output) {
     if (!program || !output || !program->count || program->import_count ||
         program->count < program->source_function_count || program->count > 1024) return false;
+
+    /* Start from the complete typed-IR lowering so calls, including imported C
+       symbols, remain in the same module as SIL-lowered functions. */
     SwanIRModule candidate = {0};
+    SwanError lowering_error = {0};
+    if (!swan_irgen_program(program, &candidate, &lowering_error)) return false;
+
     for (size_t i = 0; i < program->count; ++i) {
-        const Stmt *fn = program->functions[i];
-        if (fn->external) {
-            SwanIRType parameters[16];
-            if (fn->param_count > 16) { swan_ir_destroy(&candidate); return false; }
-            for (size_t p = 0; p < fn->param_count; ++p) {
-                parameters[p] = swan_sil_param_type(fn, p);
-                if (parameters[p] == SWAN_IR_VOID) {
-                    swan_ir_destroy(&candidate);
-                    return false;
-                }
-            }
-            SwanIRType result = swan_sil_decl_type(fn->type);
-            SwanIRFunction *declaration = swan_ir_add_function(
-                &candidate, fn->name, result, parameters, fn->param_count);
-            if (!declaration) { swan_ir_destroy(&candidate); return false; }
-            declaration->external = true;
+        const Stmt *source = program->functions[i];
+        if (source->external || source->imported ||
+            !swan_irgen_include_function(program, i)) continue;
+
+        SwanIRModule sil_function = {0};
+        if (!swan_sil_lower_function(source, &sil_function)) {
+            swan_ir_destroy(&sil_function);
             continue;
         }
-        if (!swan_sil_lower_function(fn, &candidate)) {
+        if (sil_function.function_count != 1) {
+            swan_ir_destroy(&sil_function);
+            continue;
+        }
+
+        SwanIRFunction *destination = NULL;
+        for (size_t f = 0; f < candidate.function_count; ++f) {
+            if (!strcmp(candidate.functions[f].name, source->name)) {
+                destination = &candidate.functions[f];
+                break;
+            }
+        }
+        if (!destination) {
+            swan_ir_destroy(&sil_function);
             swan_ir_destroy(&candidate);
             return false;
         }
+
+        SwanIRFunction *lowered = &sil_function.functions[0];
+        for (size_t b = 0; b < destination->block_count; ++b)
+            free(destination->blocks[b].instructions);
+        free(destination->blocks);
+        destination->blocks = lowered->blocks;
+        destination->block_count = lowered->block_count;
+        destination->block_capacity = lowered->block_capacity;
+        destination->next_value = lowered->next_value;
+        lowered->blocks = NULL;
+        lowered->block_count = lowered->block_capacity = 0;
+        swan_ir_destroy(&sil_function);
     }
+
     char verify_error[256] = {0};
     if (!swan_ir_verify(&candidate, verify_error, sizeof(verify_error))) {
         swan_ir_destroy(&candidate);
