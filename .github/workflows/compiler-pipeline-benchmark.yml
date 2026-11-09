@@ -18,16 +18,29 @@ permissions:
 jobs:
   pipeline-benchmark:
     runs-on: ubuntu-24.04
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v4
-      - name: Build Swan compiler
-        run: sh build.sh
-      - name: Run compiler pipeline benchmark
-        run: python3 benchmarks/compiler_pipeline.py --repeats 7 --warmups 2 | tee compiler-pipeline-benchmark.txt
-      - name: Upload benchmark report
+      - name: Install benchmark toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y clang time
+      - name: Build Swan compiler and measure build time
+        shell: bash
+        run: |
+          mkdir -p benchmark-results
+          /usr/bin/time -f '%e' -o benchmark-results/compiler-build-seconds.txt sh build.sh
+      - name: Run stage, compile-time, runtime, and per-file benchmarks
+        run: |
+          python3 benchmarks/compiler_pipeline.py --repeats 7 --warmups 2 --output-dir benchmark-results
+      - name: Record build time
+        run: |
+          printf '\n## Full compiler build time\n\n' >> benchmark-results/compiler-pipeline.md
+          printf 'Build time: %s seconds\n' "$(cat benchmark-results/compiler-build-seconds.txt)" >> benchmark-results/compiler-pipeline.md
+      - name: Upload benchmark reports
         uses: actions/upload-artifact@v4
         with:
           name: swan-compiler-pipeline-benchmark
-          path: compiler-pipeline-benchmark.txt
+          path: benchmark-results/
           if-no-files-found: error
+          retention-days: 30
