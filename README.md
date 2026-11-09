@@ -151,7 +151,7 @@ CI runs the complete suite, including compiler construction, header isolation, p
 
 | Target | Status | Current scope |
 |---|---|---|
-| x86-64 System V Linux | Implemented | IR-first for supported scalar functions; AST compatibility backend for arrays, logging and lazy imports |
+| x86-64 System V Linux | Implemented | Swan SIL -> typed SSA IR for supported scalar functions; typed-IR and AST compatibility fallbacks for broader constructs |
 | AArch64 / ARM64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges and mutable stack locals; emits AArch64 ELF objects |
 | RISC-V 64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges and mutable stack locals; emits RV64 ELF objects |
 | WebAssembly 32-bit | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges and linear-memory-backed mutable locals |

@@ -15,46 +15,50 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
         if opcode == 1
             workspace[512 + destination] = 1
             workspace[768 + destination] = state[base + 4]
-        else
-            if opcode >= 2 and opcode <= 8
-                if workspace[512 + left] == 1 and workspace[512 + right] == 1
-                    let a = workspace[768 + left]
-                    let b = workspace[768 + right]
-                    var folded = 0
-                    var can_fold = 1
-                    if opcode == 2
-                        folded = a + b
-                    else
-                        if opcode == 3
-                            folded = a - b
-                        else
-                            if opcode == 4
-                                folded = a * b
-                            else
-                                if opcode == 5
-                                    if b == 0
-                                        can_fold = 0
-                                    else
-                                        folded = a / b
-                                else
-                                    if opcode == 6
-                                        if b == 0
-                                            can_fold = 0
-                                        else
-                                            folded = a % b
-                                    else
-                                        if opcode == 7
-                                            folded = a == b
-                                        else
-                                            folded = a < b
-                    if can_fold == 1
-                        state[base] = type * 16 + 1
-                        state[base + 2] = 0
-                        state[base + 3] = 0
-                        state[base + 4] = folded
-                        workspace[512 + destination] = 1
-                        workspace[768 + destination] = folded
-                else
+        if opcode >= 2 and opcode <= 8
+            if workspace[512 + left] == 1 and workspace[512 + right] == 1
+                let a = workspace[768 + left]
+                let b = workspace[768 + right]
+                var folded = 0
+                var can_fold = 1
+                if opcode == 2
+                    folded = a + b
+                if opcode == 3
+                    folded = a - b
+                if opcode == 4
+                    folded = a * b
+                if opcode == 5 and b == 0
+                    can_fold = 0
+                if opcode == 5 and b != 0
+                    folded = a / b
+                if opcode == 6 and b == 0
+                    can_fold = 0
+                if opcode == 6 and b != 0
+                    folded = a % b
+                if opcode == 7
+                    folded = a == b
+                if opcode == 8
+                    folded = a < b
+                if can_fold == 1
+                    state[base] = type * 16 + 1
+                    state[base + 2] = 0
+                    state[base + 3] = 0
+                    state[base + 4] = folded
+                    workspace[512 + destination] = 1
+                    workspace[768 + destination] = folded
+                if can_fold == 0
                     workspace[512 + destination] = 0
+            if workspace[512 + left] != 1 or workspace[512 + right] != 1
+                workspace[512 + destination] = 0
+        if opcode == 9 and workspace[512 + left] == 1
+            state[base] = type * 16 + 1
+            state[base + 2] = 0
+            state[base + 3] = 0
+            state[base + 4] = workspace[768 + left]
+            workspace[512 + destination] = 1
+            workspace[768 + destination] = workspace[768 + left]
+        if opcode == 9 and workspace[512 + left] != 1
+            workspace[512 + destination] = 0
         index = index + 1
     return count
+
