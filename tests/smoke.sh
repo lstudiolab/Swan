@@ -122,6 +122,22 @@ ${CC:-cc} -x assembler "$TMP/int64.s" -o "$TMP/int64"
 test "$("$TMP/int64")" = "3000000000"
 printf 'PASS: 64-bit integer lowering\n'
 
+
+# Manual allocation is an explicit SAMC opt-out and uses the same checked array path.
+cat > "$TMP/manual-memory.swan" <<'SWAN'
+fn main():
+    manual let values = array(4)
+    values[0] = 27
+    print values[0]
+    free(values)
+    return 0
+out
+SWAN
+"$SWAN" "$TMP/manual-memory.swan" --emit-asm -o "$TMP/manual-memory.s"
+${CC:-cc} -x assembler "$TMP/manual-memory.s" -o "$TMP/manual-memory"
+test "$("$TMP/manual-memory")" = "27"
+printf 'PASS: manual SAMC allocation modifier and explicit free\\n'
+
 # Struct declarations are not part of the active C11 subset yet.
 
 cat > "$TMP/invalid.swan" <<'SWAN'
