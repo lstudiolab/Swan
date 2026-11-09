@@ -145,7 +145,6 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
             in.incoming[i].value=v;
         }
         uint32_t result=swan_irgen_emit(g,in);
-        if(in.type==SWAN_IR_VOID)free(in.incoming);
         return result;
     }
     if(e->kind==E_BINARY) {
@@ -266,7 +265,7 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
                 size_t target=s->kind==S_BREAK?g->break_targets[g->loop_depth-1]:g->continue_targets[g->loop_depth-1];
                 if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)target,0}))return false;break;
             }
-            case S_EXPR:if(s->value&&!swan_irgen_expr(g,s->value))return false;break;
+            case S_EXPR:if(s->value){uint32_t result=swan_irgen_expr(g,s->value);if(!result){bool void_call=false;if(s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME&&!g->error->message[0])for(size_t fi=0;fi<g->module->function_count;fi++)if(!strcmp(g->module->functions[fi].name,s->value->left->token.text)&&g->module->functions[fi].return_type==SWAN_IR_VOID){void_call=true;break;}if(!void_call)return false;}}break;
             case S_PASS:break;
             case S_LOG:return swan_irgen_fail(g,&s->token,"log output is not yet supported by the portable SVM backend");
             default:return swan_irgen_fail(g,&s->token,"statement is not supported by the portable IR backend");
