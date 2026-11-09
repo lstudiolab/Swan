@@ -1,6 +1,7 @@
 #ifndef SWAN_C_HEADER_H
 #define SWAN_C_HEADER_H
 #include "swan/parser.h"
+#include <sys/types.h>
 #include <sys/wait.h>
 
 /* The first C-header importer deliberately accepts only scalar ABI types
@@ -114,7 +115,7 @@ static inline bool swan_import_one_c_header(Program *program,const char *header,
             char *start=end;while(start>line&&start[-1]!=' '&&start[-1]!='\t')start--;
             if(!swan_c_header_copy(decl.name,sizeof(decl.name),start,(size_t)(end-start)))continue;
             char *open=strchr(quote+1,'(');
-            if(!open || strstr(open,"..."))continue;
+            if(!open || open[1]==')' || strstr(open,"..."))continue;
             char return_type[SWAN_MAX_TEXT];
             if(!swan_c_header_copy(return_type,sizeof(return_type),quote+1,(size_t)(open-(quote+1))))continue;
             decl.return_type=swan_c_header_scalar_type(return_type);
