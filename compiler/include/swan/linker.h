@@ -17,7 +17,7 @@ static inline int swan_link_assembly_with_args(const char *assembler, const char
                                                   size_t extra_count) {
     uint64_t profile_start=swan_profile_start();
     if(extra_count>120){errno=E2BIG;swan_profile_end(SWAN_PROFILE_LINK,profile_start);return -1;}
-    char *args[128];size_t n=0;
+    char *args[130];size_t n=0;
     args[n++]=(char *)assembler;args[n++]="-x";args[n++]="assembler";
     args[n++]=(char *)input;args[n++]="-x";args[n++]="none";
     for(size_t i=0;i<extra_count;i++)args[n++]=(char *)extra_args[i];
