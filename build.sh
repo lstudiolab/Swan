@@ -27,6 +27,7 @@ fn main() -> int:
     count = sil_emit_binary(state, count, 34 * 16777216 + 3 * 65536 + 1 * 256 + 2)
     count = sil_emit_return(state, count, 3)
     return sil_optimize(state, count, workspace)
+out
 SWAN
 "$ROOT/build/swan-bootstrap" build "$ROOT/build/sil_runtime.swan" \
     --emit-asm -o "$ROOT/build/sil_runtime.s"
