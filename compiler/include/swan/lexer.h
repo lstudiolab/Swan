@@ -16,7 +16,8 @@ static inline bool swan_utf8_valid(const unsigned char *s,size_t n,size_t *bad) 
  size_t i=0;
  while(i<n){
   size_t width=swan_utf8_width(s+i);
-  if(!width||width>n-i){if(bad)*bad=i;\n    return false;}
+  if(!width||width>n-i){if(bad)*bad=i;
+    return false;}
   if(width>1){
    for(size_t j=1;j<width;j++)if((s[i+j]&0xC0)!=0x80){if(bad)*bad=i+j;return false;}
    if((s[i]==0xE0&&s[i+1]<0xA0)||(s[i]==0xED&&s[i+1]>=0xA0)||
