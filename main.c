@@ -27,12 +27,12 @@ static int swan_run(int argc,char **argv){
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target x86_64] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
  const char *input=argv[index++],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
- bool emit_asm=false;const SwanTarget *target=swan_target_find("x86_64");
+ bool emit_asm=false;const char *link_args[120];size_t link_arg_count=0;const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;
   else if(!strcmp(argv[i],"--stdlib")&&i+1<argc)stdlib_dir=argv[++i];
-  else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
+  else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];\n  else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\\n");return 2;}link_args[link_arg_count++]=argv[++i];}\n  else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(link_arg_count+2>120)return 2;link_args[link_arg_count++]=argv[i];link_args[link_arg_count++]=argv[++i];}\n  else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(link_arg_count>=120)return 2;link_args[link_arg_count++]=argv[i];}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
    const char *name=argv[++i];target=swan_target_find(name);
    if(!target){fprintf(stderr,"swan: unknown target '%s'; use --list-targets\n",name);return 2;}
@@ -186,7 +186,7 @@ static int swan_run(int argc,char **argv){
   result=swan_exec(cc_args,true);unlink(temp);unlink(runtime_source);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);if(temporary_output)swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }else{
-  result=swan_link_assembly("cc",temp,exe);unlink(temp);
+  result=swan_link_assembly_with_args("cc",temp,exe,link_args,link_arg_count);unlink(temp);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }
  if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
