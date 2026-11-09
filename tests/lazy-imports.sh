@@ -7,7 +7,7 @@ mkdir -p "$TMP"
 rm -rf "$TMP"/*
 
 cat > "$TMP/unused.swan" <<'SWAN'
-import foundation
+lazy import foundation
 fn main():
     return 0
 SWAN
