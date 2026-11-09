@@ -182,18 +182,19 @@ The passes share a caller-owned workspace and are compiled to native code by Swa
 
 ## Native C ABI interoperability
 
-Swan can declare external C ABI functions directly in source. External declarations
-are represented as declaration-only functions in typed IR, so normal Swan calls
-remain visible to SIL/IR verification, optimization, and native code generation.
+Swan can import supported C function declarations directly from a C header.
+Clang parses the header; imported declarations enter the normal Swan AST and
+typed IR as external functions, then pass through IR verification and
+optimization before native code generation.
 
 ```swan
-extern fn c_add(left: i64, right: i64) -> i64
+import C "math_api.h"
 
 fn main() -> int:
     return c_add(20, 22)
 ```
 
-Compile C code to an object file and pass it to the native linker:
+Compile the implementation to an object file and pass it to the native linker:
 
 ```sh
 cc -std=c11 -O2 -c library.c -o library.o
@@ -201,7 +202,9 @@ swan build app.swan --link library.o -o app
 ```
 
 Additional object files and libraries can be supplied with repeated `--link`
-options or standard `-L` and `-l` options. The current direct-call ABI subset
-is scalar integer and boolean arguments/returns on the x86-64 System V ABI.
-C-header parsing, aggregate layouts, floating-point ABI classification, and
-additional platform calling conventions are not yet implemented.
+options or standard `-L` and `-l` options. This initial header importer supports
+prototypes with up to 16 scalar integer/bool parameters and scalar integer/bool
+or void returns. The active native ABI is x86-64 System V. Pointers, structs,
+unions, callbacks, variadic functions, floating-point ABI classification,
+C++ name mangling, and other platform calling conventions remain unsupported.
+Clang must be available when compiling a source file that uses `import C`.
