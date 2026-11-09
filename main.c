@@ -42,7 +42,7 @@ static int swan_run(int argc,char **argv){
    if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);return 2;}
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);return 2;}
  }
- if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: native linker inputs are currently supported only for x86_64\\n");return 2;}
+ if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: native linker inputs are currently supported only for x86_64\n");return 2;}
  if(emit_asm)mode=SWAN_EMIT;
  swan_profile_reset();
  uint64_t stage=swan_profile_start();
