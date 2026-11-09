@@ -103,7 +103,7 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
  SwanSymbols symbols={0};symbols.items=calloc(1024,sizeof(*symbols.items));if(!symbols.items){swan_error(err,NULL,"out of memory allocating semantic symbol table");return false;}
  bool ok=true;
  for(size_t i=0;i<p->count&&ok;i++){
-  Stmt *fn=p->functions[i];symbols.count=0;memset(symbols.buckets,0,sizeof(symbols.buckets));
+  Stmt *fn=p->functions[i];if(fn->external)continue;symbols.count=0;memset(symbols.buckets,0,sizeof(symbols.buckets));
   for(size_t a=0;a<fn->param_count;a++){
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    if(!swan_symbol_add(&symbols,fn->params[a],false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
