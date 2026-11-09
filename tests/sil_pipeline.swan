@@ -1,5 +1,4 @@
 import silgen
-import silverify
 import siloptimization
 
 fn main() -> int:
