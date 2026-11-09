@@ -11,12 +11,15 @@ cat > "$TMP/c_library.c" <<'C'
 int64_t swan_c_add(int64_t left, int64_t right) {
     return left + right;
 }
+void swan_c_noop(int64_t value) { (void)value; }
 C
 "$CC" -std=c11 -O2 -c "$TMP/c_library.c" -o "$TMP/c_library.o"
 
 cat > "$TMP/ffi.swan" <<'SWAN'
 extern fn swan_c_add(left: i64, right: i64) -> i64
+extern fn swan_c_noop(value: i64)
 fn main() -> int:
+    swan_c_noop(7)
     return swan_c_add(19, 23)
 SWAN
 "$SWAN" build "$TMP/ffi.swan" --link "$TMP/c_library.o" -o "$TMP/ffi"
