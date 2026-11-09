@@ -27,18 +27,19 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
  switch(e->kind){
   case E_NAME:if(!swan_symbol_find(symbols,e->token.text,NULL)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}return true;
   case E_CALL:{
-   if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"only direct function calls are supported");return false;}
-   if(!strcmp(e->left->token.text,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME||!swan_symbol_find(symbols,e->args[0]->token.text,NULL)){swan_error(err,&e->token,"free expects one declared memory variable");return false;}return true;}
-   if(!strcmp(e->left->token.text,"array")||!strcmp(e->left->token.text,"array_u32")||!strcmp(e->left->token.text,"array_unchecked")||!strcmp(e->left->token.text,"array_u32_unchecked")){
+   const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or dotted function path");return false;}
+   if(!strcmp(callee,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME||!swan_symbol_find(symbols,e->args[0]->token.text,NULL)){swan_error(err,&e->token,"free expects one declared memory variable");return false;}return true;}
+   if(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked")){
     if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return false;}
     return swan_check_expr(p,e->args[0],symbols,err);
    }
-   Stmt *fn=swan_find_function(p,e->left->token.text);
-   if(!fn){swan_error(err,&e->token,"unknown function '%s'",e->left->token.text);return false;}
+   Stmt *fn=swan_find_function(p,callee);
+   if(!fn){swan_error(err,&e->token,"unknown function '%s'",callee);return false;}
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
    for(size_t i=0;i<e->argc;i++)if(!swan_check_expr(p,e->args[i],symbols,err))return false;
    return true;
   }
+  case E_MEMBER:swan_error(err,&e->token,"member values require struct or module value resolution, which is not implemented yet");return false;
   case E_INDEX:
    if(!e->left||e->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->token.text,NULL)){
     swan_error(err,&e->token,"array indexing requires a declared array variable");return false;
@@ -67,7 +68,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
   Stmt *s=body[i];
   switch(s->kind){
    case S_VARIABLE:
-    if(s->manual_memory&&(!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||(strcmp(s->value->left->token.text,"array")&&strcmp(s->value->left->token.text,"array_u32")&&strcmp(s->value->left->token.text,"array_unchecked")&&strcmp(s->value->left->token.text,"array_u32_unchecked")))){swan_error(err,&s->token,"manual declarations must initialize an array allocation");return false;}
+    if(s->manual_memory&&(!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||(strcmp(s->valucallee,"array")&&strcmp(s->valucallee,"array_u32")&&strcmp(s->valucallee,"array_unchecked")&&strcmp(s->valucallee,"array_u32_unchecked")))){swan_error(err,&s->token,"manual declarations must initialize an array allocation");return false;}
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     if(!swan_symbol_add(symbols,s->name,s->mutable_value)){swan_error(err,&s->token,"too many local variables");return false;}break;
