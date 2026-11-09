@@ -9,11 +9,12 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
   const SwanIRFunction *fn=&m->functions[f];
   if(fn->external)continue;
   if(fn->parameter_count>16){if(error&&cap)snprintf(error,cap,"x86-64 IR backend supports at most 16 parameters");return false;}
-  if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I1&&fn->return_type!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1 and i64 returns");return false;}
-  for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I1&&fn->parameter_types[p]!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1 and i64 parameters");return false;}
+  if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I1&&fn->return_type!=SWAN_IR_I32&&fn->return_type!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1 and i64 returns");return false;}
+  for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I1&&fn->parameter_types[p]!=SWAN_IR_I32&&fn->parameter_types[p]!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1 and i64 parameters");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
-   if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1/i64 scalar values and pointers");return false;}
+   if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1/i64 scalar values and pointers");return false;}
+   if(in->type==SWAN_IR_I32&&in->op!=SWAN_IR_CONST&&in->op!=SWAN_IR_CALL){if(error&&cap)snprintf(error,cap,"x86-64 C ABI currently supports i32 only at call boundaries");return false;}
    if(in->op==SWAN_IR_CALL&&in->incoming_count>16){if(error&&cap)snprintf(error,cap,"x86-64 IR calls support at most 16 arguments");return false;}
   }
  }
