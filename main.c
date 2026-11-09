@@ -69,7 +69,7 @@ static int swan_run(int argc,char **argv){
  swan_compute_reachability(&p);swan_profile_end(SWAN_PROFILE_REACHABILITY,stage);
  if(target->architecture!=SWAN_ARCH_X86_64){
   for(size_t i=0;i<p.count;i++)if(p.function_reachable[i]&&p.functions[i]->external){
-   fprintf(stderr,"swan: external C ABI calls are currently supported only by the x86_64 System V backend\\n");
+   fprintf(stderr,"swan: external C ABI calls are currently supported only by the x86_64 System V backend\n");
    swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;
   }
  }
