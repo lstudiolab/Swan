@@ -4,3 +4,5 @@ fn main():
     echo!("Foundation output works")
     echo_int(42)
     return 0
+
+out
