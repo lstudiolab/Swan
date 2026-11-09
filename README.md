@@ -51,7 +51,15 @@ The compiler accepts `--target <target>` and `--list-targets`. Target names and 
 
 ## Compiler pipeline profiling
 
-Run `build/swan --profile path/to/program.swan` (or place `--profile` after the source path) to print measured compiler-stage durations in seconds to stderr. The report separates source reading, lexing, parsing, imports, semantic analysis, reachability, IR generation, IR optimization, target code generation (or AST fallback), assembly output, native linking, and program execution. Stages not used by the selected target are omitted. `Total wall time` includes CLI setup and teardown; per-stage timings are measured around the actual stage calls. Use the same target, source, compiler build, and machine when comparing runs. For steadier measurements, run several times and compare the reported values; the first run may include filesystem and linker cold-start effects.
+Run `build/swan --profile path/to/program.swan` (or place `--profile` after the source path) to print measured compiler-stage durations in seconds to stderr. The report separates source reading, lexing, parsing, imports, semantic analysis, reachability, IR generation, IR optimization, target code generation (or AST fallback), assembly output, native linking, and program execution. Stages not used by the selected target are omitted. `Total wall time` includes CLI setup and teardown; per-stage timings are measured around the actual stage calls.
+
+Run the repeatable stage-by-stage benchmark with:
+
+```sh
+python3 benchmarks/compiler_pipeline.py
+```
+
+It builds three workloads (SIL-compatible scalar helpers, control flow, and a larger call graph), performs one warm-up by default, then reports the median of seven measured compiler invocations for every available stage. All values are in seconds. Change the sample count with `--repeats N` and warm-ups with `--warmups N`. The IR-generation timer currently combines SIL bridging and typed-IR fallback; the profiler does not yet expose separate timings for those internal paths. Build the compiler first with `sh build.sh`.
 
 ## Source encoding\n\nSwan source files are UTF-8 by default and are interpreted independently of the host locale. The lexer validates UTF-8 before tokenization, accepts an optional UTF-8 BOM, preserves UTF-8 bytes in string literals, and accepts non-ASCII identifiers. Malformed UTF-8 and embedded NUL bytes in source files are rejected. Identifier classification currently treats non-ASCII Unicode code points as identifier characters; full Unicode XID category tables and Unicode normalization are not implemented.\n\n## Language subset
 
@@ -166,7 +174,7 @@ Swan is open source under Apache-2.0. Contributions and reproducible benchmark r
 
 ## Swan-authored SIL pipeline
 
-The experimental scalar SIL implementation lives in `compiler/sil/` and is written in Swan itself. Its current linear SSA record format uses five u32 cells per instruction: encoded opcode/type, destination, left operand, right operand, and immediate. The pipeline is:
+The scalar SIL implementation lives in `compiler/sil/` and is written in Swan itself. It is compiled into the production compiler during bootstrap and participates in the normal `.swan` compilation path. Its current linear SSA record format uses five u32 cells per instruction: encoded opcode/type, destination, left operand, right operand, and immediate. The pipeline is:
 
 ```text
 Swan SIL builder
@@ -177,7 +185,7 @@ Swan SIL builder
   -> final SIL verification
 ```
 
-The passes share a caller-owned workspace and are compiled to native code by Swan in `tests/sil.sh`. This SIL implementation is currently a standalone experimental scalar IR pipeline. The production compiler's general typed SSA IR optimizer in `compiler/include/swan/optimization.h` remains the optimizer used by normal `.swan` compilation; the SIL passes have not yet replaced or been wired into that production IR path. The present SIL format is limited to 256 value IDs and a 256-instruction stream, and its packed constant builder currently accepts 16-bit immediate values.
+The passes share a caller-owned workspace and are compiled to native code by Swan during `sh build.sh`. The production bridge lowers supported Swan function bodies through SIL into the shared typed SSA IR; functions outside the current SIL subset retain the general typed-IR lowering path. Both paths continue through typed-IR verification, optimization, and target code generation. The SIL passes do not replace the typed-IR optimizer. SIL currently supports a restricted scalar expression subset; control flow, variables, memory operations, and general calls still require fallback lowering. The present SIL format is limited to 256 value IDs and a 256-instruction stream, and its packed constant builder currently accepts 16-bit immediate values.
 
 
 ## Native C ABI interoperability
