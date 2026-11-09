@@ -202,7 +202,7 @@ printf 'PASS: SAMC automatically releases owned arrays\n'
 
 cat > "$TMP/samc-manual.swan" <<'SWAN'
 fn main():
-    manual let values = array(8)
+    store let values = array(8)
     values[0] = 42
     return 0
 out
@@ -216,7 +216,7 @@ printf 'PASS: manual arrays are excluded from automatic cleanup\n'
 
 cat > "$TMP/samc-free.swan" <<'SWAN'
 fn main():
-    manual let values = array(8)
+    store let values = array(8)
     values[0] = 42
     free(values)
     return 0
