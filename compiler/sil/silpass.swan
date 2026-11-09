@@ -8,7 +8,7 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
         let base = index * 5
         let encoded = state[base]
         let opcode = encoded % 16
-        let type = encoded / 16
+        let value_type = encoded / 16
         let destination = state[base + 1]
         let left = state[base + 2]
         let right = state[base + 3]
@@ -40,7 +40,7 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
                 if opcode == 8
                     folded = a < b
                 if can_fold == 1
-                    state[base] = type * 16 + 1
+                    state[base] = value_type * 16 + 1
                     state[base + 2] = 0
                     state[base + 3] = 0
                     state[base + 4] = folded
@@ -51,7 +51,7 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
             if workspace[512 + left] != 1 or workspace[512 + right] != 1
                 workspace[512 + destination] = 0
         if opcode == 9 and workspace[512 + left] == 1
-            state[base] = type * 16 + 1
+            state[base] = value_type * 16 + 1
             state[base + 2] = 0
             state[base + 3] = 0
             state[base + 4] = workspace[768 + left]
