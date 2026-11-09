@@ -54,6 +54,7 @@ cat > "$TMP/missing.swan" <<'SWAN'
 external fn swan_missing(value: i64) -> i64
 fn main() -> int:
     return swan_missing(1)
+out
 SWAN
 if "$SWAN" build "$TMP/missing.swan" -o "$TMP/missing" >"$TMP/missing.out" 2>&1; then
     echo 'FAIL: unresolved external symbol linked successfully' >&2
