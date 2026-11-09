@@ -97,7 +97,7 @@ static inline bool swan_import_one_c_header(Program *program,const char *header,
         if(*p=='\'') { memcpy(command+used,"'\\''",4);used+=4; }
         else command[used++]=*p;
     }
-    memcpy(command+used,"' 2>/dev/null",14);used+=13;command[used]=0;
+    const char suffix[]="' 2>/dev/null";memcpy(command+used,suffix,sizeof(suffix)-1);used+=sizeof(suffix)-1;command[used]=0;
     FILE *ast=popen(command,"r");free(command);
     if(!ast){swan_error(error,NULL,"cannot start Clang while importing C header '%s'",header);return false;}
     const char *base=strrchr(header,'/');base=base?base+1:header;
