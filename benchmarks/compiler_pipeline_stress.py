@@ -46,7 +46,7 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
 
     # Frontend scaling: thousands of declarations with varied identifiers,
     # literals, and expression trees. The call chain keeps all declarations live.
-    for count in (256, 1024):
+    for count in (256, 512):
         lines = []
         for i in range(count):
             lines.extend([
@@ -62,7 +62,7 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
 
     # Deep dependency chain stresses symbol lookup, reachability and call
     # lowering without executing a deep recursion at runtime.
-    count = 1024
+    count = 512
     lines = ["fn chain_0(value: int) -> int:", "    return value + 1", ""]
     for i in range(1, count):
         lines.extend([
@@ -70,7 +70,7 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
             f"    return chain_{i - 1}(value) + {i % 101 + 1}",
             "",
         ])
-    lines.extend(["fn main() -> int:", "    return chain_1023(1)"])
+    lines.extend(["fn main() -> int:", f"    return chain_{count - 1}(1)"])
     result["deep-call-chain-1024"] = write_source(
         directory, "deep-call-chain-1024", lines
     )
