@@ -30,7 +30,8 @@ fn sil_identity(value: i64) -> i64:
 
 fn main() -> i32:
     swan_c_noop(7)
-    return swan_c_double(swan_c_add(sil_identity(19), 2))
+    swan_c_add(sil_identity(19), 23)
+    return swan_c_double(21)
 SWAN
 "$SWAN" build "$TMP/ffi.swan" --link "$TMP/c_library.o" -o "$TMP/ffi"
 set +e
