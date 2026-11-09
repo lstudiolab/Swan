@@ -71,8 +71,8 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
             "",
         ])
     lines.extend(["fn main() -> int:", f"    return chain_{count - 1}(1)"])
-    result["deep-call-chain-1024"] = write_source(
-        directory, "deep-call-chain-1024", lines
+    result["deep-call-chain-512"] = write_source(
+        directory, "deep-call-chain-512", lines
     )
 
     # Broad call graph and expression pressure. main references every helper.
