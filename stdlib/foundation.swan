@@ -5,27 +5,33 @@ fn foundation_hello() -> int:
     echo!("Foundation standard library ready")
     return 0
 
+out
 fn echo_int(value: int) -> void:
     log value
 
+out
 fn echo_bool(value: bool) -> void:
     log value
 
+out
 fn abs_int(value: int) -> int:
     if value < 0
         return 0 - value
     return value
 
+out
 fn min_int(left: int, right: int) -> int:
     if left < right
         return left
     return right
 
+out
 fn max_int(left: int, right: int) -> int:
     if left > right
         return left
     return right
 
+out
 fn clamp_int(value: int, lower: int, upper: int) -> int:
     if lower > upper
         return lower
@@ -35,6 +41,7 @@ fn clamp_int(value: int, lower: int, upper: int) -> int:
         return upper
     return value
 
+out
 fn sign_int(value: int) -> int:
     if value < 0
         return 0 - 1
@@ -42,12 +49,15 @@ fn sign_int(value: int) -> int:
         return 1
     return 0
 
+out
 fn square_int(value: int) -> int:
     return value * value
 
+out
 fn cube_int(value: int) -> int:
     return value * value * value
 
+out
 fn power_int(base: int, exponent: int) -> int:
     var result: int = 1
     var count: int = 0
@@ -58,6 +68,7 @@ fn power_int(base: int, exponent: int) -> int:
         count = count + 1
     return result
 
+out
 fn factorial_int(value: int) -> int:
     var result: int = 1
     var count: int = 2
@@ -68,6 +79,7 @@ fn factorial_int(value: int) -> int:
         count = count + 1
     return result
 
+out
 fn sum_to_int(value: int) -> int:
     var result: int = 0
     var count: int = 1
@@ -78,14 +90,20 @@ fn sum_to_int(value: int) -> int:
         count = count + 1
     return result
 
+out
 fn is_even(value: int) -> bool:
     return value % 2 == 0
 
+out
 fn is_odd(value: int) -> bool:
     return value % 2 != 0
 
+out
 fn in_range_int(value: int, lower: int, upper: int) -> bool:
     return value >= lower and value <= upper
 
+out
 fn average_int(left: int, right: int) -> int:
     return (left + right) / 2
+
+out
