@@ -20,7 +20,7 @@ printf 'PASS: indentation-based hello program\n'
 # Explicit ':' / 'out' blocks are delimiter-based, not indentation-based.
 cat > "$TMP/explicit-out.swan" <<'SWAN'
 fn main():
-    let message = "Hello from Swan"
+    let message = 42
     if true:
         print message
     out
@@ -29,7 +29,7 @@ out
 SWAN
 "$SWAN" "$TMP/explicit-out.swan" --emit-asm -o "$TMP/explicit-out.s"
 ${CC:-cc} -x assembler "$TMP/explicit-out.s" -o "$TMP/explicit-out"
-test "$("$TMP/explicit-out")" = "Hello from Swan"
+test "$("$TMP/explicit-out")" = "42"
 printf 'PASS: explicit colon/out blocks\\n'
 
 
