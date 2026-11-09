@@ -10,7 +10,7 @@
 static int64_t execute(const char *source) {
     SwanError error={0};TokenStream tokens={0};Program program={0};
     assert(swan_lex(source,&tokens,&error));
-    if(!swan_parse(&tokens,&program,&error)){fprintf(stderr,"parse failed at %u:%u: %s\n",error.line,error.col,error.message);abort();}
+    if(!swan_parse(&tokens,&program,&error)){fprintf(stderr,"parse failed at %u:%u: %s; token=%d text=[%s] pos=%zu/%zu\n",error.line,error.col,error.message,tokens.items[tokens.pos].kind,tokens.items[tokens.pos].text,tokens.pos,tokens.count);abort();}
     assert(swan_semantic_check(&program,&error));
     SwanIRModule module={0};assert(swan_irgen_program(&program,&module,&error));
     char detail[256]={0};assert(swan_ir_optimize(&module,detail,sizeof(detail)));
