@@ -19,6 +19,7 @@ fn recurse(n: int) -> int:
     else:
         return value + recurse(n - 1)
 out
+out
 fn main() -> int:
     var count = 0
     var total = 0
