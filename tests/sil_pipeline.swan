@@ -9,17 +9,20 @@ fn main() -> int:
     count = sil_emit_const(state, count, 2 * 1048576 + 1 * 65536 + 20)
     count = sil_emit_binary(state, count, 18 * 16777216 + 3 * 65536 + 1 * 256 + 2)
     count = sil_emit_return(state, count, 3)
+    echo!("SIL_BUILD_OK")
     if sil_verify(state, 0) == 1
         echo!("SIL_INVALID_COUNT_ACCEPTED")
         return 1
     if sil_verify(state, count) != 1
         echo!("SIL_VERIFY_FAILED")
         return 2
+    echo!("SIL_VERIFY_OK")
     count = sil_optimize(state, count, workspace)
     if count != 2
         echo!("SIL_OPTIMIZE_COUNT_FAILED")
         log count
         return 3
+    echo!("SIL_FIRST_OPTIMIZE_OK")
     if state[0] != 17 or state[1] != 3 or state[4] != 30
         echo!("SIL_FOLD_RESULT_FAILED")
         return 4

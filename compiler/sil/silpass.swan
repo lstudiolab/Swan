@@ -36,7 +36,7 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
                                 folded = a * b
                             else
                                 if opcode == 5
-                                    if b == 0 or (a == -9223372036854775808 and b == -1)
+                                    if b == 0 or (a < 0 and b == -1)
                                         can_fold = 0
                                     else
                                         folded = a / b
