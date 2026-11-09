@@ -1,0 +1,22 @@
+# Compiler-pipeline profiling workload.
+# Exercises typed IR generation, calls, loops, branches and short-circuit PHIs.
+fn sum8(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int) -> int:
+    return h
+
+fn explode() -> bool:
+    return 1 / 0 == 0
+
+fn double(x: int) -> int:
+    return x * 2
+
+fn main() -> int:
+    var count = 0
+    var total = 0
+    while count < 128:
+        count = count + 1
+        if count == 31:
+            continue
+        total = total + double(count)
+    if false and explode():
+        return 1
+    return total + sum8(1, 2, 3, 4, 5, 6, 7, 8)
