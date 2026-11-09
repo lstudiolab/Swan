@@ -25,6 +25,7 @@ fn main():
     echo_int(sum_to_int(10))
     echo_bool(in_range_int(5, 1, 9))
     return 0
+out
 SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
