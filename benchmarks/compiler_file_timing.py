@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Attribute Swan compiler frontend time to each compiler header."""
+"""Attribute exclusive Clang frontend processing time to each Swan compiler header."""
 from __future__ import annotations
 import argparse, json, pathlib, platform, re, shutil, statistics, subprocess, tempfile, time
 from collections import defaultdict
@@ -28,6 +28,20 @@ def stage_sample(compiler, source, output):
     values["Compiler process wall time"] = wall
     return values
 
+def union_duration(intervals):
+    if not intervals:
+        return 0.0
+    intervals.sort()
+    total = 0.0
+    start, end = intervals[0]
+    for left, right in intervals[1:]:
+        if left > end:
+            total += end - start
+            start, end = left, right
+        else:
+            end = max(end, right)
+    return total + end - start
+
 def clang_sample(clang, trace_dir, sample):
     obj = trace_dir / f"main-{sample}.o"
     cmd = [clang, "-std=c11", "-O2", "-DNDEBUG", "-Wall", "-Wextra", "-Wpedantic",
@@ -43,15 +57,27 @@ def clang_sample(clang, trace_dir, sample):
     if not trace.is_file():
         raise RuntimeError(f"Clang did not produce {trace.name}")
     data = json.loads(trace.read_text(encoding="utf-8"))
-    totals = defaultdict(float)
+    events = []
     for event in data.get("traceEvents", []):
         if event.get("name") != "Source" or not isinstance(event.get("dur"), (int, float)):
             continue
         detail = str(event.get("args", {}).get("detail", "")).replace("\\", "/")
         marker = "/compiler/"
-        if marker in detail:
-            name = "compiler/" + detail.split(marker, 1)[1].split(":", 1)[0]
-            totals[name] += float(event["dur"]) / 1_000_000.0
+        if marker not in detail:
+            continue
+        name = "compiler/" + detail.split(marker, 1)[1].split(":", 1)[0]
+        start = float(event.get("ts", 0))
+        events.append((start, start + float(event["dur"]), name))
+    totals = defaultdict(float)
+    # Source events nest when a header includes another header. Subtract the
+    # union of nested Source intervals so parent headers do not double count.
+    for index, (start, end, name) in enumerate(events):
+        children = [(max(start, child_start), min(end, child_end))
+                    for j, (child_start, child_end, _) in enumerate(events)
+                    if j != index and child_start >= start and child_end <= end
+                    and (child_start > start or child_end < end)]
+        exclusive_us = max(0.0, (end - start) - union_duration(children))
+        totals[name] += exclusive_us / 1_000_000.0
     return dict(totals), wall
 
 def main():
@@ -98,23 +124,23 @@ def main():
     result = {
         "host": platform.platform(), "machine": platform.machine(), "unit": "seconds",
         "repeats": args.repeats,
-        "compiler_file_method": "Clang -ftime-trace Source event durations attributed to compiler headers; median across independent compiler-TU builds.",
-        "compiler_file_total_attributed_seconds": attributed_total,
+        "compiler_file_method": "Clang -ftime-trace Source events; nested child-source intervals are subtracted to report exclusive frontend attribution; median across independent compiler-TU builds.",
+        "compiler_file_total_exclusive_attributed_seconds": attributed_total,
         "compiler_file_rows": rows,
         "clang_translation_unit_wall_median_seconds": statistics.median(clang_walls),
         "swan_pipeline_workload": str(WORKLOAD.relative_to(ROOT)),
         "swan_pipeline_stage_medians_seconds": stages,
-        "note": "Header timings are frontend source-processing costs, not runtime function costs or exclusive wall-clock phases. SIL pass sources are concatenated by build.sh and are not individually attributable in this header trace."
+        "note": "Per-file timings are exclusive frontend source-processing attribution, not runtime function costs. SIL pass sources are concatenated by build.sh and are not individually attributable in this header trace."
     }
     (output / "compiler-file-timing.json").write_text(json.dumps(result, indent=2) + "\n")
     lines = ["# Swan compiler file timing benchmark", "",
              f"- Host: {result['host']} ({result['machine']})",
              f"- Repeats: {args.repeats}; statistic: median; unit: seconds",
-             "- Per-file method: Clang frontend Source-event attribution for each included compiler header.",
+             "- Per-file method: Clang Source-event timing with nested include intervals subtracted (exclusive frontend attribution).",
              f"- Clang full translation-unit wall time: **{result['clang_translation_unit_wall_median_seconds']:.6f} s**",
-             f"- Sum of attributed header source-processing time: **{attributed_total:.6f} s**", "",
+             f"- Sum of exclusive compiler-header attribution: **{attributed_total:.6f} s**", "",
              "## Time by compiler file", "",
-             "| Rank | Compiler file | Median time (s) | Share of attributed time | Min (s) | Max (s) |",
+             "| Rank | Compiler file | Median exclusive time (s) | Share | Min (s) | Max (s) |",
              "|---:|---|---:|---:|---:|---:|"]
     for i, row in enumerate(rows, 1):
         lines.append(f"| {i} | {row['file']} | {row['median_seconds']:.6f} | {row['share_percent']:.2f}% | {row['min_seconds']:.6f} | {row['max_seconds']:.6f} |")
@@ -124,8 +150,8 @@ def main():
     for name, seconds in stages.items():
         lines.append(f"| {name} | {seconds:.9f} |")
     lines += ["", "## Interpretation", "",
-              "Per-file values measure frontend processing attributed to each header during compilation of main.c. They are not exclusive runtime profiling and should not be summed as independent wall-clock phases. The stage table measures Swan's actual source-compilation pipeline.",
-              "The SIL .swan passes are concatenated into one generated source file by build.sh; this benchmark reports them as part of the overall compiler build, not as individually timed source files.",
+              "Per-file values measure exclusive frontend processing attributed to each header during compilation of main.c. The stage table measures Swan's actual source-compilation pipeline.",
+              "The SIL .swan passes are concatenated into one generated source file by build.sh; this report includes their build in the compiler build step but cannot separate their source-level compile time yet.",
               "", "Raw medians and host metadata are in compiler-file-timing.json."]
     (output / "compiler-file-timing.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))
