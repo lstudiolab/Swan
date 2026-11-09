@@ -7,14 +7,18 @@ trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 cat > "$TMP/main.swan" <<'SWAN'
 fn explode() -> bool:
     return 1 / 0 == 0
+out
 fn double(x: int) -> int:
     return x * 2
+out
 fn recurse(n: int) -> int:
     var value = n
     if n <= 0:
         return value
+    out
     else:
         return value + recurse(n - 1)
+out
 fn main() -> int:
     var count = 0
     var total = 0
@@ -22,12 +26,17 @@ fn main() -> int:
         count = count + 1
         if count == 3:
             continue
+        out
         total = total + double(count)
+    out
     if false and explode():
         return 1
+    out
     if true or explode():
         return total + recurse(4)
+    out
     return 0
+out
 SWAN
 "$BIN" build "$TMP/main.swan" --target wasm32 -o "$TMP/main.wasm"
 test -s "$TMP/main.wasm"
