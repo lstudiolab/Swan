@@ -68,3 +68,5 @@ fn main():
         verify = verify + 1
     log sorted
     return 0
+
+out
