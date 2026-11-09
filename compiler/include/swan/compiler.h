@@ -26,7 +26,7 @@ static inline char *swan_read_file(const char *path){
  if(n<0){fclose(f);return NULL;}rewind(f);
  char *s=malloc((size_t)n+1);if(!s){fclose(f);return NULL;}
  size_t got=fread(s,1,(size_t)n,f);bool failed=ferror(f)!=0;fclose(f);
- if(failed){free(s);return NULL;}s[got]=0;return s;
+ if(failed||memchr(s,0,got)){free(s);errno=EILSEQ;return NULL;}s[got]=0;return s;
 }
 static inline void swan_release_modules(char **sources,char **texts,size_t count){
  for(size_t i=0;i<count;i++){free(sources[i]);free(texts[i]);}
