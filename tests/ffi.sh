@@ -9,7 +9,8 @@ CC=${CC:-cc}
 cat > "$TMP/c_api.h" <<'H'
 #include <stdint.h>
 int64_t swan_c_add(int64_t left, int64_t right);
-void swan_c_noop(int64_t value);\nint32_t swan_c_double(int32_t value);
+void swan_c_noop(int64_t value);
+int32_t swan_c_double(int32_t value);
 H
 
 cat > "$TMP/c_library.c" <<'C'
@@ -17,15 +18,17 @@ cat > "$TMP/c_library.c" <<'C'
 int64_t swan_c_add(int64_t left, int64_t right) {
     return left + right;
 }
-void swan_c_noop(int64_t value) { (void)value; }\nint32_t swan_c_double(int32_t value) { return value * 2; }
+void swan_c_noop(int64_t value) { (void)value; }
+int32_t swan_c_double(int32_t value) { return value * 2; }
 C
 "$CC" -std=c11 -O2 -c "$TMP/c_library.c" -o "$TMP/c_library.o"
 
 cat > "$TMP/ffi.swan" <<SWAN
 import C "$TMP/c_api.h"
-fn main() -> int:
+fn main() -> i32:
     swan_c_noop(7)
-    return swan_c_add(19, 23)
+    swan_c_add(19, 23)
+    return swan_c_double(21)
 SWAN
 "$SWAN" build "$TMP/ffi.swan" --link "$TMP/c_library.o" -o "$TMP/ffi"
 set +e
@@ -33,12 +36,16 @@ set +e
 status=$?
 set -e
 test "$status" -eq 42
-printf 'PASS: SIL/IR external C ABI call and object linking\n'
+printf 'PASS: C header import, void/i64/i32 calls, and native object linking\n'
 
 "$SWAN" "$TMP/ffi.swan" --emit-asm -o "$TMP/ffi.s"
 grep -q '^.extern swan_c_add$' "$TMP/ffi.s"
+grep -q '^.extern swan_c_noop$' "$TMP/ffi.s"
+grep -q '^.extern swan_c_double$' "$TMP/ffi.s"
 grep -q 'call swan_c_add' "$TMP/ffi.s"
-printf 'PASS: external symbol preserved in native assembly\n'
+grep -q 'call swan_c_noop' "$TMP/ffi.s"
+grep -q 'call swan_c_double' "$TMP/ffi.s"
+printf 'PASS: imported C symbols preserved in native assembly\n'
 
 cat > "$TMP/missing.swan" <<'SWAN'
 extern fn swan_missing(value: i64) -> i64
