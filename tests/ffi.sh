@@ -25,10 +25,12 @@ C
 
 cat > "$TMP/ffi.swan" <<SWAN
 import C "$TMP/c_api.h"
+fn sil_identity(value: i64) -> i64:
+    return value
+
 fn main() -> i32:
     swan_c_noop(7)
-    swan_c_add(19, 23)
-    return swan_c_double(21)
+    return swan_c_double(swan_c_add(sil_identity(19), 2))
 SWAN
 "$SWAN" build "$TMP/ffi.swan" --link "$TMP/c_library.o" -o "$TMP/ffi"
 set +e
