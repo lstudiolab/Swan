@@ -1,18 +1,12 @@
 #!/usr/bin/env python3
-"""Attribute Swan compiler frontend time to each compiler header.
-
-Uses Clang -ftime-trace Source events on main.c (the compiler's single
-translation unit), and Swan's built-in --profile for real compile-stage costs.
-All reported durations are seconds. Header timings are frontend parse/preprocess
-attribution, not runtime function costs.
-"""
+"""Attribute Swan compiler frontend time to each compiler header."""
 from __future__ import annotations
 import argparse, json, pathlib, platform, re, shutil, statistics, subprocess, tempfile, time
 from collections import defaultdict
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 HEADER = "Swan compiler pipeline profile (seconds)"
-PROFILE = re.compile(r"^\\s{2}(.+?)\\s+([0-9]+(?:\\.[0-9]+)?) s")
+PROFILE = re.compile(r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s")
 WORKLOAD = ROOT / "benchmarks" / "compiler_pipeline.swan"
 
 def stage_sample(compiler, source, output):
@@ -21,7 +15,7 @@ def stage_sample(compiler, source, output):
                           cwd=ROOT, text=True, capture_output=True)
     wall = time.perf_counter() - started
     if proc.returncode:
-        raise RuntimeError(f"Swan compile failed:\\n{proc.stderr[-10000:]}")
+        raise RuntimeError(f"Swan compile failed:\n{proc.stderr[-10000:]}")
     if HEADER not in proc.stderr:
         raise RuntimeError("Swan --profile output was missing.")
     values = {}
@@ -44,7 +38,7 @@ def clang_sample(clang, trace_dir, sample):
     proc = subprocess.run(cmd, cwd=trace_dir, text=True, capture_output=True)
     wall = time.perf_counter() - started
     if proc.returncode:
-        raise RuntimeError(f"Clang trace compile failed:\\n{proc.stderr[-10000:]}")
+        raise RuntimeError(f"Clang trace compile failed:\n{proc.stderr[-10000:]}")
     trace = obj.with_suffix(".json")
     if not trace.is_file():
         raise RuntimeError(f"Clang did not produce {trace.name}")
@@ -53,7 +47,7 @@ def clang_sample(clang, trace_dir, sample):
     for event in data.get("traceEvents", []):
         if event.get("name") != "Source" or not isinstance(event.get("dur"), (int, float)):
             continue
-        detail = str(event.get("args", {}).get("detail", "")).replace("\\\\", "/")
+        detail = str(event.get("args", {}).get("detail", "")).replace("\\", "/")
         marker = "/compiler/"
         if marker in detail:
             name = "compiler/" + detail.split(marker, 1)[1].split(":", 1)[0]
@@ -112,7 +106,7 @@ def main():
         "swan_pipeline_stage_medians_seconds": stages,
         "note": "Header timings are frontend source-processing costs, not runtime function costs or exclusive wall-clock phases. SIL pass sources are concatenated by build.sh and are not individually attributable in this header trace."
     }
-    (output / "compiler-file-timing.json").write_text(json.dumps(result, indent=2) + "\\n")
+    (output / "compiler-file-timing.json").write_text(json.dumps(result, indent=2) + "\n")
     lines = ["# Swan compiler file timing benchmark", "",
              f"- Host: {result['host']} ({result['machine']})",
              f"- Repeats: {args.repeats}; statistic: median; unit: seconds",
@@ -133,8 +127,8 @@ def main():
               "Per-file values measure frontend processing attributed to each header during compilation of main.c. They are not exclusive runtime profiling and should not be summed as independent wall-clock phases. The stage table measures Swan's actual source-compilation pipeline.",
               "The SIL .swan passes are concatenated into one generated source file by build.sh; this benchmark reports them as part of the overall compiler build, not as individually timed source files.",
               "", "Raw medians and host metadata are in compiler-file-timing.json."]
-    (output / "compiler-file-timing.md").write_text("\\n".join(lines) + "\\n")
-    print("\\n".join(lines))
+    (output / "compiler-file-timing.md").write_text("\n".join(lines) + "\n")
+    print("\n".join(lines))
 
 if __name__ == "__main__":
     main()
