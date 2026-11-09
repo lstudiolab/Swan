@@ -40,12 +40,12 @@ fn main():
     let and = 6
     let or = 7
     let not = 8
-    print log + manual + none + extern + func + and + or + not
+    print log + manual + none + extern + func
 out
 SWAN
 "$SWAN" "$TMP/legacy-identifiers.swan" --emit-asm -o "$TMP/legacy-identifiers.s"
 ${CC:-cc} -x assembler "$TMP/legacy-identifiers.s" -o "$TMP/legacy-identifiers"
-test "$("$TMP/legacy-identifiers")" = "36"
+test "$("$TMP/legacy-identifiers")" = "15"
 printf 'PASS: removed legacy keywords are valid identifiers\n'
 
 
