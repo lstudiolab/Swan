@@ -17,7 +17,7 @@ C
 
 cat > "$TMP/ffi.swan" <<'SWAN'
 extern fn swan_c_add(left: i64, right: i64) -> i64
-extern fn swan_c_noop(value: i64)
+extern fn swan_c_noop(value: i64) -> void
 fn main() -> int:
     swan_c_noop(7)
     return swan_c_add(19, 23)
