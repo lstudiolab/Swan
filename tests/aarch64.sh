@@ -7,8 +7,10 @@ trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 cat > "$TMP/main.swan" <<'SWAN'
 fn sum9(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int) -> int:
     return i / 3 + i % 3
+out
 fn main(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int) -> int:
     return sum9(a, b, c, d, e, f, g, h, i)
+out
 SWAN
 "$BIN" build "$TMP/main.swan" --target aarch64 --emit-asm -o "$TMP/main.s"
 if ! clang --target=aarch64-unknown-linux-gnu -c -x assembler "$TMP/main.s" -o "$TMP/main.o"; then nl -ba "$TMP/main.s"; exit 1; fi
