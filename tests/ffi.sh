@@ -9,7 +9,7 @@ CC=${CC:-cc}
 cat > "$TMP/c_api.h" <<'H'
 #include <stdint.h>
 int64_t swan_c_add(int64_t left, int64_t right);
-void swan_c_noop(int64_t value);
+void swan_c_noop(int64_t value);\nint32_t swan_c_double(int32_t value);
 H
 
 cat > "$TMP/c_library.c" <<'C'
@@ -17,7 +17,7 @@ cat > "$TMP/c_library.c" <<'C'
 int64_t swan_c_add(int64_t left, int64_t right) {
     return left + right;
 }
-void swan_c_noop(int64_t value) { (void)value; }
+void swan_c_noop(int64_t value) { (void)value; }\nint32_t swan_c_double(int32_t value) { return value * 2; }
 C
 "$CC" -std=c11 -O2 -c "$TMP/c_library.c" -o "$TMP/c_library.o"
 
