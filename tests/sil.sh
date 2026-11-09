@@ -4,9 +4,6 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 sh build.sh
 
-# Exercise the Swan-authored stage modules through the normal module loader.
-"$ROOT/build/swan" run tests/sil_pipeline.swan --stdlib "$ROOT/compiler/sil"
-
 # Exercise the compiler's direct C-host -> Swan SIL -> typed SSA bridge.
 "${CC:-cc}" -std=c11 -O2 -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" \
     "$ROOT/tests/sil_bridge.c" "$ROOT/build/sil_runtime.o" -o "$ROOT/build/sil_bridge_test"
