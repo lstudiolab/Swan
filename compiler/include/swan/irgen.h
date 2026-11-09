@@ -285,12 +285,12 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         if(source->param_count>16){swan_error(error,&source->token,"IR backend supports at most 16 parameters per function");goto fail;}
         for(size_t p=0;p<source->param_count;p++){params[p]=swan_irgen_type(source->param_types?source->param_types[p]:NULL);if(params[p]==SWAN_IR_VOID){swan_error(error,&source->token,"unsupported or missing parameter type");goto fail;}}
         SwanIRType ret=swan_irgen_type(source->type);
-        if(!swan_ir_add_function(module,source->name,ret,params,source->param_count)){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}
+        SwanIRFunction *created=swan_ir_add_function(module,source->name,ret,params,source->param_count);if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}created->external=source->external;
     }
     if(!module->function_count){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
-        Stmt *source=program->functions[i];SwanIRFunction *fn=NULL;
+        Stmt *source=program->functions[i];if(source->external)continue;SwanIRFunction *fn=NULL;
         for(size_t fi=0;fi<module->function_count;fi++)if(!strcmp(module->functions[fi].name,source->name)){fn=&module->functions[fi];break;}
         if(!fn){swan_error(error,&source->token,"internal IR function mapping failure");goto fail;}
         SwanIRBlock *entry=swan_ir_add_block(fn,"entry");if(!entry){swan_error(error,&source->token,"out of memory creating entry block");goto fail;}
