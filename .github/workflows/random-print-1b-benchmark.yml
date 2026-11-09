@@ -1,0 +1,59 @@
+name: Swan vs Goose — 1B random print benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "benchmarks/random_print_1b.py"
+      - ".github/workflows/random-print-1b-benchmark.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  random-print-benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Goose
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/aardappel/goose/releases/download/v2026.4/goose-v2026.4-linux-x64.tar.gz -o /tmp/goose.tar.gz
+          mkdir -p /tmp/goose-dist
+          tar -xzf /tmp/goose.tar.gz -C /tmp/goose-dist
+          GOOSE_BIN="$(find /tmp/goose-dist -type f -name goose -perm -u+x | head -n 1)"
+          test -n "$GOOSE_BIN"
+          echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
+          "$GOOSE_BIN" version
+      - name: Record runner details
+        run: |
+          lscpu
+          free -h
+          uname -a
+      - name: Build Swan
+        run: sh build.sh
+      - name: Run the one-billion random-number print comparison
+        env:
+          RANDOM_PRINT_COUNT: "1000000000"
+        run: python3 -u benchmarks/random_print_1b.py | tee random-print-1b-console.txt
+      - name: Publish report to workflow summary
+        if: always()
+        run: |
+          if [ -f benchmark-results/random-print-1b.md ]; then
+            cat benchmark-results/random-print-1b.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "Benchmark did not produce a report. Inspect the preceding build and benchmark logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload raw benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-goose-random-print-1b
+          path: |
+            benchmark-results/random-print-1b.md
+            benchmark-results/random-print-1b.json
+            random-print-1b-console.txt
+          if-no-files-found: warn
+          retention-days: 30
