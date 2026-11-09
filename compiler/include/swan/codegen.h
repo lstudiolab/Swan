@@ -17,14 +17,14 @@ static inline bool swan_codegen(Program *program, Text *output,
     }
     if(program->import_count==0){
         SwanIRModule module={0};Text ir_output={0};SwanError ir_error={0};char detail[256]={0};
-        bool lowered=swan_irgen_program(program,&module,&ir_error);
-        bool optimized=lowered&&swan_ir_optimize(&module,detail,sizeof(detail));
-        bool emitted=optimized&&swan_codegen_x86_64_ir(&module,&ir_output,detail,sizeof(detail));
+        uint64_t stage=swan_profile_start();bool lowered=swan_irgen_program(program,&module,&ir_error);swan_profile_end(SWAN_PROFILE_IRGEN,stage);
+        stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&module,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);
+        stage=swan_profile_start();bool emitted=optimized&&swan_codegen_x86_64_ir(&module,&ir_output,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
         swan_ir_destroy(&module);
         if(emitted){*output=ir_output;return true;}
         free(ir_output.data);
     }
     if(error)memset(error,0,sizeof(*error));
-    return swan_codegen_x86_64(program, output, error);
+    uint64_t stage=swan_profile_start();bool generated=swan_codegen_x86_64(program, output, error);swan_profile_end(SWAN_PROFILE_AST_CODEGEN,stage);return generated;
 }
 #endif

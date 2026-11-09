@@ -10,6 +10,46 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
+typedef enum {
+ SWAN_PROFILE_READ, SWAN_PROFILE_LEX, SWAN_PROFILE_PARSE, SWAN_PROFILE_IMPORTS,
+ SWAN_PROFILE_SEMA, SWAN_PROFILE_REACHABILITY, SWAN_PROFILE_IRGEN,
+ SWAN_PROFILE_IR_OPT, SWAN_PROFILE_CODEGEN, SWAN_PROFILE_AST_CODEGEN,
+ SWAN_PROFILE_ASM_WRITE, SWAN_PROFILE_LINK, SWAN_PROFILE_RUN,
+ SWAN_PROFILE_COUNT
+} SwanProfileStage;
+static const char *const swan_profile_names[SWAN_PROFILE_COUNT]={
+ "Source file read","Lexing","Parsing","Import loading",
+ "Semantic analysis","Reachability analysis","IR generation",
+ "IR optimization","Target code generation","AST fallback code generation",
+ "Assembly output","Native linking","Program execution"
+};
+static bool swan_profile_enabled=false;
+static uint64_t swan_profile_ns[SWAN_PROFILE_COUNT];
+static struct timespec swan_profile_total_start;
+static inline uint64_t swan_profile_clock(void){
+ struct timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t)!=0)return 0;
+ return (uint64_t)t.tv_sec*UINT64_C(1000000000)+(uint64_t)t.tv_nsec;
+}
+static inline uint64_t swan_profile_start(void){return swan_profile_enabled?swan_profile_clock():0;}
+static inline void swan_profile_end(SwanProfileStage stage,uint64_t start){
+ if(swan_profile_enabled&&start&&stage<SWAN_PROFILE_COUNT){uint64_t end=swan_profile_clock();if(end>=start)swan_profile_ns[stage]+=end-start;}
+}
+static inline void swan_profile_reset(void){
+ memset(swan_profile_ns,0,sizeof(swan_profile_ns));
+ if(clock_gettime(CLOCK_MONOTONIC,&swan_profile_total_start)!=0)memset(&swan_profile_total_start,0,sizeof(swan_profile_total_start));
+}
+static inline void swan_profile_print(void){
+ if(!swan_profile_enabled)return;
+ uint64_t total=swan_profile_clock(),begin=(uint64_t)swan_profile_total_start.tv_sec*UINT64_C(1000000000)+(uint64_t)swan_profile_total_start.tv_nsec;
+ uint64_t elapsed=total>=begin?total-begin:0;
+ fprintf(stderr,"\\nSwan compiler pipeline profile (seconds)\\n");
+ for(size_t i=0;i<SWAN_PROFILE_COUNT;i++)if(swan_profile_ns[i]){
+  double seconds=(double)swan_profile_ns[i]/1e9;
+  fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\\n",swan_profile_names[i],seconds,elapsed?(double)swan_profile_ns[i]*100.0/(double)elapsed:0.0);
+ }
+ fprintf(stderr,"  %-30s %0.9f s\\n","Total wall time",(double)elapsed/1e9);
+}
 #define SWAN_VERSION "0.7.0-samc"
 #define SWAN_MEMORY_MODEL "SAMC"
 #define SWAN_MAX_TOKENS 131072
