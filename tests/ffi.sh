@@ -6,6 +6,12 @@ TMP="$ROOT/build/ffi"
 mkdir -p "$TMP"
 CC=${CC:-cc}
 
+cat > "$TMP/c_api.h" <<'H'
+#include <stdint.h>
+int64_t swan_c_add(int64_t left, int64_t right);
+void swan_c_noop(int64_t value);
+H
+
 cat > "$TMP/c_library.c" <<'C'
 #include <stdint.h>
 int64_t swan_c_add(int64_t left, int64_t right) {
@@ -16,8 +22,7 @@ C
 "$CC" -std=c11 -O2 -c "$TMP/c_library.c" -o "$TMP/c_library.o"
 
 cat > "$TMP/ffi.swan" <<'SWAN'
-extern fn swan_c_add(left: i64, right: i64) -> i64
-extern fn swan_c_noop(value: i64) -> void
+import C "$TMP/c_api.h"
 fn main() -> int:
     swan_c_noop(7)
     return swan_c_add(19, 23)
