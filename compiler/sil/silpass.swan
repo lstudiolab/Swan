@@ -61,3 +61,4 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
             workspace[512 + destination] = 0
         index = index + 1
     return count
+
