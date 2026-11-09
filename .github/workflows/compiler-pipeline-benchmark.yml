@@ -1,0 +1,33 @@
+name: Swan Compiler Pipeline Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/compiler_pipeline.py'
+      - 'benchmarks/compiler_pipeline.swan'
+      - 'compiler/**'
+      - 'main.c'
+      - 'build.sh'
+      - '.github/workflows/compiler-pipeline-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pipeline-benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Swan compiler
+        run: sh build.sh
+      - name: Run compiler pipeline benchmark
+        run: python3 benchmarks/compiler_pipeline.py --repeats 7 --warmups 2 | tee compiler-pipeline-benchmark.txt
+      - name: Upload benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-compiler-pipeline-benchmark
+          path: compiler-pipeline-benchmark.txt
+          if-no-files-found: error
