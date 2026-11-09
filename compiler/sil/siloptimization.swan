@@ -5,7 +5,7 @@ import silverify
 # Complete scalar SIL pass pipeline: verify, fold, demand, DCE, verify.
 # Workspace is caller-owned and shared by all passes.
 fn sil_optimize(state: u32_array, count: int, workspace: u32_array) -> int:
-    if sil_verify(state, count) == 0
+    if sil_verify(state, count) != 1
         return -1
     if sil_fold_constants(state, count, workspace) < 0
         return -1
@@ -24,6 +24,7 @@ fn sil_optimize(state: u32_array, count: int, workspace: u32_array) -> int:
             state[target + 4] = state[source + 4]
             write = write + 1
         read = read + 1
-    if sil_verify(state, write) == 0
+    if sil_verify(state, write) != 1
         return -1
     return write
+

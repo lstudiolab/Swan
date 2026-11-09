@@ -69,7 +69,7 @@ static int swan_run(int argc,char **argv){
   if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM32 output is a WebAssembly module; run it with a WebAssembly runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(has_lazy){fprintf(stderr,"swan: WASM32 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   SwanIRModule ir={0};char detail[256]={0};SwanWasmBuffer wasm={0};
-  stage=swan_profile_start();bool ir_ok=swan_irgen_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);
+  stage=swan_profile_start();bool ir_ok=swan_compile_ir_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);
    stage=swan_profile_start();bool opt_ok=ir_ok&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);
    stage=swan_profile_start();bool backend_ok=opt_ok&&(target->architecture==SWAN_ARCH_WASM64?swan_codegen_wasm64(&ir,&wasm,detail,sizeof(detail)):swan_codegen_wasm32(&ir,&wasm,detail,sizeof(detail)));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
   if(!backend_ok){
@@ -86,7 +86,7 @@ static int swan_run(int argc,char **argv){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
 
   SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
-  stage=swan_profile_start();bool lowered=swan_irgen_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);stage=swan_profile_start();bool generated=optimized&&swan_codegen_aarch64_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  stage=swan_profile_start();bool lowered=swan_compile_ir_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);stage=swan_profile_start();bool generated=optimized&&swan_codegen_aarch64_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
   if(!generated){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
@@ -103,7 +103,7 @@ static int swan_run(int argc,char **argv){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: ARMv7 cross-target output is an ELF object; execute it on an ARMv7 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
 
   SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
-  stage=swan_profile_start();bool lowered=swan_irgen_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);stage=swan_profile_start();bool generated=optimized&&swan_codegen_armv7_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  stage=swan_profile_start();bool lowered=swan_compile_ir_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);stage=swan_profile_start();bool generated=optimized&&swan_codegen_armv7_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
   if(!generated){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
@@ -120,7 +120,7 @@ static int swan_run(int argc,char **argv){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: RISC-V64 cross-target output is an ELF object; execute it on a RISC-V64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
 
   SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
-  stage=swan_profile_start();bool lowered=swan_irgen_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);stage=swan_profile_start();bool generated=optimized&&swan_codegen_riscv64_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  stage=swan_profile_start();bool lowered=swan_compile_ir_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);stage=swan_profile_start();bool generated=optimized&&swan_codegen_riscv64_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
   if(!generated){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
@@ -136,7 +136,7 @@ static int swan_run(int argc,char **argv){
  if(target->architecture==SWAN_ARCH_SVM){
   if(mode==SWAN_EMIT){fprintf(stderr,"swan: --emit-asm is not valid for the SVM target\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   SwanIRModule ir={0};char vm_error[256]={0};
-  stage=swan_profile_start();bool lowered=swan_irgen_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,vm_error,sizeof(vm_error));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);
+  stage=swan_profile_start();bool lowered=swan_compile_ir_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,vm_error,sizeof(vm_error));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);
   if(!optimized){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:vm_error);
    swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;

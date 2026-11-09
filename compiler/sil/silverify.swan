@@ -1,64 +1,109 @@
-# Structural and typed SSA verifier for the initial SIL scalar subset.
+# Swan-authored structural and typed SSA verifier.
+# Workspace: defined values [0..255], value types [256..511].
+fn sil_check_constant(state: u32_array, workspace: u32_array, index: int) -> int:
+    let base = index * 5
+    let type = state[base] / 16
+    let destination = state[base + 1]
+    if destination <= 0 or destination >= 256 or type < 1 or type > 3
+        return -3
+    if workspace[destination] == 1
+        return -4
+    workspace[destination] = 1
+    workspace[256 + destination] = type
+    return 1
+
+fn sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> int:
+    let base = index * 5
+    let type = state[base] / 16
+    let destination = state[base + 1]
+    let left = state[base + 2]
+    let right = state[base + 3]
+    let parameter = state[base + 4]
+    if destination <= 0 or destination >= 256 or type < 1 or type > 3
+        return -17
+    if left != 0 or right != 0 or parameter >= 255
+        return -18
+    if destination != parameter + 1 or workspace[destination] == 1
+        return -19
+    workspace[destination] = 1
+    workspace[256 + destination] = type
+    return 1
+
+fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
+    let base = index * 5
+    let encoded = state[base]
+    let opcode = encoded % 16
+    let type = encoded / 16
+    let destination = state[base + 1]
+    let left = state[base + 2]
+    let right = state[base + 3]
+    if destination <= 0 or destination >= 256 or left <= 0 or left >= 256 or right <= 0 or right >= 256
+        return -5
+    if workspace[left] == 0 or workspace[right] == 0
+        return -6
+    if workspace[256 + left] != workspace[256 + right]
+        return -7
+    if opcode <= 6 and (type != workspace[256 + left] or type < 1 or type > 2)
+        return -8
+    if opcode >= 7 and type != 3
+        return -9
+    if workspace[destination] == 1
+        return -10
+    workspace[destination] = 1
+    workspace[256 + destination] = type
+    return 1
+
+fn sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
+    let base = index * 5
+    let type = state[base] / 16
+    let destination = state[base + 1]
+    let left = state[base + 2]
+    if destination <= 0 or destination >= 256 or left <= 0 or left >= 256
+        return -11
+    if workspace[left] == 0 or workspace[destination] == 1 or type != workspace[256 + left]
+        return -12
+    workspace[destination] = 1
+    workspace[256 + destination] = type
+    return 1
+
+fn sil_check_return(state: u32_array, workspace: u32_array, index: int, count: int) -> int:
+    let base = index * 5
+    let left = state[base + 2]
+    if index != count - 1 or left <= 0 or left >= 256
+        return -13
+    if workspace[left] == 0
+        return -14
+    return 2
+
 fn sil_verify(state: u32_array, count: int) -> int:
     if count < 1 or count > 256
         return -1
-    let defined = array_unchecked(256)
-    let value_types = array_unchecked(256)
+    let workspace = array_unchecked(512)
     var index = 0
     var returned = 0
     while index < count
-        let base = index * 5
-        let encoded = state[base]
-        let opcode = encoded % 16
-        let type = encoded / 16
-        let destination = state[base + 1]
-        let left = state[base + 2]
-        let right = state[base + 3]
+        let opcode = state[index * 5] % 16
         if returned == 1
             return -2
+        var status = 0
         if opcode == 1
-            if destination <= 0 or destination >= 256 or type < 1 or type > 3
-                return -3
-            if defined[destination] == 1
-                return -4
-            defined[destination] = 1
-            value_types[destination] = type
-        else
-            if opcode >= 2 and opcode <= 8
-                if destination <= 0 or destination >= 256 or left <= 0 or left >= 256 or right <= 0 or right >= 256
-                    return -5
-                if defined[left] == 0 or defined[right] == 0
-                    return -6
-                if value_types[left] != value_types[right]
-                    return -7
-                if opcode >= 2 and opcode <= 6
-                    if type != value_types[left] or type < 1 or type > 2
-                        return -8
-                else
-                    if type != 3
-                        return -9
-                if defined[destination] == 1
-                    return -10
-                defined[destination] = 1
-                value_types[destination] = type
-            else
-                if opcode == 9
-                    if destination <= 0 or destination >= 256 or left <= 0 or left >= 256
-                        return -11
-                    if defined[left] == 0 or defined[destination] == 1 or type != value_types[left]
-                        return -12
-                    defined[destination] = 1
-                    value_types[destination] = type
-                else
-                    if opcode == 10
-                        if index != count - 1 or left <= 0 or left >= 256
-                            return -13
-                        if defined[left] == 0
-                            return -14
-                        returned = 1
-                    else
-                        return -15
+            status = sil_check_constant(state, workspace, index)
+        if opcode == 11
+            status = sil_check_parameter(state, workspace, index)
+        if opcode >= 2 and opcode <= 8
+            status = sil_check_binary(state, workspace, index)
+        if opcode == 9
+            status = sil_check_copy(state, workspace, index)
+        if opcode == 10
+            status = sil_check_return(state, workspace, index, count)
+        if status == 0
+            return -15
+        if status < 0
+            return status
+        if status == 2
+            returned = 1
         index = index + 1
     if returned == 0
         return -16
     return 1
+

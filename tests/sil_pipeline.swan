@@ -1,5 +1,4 @@
 import silgen
-import silverify
 import siloptimization
 
 fn main() -> int:
@@ -9,7 +8,7 @@ fn main() -> int:
     count = sil_emit_const(state, count, 2 * 1048576 + 1 * 65536 + 20)
     count = sil_emit_binary(state, count, 18 * 16777216 + 3 * 65536 + 1 * 256 + 2)
     count = sil_emit_return(state, count, 3)
-    if sil_verify(state, count) == 0
+    if sil_verify(state, count) != 1
         echo!("SIL_VERIFY_FAILED")
         return 1
     count = sil_optimize(state, count, workspace)
