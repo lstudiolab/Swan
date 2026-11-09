@@ -21,7 +21,7 @@ void swan_c_noop(int64_t value) { (void)value; }
 C
 "$CC" -std=c11 -O2 -c "$TMP/c_library.c" -o "$TMP/c_library.o"
 
-cat > "$TMP/ffi.swan" <<'SWAN'
+cat > "$TMP/ffi.swan" <<SWAN
 import C "$TMP/c_api.h"
 fn main() -> int:
     swan_c_noop(7)
