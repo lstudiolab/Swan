@@ -61,7 +61,13 @@ python3 benchmarks/compiler_pipeline.py
 
 It builds three workloads (SIL-compatible scalar helpers, control flow, and a larger call graph), performs one warm-up by default, then reports the median of seven measured compiler invocations for every available stage. All values are in seconds. Change the sample count with `--repeats N` and warm-ups with `--warmups N`. The IR-generation timer currently combines SIL bridging and typed-IR fallback; the profiler does not yet expose separate timings for those internal paths. Build the compiler first with `sh build.sh`.
 
-## Source encoding\n\nSwan source files are UTF-8 by default and are interpreted independently of the host locale. The lexer validates UTF-8 before tokenization, accepts an optional UTF-8 BOM, preserves UTF-8 bytes in string literals, and accepts non-ASCII identifiers. Malformed UTF-8 and embedded NUL bytes in source files are rejected. Identifier classification currently treats non-ASCII Unicode code points as identifier characters; full Unicode XID category tables and Unicode normalization are not implemented.\n\n## Language subset
+## Source encoding\n\nSwan source files are UTF-8 by default and are interpreted independently of the host locale. The lexer validates UTF-8 before tokenization, accepts an optional UTF-8 BOM, preserves UTF-8 bytes in string literals, and accepts non-ASCII identifiers. Malformed UTF-8 and embedded NUL bytes in source files are rejected. Identifier classification currently treats non-ASCII Unicode code points as identifier characters; full Unicode XID category tables and Unicode normalization are not implemented.\n\n## Expression and output syntax
+
+Swan uses `.` to form a continuous dotted access path. Dotted paths can qualify callable names, for example `Foundation.abs_int(-42)`. The parser also recognizes member chains such as `self.var.player`; resolving field values and methods on struct instances is still being implemented alongside full struct support. A dotted path is one expression, not multiple statements.
+
+The preferred output form is `log >> "Hello, World!";`. The `>>` operator introduces the value written by `log`. The earlier `print` and `log value` forms remain accepted for compatibility.
+
+## Language subset
 
 The current x86-64 backend supports:
 
