@@ -9,7 +9,9 @@ fn main() -> int:
     var count = 0
     while count < 3:
         count = count + 1
+    out
     return count
+out
 SWAN
 "$BIN" build "$TMP/main.swan" --target wasm64 -o "$TMP/main.wasm"
 test -s "$TMP/main.wasm"
