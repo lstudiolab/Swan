@@ -1,5 +1,6 @@
 #ifndef SWAN_LINKER_H
 #define SWAN_LINKER_H
+#include "swan/core.h"
 #include <errno.h>
 #include <sys/types.h>
 #include <sys/wait.h>
