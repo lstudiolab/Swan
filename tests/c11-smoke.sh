@@ -8,6 +8,7 @@ cat > "$TMP/hello.swan" <<'SWAN'
 fn main():
     log "Hello from Swan C"
     return 0
+out
 SWAN
 "$SWAN" "$TMP/hello.swan" --emit-asm -o "$TMP/hello.s"
 cc -x assembler "$TMP/hello.s" -o "$TMP/hello"
@@ -20,6 +21,7 @@ fn main():
     b = b + 1
     log a + b
     return 0
+out
 SWAN
 "$SWAN" "$TMP/arithmetic.swan" --emit-asm -o "$TMP/arithmetic.s"
 cc -x assembler "$TMP/arithmetic.s" -o "$TMP/arithmetic"
@@ -35,6 +37,7 @@ fn main():
     log -13 % 4
     log -8 % 4
     return 0
+out
 SWAN
 "$SWAN" "$TMP/remainder.swan" --emit-asm -o "$TMP/remainder.s"
 cc -x assembler "$TMP/remainder.s" -o "$TMP/remainder"
@@ -49,9 +52,11 @@ printf 'PASS: signed constant remainder lowering\n'
 cat > "$TMP/calls.swan" <<'SWAN'
 fn add(a: int, b: int) -> int:
     return a + b
+out
 fn main():
     log add(20, 22)
     return 0
+out
 SWAN
 "$SWAN" "$TMP/calls.swan" --emit-asm -o "$TMP/calls.s"
 cc -x assembler "$TMP/calls.s" -o "$TMP/calls"
@@ -67,6 +72,7 @@ fn main():
             log value
         value = value + 1
     return 0
+out
 SWAN
 "$SWAN" "$TMP/control.swan" --emit-asm -o "$TMP/control.s"
 cc -x assembler "$TMP/control.s" -o "$TMP/control"
@@ -83,6 +89,7 @@ fn main():
         i = i + 1
     log sum
     return 0
+out
 SWAN
 "$SWAN" "$TMP/unroll.swan" --emit-asm -o "$TMP/unroll.s"
 cc -x assembler "$TMP/unroll.s" -o "$TMP/unroll"
@@ -101,6 +108,7 @@ fn main():
         i = i + 1
     log total
     return 0
+out
 SWAN
 "$SWAN" "$TMP/nested-loops.swan" --emit-asm -o "$TMP/nested-loops.s"
 cc -x assembler "$TMP/nested-loops.s" -o "$TMP/nested-loops"
@@ -121,6 +129,7 @@ fn main():
         i = i + 1
     log total
     return 0
+out
 SWAN
 "$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
 if ! grep -q "mov r11, rax" "$TMP/invariant-hoist.s" || ! grep -q "mov rax, r11" "$TMP/invariant-hoist.s" || ! grep -q "imul r15, r14, 13" "$TMP/invariant-hoist.s" || ! grep -q "add r15, 13" "$TMP/invariant-hoist.s"; then
@@ -141,6 +150,7 @@ fn main():
         i = i + 1
     log total
     return 0
+out
 SWAN
 "$SWAN" "$TMP/zero-loop.swan" --emit-asm -o "$TMP/zero-loop.s"
 cc -x assembler "$TMP/zero-loop.s" -o "$TMP/zero-loop"
@@ -157,6 +167,7 @@ fn main():
         i = i + 1
     log total
     return 0
+out
 SWAN
 "$SWAN" "$TMP/loop-fallback.swan" --emit-asm -o "$TMP/loop-fallback.s"
 cc -x assembler "$TMP/loop-fallback.s" -o "$TMP/loop-fallback"
@@ -166,6 +177,7 @@ cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
     log missing_name
     return 0
+out
 SWAN
 if "$SWAN" "$TMP/unknown-name.swan" --emit-asm -o "$TMP/unknown-name.s"; then
     echo 'FAIL: unknown variable was accepted' >&2
@@ -177,6 +189,7 @@ fn main():
     let value = 1
     value = 2
     return 0
+out
 SWAN
 if "$SWAN" "$TMP/immutable.swan" --emit-asm -o "$TMP/immutable.s"; then
     echo 'FAIL: assignment to immutable binding was accepted' >&2
@@ -186,13 +199,17 @@ printf 'PASS: semantic analysis enforces immutable bindings\n'
 cat > "$TMP/nested-calls.swan" <<'SWAN'
 fn base() -> int:
     return 20
+out
 fn add(a: int, b: int) -> int:
     return a + b
+out
 fn wrap(value: int) -> int:
     return add(value, base())
+out
 fn main():
     log 1 + wrap(21)
     return 0
+out
 SWAN
 "$SWAN" "$TMP/nested-calls.swan" --emit-asm -o "$TMP/nested-calls.s"
 cc -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
@@ -201,6 +218,7 @@ printf 'PASS: nested function calls preserve x86-64 ABI stack alignment\n'
 cat > "$TMP/call-hotpath.swan" <<'SWAN'
 fn transform(x: int) -> int:
     return (x * 31 + 7) % 97
+out
 fn main():
     var total = 0
     var i = 0
@@ -212,6 +230,7 @@ fn main():
         i = i + 1
     log total
     return 0
+out
 SWAN
 "$SWAN" "$TMP/call-hotpath.swan" --emit-asm -o "$TMP/call-hotpath.s"
 cc -x assembler "$TMP/call-hotpath.s" -o "$TMP/call-hotpath"
@@ -238,9 +257,11 @@ printf 'PASS: leaf-call, register argument, accumulator, and parity fast paths\n
 cat > "$TMP/leaf-registers.swan" <<'SWAN'
 fn leaf(a: int, b: int, c: int, d: int, e: int) -> int:
     return (a + b) * (c + d) + e
+out
 fn main():
     log leaf(1, 2, 3, 4, 5)
     return 0
+out
 SWAN
 "$SWAN" "$TMP/leaf-registers.swan" --emit-asm -o "$TMP/leaf-registers.s"
 cc -x assembler "$TMP/leaf-registers.s" -o "$TMP/leaf-registers"
@@ -257,6 +278,7 @@ fn main():
     total = total + (total = 5)
     log total
     return 0
+out
 SWAN
 "$SWAN" "$TMP/accumulator-side-effect.swan" --emit-asm -o "$TMP/accumulator-side-effect.s"
 cc -x assembler "$TMP/accumulator-side-effect.s" -o "$TMP/accumulator-side-effect"
@@ -273,6 +295,7 @@ fn main():
     log left % right
     log left > right
     return 0
+out
 SWAN
 "$SWAN" "$TMP/local-operands.swan" --emit-asm -o "$TMP/local-operands.s"
 cc -x assembler "$TMP/local-operands.s" -o "$TMP/local-operands"
@@ -300,6 +323,7 @@ fn main():
     log values[2]
     log values[3]
     return 0
+out
 SWAN
 "$SWAN" "$TMP/array-u32.swan" --emit-asm -o "$TMP/array-u32.s"
 cc -x assembler "$TMP/array-u32.s" -o "$TMP/array-u32"
@@ -318,6 +342,7 @@ fn main():
         log values[middle]
         break
     return 0
+out
 SWAN
 "$SWAN" "$TMP/array-midpoint.swan" --emit-asm -o "$TMP/array-midpoint.s"
 cc -x assembler "$TMP/array-midpoint.s" -o "$TMP/array-midpoint"
@@ -344,6 +369,7 @@ fn main():
         low = -1
         break
     return 0
+out
 SWAN
 "$SWAN" "$TMP/unsafe-midpoint.swan" --emit-asm -o "$TMP/unsafe-midpoint.s"
 if ! grep -Eq 'cmp rcx, (8|QWORD PTR \[[a-z0-9]+ - 8\])' "$TMP/unsafe-midpoint.s"; then
@@ -368,6 +394,7 @@ fn main():
     log dividend % 8
     log dividend % -8
     return 0
+out
 SWAN
 "$SWAN" "$TMP/power-two-multiply.swan" --emit-asm -o "$TMP/power-two-multiply.s"
 cc -x assembler "$TMP/power-two-multiply.s" -o "$TMP/power-two-multiply"
@@ -406,6 +433,7 @@ fn main():
     log first + second + third + fourth + fifth + sixth + seventh
     log values[3]
     return 0
+out
 SWAN
 "$SWAN" "$TMP/array-store-register.swan" --emit-asm -o "$TMP/array-store-register.s"
 cc -x assembler "$TMP/array-store-register.s" -o "$TMP/array-store-register"
@@ -430,6 +458,7 @@ fn main():
     var index = 0
     log a + values[index] + (b % 97)
     return 0
+out
 SWAN
 "$SWAN" "$TMP/add-scratch-preservation.swan" --emit-asm -o "$TMP/add-scratch-preservation.s"
 cc -x assembler "$TMP/add-scratch-preservation.s" -o "$TMP/add-scratch-preservation"
@@ -500,6 +529,7 @@ fn main():
         i = i + 1
     log sorted
     return 0
+out
 SWAN
 "$SWAN" "$TMP/heapsort.swan" --emit-asm -o "$TMP/heapsort.s"
 cc -x assembler "$TMP/heapsort.s" -o "$TMP/heapsort"
@@ -516,6 +546,7 @@ printf 'PASS: one-billion-element Swan sorting workload compiles and links\n'
 cat > "$TMP/volatile-preservation.swan" <<'SWAN'
 fn combine(a: int, b: int) -> int:
     return a + b
+out
 fn main():
     let a = 11
     let b = 22
@@ -526,6 +557,7 @@ fn main():
     let g = 77
     log combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1)
     return 0
+out
 SWAN
 "$SWAN" "$TMP/volatile-preservation.swan" --emit-asm -o "$TMP/volatile-preservation.s"
 cc -x assembler "$TMP/volatile-preservation.s" -o "$TMP/volatile-preservation"
@@ -541,6 +573,7 @@ cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
     log (6 * 7) + (9 - 2)
     return 0
+out
 SWAN
 "$SWAN" "$TMP/constant-fold.swan" --emit-asm -o "$TMP/constant-fold.s"
 cc -x assembler "$TMP/constant-fold.s" -o "$TMP/constant-fold"
@@ -559,6 +592,7 @@ fn main():
         index = index + 1
     log index
     return 0
+out
 SWAN
 "$SWAN" "$TMP/local-compare.swan" --emit-asm -o "$TMP/local-compare.s"
 cc -x assembler "$TMP/local-compare.s" -o "$TMP/local-compare"
@@ -592,6 +626,7 @@ fn main():
     spilled = spilled - value
     log spilled
     return 0
+out
 SWAN
 "$SWAN" "$TMP/compound-arithmetic.swan" --emit-asm -o "$TMP/compound-arithmetic.s"
 cc -x assembler "$TMP/compound-arithmetic.s" -o "$TMP/compound-arithmetic"
