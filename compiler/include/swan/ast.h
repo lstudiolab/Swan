@@ -1,8 +1,9 @@
 #ifndef SWAN_AST_H
 #define SWAN_AST_H
 #include "swan/core.h"
-typedef enum { E_INT,E_FLOAT,E_STRING,E_BOOL,E_NAME,E_UNARY,E_BINARY,E_CALL,E_INDEX } ExprKind;
+typedef enum { E_INT,E_FLOAT,E_STRING,E_BOOL,E_NAME,E_UNARY,E_BINARY,E_CALL,E_INDEX,E_MEMBER } ExprKind;
 typedef struct Expr Expr;
+static inline const char *swan_expr_terminal_name(Expr *e){while(e&&e->kind==E_MEMBER)e=e->right;return e&&e->kind==E_NAME?e->token.text:NULL;}
 struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t argc; bool contains_call,constant_checked,constant_valid; int64_t constant_value; };
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR } StmtKind;
 typedef struct Stmt Stmt;
