@@ -32,7 +32,10 @@ static int swan_run(int argc,char **argv){
   if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;
   else if(!strcmp(argv[i],"--stdlib")&&i+1<argc)stdlib_dir=argv[++i];
-  else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];\n  else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\\n");return 2;}link_args[link_arg_count++]=argv[++i];}\n  else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(link_arg_count+2>120)return 2;link_args[link_arg_count++]=argv[i];link_args[link_arg_count++]=argv[++i];}\n  else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(link_arg_count>=120)return 2;link_args[link_arg_count++]=argv[i];}
+  else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
+  else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\n");return 2;}link_args[link_arg_count++]=argv[++i];}
+  else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(link_arg_count+2>120)return 2;link_args[link_arg_count++]=argv[i];link_args[link_arg_count++]=argv[++i];}
+  else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(link_arg_count>=120)return 2;link_args[link_arg_count++]=argv[i];}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
    const char *name=argv[++i];target=swan_target_find(name);
    if(!target){fprintf(stderr,"swan: unknown target '%s'; use --list-targets\n",name);return 2;}
