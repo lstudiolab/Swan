@@ -25,7 +25,7 @@ fn sil_verify(state: u32_array, count: int) -> int:
             value_types[destination] = type
         else
             if opcode == 11
-                if destination <= 0 or destination >= 256 or type < 1 or type > 2
+                if destination <= 0 or destination >= 256 or type < 1 or type > 3
                     return -17
                 if left != 0 or right != 0 or state[base + 4] >= 255
                     return -18
