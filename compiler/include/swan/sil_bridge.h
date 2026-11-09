@@ -229,10 +229,28 @@ static inline bool swan_sil_lower_function(const Stmt *fn, SwanIRModule *module)
 
 static inline bool swan_sil_try_irgen_program(Program *program, SwanIRModule *output) {
     if (!program || !output || !program->count || program->import_count ||
-        program->count != program->source_function_count || program->count > 1024) return false;
+        program->count < program->source_function_count || program->count > 1024) return false;
     SwanIRModule candidate = {0};
     for (size_t i = 0; i < program->count; ++i) {
-        if (!swan_sil_lower_function(program->functions[i], &candidate)) {
+        const Stmt *fn = program->functions[i];
+        if (fn->external) {
+            SwanIRType parameters[16];
+            if (fn->param_count > 16) { swan_ir_destroy(&candidate); return false; }
+            for (size_t p = 0; p < fn->param_count; ++p) {
+                parameters[p] = swan_sil_param_type(fn, p);
+                if (parameters[p] == SWAN_IR_VOID) {
+                    swan_ir_destroy(&candidate);
+                    return false;
+                }
+            }
+            SwanIRType result = swan_sil_decl_type(fn->type);
+            SwanIRFunction *declaration = swan_ir_add_function(
+                &candidate, fn->name, result, parameters, fn->param_count);
+            if (!declaration) { swan_ir_destroy(&candidate); return false; }
+            declaration->external = true;
+            continue;
+        }
+        if (!swan_sil_lower_function(fn, &candidate)) {
             swan_ir_destroy(&candidate);
             return false;
         }
