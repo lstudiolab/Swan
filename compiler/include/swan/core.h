@@ -62,7 +62,7 @@ typedef enum { T_EOF,T_IDENT,T_INT,T_FLOAT,T_STRING,T_NEWLINE,T_INDENT,T_DEDENT,
  T_FN,T_IMPORT,T_EXTERN,T_LET,T_VAR,T_CONST,T_RETURN,T_IF,T_ELSE,T_WHILE,T_BREAK,T_CONTINUE,T_PASS,
  T_TRUE,T_FALSE,T_NONE,T_AND,T_OR,T_NOT,T_BANG,T_LP,T_RP,T_COLON,T_COMMA,T_ARROW,
  T_PLUS,T_MINUS,T_STAR,T_SLASH,T_FLOORDIV,T_PERCENT,T_ASSIGN,T_EQ,T_NE,T_LT,T_GT,T_LE,T_GE,
- T_LB,T_RB,T_DOT,T_SEMI,T_OUT,T_PRINT,T_STRUCT,T_ENUM,T_TYPE,T_FOR,T_IN,T_LOOP,T_MATCH,T_GUARD,T_FROM,T_AS,T_EXPORT,T_SELF,T_LAZY,T_INIT,T_DEINIT,T_FREE,T_THROW,T_RETHROW,T_STORE,T_BORROW } TokenKind;
+ T_LB,T_RB,T_DOT,T_SEMI,T_OUT,T_PRINT,T_STRUCT,T_ENUM,T_TYPE,T_FOR,T_IN,T_LOOP,T_MATCH,T_GUARD,T_FROM,T_AS,T_EXPORT,T_SELF,T_LAZY,T_INIT,T_DEINIT,T_FREE,T_THROW,T_RETHROW,T_STORE,T_BORROW,T_MANUAL } TokenKind;
 typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
