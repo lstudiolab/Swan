@@ -26,18 +26,23 @@ int main(void) {
         "    while i < n:\n"
         "        total = total + i\n"
         "        i = i + 1\n"
+        "    out\n"
         "    return total\n"
         "fn main() -> int:\n"
-        "    return sum(10)\n";
+        "    return sum(10)\n"
+        "out\n";
     assert(execute(loop)==45);
     const char *branch=
         "fn main() -> int:\n"
         "    var x: int = 7\n"
         "    if x > 3:\n"
         "        x = x * 6\n"
+        "    out\n"
         "    else:\n"
         "        x = 1\n"
-        "    return x\n";
+        "    out\n"
+        "    return x\n"
+        "out\n";
     assert(execute(branch)==42);
     puts("PASS: IR lowering handles calls, mutable locals, loops and branches");
     return 0;
