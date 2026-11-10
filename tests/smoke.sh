@@ -416,6 +416,17 @@ fn main() -> int:
         return 4
     if tokens[0] != 0
         return 5
+    let input = array_unchecked(3)
+    input[0] = 105
+    input[1] = 102
+    input[2] = 32
+    let scanned = swan_lex(input, 3, tokens, 2, diagnostic)
+    if scanned != 2
+        return 6
+    if tokens[0] != 15
+        return 7
+    if tokens[5] != 0
+        return 8
     return 0
 out
 "$SWAN" "$TMP/swanc-lexer-test.swan" --emit-asm -o "$TMP/swanc-lexer-test.s"
