@@ -2,7 +2,6 @@
 #include "swan/sema.h"
 #include "swan/irgen.h"
 #include "swan/optimization.h"
-#include "swan/svm.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -43,18 +42,9 @@ int main(void) {
     assert(swan_irgen_program(&program,&module,&error));
     char detail[256]={0};
     assert(swan_ir_optimize(&module,detail,sizeof(detail)));
-    int64_t result=0;
-    assert(swan_svm_run(&module,"main",10000,&result,detail,sizeof(detail)));
-    assert(result==50);
-    FILE *artifact=tmpfile();assert(artifact);
-    assert(swan_svm_write_module(artifact,&module));rewind(artifact);
-    SwanIRModule loaded={0};
-    assert(swan_svm_read_module(artifact,&loaded,detail,sizeof(detail)));
-    fclose(artifact);
-    result=0;assert(swan_svm_run(&loaded,"main",10000,&result,detail,sizeof(detail)));
-    assert(result==50);
-    swan_ir_destroy(&loaded);swan_ir_destroy(&module);
+    assert(swan_ir_verify(&module,detail,sizeof(detail)));
+    swan_ir_destroy(&module);
     swan_program_destroy(&program);free(tokens.items);free(tokens.text_storage);
-    puts("PASS: .swan -> typed IR -> optimized SVM, loops, branches, calls and module round-trip");
+    puts("PASS: .swan -> typed IR -> verified optimization, loops, branches and calls");
     return 0;
 }

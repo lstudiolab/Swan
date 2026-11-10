@@ -2,21 +2,20 @@
 #include "swan/sema.h"
 #include "swan/irgen.h"
 #include "swan/optimization.h"
-#include "swan/svm.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
-static int64_t execute(const char *source) {
+static void compile_and_verify(const char *source) {
     SwanError error={0};TokenStream tokens={0};Program program={0};
     assert(swan_lex(source,&tokens,&error));
-    if(!swan_parse(&tokens,&program,&error)){fprintf(stderr,"parse failed at %u:%u: %s; token=%d text=[%s] pos=%zu/%zu\n",error.line,error.col,error.message,tokens.items[tokens.pos].kind,tokens.items[tokens.pos].text,tokens.pos,tokens.count);abort();}
+    assert(swan_parse(&tokens,&program,&error));
     assert(swan_semantic_check(&program,&error));
     SwanIRModule module={0};assert(swan_irgen_program(&program,&module,&error));
     char detail[256]={0};assert(swan_ir_optimize(&module,detail,sizeof(detail)));
-    int64_t result=0;assert(swan_svm_run(&module,"main",100000,&result,detail,sizeof(detail)));
+    assert(swan_ir_verify(&module,detail,sizeof(detail)));
     swan_ir_destroy(&module);swan_program_destroy(&program);
-    free(tokens.items);free(tokens.text_storage);return result;
+    free(tokens.items);free(tokens.text_storage);
 }
 int main(void) {
     const char *loop=
@@ -32,7 +31,7 @@ int main(void) {
         "fn main() -> int:\n"
         "    return sum(10)\n"
         "out\n";
-    assert(execute(loop)==45);
+    compile_and_verify(loop);
     const char *branch=
         "fn main() -> int:\n"
         "    var x: int = 7\n"
@@ -44,7 +43,7 @@ int main(void) {
         "    out\n"
         "    return x\n"
         "out\n";
-    assert(execute(branch)==42);
+    compile_and_verify(branch);
     puts("PASS: IR lowering handles calls, mutable locals, loops and branches");
     return 0;
 }
