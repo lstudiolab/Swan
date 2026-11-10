@@ -194,11 +194,12 @@ fn main():
 out
 SWAN
 "$SWAN" "$TMP/samc-auto.swan" --emit-asm -o "$TMP/samc-auto.s"
-if ! grep -q 'call free@PLT' "$TMP/samc-auto.s"; then
-    echo 'FAIL: SAMC did not release an automatically managed array' >&2
+if grep -q 'call calloc@PLT' "$TMP/samc-auto.s" || grep -q 'call free@PLT' "$TMP/samc-auto.s"; then
+    echo 'FAIL: a small local array used the general-purpose heap allocator' >&2
     exit 1
 fi
-printf 'PASS: SAMC automatically releases owned arrays\n'
+grep -q 'rep stosd' "$TMP/samc-auto.s"
+printf 'PASS: SAMC places small non-escaping arrays in the native stack frame\n'
 
 cat > "$TMP/samc-manual.swan" <<'SWAN'
 fn main():
