@@ -106,6 +106,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_checked&&!symbols->items[k].manual_freed){swan_error(err,&s->token,"manual variable '%s' must be freed before returning",symbols->items[k].name);return false;}
     break;
    case S_EXPR:
+    if(s->value&&s->value->kind==E_CALL&&swan_expr_terminal_name(s->value->left)&&!strcmp(swan_expr_terminal_name(s->value->left),"free"))fprintf(stderr,"DEBUG saw free expression\\n");
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_IF:{
