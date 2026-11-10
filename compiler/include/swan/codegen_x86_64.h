@@ -960,7 +960,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     o->loop_depth--;
     break;
    }
-   default:break;
+   default:swan_error(err,&s->token,"statement kind %d is not implemented by the x86-64 backend",(int)s->kind);break;
   }
  }
 }
