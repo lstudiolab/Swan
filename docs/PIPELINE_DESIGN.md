@@ -1,6 +1,6 @@
 # Swan Compiler Pipeline Design
 
-This document defines the current stage boundaries and invariants. It replaces the earlier pre-SIL design notes.
+This document defines the current stage boundaries and invariants.
 
 ## Implemented pipeline
 
