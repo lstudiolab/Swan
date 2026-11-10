@@ -126,7 +126,7 @@ printf 'PASS: 64-bit integer lowering\n'
 # Manual allocation is an explicit SAMC opt-out and uses the same checked array path.
 cat > "$TMP/manual-memory.swan" <<'SWAN'
 fn main():
-    store let values = array(4)
+    manual var values = array(4)
     values[0] = 27
     print values[0]
     free(values)
