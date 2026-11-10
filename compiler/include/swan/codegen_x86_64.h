@@ -31,8 +31,8 @@ static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",r
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
 static inline bool cg_const_value(Expr *e,int64_t *out);
-typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known,samc_manual,samc_escaped,samc_freed; } Local;
-typedef struct { Local items[1024];int buckets[2048];size_t count;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
+typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known,samc_manual,samc_escaped,samc_freed,stack_array; int array_stack_offset; } Local;
+typedef struct { Local items[1024];int buckets[2048];size_t count,array_storage_bytes;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
 static const char *cg_volatile_low_regs[]={"edi","esi","edx","r8d","r9d"};
@@ -54,7 +54,10 @@ static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0
   v->array_u32=true;int64_t length=0;
   if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
  }
- if(!strcmp(s->value->left->token.text,"array_unchecked")||!strcmp(s->value->left->token.text,"array_u32_unchecked")){v->array_u32=true;v->array_unchecked=true;}
+ if(!strcmp(s->value->left->token.text,"array_unchecked")||!strcmp(s->value->left->token.text,"array_u32_unchecked")){
+  v->array_u32=true;v->array_unchecked=true;int64_t length=0;
+  if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
+ }
 }}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
@@ -872,10 +875,28 @@ static inline void samc_mark_expr(Expr *e,Locals *l,bool escapes){
 static inline void samc_scan_escapes(Stmt **body,size_t n,Locals *l){
  for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){if(s->value&&s->value->kind==E_NAME)samc_mark_expr(s->value,l,true);else samc_mark_expr(s->value,l,false);}else if(s->kind==S_RETURN)samc_mark_expr(s->value,l,true);else samc_mark_expr(s->value,l,false);samc_scan_escapes(s->body,s->body_count,l);samc_scan_escapes(s->alternate,s->alt_count,l);}
 }
-static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed)return true;}return false;}
-static inline bool samc_expr_uses_owned_array(Expr *e,Locals *l){if(!e)return false;if(e->kind==E_NAME){Local *v=local_find(l,e->token.text);return v&&v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed;}if(samc_expr_uses_owned_array(e->left,l)||samc_expr_uses_owned_array(e->right,l))return true;for(size_t i=0;i<e->argc;i++)if(samc_expr_uses_owned_array(e->args[i],l))return true;return false;}
+/* Small, fixed-size, non-escaping arrays live in the function frame.
+   This is the native-stack fast path of Swan's scope-owned memory model. */
+static inline void samc_assign_stack_arrays(Locals *l){
+ size_t base=(l->slots+l->saved_reg_count)*8u,total=0;
+ for(size_t i=0;i<l->count;i++){
+  Local *v=&l->items[i];
+  if(!v->array_u32||!v->array_length_known||v->samc_manual||v->samc_escaped||v->samc_freed)continue;
+  size_t data=(size_t)v->array_length*4u;
+  if(data>65536u)continue;
+  size_t storage=data+(v->array_unchecked?0u:8u);
+  if(!v->array_unchecked&&!data)storage=8u;
+  if(storage>262144u-total)continue;
+  total+=storage;
+  v->array_stack_offset=(int)(base+total-(v->array_unchecked?0u:8u));
+  v->stack_array=true;
+ }
+ l->array_storage_bytes=total;
+}
+static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array)return true;}return false;}
+static inline bool samc_expr_uses_owned_array(Expr *e,Locals *l){if(!e)return false;if(e->kind==E_NAME){Local *v=local_find(l,e->token.text);return v&&v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array;}if(samc_expr_uses_owned_array(e->left,l)||samc_expr_uses_owned_array(e->right,l))return true;for(size_t i=0;i<e->argc;i++)if(samc_expr_uses_owned_array(e->args[i],l))return true;return false;}
 static inline void emit_samc_cleanup(Text *o,Locals *l){
- for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed)continue;
+ for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
   cg_save_volatile(o,l);
   if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));
   else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);
@@ -888,7 +909,18 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
   Stmt *s=body[i];
   switch(s->kind){
    case S_VARIABLE:{
-    Local *v=local_find(l,s->name);long long value=0;bool immediate=!s->value;
+    Local *v=local_find(l,s->name);
+    if(v&&v->stack_array){
+     cg_save_volatile(o,l);
+     if(!v->array_unchecked)text_add(o,"    mov QWORD PTR [rbp - %d], %lld\\n",v->array_stack_offset+8,(long long)v->array_length);
+     if(v->array_length){text_add(o,"    lea rdi, [rbp - %d]\\n    xor eax, eax\\n    mov ecx, %lld\\n    rep stosd\\n",v->array_stack_offset,(long long)v->array_length);}
+     text_add(o,"    lea rax, [rbp - %d]\\n",v->array_stack_offset);
+     cg_restore_volatile(o,l);
+     if(v->reg>=0)text_add(o,"    mov %s, rax\\n",cg_reg_name(v->reg));
+     else text_add(o,"    mov QWORD PTR [rbp - %d], rax\\n",v->slot*8);
+     break;
+    }
+    long long value=0;bool immediate=!s->value;
     if(s->value&&s->value->kind==E_INT){char *end=NULL;value=strtoll(s->value->token.text,&end,10);immediate=end&&!*end;}
     else if(s->value&&s->value->kind==E_BOOL){value=s->value->token.kind==T_TRUE;immediate=true;}
     if(v&&immediate){
@@ -985,7 +1017,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
     param->array_u32=true;param->array_unchecked=true;param->samc_escaped=true;
    }
   }
-  collect_locals(fn->body,fn->body_count,&l);samc_scan_escapes(fn->body,fn->body_count,&l);int frame=((l.slots+l.saved_reg_count)*8+15)/16*16;
+  collect_locals(fn->body,fn->body_count,&l);samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
