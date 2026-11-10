@@ -408,6 +408,14 @@ fn main() -> int:
     prefix[3] = 121
     if swanc_keyword(prefix, 0, 4) != 1
         return 3
+    let empty_source = array_unchecked(1)
+    let tokens = array_unchecked(10)
+    let diagnostic = array_unchecked(4)
+    let count = swan_lex(empty_source, 0, tokens, 2, diagnostic)
+    if count != 1
+        return 4
+    if tokens[0] != 0
+        return 5
     return 0
 out
 "$SWAN" "$TMP/swanc-lexer-test.swan" --emit-asm -o "$TMP/swanc-lexer-test.s"
