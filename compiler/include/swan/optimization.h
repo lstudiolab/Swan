@@ -173,7 +173,7 @@ static inline bool swan_ir_inst_has_side_effect(const SwanIRInst *in){
     return in->op==SWAN_IR_CALL||in->op==SWAN_IR_STORE||in->op==SWAN_IR_LOAD||in->op==SWAN_IR_SDIV||in->op==SWAN_IR_UDIV||in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM;
 }
 static inline void swan_ir_mark_live_value(const SwanIRFunction *fn,uint32_t value,
-        const SwanIRInst **definitions,unsigned char *live,uint32_t *work,size_t *top){
+        unsigned char *live,uint32_t *work,size_t *top){
     if(!value||value>=fn->next_value||live[value])return;
     live[value]=1;work[(*top)++]=value;
 }
@@ -197,7 +197,7 @@ static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
         for(size_t b=0;b<fn->block_count;b++){
             const SwanIRBlock *bb=&fn->blocks[b];
             const SwanIRTerm *term=&bb->terminator;
-            swan_ir_mark_live_value(fn,term->value,definitions,live,work,&top);
+            swan_ir_mark_live_value(fn,term->value,live,work,&top);
             for(size_t i=0;i<bb->instruction_count;i++){
                 const SwanIRInst *in=&bb->instructions[i];
                 if(!swan_ir_inst_has_side_effect(in))continue;
