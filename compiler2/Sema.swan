@@ -1,0 +1,5 @@
+# Compiler 2 — Semantic analysis
+# Owns symbol tables, lexical scopes, name resolution, type inference/checking,
+# overload resolution, control-flow validation, ownership and borrow rules.
+# TODO: reject unresolved names, type mismatches, invalid control flow, ownership
+# violations and every unsupported construct before SIL generation.
