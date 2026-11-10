@@ -1,54 +1,73 @@
-# Compiler Correctness Audit
+# Swan Compiler Implementation Audit
 
-## Active implementation
+This document records the implementation boundary visible in the current source tree. It distinguishes language syntax, semantic checking, lowering, and target support; those are separate milestones.
 
-- C11 compiler; `main.c` is the only compiled translation unit.
-- Header-only compiler modules under `compiler/include/swan/`.
-- AST frontend and semantic analysis.
-- Typed SSA IR, verifier, source-to-IR lowering and verified optimization passes.
-- Production x86-64 System V IR backend for the lowered scalar subset, with the established AST backend retained as a compatibility path for arrays, logging and runtime-lazy imports.
-- Swan-owned AArch64, ARMv7, RISC-V64 and WebAssembly code generators for explicitly supported IR subsets.
-- Portable register-based SVM interpreter and versioned `.swvm` artifact.
-- Dedicated assembly emitter and host linker helpers.
-- No C transpilation or LLVM code-generation fallback. Clang is used as an assembler driver for cross-target Swan assembly.
+## Confirmed architecture
 
-## Implemented source-to-IR subset
+- C11 host compiler with `main.c` as its only compiled C translation unit.
+- Header-based compiler subsystems in `compiler/include/swan/`.
+- Swan-authored SIL builder and optimization stages in `compiler/sil/`, compiled into the final compiler by `build.sh`.
+- UTF-8-aware, indentation-sensitive lexer and parser.
+- AST semantic analysis, standard-library loading, C header declaration import, and function reachability.
+- Typed, target-independent SSA IR with a verifier and general AST-to-IR lowering.
+- Typed-IR optimizer with constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, LICM, and worklist DCE.
+- Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM backends.
+- Optional, explicit LLVM IR bridge for target triples supported by the installed toolchain.
+- Portable SVM execution and versioned `.swvm` serialization.
+- x86-64 AST compatibility backend for supported features not yet covered by typed IR.
 
-- Signed integer and boolean expressions.
-- Function parameters, direct calls and recursion.
-- Immutable and mutable local bindings.
-- Assignment, if/else, while, break and continue.
-- Short-circuit AND/OR.
-- Scalar arithmetic, signed/unsigned division and remainder, bitwise operations, shifts, comparisons, select, PHI and local memory operations at the IR level.
-- Width-aware integer semantics in SVM and constant folding.
+## Source lowering
 
-## Implemented target output
+The general typed-IR generator currently covers the implemented scalar/control-flow subset: integer and boolean expressions, direct calls, locals, assignment, if/else, while, break/continue, and short-circuit AND/OR.
 
-- x86-64 System V Linux: executable/assembly for the IR subset; legacy AST compatibility path handles currently supported arrays, logging and runtime-lazy imports.
-- AArch64 Linux: ELF object/assembly for i1/i64 scalar IR subset.
-- ARMv7: ELF object/assembly for i32/i1 subset; integer division is explicitly rejected pending runtime helpers.
-- RISC-V64 Linux: ELF object/assembly for scalar integer IR subset.
-- WASM32: WebAssembly module with tested scalar control flow, calls, recursion and linear-memory locals.
-- WASM64: memory64 module emission for its scalar subset; runtime execution depends on a memory64-capable engine.
-- SVM: portable serialized module and interpreter.
+The Swan-authored SIL bridge is narrower. It accepts straight-line functions with one return expression, scalar parameters/literals, addition, subtraction, multiplication, equality, and signed-less-than. It uses a five-u32-word instruction record and currently limits the builder to 256 value IDs and 256 instructions; packed immediates are non-negative and limited to 16 bits. Functions outside this subset retain the general typed-IR path.
 
-Cross-target tests validate emitted ELF architecture and WebAssembly runtime behavior. AArch64/ARMv7/RISC-V64 are currently object-emission tests, not native execution tests on those CPU architectures.
+The x86-64 AST compatibility path retains features that are not yet lowered through typed IR, notably the supported u32 array forms, output/logging, and runtime-lazy imported modules.
 
-## Known limitations
+## Memory and ownership
 
-- IR generation does not yet cover array/slice expressions, strings, logging, floating-point expressions, closures, aggregates, general pointer/reference semantics or all frontend constructs.
-- x86-64 IR backend currently supports i1/i64 values and pointers; the legacy AST path provides broader language compatibility.
-- AArch64 backend currently supports i1/i64 scalar values and pointers.
-- ARMv7 backend currently supports i32/i1 scalar values and pointers; division/remainder need runtime helpers.
-- RISC-V64 backend currently supports its implemented scalar integer subset; floating-point and broader ABI cases remain unavailable.
-- WebAssembly backend is a deliberately bounded scalar subset; WASM64 runtime interoperability is not yet verified on a memory64 engine.
-- Cross-target runtime linking, standard-library import bundling, OS-specific system calls, Windows x64 and Apple Darwin ABIs are not implemented.
-- The register-slot IR backends are correctness-oriented; they are not yet globally register-allocated or instruction-scheduled. The mature x86 AST backend remains the performance path for its broader supported feature set.
-- Floating-point execution, structs, member access, closures, exceptions and full aggregate ABI lowering are not implemented.
-- Static type checking and declared type annotations are still incomplete in the frontend.
+- Ordinary eligible local arrays use compiler-generated automatic cleanup (SAMC); no runtime reference counting is added.
+- Small fixed-size non-escaping arrays have a native stack-frame allocation fast path.
+- `manual var` is a strict, local single-owner form for direct array allocations. The semantic checker diagnoses leaks, double-free, use-after-free, alias/copy, passing/returning the owner, and incompatible branch/loop ownership states.
+- Manual ownership transfer, borrowing, destructors, and general manual heap objects are not implemented.
+- Legacy `store` is retained as compatibility syntax and does not opt into strict `manual var` analysis.
 
-These limitations must remain explicit. The compiler must not silently fall back to LLVM, Clang code generation, or C transpilation.
+## Backend status
 
-## Required tests
+| Backend | Verified implementation boundary |
+|---|---|
+| x86-64 System V Linux | Native executable/assembly; scalar typed-IR path and AST compatibility path for supported arrays, output, and lazy imports |
+| AArch64 Linux | Swan-owned object/assembly for a limited scalar typed-IR subset |
+| ARMv7 Linux, ARM state | Swan-owned object/assembly for a limited i32/i1 subset |
+| RISC-V64 Linux | Swan-owned object/assembly for a limited scalar typed-IR subset |
+| WASM32 | Swan-owned WebAssembly module for the implemented scalar/control-flow subset |
+| WASM64 | Memory64 module emission for its implemented subset; runtime interoperability must be tested with a compatible engine |
+| SVM | Portable verified-IR interpreter and versioned `.swvm` module |
+| Explicit LLVM triple | LLVM IR, assembly, or relocatable object for the subset lowerable to Swan IR and supported by the installed toolchain |
 
-Every new construct requires positive and negative source tests, diagnostic checks, generated-assembly/object inspection where relevant, and executable tests on an appropriate runner. Each target must be described by the exact subset its tests exercise.
+Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
+
+## Important limitations
+
+- Struct/aggregate layout and ABI lowering are incomplete.
+- Dotted paths parse, but full struct-instance field and method resolution is not complete.
+- Floating-point source execution is not complete even though IR types and some portability emission paths represent float types.
+- Arrays, slices, strings/output, and runtime-lazy imports are not yet generally represented in typed IR.
+- Closures, full pointer/reference semantics, borrowing, ownership transfer, destructors, and general heap objects are not implemented.
+- The frontend keyword registry contains syntax vocabulary beyond the implemented language subset. A recognized keyword does not imply complete parsing, semantic analysis, lowering, or runtime behavior.
+- Full cross-target runtime linking and OS/platform runtime integration are incomplete.
+- The IR machine-code backends are not yet equivalent to a globally register-allocated, scheduled optimizing backend.
+
+## Test policy
+
+The repository's top-level `test.sh` builds the compiler and runs header isolation, C11 smoke, C ABI, UTF-8, profiling, smoke, regression, Foundation, lazy-import, architecture, and keyword tests.
+
+For each new language feature, add:
+1. A positive parser and semantic test.
+2. Negative tests for invalid forms and diagnostics.
+3. IR/verifier tests if the feature enters typed IR.
+4. Backend tests for each target that claims support.
+5. Runtime execution tests where the target can be executed.
+6. A benchmark only when making a performance claim.
+
+Do not infer complete target support from a successful compile or object emission alone.
