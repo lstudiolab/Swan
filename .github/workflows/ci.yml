@@ -39,5 +39,7 @@ jobs:
         run: sh tests/armv7.sh
       - name: Verify RISC-V64 ELF emission
         run: sh tests/riscv64.sh
+      - name: Verify arbitrary LLVM target-triple backend
+        run: sh tests/llvm-target.sh
       - name: Verify compiler version
         run: ./build/swan --version
