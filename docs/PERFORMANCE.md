@@ -1,53 +1,77 @@
-# Compiler Performance
+# Swan Compiler and Runtime Performance
 
-## Current backend baseline
+This document records optimizations present in the implementation. It does not claim a speed ranking over C, Rust, Goose, or other languages. Performance claims require reproducible measurements on identical workloads.
 
-Swan's initial x86-64 backend emits GNU assembler Intel syntax directly from the semantically checked AST. It has no LLVM, Clang, C source-generation, or external compiler code-generation stage.
+## Compile-time architecture
 
-The current implementation is a correctness-first baseline. It uses a simple stack-based expression lowering strategy and stack slots for local variables. It is not yet a mature register allocator or optimizing compiler.
+Swan reduces frontend and code-generation overhead with:
 
-## Implemented optimizations
+- Arena-backed AST allocation and bulk teardown.
+- Compact token records backed by shared token text storage.
+- AST nodes that allocate argument vectors only for call expressions.
+- Token-text references for names and types rather than repeated large fixed-size copies.
+- Hash-indexed function and scoped-symbol lookup.
+- Indexed backend-local lookup.
+- Length-dispatched keyword recognition in the lexer.
+- Cached expression call/constant metadata where repeated analysis would otherwise walk expression trees.
+- Compact per-loop write sets for loop-invariant analysis.
+- Low-overhead assembly emission that writes literal instruction strings directly and formats only when needed.
+- Cached call analysis and conservative analysis reuse in the AST backend.
 
-The current compiler hot paths use:
-- **Arena-backed AST storage:** expression nodes, statement nodes, and parsed block vectors are allocated from 64 KiB chunks and released together.
-- **Compact tokens:** token records store text pointers into a shared token-text buffer instead of embedding a 512-byte character array in every token.
-- **Compact AST nodes:** expression nodes allocate argument vectors only for call expressions; statement names, types, and parameter names reference token text rather than embedding large fixed-size character arrays.
-- **Compact symbols:** semantic symbol entries reference stable token text instead of copying 512-byte names.
-- **Indexed semantic lookup:** function declarations and scoped local symbols use hash buckets rather than repeated linear scans. Scope rollback restores prior bucket heads without copying entire symbol tables.
-- **Indexed backend locals:** compact local records and hash lookup replace repeated reverse scans through large fixed-size local arrays.
-- **Expanded register use:** immutable locals in calling functions can occupy caller-saved registers; the backend preserves those registers around direct calls, nested calls, and logging, while mutable locals retain callee-saved registers or spills.
-- **Cached AST call metadata:** expression trees carry call-presence metadata so call analysis does not repeatedly walk subtrees.
-- **Lexer keyword dispatch:** keyword classification switches on token length and first byte before comparing the short candidate set, avoiding a full keyword-chain scan for every identifier.
-- **Loop-analysis write sets:** loop-invariant analysis builds one compact hashed write set per loop instead of rescanning the full body for each identifier reference.
-- **Scratch-register preservation:** the addition-chain emitter detects operands that can overwrite its `r10` accumulator (spilled-array accesses, non-power-of-two constant remainder, and nested fallback addition) and saves it only for those operands; simple terms retain the register-only path.
-- **Low-overhead assembly emission:** literal instruction strings bypass the formatting library; formatted output uses a single formatting pass unless the output buffer must grow.
-- **Cached constant analysis:** each AST expression caches its constant-folding result, avoiding repeated recursive evaluation during code generation and loop analysis.
-- **Bounds-check elimination:** canonical binary-search midpoint loops prove the index lies within a checked array's constant length and remove the per-access bounds branch only when both bounds, update forms, array identity, and index stability are proven. Mutations invalidate the proof.
-- **Fixed-length array access:** checked arrays created with a compile-time-known length cache that length in backend metadata. Dynamic indices compare against an immediate instead of loading the array header on every access; in-range constant indices use direct base-plus-displacement loads/stores and omit both index-register setup and redundant bounds checks.
-- **Constant array allocation:** compile-time-sized checked and unchecked arrays pass their allocation count directly to `calloc`; checked arrays write the known length directly into the header. This removes runtime length evaluation, negative/overflow branches, stack saves, and header-copy work from constant-size construction.
-- **Reduced runtime instruction count:** constant and register-resident array indices avoid redundant result-register moves; local-to-local arithmetic and comparisons avoid push/pop stack temporaries. Self-updates such as `sum = sum + value`, `value = value - 1`, and `value = value * factor` now update the destination register or stack slot directly instead of calculating into `rax` and copying the result back. Multiplication by zero, one, or a power of two is reduced to zeroing, no operation, or shifts (plus negation for negative powers of two) instead of a general multiply. Signed division and remainder by powers of two use bias-adjusted shifts and masks, preserving truncation-toward-zero semantics. Array stores preserve the index on the stack rather than borrowing an allocatable register, preventing live-local corruption; spilled array bases use a dedicated scratch register so loop-hoisted values remain intact. Existing constant folding, small-function inlining, register locals, leaf-frame elimination, parity checks, and loop strength reduction remain enabled.
+These are implementation techniques; their individual speedups have not been stated without controlled measurements.
 
-These changes remove known allocation, lookup, formatting, and instruction-generation overhead. Their speed impact is **not quantified** until a separately authorized benchmark is run.
+## Typed-IR optimization
 
-## Required measurements
+The typed-IR optimizer currently performs:
 
-Track separately:
-- Swan frontend and semantic-analysis time.
-- Swan assembly-generation time.
-- System assembler/linker time.
-- End-to-end compile time.
-- Generated assembly size and object size.
-- Runtime and peak memory.
+- Width-aware integer constant folding.
+- Constant-select folding.
+- Constant branch and CFG simplification.
+- Unreachable-block removal.
+- Algebraic simplification.
+- Trivial-PHI copy propagation.
+- Dominance-aware common-subexpression elimination.
+- Conservative loop-invariant code motion.
+- CSE after loop hoisting.
+- Worklist-based dead-code elimination.
 
-Every result must record compiler revision, CPU, OS, assembler/linker version, optimization settings, workload, and output checksum.
+DCE builds value liveness from observable roots and propagates dependencies through SSA definitions. It avoids repeatedly scanning all instructions until no change. Potentially trapping division/remainder and memory operations are not treated as removable pure instructions. IR verification checks transformations.
 
-## Optimization roadmap
+The optimizer runs for typed-IR targets, including SVM. The x86-64 AST compatibility backend retains its own constant folding, inlining, register-local, and loop/array optimizations; it does not automatically receive every typed-IR pass.
 
-1. Replace fixed-size token text storage with compact source spans and a dedicated decoded-string pool.
-2. Introduce a typed, target-independent Swan low-level IR.
-3. Add control-flow-aware constant propagation and dead-code elimination.
-4. Implement liveness analysis, linear-scan register allocation, and spill insertion.
-5. Add target-specific instruction selection and peephole optimization.
-6. Benchmark generated code against equivalent C, C++, Rust, Zig, and Go workloads without mixing compile and runtime measurements.
+## Runtime and backend fast paths
 
-Correctness and reproducibility take precedence over claimed speedups.
+The x86-64 AST compatibility backend includes register-backed locals, caller/callee-saved register handling, spill support, leaf-frame elimination, small-function inlining, constant folding, short-circuit logic, power-of-two division/remainder lowering, selected loop strength reduction, and specialized u32 array indexing/bounds-check elimination when safety can be proven.
+
+For arrays, compile-time-known lengths avoid repeated header loads; constant in-range indices can use direct base-plus-displacement accesses. Constant-size allocation avoids unnecessary runtime length evaluation. A recent stack-array fast path places small fixed-size arrays in the native stack frame only when they do not escape.
+
+SVM avoids eager per-call scans of IR instructions for alloca setup. It lazily initializes each local slot on first execution and caches the slot's initialization generation per call frame. This preserves loop and recursive-call behavior while reducing call-entry work.
+
+The typed-IR native backends currently use conservative value/stack slots and are not yet equivalent to a global liveness-driven register allocator with spill insertion and instruction scheduling.
+
+## Profiling and measurement
+
+The CLI supports `--profile` and reports stage durations for source reading, lexing, parsing, imports, semantic analysis, reachability, IR generation, IR optimization, code generation, assembly output, native linking, and execution when applicable.
+
+Run the compiler pipeline benchmark:
+
+```sh
+sh build.sh
+python3 benchmarks/compiler_pipeline.py
+```
+
+It reports medians for the included compilation workloads and stages. Use `--repeats N` and `--warmups N` to control sample counts.
+
+The runtime benchmark suite includes binary search and other language-comparison workloads. Before comparing performance, record compiler revision, CPU, OS, toolchain versions, optimization flags, workload parameters, memory use, and output checksum. Separate compilation time from runtime. Compare the same algorithm and validate identical results.
+
+## Remaining engineering priorities
+
+1. Add differential execution tests between typed-IR x86-64 and AST compatibility paths where feature overlap exists.
+2. Add liveness analysis and global register allocation for IR backends.
+3. Improve target instruction selection and scheduling after profiling identifies bottlenecks.
+4. Expand typed IR to cover arrays/slices and string/output semantics.
+5. Expand floating-point semantics and backend execution coverage.
+6. Complete cross-target runtime linking and ABI tests on native runners.
+7. Measure each optimization independently; remove complexity that does not produce a repeatable benefit.
+
+Do not describe Swan as faster than another compiler without current, reproducible benchmark evidence.
