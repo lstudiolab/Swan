@@ -1,6 +1,6 @@
 # Compiler Architecture
 
-Swan owns its frontend, typed intermediate representation, optimization passes, and machine-code generation. It does not transpile Swan source to C and does not delegate code generation to LLVM or Clang.
+Swan owns its frontend, typed intermediate representation, and optimization passes. Its optimized native path uses Swan-owned machine-code backends. An optional LLVM IR portability backend serializes verified Swan IR and invokes Clang/LLVM for targets and object formats outside the native backend matrix; it is not used by default.
 
 ## Implementation model
 
@@ -18,7 +18,7 @@ The x86-64 compiler has two active paths:
 
 The compatibility path still lowers constructs not yet represented in IR (including the existing array, logging, and runtime-lazy import implementation) directly from the AST to Swan-generated x86-64 assembly.
 
-Cross-target AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM consume the documented typed-IR subset. Their availability does not imply full language or ABI parity.
+Cross-target AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM consume the documented typed-IR subset. The optional LLVM IR bridge accepts arbitrary LLVM target triples (subject to the installed Clang target build) and can emit target assembly or relocatable objects. All cross-target routes currently consume the typed-IR subset; this does not imply full language or runtime parity.
 
 ## Implemented compiler components
 
@@ -50,12 +50,12 @@ SAMC currently provides conservative local array cleanup in the AST backend. Esc
 - WASM64 emits a WebAssembly memory64 module; runtime interoperability depends on a compatible Memory64 runtime.
 - SVM executes verified typed IR as a portable virtual machine.
 
-Windows x64, Apple Darwin ABIs, ARM Thumb, and additional RISC-V profiles are not implemented.
+The hand-written backends remain Linux-focused. Windows COFF, Apple Mach-O, additional ARM profiles, and other LLVM-supported targets can be selected through `--target-triple`, provided the installed Clang build supports them. This path emits relocatable objects or assembly; final executable linking and platform runtime integration are separate steps.
 
 ## Engineering rules
 
 1. Never transpile Swan source into C.
-2. Never delegate Swan instruction selection or code generation to LLVM/Clang.
+2. Keep the default native backends Swan-owned. LLVM/Clang may be used only through the explicit `--target-triple` portability path.
 3. System assemblers and linkers may consume Swan-generated assembly.
 4. Never claim full target parity based only on successful object/module emission.
 5. Every optimization requires correctness tests and reproducible performance measurements.
