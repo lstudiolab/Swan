@@ -94,6 +94,30 @@
         {
           "name": "keyword.other.swan",
           "match": "\\b(import|namespace|export|from|as|self|set)\\b"
+        },
+        {
+          "name": "meta.variable.declaration.swan",
+          "match": "\\\\b(let|var|const)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.modifier.swan"
+            },
+            "2": {
+              "name": "variable.other.readwrite.swan"
+            }
+          }
+        },
+        {
+          "name": "meta.function.declaration.swan",
+          "match": "\\\\b(func|thread|async)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.swan"
+            },
+            "2": {
+              "name": "entity.name.function.swan"
+            }
+          }
         }
       ]
     },
@@ -110,6 +134,18 @@
         {
           "name": "storage.type.swan",
           "match": "\\b(bool|struct|enum|type|variant|protocol)\\b"
+        },
+        {
+          "name": "meta.type.declaration.swan",
+          "match": "\\\\b(struct|enum|type|variant|protocol)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.swan"
+            },
+            "2": {
+              "name": "entity.name.type.swan"
+            }
+          }
         }
       ]
     },
