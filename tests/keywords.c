@@ -10,10 +10,10 @@ int main(void) {
         "func","thread","let","var","const","external","if","else","while",
         "for","in","loop","block","guard","defer","match","async","as",
         "return","break","continue","true","false","null","self","nil",
-        "pass","lazy","from","protocol","case","set"
+        "pass","lazy","from","protocol","case","set","manual"
     };
     static const char *const identifiers[] = {
-        "extern","manual","log","none","and","or","not","echo","init",
+        "extern","log","none","and","or","not","echo","init",
         "deinit","free","throw","rethrow","borrow"
     };
     char source[1024] = {0};
@@ -23,9 +23,9 @@ int main(void) {
     }
     TokenStream ts={0};SwanError error={0};
     assert(swan_lex(source,&ts,&error));
-    assert(sizeof(keywords)/sizeof(keywords[0])==40);
+    assert(sizeof(keywords)/sizeof(keywords[0])==41);
     assert(ts.count==41);
-    for (size_t i=0;i<40;i++) {
+    for (size_t i=0;i<41;i++) {
         if (ts.items[i].kind==T_IDENT) {
             fprintf(stderr,"keyword was not reserved: %s\n",keywords[i]);
             return 1;
@@ -49,6 +49,6 @@ int main(void) {
     assert(swan_lex("fn out store",&ts,&error));
     assert(ts.items[0].kind==T_FN&&ts.items[1].kind==T_OUT&&ts.items[2].kind==T_STORE);
     free(ts.items);free(ts.text_storage);
-    puts("PASS: exact 40-word Swan keyword set and deprecated syntax aliases");
+    puts("PASS: exact 41-word Swan keyword set and deprecated syntax aliases");
     return 0;
 }
