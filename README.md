@@ -222,7 +222,7 @@ falling back to the x86-64 backend.
 | Portable SVM | Implemented | Verified IR execution, calls, mutable locals, loops and branches |
 | ARMv7 / ARM mode | Implemented, limited | `i32` scalar IR, calls, CFG, PHI edges and mutable stack locals; emits ARMv7 ELF objects |
 | WebAssembly 64-bit / memory64 | Implemented, limited | Integer scalar IR, calls, CFG, PHI edges, memory64 stack frames and mutable locals |
-| Windows x64 / Apple Darwin | Not implemented | Registry only |
+| Windows x64 / Apple Darwin | Optional LLVM bridge | COFF / Mach-O relocatable objects for supported triples; requires matching Clang target backend |\n| Other LLVM targets | Optional LLVM bridge | Target assembly and relocatable objects; typed-IR subset only |
 
 Cross-target backends currently reject unsupported IR constructs. Their supported subset is narrower than the x86-64 frontend; array/slice lowering, floating-point arithmetic, runtime-lazy imports, and complete platform ABI support are not yet available on all targets. ARMv7 lowers integer division and remainder through the AAPCS EABI helpers with explicit zero and signed-overflow traps. Cross-target backends are intentionally a supported subset rather than claiming full frontend parity. A listed implemented backend does not imply every Swan program can target it.
 
