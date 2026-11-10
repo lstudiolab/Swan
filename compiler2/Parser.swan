@@ -1,0 +1,5 @@
+# Compiler 2 — Parser
+# Owns grammar parsing and construction of AST nodes.
+# TODO: implement declaration, type, statement and expression parsing; operator
+# precedence; indentation-aware blocks; parser recovery and precise source diagnostics.
+# Parser must reject malformed or unsupported syntax rather than silently skipping it.
