@@ -55,7 +55,7 @@ static inline bool swan_codegen(Program *program, Text *output,
     if(program->import_count==0){
         SwanIRModule module={0};Text ir_output={0};SwanError ir_error={0};char detail[256]={0};
         bool optimized=swan_svm_prepare_ir(program,&module,&ir_error,detail,sizeof(detail));
-        stage=swan_profile_start();bool emitted=optimized&&swan_codegen_x86_64_ir(&module,&ir_output,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+        uint64_t stage=swan_profile_start();bool emitted=optimized&&swan_codegen_x86_64_ir(&module,&ir_output,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
         swan_ir_destroy(&module);
         if(emitted){*output=ir_output;return true;}
         free(ir_output.data);
