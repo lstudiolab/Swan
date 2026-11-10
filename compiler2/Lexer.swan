@@ -1,0 +1,5 @@
+# Compiler 2 — Lexer
+# Owns UTF-8 scanning, tokenization, source spans, indentation and lexical diagnostics.
+# TODO: implement source cursor, token arena, keyword/identifier scanning, numeric and
+# string literals, comments, operators, indentation tokens and malformed UTF-8 errors.
+# Lexer output must be consumed by Parser.swan without reparsing source text.
