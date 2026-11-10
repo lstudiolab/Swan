@@ -96,11 +96,11 @@ static int swan_run(int argc,char **argv){
   }
   if(link_arg_count){fprintf(stderr,"swan: --link is not available with LLVM object emission yet\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(has_lazy){fprintf(stderr,"swan: the portable IR backend does not yet lower runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
-  SwanIRModule ir={0};Text llvm={0};char detail[256]={0};
-  bool optimized=swan_svm_prepare_ir(&p,&ir,&err,detail,sizeof(detail));
-  stage=swan_profile_start();bool generated=optimized&&swan_codegen_llvm_ir(&ir,&llvm,target->triple,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  SwanSVMOutput compiled={0};
+  bool generated=swan_svm_codegen(&p,target,&compiled,&err);
+  Text llvm={.data=compiled.data,.len=compiled.length};
   if(!generated){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(llvm.data);swan_ir_destroy(&ir);
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");free(llvm.data);
    swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *suffix=target->object_format==SWAN_OBJECT_COFF?".obj":".o";
@@ -127,32 +127,33 @@ static int swan_run(int argc,char **argv){
    }
    if(result)fprintf(stderr,"swan: Clang could not emit target output for '%s'; check that this Clang build includes the requested target backend\n",target->triple);
   }
-  free(llvm.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);
+  free(llvm.data);swan_release_modules(module_sources,module_texts,module_count);
   free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(target->architecture==SWAN_ARCH_WASM32||target->architecture==SWAN_ARCH_WASM64){
   if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM32 output is a WebAssembly module; run it with a WebAssembly runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(has_lazy){fprintf(stderr,"swan: WASM32 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
-  SwanIRModule ir={0};char detail[256]={0};SwanWasmBuffer wasm={0};
-  bool opt_ok=swan_svm_prepare_ir(&p,&ir,&err,detail,sizeof(detail));
-   stage=swan_profile_start();bool backend_ok=opt_ok&&(target->architecture==SWAN_ARCH_WASM64?swan_codegen_wasm64(&ir,&wasm,detail,sizeof(detail)):swan_codegen_wasm32(&ir,&wasm,detail,sizeof(detail)));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  SwanSVMOutput compiled={0};
+  bool backend_ok=swan_svm_codegen(&p,target,&compiled,&err);
+  SwanWasmBuffer wasm={.data=(unsigned char*)compiled.data,.length=compiled.length,.capacity=compiled.length};
   if(!backend_ok){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);
-   free(wasm.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");
+   free(wasm.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(target->architecture==SWAN_ARCH_WASM64?"a64.wasm":"a.wasm");FILE *wf=fopen(dest,"wb");
   bool saved=wf&&fwrite(wasm.data,1,wasm.length,wf)==wasm.length;
   if(wf&&fclose(wf)!=0)saved=false;
   if(!saved)fprintf(stderr,"swan: failed to write WebAssembly module '%s'\n",dest);
-  free(wasm.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return saved?0:1;
+  free(wasm.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return saved?0:1;
  }
  if(target->architecture==SWAN_ARCH_AARCH64){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
 
-  SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
-  bool optimized=swan_svm_prepare_ir(&p,&ir,&err,detail,sizeof(detail));stage=swan_profile_start();bool generated=optimized&&swan_codegen_aarch64_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  SwanSVMOutput compiled={0};
+  bool generated=swan_svm_codegen(&p,target,&compiled,&err);
+  Text assembly={.data=compiled.data,.len=compiled.length};
   if(!generated){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(mode==SWAN_EMIT?"aarch64.s":"aarch64.o");int result=0;
   if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
@@ -161,15 +162,16 @@ static int swan_run(int argc,char **argv){
    else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
    if(result)fprintf(stderr,"swan: AArch64 assembly failed; install a Clang toolchain with AArch64 support\n");
   }
-  free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
+  free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(target->architecture==SWAN_ARCH_ARMV7){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: ARMv7 cross-target output is an ELF object; execute it on an ARMv7 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
 
-  SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
-  bool optimized=swan_svm_prepare_ir(&p,&ir,&err,detail,sizeof(detail));stage=swan_profile_start();bool generated=optimized&&swan_codegen_armv7_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  SwanSVMOutput compiled={0};
+  bool generated=swan_svm_codegen(&p,target,&compiled,&err);
+  Text assembly={.data=compiled.data,.len=compiled.length};
   if(!generated){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(mode==SWAN_EMIT?"armv7.s":"armv7.o");int result=0;
   if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
@@ -178,15 +180,16 @@ static int swan_run(int argc,char **argv){
    else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=armv7-unknown-linux-gnueabihf","-marm","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
    if(result)fprintf(stderr,"swan: ARMv7 assembly failed; install a Clang toolchain with ARM support\n");
   }
-  free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
+  free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(target->architecture==SWAN_ARCH_RISCV64){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: RISC-V64 cross-target output is an ELF object; execute it on a RISC-V64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
 
-  SwanIRModule ir={0};Text assembly={0};char detail[256]={0};
-  bool optimized=swan_svm_prepare_ir(&p,&ir,&err,detail,sizeof(detail));stage=swan_profile_start();bool generated=optimized&&swan_codegen_riscv64_ir(&ir,&assembly,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  SwanSVMOutput compiled={0};
+  bool generated=swan_svm_codegen(&p,target,&compiled,&err);
+  Text assembly={.data=compiled.data,.len=compiled.length};
   if(!generated){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
   const char *dest=output?output:(mode==SWAN_EMIT?"riscv64.s":"riscv64.o");int result=0;
   if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
@@ -195,7 +198,7 @@ static int swan_run(int argc,char **argv){
    else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=riscv64-unknown-linux-gnu","-march=rv64gc","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
    if(result)fprintf(stderr,"swan: RISC-V64 assembly failed; install a Clang toolchain with RISC-V support\n");
   }
-  free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
+  free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
  char exe[1024];bool temporary_output=output==NULL;int exe_len;
@@ -203,8 +206,9 @@ static int swan_run(int argc,char **argv){
  else if(mode==SWAN_BUILD)exe_len=snprintf(exe,sizeof(exe),"a.out");
  else exe_len=snprintf(exe,sizeof(exe),"/tmp/swan-run-%ld",(long)getpid());
  if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"swan: output path is too long\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
- Text assembly={0};
- if(!swan_codegen(&p,&assembly,target,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ SwanSVMOutput compiled={0};
+ if(!swan_svm_codegen(&p,target,&compiled,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(compiled.data);return 1;}
+ Text assembly={.data=compiled.data,.len=compiled.length};
  if(has_lazy&&!swan_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"swan: %s\n",err.message);swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  char runtime_source[64]={0};if(has_lazy&&!swan_write_lazy_runtime(runtime_source)){fprintf(stderr,"swan: cannot create lazy import runtime support\n");swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  if(mode==SWAN_EMIT){
