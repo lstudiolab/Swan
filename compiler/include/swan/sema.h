@@ -25,6 +25,7 @@ static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){
 static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanError *err){
  if(!e)return true;
  switch(e->kind){
+  case E_INT:case E_FLOAT:case E_STRING:case E_BOOL:return true;
   case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(v->manual_memory&&v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}return true;}
   case E_CALL:{
    const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or dotted function path");return false;}
