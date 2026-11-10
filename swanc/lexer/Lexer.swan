@@ -265,7 +265,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             record[2] = 0
             record[3] = line
             record[4] = column
-            count = swanc_emit(tokens, token_capacity, count, record)
+                count = swanc_emit(tokens, token_capacity, count, record)
                 if count < 0:
                     return swanc_fail(diagnostic, 3, index, line, column)
             else:
@@ -277,7 +277,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             record[2] = 0
             record[3] = line
             record[4] = column
-            count = swanc_emit(tokens, token_capacity, count, record)
+                        count = swanc_emit(tokens, token_capacity, count, record)
                         if count < 0:
                             return swanc_fail(diagnostic, 3, index, line, column)
                     if indent_width != indents[indent_depth - 1]:
@@ -452,7 +452,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             record[2] = width
             record[3] = token_line
             record[4] = token_column
-            count = swanc_emit(tokens, token_capacity, count, record)
+        count = swanc_emit(tokens, token_capacity, count, record)
         if count < 0:
             return swanc_fail(diagnostic, 3, index, line, column)
         index = index + width
@@ -464,7 +464,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             record[2] = 0
             record[3] = line
             record[4] = column
-            count = swanc_emit(tokens, token_capacity, count, record)
+        count = swanc_emit(tokens, token_capacity, count, record)
         if count < 0:
             return swanc_fail(diagnostic, 3, source_length, line, column)
     record[0] = 0
@@ -472,7 +472,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             record[2] = 0
             record[3] = line
             record[4] = column
-            count = swanc_emit(tokens, token_capacity, count, record)
+    count = swanc_emit(tokens, token_capacity, count, record)
     if count < 0:
         return swanc_fail(diagnostic, 3, source_length, line, column)
     return count
