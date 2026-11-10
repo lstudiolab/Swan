@@ -37,7 +37,7 @@ The typed-IR optimizer currently performs:
 
 DCE builds value liveness from observable roots and propagates dependencies through SSA definitions. It avoids repeatedly scanning all instructions until no change. Potentially trapping division/remainder and memory operations are not treated as removable pure instructions. IR verification checks transformations.
 
-The optimizer runs for typed-IR targets, including SVM. The x86-64 AST compatibility backend retains its own constant folding, inlining, register-local, and loop/array optimizations; it does not automatically receive every typed-IR pass.
+The SVM compile core runs the optimizer for every target using typed IR. The x86-64 AST compatibility backend retains its own constant folding, inlining, register-local, and loop/array optimizations; it does not automatically receive every typed-IR pass.
 
 ## Runtime and backend fast paths
 
@@ -45,7 +45,7 @@ The x86-64 AST compatibility backend includes register-backed locals, caller/cal
 
 For arrays, compile-time-known lengths avoid repeated header loads; constant in-range indices can use direct base-plus-displacement accesses. Constant-size allocation avoids unnecessary runtime length evaluation. A recent stack-array fast path places small fixed-size arrays in the native stack frame only when they do not escape.
 
-SVM avoids eager per-call scans of IR instructions for alloca setup. It lazily initializes each local slot on first execution and caches the slot's initialization generation per call frame. This preserves loop and recursive-call behavior while reducing call-entry work.
+Compiled execution no longer performs IR instruction dispatch. Each selected backend emits target instructions or a target module; runtime performance is determined by generated code, ABI lowering, register allocation, and the target runtime.
 
 The typed-IR native backends currently use conservative value/stack slots and are not yet equivalent to a global liveness-driven register allocator with spill insertion and instruction scheduling.
 

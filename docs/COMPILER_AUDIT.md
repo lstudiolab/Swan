@@ -11,9 +11,8 @@ This document records the implementation boundary visible in the current source 
 - AST semantic analysis, standard-library loading, C header declaration import, and function reachability.
 - Typed, target-independent SSA IR with a verifier and general AST-to-IR lowering.
 - Typed-IR optimizer with constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, LICM, and worklist DCE.
-- Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM backends.
+- Shared SVM lowering/verification/optimization core feeding Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
 - Optional, explicit LLVM IR bridge for target triples supported by the installed toolchain.
-- Portable SVM execution and versioned `.swvm` serialization.
 - x86-64 AST compatibility backend for supported features not yet covered by typed IR.
 
 ## Source lowering
@@ -42,10 +41,9 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 | RISC-V64 Linux | Swan-owned object/assembly for a limited scalar typed-IR subset |
 | WASM32 | Swan-owned WebAssembly module for the implemented scalar/control-flow subset |
 | WASM64 | Memory64 module emission for its implemented subset; runtime interoperability must be tested with a compatible engine |
-| SVM | Portable verified-IR interpreter and versioned `.swvm` module |
 | Explicit LLVM triple | LLVM IR, assembly, or relocatable object for the subset lowerable to Swan IR and supported by the installed toolchain |
 
-Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
+SVM is the target-independent compiler engine, not a runtime target. The old IR interpreter and `.swvm` artifact have been removed. Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
 
 ## Important limitations
 
