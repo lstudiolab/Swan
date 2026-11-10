@@ -1,70 +1,85 @@
-# Swan compiler pipeline
+# Swan Compiler Pipeline
 
-The compiler keeps a C11 host for command-line orchestration, lexing, parsing,
-AST construction, and semantic analysis. The SIL implementation itself is
-written in Swan and compiled into the final compiler during bootstrap.
+## Overview
 
-## Ordered pipeline
+Swan's production compiler combines a C11 host frontend/orchestrator, a small Swan-authored SIL subsystem, a general typed-IR pipeline, Swan-owned target backends, and an x86-64 AST compatibility backend.
+
+## Build-time bootstrap
+
+The build process is separate from compiling a user program:
 
 ```text
-.swan source
-  -> lexer.h
-  -> parser.h / AST
-  -> import resolution
-  -> sema.h
-  -> silgen.swan
-  -> silverify.swan
-  -> sildemand.swan
-  -> silpass.swan
-  -> siloptimization.swan
-  -> irgen.h (SIL -> typed SSA IR bridge)
-  -> optimization.h
-  -> target-specific codegen
-  -> emitter.h
-  -> linker.h / native linker
-  -> executable or target artifact
+build.sh
+  -> compile main.c as temporary C11 bootstrap compiler
+  -> concatenate compiler/sil/*.swan stages
+  -> bootstrap compiler emits SIL runtime assembly
+  -> system assembler creates SIL runtime object
+  -> link main.c + SIL runtime object
+  -> build/swan
 ```
 
-Imports are resolved before semantic analysis completes. SIL is verified before
-and after optimization. Typed target-independent IR is verified and optimized
-before target code generation.
+The SIL object is generated from Swan source and linked into the final compiler. The C11 host still owns CLI orchestration, lexing, parsing, AST, semantic analysis, general IR, optimization, and backends.
 
-## Swan-authored SIL and bootstrap
+## User-program compilation
 
-The build first creates a temporary C11 bootstrap compiler. It concatenates the
-Swan stage sources (removing module import declarations for this single
-compilation unit), asks the bootstrap compiler to emit assembly, assembles that
-output, and links the resulting object into the final `build/swan`.
+```text
+source file
+  -> read and validate UTF-8
+  -> lexer
+  -> indentation-aware parser / AST
+  -> C-header declaration import
+  -> Swan standard-library module loading
+  -> semantic analysis
+  -> function reachability
+  -> source lowering
+       eligible scalar functions: AST -> Swan SIL -> typed IR
+       other IR-supported functions: AST -> typed IR
+       x86-only compatibility features: AST -> x86-64 assembly
+  -> typed-IR verification and optimization (when using IR)
+  -> selected target code generation
+  -> assembly/object/module emission
+  -> assembler/linker (when applicable)
+```
 
-The final compiler calls exported functions generated from Swan source:
-`sil_emit_param`, `sil_emit_const`, `sil_emit_binary`,
-`sil_emit_return`, `sil_verify`, `sil_demand`,
-`sil_fold_constants`, and `sil_optimize`. The C bridge translates supported
-AST expressions into SIL and lowers optimized SIL into the existing typed SSA
-IR. SIL passes are not duplicated as C implementations.
+The SIL route is optional per function. The bridge starts with a complete general typed-IR module and substitutes SIL-lowered functions only when the narrow SIL subset accepts them. Unsupported SIL constructs do not force a failure when the general IR path supports them.
 
-## Initial SIL instruction model
+The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Cross-target backends use typed IR and do not inherit these AST-only features.
 
-Each instruction is five 32-bit words: encoded opcode/type, destination, left
-operand, right operand, and immediate/parameter index. Types are `i32`,
-`i64`, and `bool`. The current scalar operations include parameters,
-constants, add/subtract/multiply, equality, signed-less-than, copy, and return.
-The Swan-authored passes perform structural/type verification, constant
-propagation/folding, backwards value demand, dead-instruction elimination,
-and post-pass verification.
+## Typed IR optimization
 
-## Compatibility boundary
+The typed-IR pass manager currently includes:
 
-The AST-to-SIL bridge currently accepts straight-line scalar functions whose
-body is a single return expression. It handles scalar parameters, literals,
-addition, subtraction, multiplication, equality, and less-than. Unsupported
-constructs continue through the existing typed-IR or AST compatibility paths.
-The next SIL expansion is CFG blocks and branch terminators, then variables,
-memory operations, calls, loops, and imports. The compatibility paths are not
-removed until the equivalent SIL lowering and verifier coverage exists.
+1. Width-aware constant folding.
+2. Constant-select folding.
+3. Constant-branch folding and CFG simplification.
+4. Unreachable-block pruning.
+5. Algebraic simplification.
+6. Trivial-PHI copy propagation.
+7. Dominance-aware common-subexpression elimination.
+8. Conservative loop-invariant code motion.
+9. A post-hoisting CSE pass.
+10. Dead-code elimination using value-worklist liveness propagation.
 
-## Backend constraints
+Potentially trapping operations and memory effects must be preserved. IR is verified before optimization, after transformation passes, and after final cleanup. Optimizations are semantics-preserving and target-independent.
 
-Swan keeps its own typed SSA IR optimizations and target backends. This pipeline
-does not introduce LLVM. The existing x86-64, AArch64, ARMv7, RISC-V64,
-WebAssembly, and SVM paths remain Swan-owned.
+## Swan-authored SIL subsystem
+
+The SIL stages are in `compiler/sil/` and are compiled during `build.sh`. The current instruction stream uses five 32-bit words per instruction: encoded opcode/type, destination, left operand, right operand, and immediate/parameter index.
+
+The current builder/pass subset includes parameter records, constants, add/subtract/multiply, equality, signed-less-than, copy, and return. It is deliberately bounded to 256 value IDs and 256 instructions; packed immediates are restricted to non-negative values up to 65535.
+
+The bridge accepts only straight-line functions with one return expression and scalar parameter/literal/arithmetic/comparison forms. It is not the general IR and does not yet implement CFG, branches, variables, memory, general calls, loops, or imports. General typed-IR lowering remains the fallback for other supported functions.
+
+## Backend selection
+
+- `--target x86_64`: native System V Linux code generation; may use typed IR or AST compatibility lowering.
+- `--target aarch64`, `armv7`, `riscv64`: Swan-owned limited scalar IR backends that emit target objects/assembly.
+- `--target wasm32`, `wasm64`: Swan-owned limited WebAssembly module emitters.
+- `--target svm`: optimized typed IR execution or `.swvm` module output.
+- `--target-triple <triple>`: explicit LLVM portability bridge. Requires an installed Clang/LLVM target backend and is restricted to Swan typed IR.
+
+The CLI's target list identifies available generators, not full source-language parity. Each backend has its own supported types, operations, argument limits, and ABI restrictions. See [ARCHITECTURE.md](ARCHITECTURE.md) and the root README for the current summary.
+
+## Failure behavior
+
+Unknown semantic or IR nodes, invalid IR, unsupported backend instructions, and unsupported target/language combinations must produce diagnostics. The compiler must not silently generate empty code or silently switch to C/LLVM code generation.
