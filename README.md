@@ -65,7 +65,7 @@ It builds three workloads (SIL-compatible scalar helpers, control flow, and a la
 
 Swan uses `.` to form a continuous dotted access path. Dotted paths can qualify callable names, for example `Foundation.abs_int(-42)`. The parser also recognizes member chains such as `self.var.player`; resolving field values and methods on struct instances is still being implemented alongside full struct support. A dotted path is one expression, not multiple statements.
 
-The preferred output form is `log >> "Hello, World!";`. The `>>` operator introduces the value written by `log`. The earlier `print` and `log value` forms remain accepted for compatibility.
+The canonical output form is `print("Hello, World!")`. Swan uses indentation-based blocks introduced by a colon; braces are not used for block structure. Member access uses dot notation, for example `player.inventory.items`. Semicolons are optional statement terminators.
 
 ## Language subset
 
@@ -231,3 +231,32 @@ Swan-authored SIL instruction format remains future work. Pointers, structs,
 unions, callbacks, variadic functions, floating-point ABI classification,
 C++ name mangling, and other platform calling conventions remain unsupported.
 Clang must be available when compiling a source file that uses `import C`.
+
+
+## Current Swan syntax direction
+
+The public keyword vocabulary is:
+
+```text
+import namespace export struct enum type bool variant func thread
+let var const external if else while for in loop block guard defer
+match async as return break continue true false null self nil pass
+lazy from protocol case set
+```
+
+The canonical source style is indentation-based:
+
+```swan
+print("Hello, World!")
+
+struct Player:
+    var health = 100
+
+func printHealth():
+    print(Player.health)
+```
+
+The VS Code extension highlights keywords, declarations, types, functions,
+built-ins, constants, strings, numbers, operators, and member names. The keyword
+registry and editor grammar describe the new language direction; parser,
+semantic-analysis, and backend support for newer constructs is tracked separately.
