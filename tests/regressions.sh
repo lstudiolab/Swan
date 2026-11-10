@@ -251,7 +251,7 @@ cat > "$TMP/manual-valid.swan" <<'SWAN'
 fn main():
     manual var values = array(4)
     values[0] = 27
-    log values[0]
+    print values[0]
     free(values)
     return 0
 out
