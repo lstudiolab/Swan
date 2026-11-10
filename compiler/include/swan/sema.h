@@ -84,14 +84,14 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
   Stmt *s=body[i];
   switch(s->kind){
    case S_VARIABLE:{
-    if(s->manual_memory&&(!s->mutable_value||!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||
+    if(s->manual_checked&&(!s->mutable_value||!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||
       (strcmp(s->value->left->token.text,"array")&&strcmp(s->value->left->token.text,"array_u32")&&strcmp(s->value->left->token.text,"array_unchecked")&&strcmp(s->value->left->token.text,"array_u32_unchecked")))){
      swan_error(err,&s->token,"manual var must initialize a mutable array allocation");return false;
     }
     if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_memory){swan_error(err,&s->value->token,"manual ownership cannot be copied or aliased");return false;}}
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
-    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->manual_memory)){swan_error(err,&s->token,"too many local variables");return false;}
+    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->manual_checked)){swan_error(err,&s->token,"too many local variables");return false;}
     break;
    }
    case S_LOG:
