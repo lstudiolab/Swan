@@ -1,0 +1,5 @@
+# Compiler 2 — Whole-program and target-aware optimization
+# Owns optimization orchestration above the individual SIL passes.
+# TODO: coordinate interprocedural analysis, inlining policy, specialization,
+# devirtualization where applicable, target cost models and link-time optimization.
+# Keep target-independent transformations separate from target-specific decisions.
