@@ -56,7 +56,7 @@ fn main():
     let and = 6
     let or = 7
     let not = 8
-    print log + manual + none + extern + funcName
+    print log + manualCount + none + extern + funcName
 out
 SWAN
 "$SWAN" "$TMP/legacy-identifiers.swan" --emit-asm -o "$TMP/legacy-identifiers.s"
