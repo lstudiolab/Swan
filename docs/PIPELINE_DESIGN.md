@@ -1,86 +1,84 @@
 # Swan Compiler Pipeline Design
 
-This document records the pre-SIL compiler architecture and the boundary between implemented behavior and planned work. SIL has not been started.
+This document defines the current stage boundaries and invariants. It replaces the earlier pre-SIL design notes.
 
 ## Implemented pipeline
 
 ```text
 .swan
-  -> lexer.h
-  -> parser.h + ast.h
-  -> import resolution
-  -> sema.h
-  -> irgen.h
-  -> optimization.h
-  -> codegen_<target>.h
-  -> emitter.h
-  -> linker.h / target assembler
-  -> object, executable, WebAssembly module, or .swvm
+  -> source reader / UTF-8 validation
+  -> lexer
+  -> parser / AST
+  -> C header import + Swan module loader
+  -> semantic analysis
+  -> reachability analysis
+  -> lowering:
+       Swan SIL bridge (eligible scalar functions)
+       general AST -> typed SSA IR
+       AST -> x86-64 compatibility backend
+  -> typed-IR verification and optimization
+  -> Swan-owned target codegen or explicit LLVM bridge
+  -> emitter / object or module writer
+  -> assembler / linker where applicable
 ```
 
-The x86-64 compatibility path can still lower frontend constructs not yet represented in IR (notably arrays, logging and runtime-lazy imports) through its established AST backend. The IR path is preferred for the supported scalar subset and is used by x86-64 plus the cross-target backends.
+The SIL route is an optional narrow lowering path, not a mandatory pipeline stage. The x86-64 AST compatibility route remains for implemented features not yet lowered into typed IR. Other native backends consume typed IR.
 
 ## Stage contracts
 
 | Stage | Input | Output | Contract |
 |---|---|---|---|
-| Lexer | UTF-8 source bytes | Token stream | Preserve source locations; report lexical errors. |
-| Parser | Tokens | AST | Parse syntax only; allocate AST nodes in the compilation arena. |
-| AST | — | AST data model | Own node/type definitions and source spans. |
-| Semantic analysis | AST + imported module interfaces | Validated AST | Resolve names, scopes, types and control-flow constraints. |
-| IR generation | Validated AST | Typed target-independent SSA IR | Explicit values, control-flow blocks, calls, memory operations and terminators. |
-| IR optimization | IR | Verified optimized IR | Constant folding, constant select folding, CFG simplification, algebraic simplification, trivial-PHI copy propagation, dominance-aware CSE, conservative loop-invariant code motion, and iterative DCE. |
-| Code generation | Optimized IR + target | Assembly or binary module | Target instruction selection, ABI argument/return handling, frame layout, branch/PHI lowering. |
-| Emitter | Assembly text | File output | Write generated assembly without changing its meaning. |
-| Linker | Assembly/object + toolchain | Object or executable | Invoke the selected assembler/linker; no compiler-backend fallback. |
-| SVM | Typed IR / .swvm | Portable execution | Interpret verified IR with bounded fuel and call depth. |
+| Reader | Source path | UTF-8 bytes/text | Reject unreadable source; preserve source contents |
+| Lexer | UTF-8 source | Token stream | Validate UTF-8; emit indentation and source-location tokens |
+| Parser | Tokens | AST | Parse syntax and construct arena-owned nodes |
+| C header importer | Header path + AST | External function declarations | Import only supported scalar prototypes through Clang |
+| Module loader | Import declarations | Loaded module AST/functions | Resolve source modules and track module ownership |
+| Semantic analysis | Program AST | Checked program | Validate supported names, scopes, declarations, calls, and strict manual ownership |
+| Reachability | Checked program | Reachability map | Identify functions/modules reachable from the entry point |
+| SIL bridge | Eligible scalar AST functions | Typed IR function bodies | Use Swan-authored bounded scalar SIL; otherwise leave general IR lowering intact |
+| General IR generation | Checked AST | Typed SSA IR | Lower the implemented scalar/control-flow subset without target-specific instructions |
+| IR verifier | Typed IR | Verified IR or diagnostic | Enforce SSA, CFG, dominance, PHI, type, and call invariants |
+| IR optimizer | Verified IR | Optimized verified IR | Apply semantics-preserving scalar/CFG passes; verify transformations |
+| Target codegen | Optimized IR + target | Assembly/module/object | Lower only operations supported by that backend |
+| AST compatibility codegen | Checked AST + x86-64 target | x86-64 assembly | Handle the supported legacy feature subset not yet in IR |
+| Emitter | Assembly buffer | Output stream | Serialize assembly without semantic changes |
+| Linker | Assembly/object + toolchain | Object/executable | Invoke system toolchain; no C transpilation |
+| SVM | Verified IR or `.swvm` | Execution result | Interpret bounded, verified IR with fuel/call-depth controls |
 
-## Required ordering rules
+## Typed IR and verifier
 
-1. ast.h defines AST structures; parser.h constructs them.
-2. Import/module loading precedes whole-program semantic analysis.
-3. Every IR optimization pass verifies the IR after transformation.
-4. irgen.h does not select target instructions.
-5. optimization.h does not perform target-specific machine peepholes.
-6. codegen headers do not own assembly file serialization.
-7. emitter.h and linker.h remain separate pipeline stages.
-8. No stage may silently fall back to C transpilation or LLVM/Clang code generation. Clang may be invoked only as a target assembler driver on Swan-emitted assembly.
+IR uses function-local SSA value IDs, typed instructions, basic blocks, explicit terminators, and PHI incoming edges. The IR type set includes void, i1/i8/i16/i32/i64, f32/f64, and pointers. The operation set includes constants, arithmetic/division/remainder, bitwise operations, shifts, comparisons, select, PHI, alloca/load/store, and calls.
 
-## Implemented IR and SVM contracts
+The verifier checks definition uniqueness and bounds, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage and types, operand types, and call signatures. A supported IR opcode does not imply source lowering or code generation support on every target.
 
-- IR types: void, i1, i8, i16, i32, i64, f32, f64 and ptr.
-- Operations: integer arithmetic/division/remainder, bitwise operations, shifts, comparisons, select, PHI, alloca/load/store and direct calls.
-- Verifier: SSA definition uniqueness and bounds, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage/types, call signatures and operand typing.
-- IR generation: integer/boolean literals and expressions, direct calls, immutable and mutable locals, assignment, if/else, while, break/continue and short-circuit AND/OR.
-- SVM: register-based execution, recursive calls, local memory, PHI/CFG execution, typed integer-width behavior, traps, fuel and call-depth limits.
-- .swvm: versioned little-endian artifact with bounded reader/writer, malformed/truncated/trailing-data checks and explicit string ownership.
-- IR optimization: constant folding with declared integer widths, constant select folding, constant-branch folding and unreachable-block removal, algebraic identities, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion and iterative dead-code elimination. Potentially trapping division/remainder and memory loads are not discarded as dead pure instructions.
+## Optimization ordering
 
-## Target status
+The current typed-IR optimizer includes width-aware constant folding, constant-select folding, constant-branch/CFG simplification, unreachable-block pruning, algebraic simplification, trivial-PHI propagation, dominance-aware CSE, conservative LICM, post-hoisting CSE, and worklist DCE.
 
-| Target | Output | Implemented subset |
-|---|---|---|
-| x86_64 | Linux ELF executable / assembly | IR scalar subset plus legacy AST compatibility path for arrays, logging and lazy imports |
-| aarch64 | Linux ELF object / assembly | i1/i64 scalar IR, calls, memory locals, CFG and PHI |
-| armv7 | ELF object / assembly | i32/i1 scalar IR, calls within the supported AAPCS32 argument limit, memory locals, CFG, and EABI integer division/remainder helpers |
-| riscv64 | Linux ELF object / assembly | Integer scalar IR, calls, memory locals, CFG and PHI |
-| wasm32 | WebAssembly module | i32/i64 scalar IR, calls, recursion, CFG/PHI, linear memory and per-invocation stack frames |
-| wasm64 | WebAssembly memory64 module | Scalar emission path; memory64 execution depends on runtime support |
-| svm | .swvm portable module | Verified IR interpreter |
+Potentially trapping operations and observable memory effects must not be discarded as dead pure work. Verification must run around transformations so invalid SSA/CFG state is not passed to a backend.
 
-Target availability does not mean every Swan source construct is supported on every target. The current IR generator does not yet lower array/slice operations, strings/logging, floating-point arithmetic, closures, aggregates or runtime-lazy imports. Cross-target object emission is not the same as running the object on the current host. Windows x64, Apple Darwin ABIs, ARM Thumb and additional RISC-V profiles are not implemented.
+## SIL contract
 
-## Pre-SIL exit gates
+SIL source stages live in `compiler/sil/` and are compiled into the production compiler during bootstrap. Each record is five u32 words: opcode/type, destination, left operand, right operand, and immediate/parameter index.
 
-Before any SIL work begins:
-- Keep the full existing .swan compiler/stdlib suite green.
-- Keep typed IR verifier tests and IR-generation tests green.
-- Keep optimization pass tests green, including CFG/PHI cases and typed integer overflow.
-- Keep SVM artifact round-trip, malformed-input and runtime tests green.
-- Keep native x86-64 IR execution and legacy compatibility tests green.
-- Keep WebAssembly runtime validation/execution tests green.
-- Keep AArch64, ARMv7 and RISC-V64 object-format tests green.
-- Preserve explicit diagnostics for unsupported target/language combinations.
-- Do not advertise full target parity until ABI execution tests cover the advertised subset.
+The implemented builder is bounded to 256 value IDs and 256 instructions. Its supported records are parameters, constants, add/subtract/multiply, equality, signed-less-than, copy, and return; packed constants currently accept non-negative immediates through 65535. The AST bridge accepts only straight-line, single-return scalar functions. CFG, branches, variables, memory, general calls, loops, and imports remain outside SIL. The general typed-IR generator is the fallback for other IR-supported functions.
 
-SIL remains the next architecture phase only after these gates and feature boundaries are stable.
+## Target boundaries
+
+- x86-64 System V: native executable/assembly; typed IR plus AST compatibility route.
+- AArch64, ARMv7, RISC-V64: Swan-owned limited scalar IR object/assembly.
+- WASM32 and WASM64: Swan-owned limited scalar WebAssembly emitters.
+- SVM: verified IR interpreter and versioned `.swvm` artifact.
+- LLVM target triple: explicit portability route for the supported typed-IR subset and installed Clang/LLVM targets.
+
+Object emission is not equivalent to native execution or complete platform ABI support. Cross-target runtime integration remains a separate task.
+
+## Required invariants
+
+1. Do not transpile Swan to C.
+2. Keep native code generation Swan-owned.
+3. Use LLVM only through the explicit target-triple path.
+4. Do not silently lower unknown AST/IR kinds to empty or zero code.
+5. Verify IR before backend use and after optimizer transformations.
+6. Keep source-language, IR, and backend support claims distinct.
+7. Add positive, negative, verifier, and runtime tests for new constructs.
