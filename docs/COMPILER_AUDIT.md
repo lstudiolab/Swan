@@ -28,7 +28,7 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 
 - Ordinary eligible local arrays use compiler-generated automatic cleanup (SAMC); no runtime reference counting is added.
 - Small fixed-size non-escaping arrays have a native stack-frame allocation fast path.
-- `manual var` is a strict, local single-owner form for direct array allocations. The semantic checker diagnoses leaks, double-free, use-after-free, alias/copy, passing/returning the owner, and incompatible branch/loop ownership states.
+- `manual var` is a strict, local single-owner form for direct array allocations. `free(owner)` is parsed as a dedicated statement and validated by semantic ownership analysis. The checker diagnoses leaks, double-free, use-after-free, alias/copy, passing/returning the owner, and incompatible branch/loop ownership states.
 - Manual ownership transfer, borrowing, destructors, and general manual heap objects are not implemented.
 - Legacy `store` is retained as compatibility syntax and does not opt into strict `manual var` analysis.
 
