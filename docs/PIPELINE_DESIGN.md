@@ -30,7 +30,7 @@ The SIL route is an optional narrow lowering path, not a mandatory pipeline stag
 |---|---|---|---|
 | Reader | Source path | UTF-8 bytes/text | Reject unreadable source; preserve source contents |
 | Lexer | UTF-8 source | Token stream | Validate UTF-8; emit indentation and source-location tokens |
-| Parser | Tokens | AST | Parse syntax and construct arena-owned nodes |
+| Parser | Tokens | AST | Parse syntax and construct arena-owned nodes, including explicit manual-release statements |
 | C header importer | Header path + AST | External function declarations | Import only supported scalar prototypes through Clang |
 | Module loader | Import declarations | Loaded module AST/functions | Resolve source modules and track module ownership |
 | Semantic analysis | Program AST | Checked program | Validate supported names, scopes, declarations, calls, and strict manual ownership |
