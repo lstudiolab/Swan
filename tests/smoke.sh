@@ -388,3 +388,9 @@ printf 'PASS: binary search over heap arrays\\n'
 "$SWAN" build "$ROOT/benchmarks/binary_search.swan" -o "$TMP/binary-search-20m"
 test -x "$TMP/binary-search-20m"
 printf 'PASS: full 20M x 20M binary-search workload compiles\n'
+
+# Compiler 2's Swan-authored lexer must remain valid Swan and lower to native
+# assembly through the current bootstrap compiler.
+"$SWAN" "$ROOT/swanc/lexer/Lexer.swan" --emit-asm -o "$TMP/swanc-lexer.s"
+test -s "$TMP/swanc-lexer.s"
+printf 'PASS: Compiler 2 Swan lexer parses and lowers through Compiler 1 bootstrap\n'
