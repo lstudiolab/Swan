@@ -219,17 +219,20 @@ static int swan_run(int argc,char **argv){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:vm_error);
    swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
   }
-  char module_path[1024];bool temporary=output==NULL&&mode!=SWAN_BUILD;
-  const char *dest=output?output:(mode==SWAN_BUILD?"a.swvm":"/tmp/swan-module-XXXXXX");
-  int fd=-1;
-  if(temporary){snprintf(module_path,sizeof(module_path),"/tmp/swan-module-XXXXXX");fd=mkstemp(module_path);if(fd>=0)close(fd);dest=module_path;}
-  FILE *artifact=fd>=0||!temporary?fopen(dest,"wb"):NULL;
-  stage=swan_profile_start();bool saved=artifact&&swan_svm_write_module(artifact,&ir);swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
-  if(artifact&&fclose(artifact)!=0)saved=false;
-  if(!saved){fprintf(stderr,"swan: failed to write portable SVM module\n");if(temporary)unlink(dest);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
+  bool save_module=mode==SWAN_BUILD||output!=NULL;
+  if(save_module){
+   const char *dest=output?output:"a.swvm";FILE *artifact=fopen(dest,"wb");
+   stage=swan_profile_start();bool saved=artifact&&swan_svm_write_module(artifact,&ir);swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
+   if(artifact&&fclose(artifact)!=0)saved=false;
+   if(!saved){fprintf(stderr,"swan: failed to write portable SVM module\\n");swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
+  }
   int result=0;
-  if(mode!=SWAN_BUILD){int64_t vm_result=0;stage=swan_profile_start();if(!swan_svm_run_file(dest,"main",UINT64_C(1000000000),&vm_result,vm_error,sizeof(vm_error))){fprintf(stderr,"swan: %s\n",vm_error);result=1;}else result=(int)(uint8_t)vm_result;swan_profile_end(SWAN_PROFILE_RUN,stage);}
-  if(temporary)unlink(dest);
+  if(mode!=SWAN_BUILD){
+   int64_t vm_result=0;stage=swan_profile_start();
+   if(!swan_svm_run(&ir,"main",UINT64_C(1000000000),&vm_result,vm_error,sizeof(vm_error))){fprintf(stderr,"swan: %s\\n",vm_error);result=1;}
+   else result=(int)(uint8_t)vm_result;
+   swan_profile_end(SWAN_PROFILE_RUN,stage);
+  }
   swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
