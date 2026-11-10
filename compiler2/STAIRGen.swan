@@ -1,0 +1,6 @@
+# Compiler 2 — STA IR generation (Swan/SVM to assembly IR)
+# STA means Swan Target Assembly in this compiler architecture.
+# Lowers verified, optimized SVM IR into target-specific assembly IR. It is not a
+# runtime interpreter and must not execute SVM instructions.
+# TODO: define target-neutral lowering interfaces plus target-specific instruction,
+# operand, relocation, calling-convention and control-flow representations.
