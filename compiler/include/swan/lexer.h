@@ -37,6 +37,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
  /* Length-dispatched lookup avoids allocation and hashing in the lexer hot path. */
  switch(n) {
  case 2:
+  if(!memcmp(s,"fn",2))return T_FN; /* deprecated source-compatibility alias; func is canonical */
   if(!memcmp(s,"if",2))return T_IF;
   if(!memcmp(s,"in",2))return T_IN;
   if(!memcmp(s,"as",2))return T_AS;
