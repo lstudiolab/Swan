@@ -1,37 +1,45 @@
 {
-  "Import Foundation": {
-    "prefix": "import",
-    "body": [
-      "import foundation"
-    ],
-    "description": "Import the Foundation standard library"
-  },
   "Function": {
-    "prefix": "fn",
+    "prefix": "func",
     "body": [
-      "fn ${1:functionName}(${2}) -> ${3:int}:",
+      "func ${1:name}(${2}):",
       "    ${0:pass}"
     ],
-    "description": "Declare a Swan function"
+    "description": "Declare an indentation-based Swan function"
+  },
+  "Struct": {
+    "prefix": "struct",
+    "body": [
+      "struct ${1:Name}:",
+      "    var ${2:field} = ${3:value}"
+    ],
+    "description": "Declare a Swan structure"
   },
   "Variable": {
     "prefix": "var",
     "body": [
-      "var ${1:name}: ${2:int} = ${3:0}"
+      "var ${1:name} = ${2:value}"
     ],
     "description": "Declare a mutable variable"
   },
   "Immutable value": {
     "prefix": "let",
     "body": [
-      "let ${1:name}: ${2:int} = ${3:0}"
+      "let ${1:name} = ${2:value}"
     ],
-    "description": "Declare an immutable value"
+    "description": "Declare an immutable variable"
+  },
+  "Constant": {
+    "prefix": "const",
+    "body": [
+      "const ${1:NAME} = ${2:value}"
+    ],
+    "description": "Declare a constant"
   },
   "If statement": {
     "prefix": "if",
     "body": [
-      "if ${1:condition}",
+      "if ${1:condition}:",
       "    ${0:pass}"
     ],
     "description": "Create an if block"
@@ -39,33 +47,59 @@
   "If else statement": {
     "prefix": "ife",
     "body": [
-      "if ${1:condition}",
+      "if ${1:condition}:",
       "    ${2:pass}",
-      "else",
+      "else:",
       "    ${0:pass}"
     ],
     "description": "Create an if/else block"
   },
+  "For loop": {
+    "prefix": "for",
+    "body": [
+      "for ${1:item} in ${2:items}:",
+      "    ${0:pass}"
+    ],
+    "description": "Create a for loop"
+  },
   "While loop": {
     "prefix": "while",
     "body": [
-      "while ${1:condition}",
+      "while ${1:condition}:",
       "    ${0:pass}"
     ],
-    "description": "Create a while block"
+    "description": "Create a while loop"
   },
-  "Log": {
-    "prefix": "log",
+  "Print": {
+    "prefix": "print",
     "body": [
-      "log ${1:value}"
+      "print(\"${1:Hello, World!}\")"
     ],
-    "description": "Write an integer or boolean value"
+    "description": "Print a value"
   },
-  "Echo string": {
-    "prefix": "echo",
+  "Async function": {
+    "prefix": "asyncfunc",
     "body": [
-      "echo!(\"${1:message}\")"
+      "async func ${1:name}(${2}):",
+      "    ${0:pass}"
     ],
-    "description": "Write a string literal using the Foundation output intrinsic"
+    "description": "Declare an asynchronous function"
+  },
+  "Thread function": {
+    "prefix": "threadfunc",
+    "body": [
+      "thread func ${1:name}(${2}):",
+      "    ${0:pass}"
+    ],
+    "description": "Declare a thread function"
+  },
+  "Match": {
+    "prefix": "match",
+    "body": [
+      "match ${1:value}:",
+      "    case ${2:pattern}:",
+      "        ${0:pass}"
+    ],
+    "description": "Create a match block"
   }
-}
+}\n
