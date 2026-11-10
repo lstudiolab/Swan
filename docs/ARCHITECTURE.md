@@ -4,7 +4,7 @@
 
 Swan is a compiled language with a C11 compiler host and a Swan-authored SIL subsystem. `main.c` is the host compiler's only compiled C translation unit; most host compiler components are headers in `compiler/include/swan/`. The SIL builder and passes live as `.swan` files in `compiler/sil/` and are compiled to a native object during the build.
 
-Swan owns source parsing, AST construction, semantic analysis, typed IR, optimization, and its native target code generators. Swan source is not transpiled to C.
+Swan owns source parsing, AST construction, semantic analysis, typed IR, optimization, and its native target code generators. Swan source is not transpiled to C. SVM is the target-independent compiler engine; it is not a target CPU or an interpreter.
 
 ## Build and bootstrap
 
@@ -31,8 +31,9 @@ The production executable therefore includes native code generated from Swan-aut
        SIL bridge for eligible straight-line scalar functions
        general AST -> typed SSA IR for remaining IR-supported functions
        AST -> x86-64 compatibility codegen for features outside IR
-  -> typed IR verifier and optimizer
-  -> selected target backend
+  -> SVM verified typed-IR compilation core
+       IR verifier -> target-independent optimizer -> verified optimized IR
+  -> selected target backend (x86-64, AArch64, ARMv7, RISC-V, WASM, LLVM)
   -> emitter / assembler / linker
 ```
 
@@ -53,7 +54,7 @@ The x86-64 path retains AST code generation for supported constructs not yet rep
 | `sil_bridge.h` | Lower eligible scalar AST functions through Swan-authored SIL into typed IR |
 | `ir.h` / `irgen.h` | Typed SSA data model, verifier support and AST-to-IR lowering |
 | `optimization.h` | Target-independent typed-IR optimization passes |
-| `svm.h` | Portable register-based interpreter and `.swvm` serialization |
+| `svm.h` | Legacy interpreter and `.swvm` serialization; scheduled for removal |
 | `codegen_*.h` | Swan-owned target-specific lowering |
 | `codegen_llvm.h` | Optional explicit LLVM IR portability bridge |
 | `emitter.h` | Assembly serialization |
@@ -69,7 +70,7 @@ The optimization pipeline performs width-aware constant folding, select and CFG 
 
 ## Runtime and memory
 
-SVM executes verified IR with typed integer behavior, calls, PHI/CFG control flow, local memory, a fuel limit, and a maximum call depth. Alloca storage is lazily initialized per frame generation rather than by scanning all instructions at every function entry.
+The intended SVM architecture emits target machine code or target modules; it does not interpret IR at runtime. The current `svm.h` runtime and `.swvm` format are legacy compatibility code and are scheduled for removal. Alloca storage is lazily initialized per frame generation rather than by scanning all instructions at every function entry.
 
 The x86-64 compatibility backend supports the currently implemented u32 array forms and SAMC cleanup. Small fixed-size non-escaping arrays can use a stack-frame fast path. The newer `manual var` syntax opts a direct array allocation into strict local single-owner checks; it does not implement borrowing or ownership transfer. Legacy `store` syntax remains compatible and is not subject to the new strict checks.
 
@@ -83,7 +84,7 @@ The x86-64 compatibility backend supports the currently implemented u32 array fo
 | RISC-V64 | Linux integer ABI subset | Limited scalar IR object/assembly emission |
 | WASM32 | WebAssembly 32-bit memory | Limited scalar/control-flow module emission |
 | WASM64 | WebAssembly memory64 | Limited memory64 module emission |
-| SVM | Host-independent virtual ISA | Verified IR interpretation and `.swvm` artifacts |
+| SVM | Target-independent compile engine | Shared lowering, verification, and optimization before target-specific code generation |
 | LLVM triple | Depends on target triple/toolchain | Explicit typed-IR portability route; Clang/LLVM must support the target |
 
 Successful object emission is not proof of runtime ABI compatibility. Cross-target linking, full runtime support, standard-library module bundling, aggregates, and full frontend parity remain incomplete.
@@ -97,3 +98,6 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 5. Verify typed IR before and after transformations.
 6. Describe parser, semantic, IR, and backend support separately.
 7. Treat performance as unproven until measured on reproducible workloads.
+
+
+See [SVM Compiler Architecture](SVM_ARCHITECTURE.md) for the target-independent compiler design, target matrix, performance requirements, and migration criteria.

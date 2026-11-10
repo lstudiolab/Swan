@@ -38,11 +38,20 @@ The compatibility path is intentional. A construct supported by the x86-64 front
 
 The optimizer performs width-aware constant folding, constant-select folding, CFG and constant-branch simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, post-hoisting CSE, and dead-code elimination. DCE propagates liveness through a value worklist. IR verification runs before optimization, after individual transformations, and after final cleanup. These passes apply to the typed-IR path; the AST compatibility backend has separate optimizations.
 
-### SVM
+### SVM compiler core
 
-SVM is a portable register-based interpreter for verified typed IR. It supports calls, control flow, PHI values, local memory, typed integer operations, execution fuel, and a bounded call depth. `swan run --target svm` executes optimized IR directly in memory. `swan build --target svm` writes a versioned `.swvm` module, and `swan vm file.swvm` loads and executes one.
+SVM is the target-independent compilation engine, not a CPU target and not an interpreter. It owns the shared path from typed source lowering through IR verification and optimization. The same verified, optimized IR is passed to the selected machine backend:
 
-The VM lazily initializes alloca slots on first execution and tracks them by call-frame generation. This avoids scanning every IR block at each call while preserving one local slot per invocation, including recursion and repeated loop execution.
+- x86-64
+- AArch64 / ARM64
+- ARMv7 / ARM32
+- RISC-V
+- WebAssembly 32/64
+- additional LLVM-supported target triples through the explicit LLVM bridge
+
+Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target is allowed to execute the IR through an interpreter loop.
+
+The migration is in progress. The CLI still exposes the legacy `--target svm`, `swan vm`, and `.swvm` IR-interpreter path for compatibility; these are not the destination architecture and must be removed after compiled-target coverage and tests replace them. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
 
 ### Fail-fast behavior
 
