@@ -135,7 +135,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     size_t outer=symbols->count;bool before[1024];
     for(size_t k=0;k<outer;k++)before[k]=symbols->items[k].manual_freed;
     if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,outer);return false;}
-    for(size_t k=0;k<outer;k++)if(symbols->items[k].manual_memory&&symbols->items[k].manual_freed!=before[k]){
+    for(size_t k=0;k<outer;k++)if(symbols->items[k].manual_checked&&symbols->items[k].manual_freed!=before[k]){
      swan_error(err,&s->token,"manual variable '%s' cannot change ownership inside a loop; free it after the loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);return false;
     }
     swan_symbols_leave(symbols,outer);
@@ -148,7 +148,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
    default:swan_error(err,&s->token,"statement kind %d is not implemented by semantic analysis",(int)s->kind);return false;
   }
  }
- for(size_t k=scope_mark;k<symbols->count;k++)if(symbols->items[k].manual_memory&&!symbols->items[k].manual_freed){
+ for(size_t k=scope_mark;k<symbols->count;k++)if(symbols->items[k].manual_checked&&!symbols->items[k].manual_freed){
   swan_error(err,NULL,"manual variable '%s' must be freed before leaving its scope",symbols->items[k].name);return false;
  }
  return true;
