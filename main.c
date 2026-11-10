@@ -65,7 +65,8 @@ static int swan_run(int argc,char **argv){
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);return 2;}
  }
  if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");return 2;}
- if((target_feature_count||target_cpu)&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --cpu and --target-feature require --target-triple\n");return 2;}\n if(emit_llvm&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --emit-llvm requires --target-triple\n");return 2;}
+ if((target_feature_count||target_cpu)&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --cpu and --target-feature require --target-triple\n");return 2;}
+ if(emit_llvm&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --emit-llvm requires --target-triple\n");return 2;}
  if(emit_asm&&emit_llvm){fprintf(stderr,"swan: choose either --emit-asm or --emit-llvm\n");return 2;}
  if(emit_asm)mode=SWAN_EMIT;else if(emit_llvm)mode=SWAN_EMIT_LLVM;
  swan_profile_reset();
