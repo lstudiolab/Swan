@@ -261,10 +261,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 indents[indent_depth] = indent_width
                 indent_depth = indent_depth + 1
                 record[0] = 6
-            record[1] = index
-            record[2] = 0
-            record[3] = line
-            record[4] = column
+                record[1] = index
+                record[2] = 0
+                record[3] = line
+                record[4] = column
                 count = swanc_emit(tokens, token_capacity, count, record)
                 if count < 0:
                     return swanc_fail(diagnostic, 3, index, line, column)
@@ -273,10 +273,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                     while indent_depth > 1 and indent_width < indents[indent_depth - 1]:
                         indent_depth = indent_depth - 1
                         record[0] = 7
-            record[1] = index
-            record[2] = 0
-            record[3] = line
-            record[4] = column
+                        record[1] = index
+                        record[2] = 0
+                        record[3] = line
+                        record[4] = column
                         count = swanc_emit(tokens, token_capacity, count, record)
                         if count < 0:
                             return swanc_fail(diagnostic, 3, index, line, column)
@@ -448,10 +448,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
         if kind == 0:
             return swanc_fail(diagnostic, 2, index, line, column)
         record[0] = kind
-            record[1] = index
-            record[2] = width
-            record[3] = token_line
-            record[4] = token_column
+        record[1] = index
+        record[2] = width
+        record[3] = token_line
+        record[4] = token_column
         count = swanc_emit(tokens, token_capacity, count, record)
         if count < 0:
             return swanc_fail(diagnostic, 3, index, line, column)
@@ -460,18 +460,18 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
     while indent_depth > 1:
         indent_depth = indent_depth - 1
         record[0] = 7
-            record[1] = source_length
-            record[2] = 0
-            record[3] = line
-            record[4] = column
+        record[1] = source_length
+        record[2] = 0
+        record[3] = line
+        record[4] = column
         count = swanc_emit(tokens, token_capacity, count, record)
         if count < 0:
             return swanc_fail(diagnostic, 3, source_length, line, column)
     record[0] = 0
-            record[1] = source_length
-            record[2] = 0
-            record[3] = line
-            record[4] = column
+    record[1] = source_length
+    record[2] = 0
+    record[3] = line
+    record[4] = column
     count = swanc_emit(tokens, token_capacity, count, record)
     if count < 0:
         return swanc_fail(diagnostic, 3, source_length, line, column)
