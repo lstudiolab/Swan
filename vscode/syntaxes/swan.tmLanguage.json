@@ -84,16 +84,16 @@
     "declarations": {
       "patterns": [
         {
-          "name": "storage.type.function.swan",
-          "match": "\\b(func|thread|async)\\b"
-        },
-        {
-          "name": "storage.modifier.swan",
-          "match": "\\b(let|var|const|external|lazy)\\b"
-        },
-        {
-          "name": "keyword.other.swan",
-          "match": "\\b(import|namespace|export|from|as|self|set)\\b"
+          "name": "meta.function.declaration.swan",
+          "match": "\\\\b(func|thread|async)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": {
+              "name": "storage.type.function.swan"
+            },
+            "2": {
+              "name": "entity.name.function.swan"
+            }
+          }
         },
         {
           "name": "meta.variable.declaration.swan",
@@ -108,16 +108,16 @@
           }
         },
         {
-          "name": "meta.function.declaration.swan",
-          "match": "\\\\b(func|thread|async)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
-          "captures": {
-            "1": {
-              "name": "storage.type.function.swan"
-            },
-            "2": {
-              "name": "entity.name.function.swan"
-            }
-          }
+          "name": "storage.type.function.swan",
+          "match": "\\b(func|thread|async)\\b"
+        },
+        {
+          "name": "storage.modifier.swan",
+          "match": "\\b(let|var|const|external|lazy)\\b"
+        },
+        {
+          "name": "keyword.other.swan",
+          "match": "\\b(import|namespace|export|from|as|self|set)\\b"
         }
       ]
     },
@@ -132,10 +132,6 @@
     "types": {
       "patterns": [
         {
-          "name": "storage.type.swan",
-          "match": "\\b(bool|struct|enum|type|variant|protocol)\\b"
-        },
-        {
           "name": "meta.type.declaration.swan",
           "match": "\\\\b(struct|enum|type|variant|protocol)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
@@ -146,6 +142,10 @@
               "name": "entity.name.type.swan"
             }
           }
+        },
+        {
+          "name": "storage.type.swan",
+          "match": "\\b(bool|struct|enum|type|variant|protocol)\\b"
         }
       ]
     },
