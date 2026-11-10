@@ -54,7 +54,7 @@ The x86-64 path retains AST code generation for supported constructs not yet rep
 | `sil_bridge.h` | Lower eligible scalar AST functions through Swan-authored SIL into typed IR |
 | `ir.h` / `irgen.h` | Typed SSA data model, verifier support and AST-to-IR lowering |
 | `optimization.h` | Target-independent typed-IR optimization passes |
-| `codegen.h` | Shared SVM compilation engine: lowering, optimization, verification, and native backend entry point |
+| `codegen.h` | Shared SVM compile engine and target dispatcher: lowering, optimization, verification, and backend selection |
 | `codegen_*.h` | Swan-owned target-specific lowering |
 | `codegen_llvm.h` | Optional explicit LLVM IR portability bridge |
 | `emitter.h` | Assembly serialization |
