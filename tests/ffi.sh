@@ -38,7 +38,10 @@ set +e
 "$TMP/ffi"
 status=$?
 set -e
-test "$status" -eq 42
+if [ "$status" -ne 42 ]; then
+    echo "FAIL: linked FFI executable returned $status; expected 42" >&2
+    exit 1
+fi
 printf 'PASS: C header import, void/i64/i32 calls, and native object linking\n'
 
 "$SWAN" "$TMP/ffi.swan" --emit-asm -o "$TMP/ffi.s"
