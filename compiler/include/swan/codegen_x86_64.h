@@ -275,7 +275,9 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   return;
  }
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
- int target_module=o->program?cg_function_module_index(o->program,name):-1;
+ Stmt *callee_fn=o->program?cg_find_function(o->program,name):NULL;
+ int target_module=callee_fn&&callee_fn->imported?callee_fn->module_index:-1;
+ bool external_call=callee_fn&&callee_fn->external;
  if(o->program&&(target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
   Stmt *fn=cg_find_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
@@ -290,7 +292,11 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   }
  }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
- char symbol[SWAN_MAX_TEXT+32];if(target_module>=0&&o->program&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);else if(!strcmp(name,"main"))strcpy(symbol,"main");else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
+ char symbol[SWAN_MAX_TEXT+32];
+ if(external_call)snprintf(symbol,sizeof(symbol),"%s",name);
+ else if(target_module>=0&&o->program&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);
+ else if(!strcmp(name,"main"))strcpy(symbol,"main");
+ else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
  cg_save_volatile(o,l);
  if(!nested){
@@ -968,6 +974,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
+  if(fn->external){text_add(o,".extern %s\\n",fn->name);continue;}
   if(p->codegen_module_index<0&&fn->imported)continue;
   if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
   Locals l={0};o->stack_depth=0;
