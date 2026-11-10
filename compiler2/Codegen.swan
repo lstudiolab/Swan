@@ -1,0 +1,4 @@
+# Compiler 2 — Code generation coordinator
+# Coordinates STA IR lowering, backend selection and output artifact production.
+# TODO: select target and ABI, invoke lowering/backend stages, collect diagnostics,
+# and emit assembly, object files or WebAssembly according to driver options.
