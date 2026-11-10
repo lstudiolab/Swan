@@ -173,15 +173,15 @@ fn swanc_keyword(source: u32_array, start: int, length: int) -> int:
     return 1
 
 out
-fn swanc_emit(tokens: u32_array, capacity: int, count: int, kind: int, start: int, size: int, line: int, column: int) -> int:
+fn swanc_emit(tokens: u32_array, capacity: int, count: int, record: u32_array) -> int:
     if count >= capacity:
         return 0 - 1
     let base = count * 5
-    tokens[base] = kind
-    tokens[base + 1] = start
-    tokens[base + 2] = size
-    tokens[base + 3] = line
-    tokens[base + 4] = column
+    tokens[base] = record[0]
+    tokens[base + 1] = record[1]
+    tokens[base + 2] = record[2]
+    tokens[base + 3] = record[3]
+    tokens[base + 4] = record[4]
     return count + 1
 
 out
@@ -207,6 +207,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
     var line_start = 1
     var indent_depth = 1
     let indents = array_unchecked(128)
+    let record = array_unchecked(5)
     indents[0] = 0
     diagnostic[0] = 0
     diagnostic[1] = 0
@@ -259,14 +260,24 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                     return swanc_fail(diagnostic, 4, index, line, column)
                 indents[indent_depth] = indent_width
                 indent_depth = indent_depth + 1
-                count = swanc_emit(tokens, token_capacity, count, 6, index, 0, line, column)
+                record[0] = 6
+            record[1] = index
+            record[2] = 0
+            record[3] = line
+            record[4] = column
+            count = swanc_emit(tokens, token_capacity, count, record)
                 if count < 0:
                     return swanc_fail(diagnostic, 3, index, line, column)
             else:
                 if indent_width < indents[indent_depth - 1]:
                     while indent_depth > 1 and indent_width < indents[indent_depth - 1]:
                         indent_depth = indent_depth - 1
-                        count = swanc_emit(tokens, token_capacity, count, 7, index, 0, line, column)
+                        record[0] = 7
+            record[1] = index
+            record[2] = 0
+            record[3] = line
+            record[4] = column
+            count = swanc_emit(tokens, token_capacity, count, record)
                         if count < 0:
                             return swanc_fail(diagnostic, 3, index, line, column)
                     if indent_width != indents[indent_depth - 1]:
@@ -282,7 +293,12 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 column = column + 1
             continue
         if byte == 10:
-            count = swanc_emit(tokens, token_capacity, count, 5, index, 0, line, column)
+            record[0] = 5
+            record[1] = index
+            record[2] = 0
+            record[3] = line
+            record[4] = column
+            count = swanc_emit(tokens, token_capacity, count, record)
             if count < 0:
                 return swanc_fail(diagnostic, 3, index, line, column)
             index = index + 1
@@ -302,7 +318,12 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 column = column + width
             let token_length = index - token_start
             let kind = swanc_keyword(source, token_start, token_length)
-            count = swanc_emit(tokens, token_capacity, count, kind, token_start, token_length, token_line, token_column)
+            record[0] = kind
+            record[1] = token_start
+            record[2] = token_length
+            record[3] = token_line
+            record[4] = token_column
+            count = swanc_emit(tokens, token_capacity, count, record)
             if count < 0:
                 return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
             continue
@@ -320,7 +341,12 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                     column = column + 1
             if index < source_length and swanc_ident_start(source[index]):
                 return swanc_fail(diagnostic, 6, index, line, column)
-            count = swanc_emit(tokens, token_capacity, count, kind, token_start, index - token_start, token_line, token_column)
+            record[0] = kind
+            record[1] = token_start
+            record[2] = index - token_start
+            record[3] = token_line
+            record[4] = token_column
+            count = swanc_emit(tokens, token_capacity, count, record)
             if count < 0:
                 return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
             continue
@@ -353,7 +379,12 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 column = column + width
             if closed == 0:
                 return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
-            count = swanc_emit(tokens, token_capacity, count, 4, token_start, index - token_start, token_line, token_column)
+            record[0] = 4
+            record[1] = token_start
+            record[2] = index - token_start
+            record[3] = token_line
+            record[4] = token_column
+            count = swanc_emit(tokens, token_capacity, count, record)
             if count < 0:
                 return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
             continue
@@ -416,17 +447,32 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 kind = 49
         if kind == 0:
             return swanc_fail(diagnostic, 2, index, line, column)
-        count = swanc_emit(tokens, token_capacity, count, kind, index, width, token_line, token_column)
+        record[0] = kind
+            record[1] = index
+            record[2] = width
+            record[3] = token_line
+            record[4] = token_column
+            count = swanc_emit(tokens, token_capacity, count, record)
         if count < 0:
             return swanc_fail(diagnostic, 3, index, line, column)
         index = index + width
         column = column + width
     while indent_depth > 1:
         indent_depth = indent_depth - 1
-        count = swanc_emit(tokens, token_capacity, count, 7, source_length, 0, line, column)
+        record[0] = 7
+            record[1] = source_length
+            record[2] = 0
+            record[3] = line
+            record[4] = column
+            count = swanc_emit(tokens, token_capacity, count, record)
         if count < 0:
             return swanc_fail(diagnostic, 3, source_length, line, column)
-    count = swanc_emit(tokens, token_capacity, count, 0, source_length, 0, line, column)
+    record[0] = 0
+            record[1] = source_length
+            record[2] = 0
+            record[3] = line
+            record[4] = column
+            count = swanc_emit(tokens, token_capacity, count, record)
     if count < 0:
         return swanc_fail(diagnostic, 3, source_length, line, column)
     return count
