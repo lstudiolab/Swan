@@ -13,13 +13,16 @@ typedef enum {
     SWAN_ARCH_RISCV64,
     SWAN_ARCH_WASM32,
     SWAN_ARCH_WASM64,
-    SWAN_ARCH_SVM
+    SWAN_ARCH_SVM,
+    SWAN_ARCH_LLVM
 } SwanArchitecture;
 
 typedef enum {
     SWAN_OBJECT_ELF,
     SWAN_OBJECT_WASM,
-    SWAN_OBJECT_SVM
+    SWAN_OBJECT_SVM,
+    SWAN_OBJECT_COFF,
+    SWAN_OBJECT_MACHO
 } SwanObjectFormat;
 
 typedef enum {
@@ -49,6 +52,14 @@ static const SwanTarget swan_targets[] = {
     {"svm", "swanvm-unknown-portable", SWAN_ARCH_SVM, SWAN_OBJECT_SVM, SWAN_ABI_WASM, true}
 };
 
+static inline SwanObjectFormat swan_object_format_for_triple(const char *triple) {
+    if (!triple) return SWAN_OBJECT_ELF;
+    if (strstr(triple, "wasm")) return SWAN_OBJECT_WASM;
+    if (strstr(triple, "windows") || strstr(triple, "mingw") || strstr(triple, "msvc")) return SWAN_OBJECT_COFF;
+    if (strstr(triple, "darwin") || strstr(triple, "apple") || strstr(triple, "macos")) return SWAN_OBJECT_MACHO;
+    return SWAN_OBJECT_ELF;
+}
+
 #define SWAN_TARGET_COUNT (sizeof(swan_targets) / sizeof(swan_targets[0]))
 
 static inline const SwanTarget *swan_target_find(const char *name) {
@@ -65,9 +76,10 @@ static inline const SwanTarget *swan_target_find(const char *name) {
 
 static inline void swan_target_list(FILE *out) {
     for (size_t i = 0; i < SWAN_TARGET_COUNT; ++i)
-        fprintf(out, "%-9s %-32s %s\n", swan_targets[i].name,
+        fprintf(out, "%-9s %-36s %s\n", swan_targets[i].name,
                 swan_targets[i].triple,
-                swan_targets[i].backend_available ? "implemented" : "planned");
+                swan_targets[i].backend_available ? "implemented (limited subset)" : "planned");
+    fprintf(out, "LLVM      <any Clang/LLVM target triple>  optional portable IR backend\n");
 }
 
 #endif
