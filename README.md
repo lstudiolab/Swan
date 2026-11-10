@@ -117,6 +117,8 @@ fn main():
     return 0
 ```
 
+On the native x86-64 backend, fixed-size, non-escaping local arrays up to 64 KiB are placed directly in the function's stack frame and zero-initialized in place. They require no `calloc` or `free` call; the frame is reclaimed by the normal function return. The backend caps combined stack-resident array storage at 256 KiB per function. Large, dynamically sized, escaping, and manual arrays retain the heap-backed path for now. This is a Goose-inspired stack-placement fast path, not yet Goose's full statically assigned multi-data-stack allocator.
+
 The semantic checker rejects manual allocation leaks at scope exit, double-free, use-after-free, aliasing/copying, passing the owner to a function, returning the owner, and ownership-state mismatches across branches or loops. These are compile-time checks; they add no runtime reference counting or ownership bookkeeping. The current manual form is intentionally restricted to direct array allocations and local single-owner lifetimes. Ownership transfer, borrowing, destructors, and manual heap objects are not implemented yet. The older `store` modifier remains accepted for compatibility but does not opt into the new strict ownership checks.
 
 ## Lazy imports and library tree shaking
