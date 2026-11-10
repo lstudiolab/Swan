@@ -37,7 +37,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     SwanSymbol *owned=&symbols->items[index];
     if(!owned->manual_memory){swan_error(err,&e->token,"free only accepts a variable declared with 'manual var'");return false;}
     if(owned->manual_checked&&owned->manual_freed){swan_error(err,&e->args[0]->token,"double free of manual variable '%s'",owned->name);return false;}
-    owned->manual_freed=true;return true;
+    owned->manual_freed=true;fprintf(stderr,"DEBUG manual free %s checked=%d freed=%d\\n",owned->name,(int)owned->manual_checked,(int)owned->manual_freed);return true;
    }
    if(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked")){
     if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return false;}
