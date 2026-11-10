@@ -2,24 +2,53 @@
 
 ## Full test command
 
-Run `sh test.sh` from the repository root. Requirements: a C11 compiler and a host system assembler/linker available through `cc`.
+From the repository root:
 
-## CI test layers
+```sh
+sh test.sh
+```
 
-- Build: compile the C11 compiler from the sole `main.c` translation unit.
-- Header isolation: compile every C header independently with strict C11 syntax checks.
-- Existing source corpus: run the compiler, standard-library and regression suites on the host.
-- Typed IR: verify SSA definitions, dominance, calls, memory operations, PHI predecessor coverage and terminators.
-- Optimization: test constant folding, typed integer-width semantics, CFG simplification, unreachable-block pruning, algebraic simplification, CSE and DCE.
-- IR generation: compile .swan source through semantic analysis, IR generation, optimization and SVM execution; cover calls, recursion, mutable locals, loops, branches and short-circuit logic.
-- SVM: test interpreter behavior, typed integer overflow, .swvm serialization round-trips, truncation rejection and trailing-data rejection.
-- x86-64 IR: execute generated native code and validate the scalar subset against expected results.
-- WASM32: emit a .wasm module and instantiate/execute it with a WebAssembly runtime, including calls, recursion, loops, branches, mutable locals and PHI-based short-circuit behavior.
-- WASM64: validate scalar memory64 module emission and section structure.
-- AArch64, ARMv7 and RISC-V64: emit ELF objects and inspect the object headers to confirm target architecture.
+Requirements: a C11 compiler, POSIX shell, and host assembler/linker available through `cc`. The build script creates `build/swan` before running the tests.
+
+## Top-level test sequence
+
+The current `test.sh` runs:
+
+1. `build.sh` — bootstrap and production compiler build.
+2. `tests/headers.sh` — compile compiler headers independently.
+3. `tests/c11-smoke.sh` — strict C11 host compilation smoke test.
+4. `tests/ffi.sh` — native C header import and C ABI link/run test.
+5. `tests/utf8.sh` — UTF-8 source validation and tokenization regressions.
+6. `tests/profile.sh` — compiler profiling output and stage coverage.
+7. `tests/smoke.sh` — basic source compile/run smoke tests.
+8. `tests/regressions.sh` — language, semantic, memory, and backend regressions.
+9. `tests/foundation.sh` — Foundation source module behavior.
+10. `tests/lazy-imports.sh` — reachability-based runtime-lazy module behavior.
+11. `tests/architecture.sh` — target/backend and architecture checks.
+12. Compile and run `tests/keywords.c` — keyword/token registry smoke test.
+
+## Coverage areas
+
+The source test suite covers compiler construction, parser/semantic diagnostics, UTF-8 handling, local bindings, function calls, control flow, arrays, bounds checks, output, Foundation imports, lazy module loading, strict `manual var` ownership, and legacy `store` compatibility.
+
+The typed-IR tests cover SSA construction and verification, CFG and PHI invariants, scalar lowering, optimization passes, SVM execution, and module serialization. Architecture tests cover the implemented target emitters, including WebAssembly module validation and ELF object identification where configured by the test scripts.
+
+The C ABI test compiles a C implementation to an object, imports its header declarations, links the object through Swan's native executable path, and checks the resulting process exit status.
+
+## What a passing test means
+
+- A parser test proves syntax acceptance or rejection, not runtime implementation.
+- A semantic test proves the checked rule exercised by that case.
+- An IR verifier test proves the relevant IR invariant.
+- An object-header test proves object emission for that architecture, not execution or ABI correctness on that machine.
+- A WebAssembly structural validation test proves module validity; runtime execution is a stronger check.
+- A host SVM test proves interpreter behavior for the tested IR operations, not performance parity with native code.
+- A successful compile does not establish that every language feature is implemented on every target.
 
 ## Cross-target policy
 
-A target is not supported merely because the command-line parser accepts its name. Each target must have a Swan-owned generator and a test that validates its actual output format. Object-header tests establish code emission, not runtime ABI correctness on that CPU. Cross-target execution and full system linking must be tested on an appropriate native runner before being advertised as complete.
+A backend is advertised only for the subset exercised by its tests. Cross-target execution and full system linking require suitable target runners and toolchains. Clang/LLVM may be used for the explicit `--target-triple` portability path; it is not a silent fallback for the Swan-owned backends.
 
-No external compiler backend fallback is allowed. Clang may be used as an assembler driver on Swan-generated target assembly; it must not generate code from C or another frontend.
+## Adding a regression
+
+For a new feature, add the narrowest useful positive and negative cases. Include source diagnostics, IR verification, generated artifact checks, and executable tests as appropriate. For optimizer changes, add before/after IR assertions and behavior tests. For ownership changes, test valid release, leak, double-free, use-after-free, aliasing, and branch/loop state consistency.
