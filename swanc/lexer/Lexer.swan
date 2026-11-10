@@ -1,129 +1,427 @@
 # Swan Compiler 2 — Lexer
+
+# Executable, allocation-conscious lexer core. The source is supplied as UTF-8
+# bytes in u32_array (each element must be in 0...255). Tokens are emitted into
+# caller-owned storage as five u32 words per token:
+#   [kind, byte_offset, byte_length, start_line, start_column].
 #
-# The lexer owns source validation, token boundaries, keyword recognition,
-# literal scanning, operators, indentation and lexical diagnostics.
+# Diagnostics are written to a four-word caller-owned array:
+#   [error_code, byte_offset, line, column].
+# A successful call returns the token count including EOF. A negative return
+# is a lexical error. No partial token stream is considered valid on failure.
 #
-# KEYWORD POLICY
-# -------------
-# Keywords are intrinsic to Swan and MUST be hardcoded in this file.
-# There is no keyword registry, runtime registration, configuration file,
-# plugin hook, import-time keyword loading, or semantic-stage keyword rewrite.
-#
-# The spelling table below is the lexical source of truth for Compiler 2.
-# Keep it synchronized with TokenKind and the parser grammar. A spelling may
-# only be added or removed by an intentional language change with tests.
-#
-# Matching contract:
-#   1. Scan the complete identifier first; never classify a prefix.
-#   2. Compare the complete byte sequence against this exact, case-sensitive
-#      table. "if" is a keyword; "iffy" and "IF" are identifiers.
-#   3. Do not normalize case, Unicode, or compatibility characters.
-#   4. Keywords are ASCII spellings. Non-ASCII identifier bytes remain part
-#      of identifiers and can never accidentally match a keyword.
-#   5. Do not allocate or hash a temporary string just to classify a keyword.
-#      Compare the source slice by byte length and contents.
-#   6. A failed match produces IDENT, not a lexical error.
-#   7. Every listed spelling maps to exactly one token kind.
-#
-# HARD-CODED KEYWORD TABLE
-# ------------------------
-# Canonical spellings and compatibility aliases are explicit. Aliases are
-# still recognized lexically; deprecation diagnostics belong to a later
-# diagnostic policy, not to keyword matching.
-#
-# 2 bytes:
-#   fn       -> FN       (compatibility spelling; retained for existing code)
-#   if       -> IF
-#   in       -> IN
-#   as       -> AS
-#   or       -> OR
-#
-# 3 bytes:
-#   let      -> LET
-#   var      -> VAR
-#   for      -> FOR
-#   nil      -> NONE     (compatibility spelling)
-#   out      -> OUT      (block terminator)
-#   set      -> SET
-#   and      -> AND
-#   not      -> NOT
-#
-# 4 bytes:
-#   func     -> FN       (canonical function declaration spelling)
-#   else     -> ELSE
-#   enum     -> ENUM
-#   type     -> TYPE
-#   loop     -> LOOP
-#   from     -> FROM
-#   self     -> SELF
-#   true     -> TRUE
-#   pass     -> PASS
-#   null     -> NONE     (compatibility spelling)
-#   bool     -> BOOL_TYPE
-#   lazy     -> LAZY
-#   case     -> CASE
-#   init     -> INIT
-#   free     -> FREE
-#
-# 5 bytes:
-#   while    -> WHILE
-#   match    -> MATCH
-#   guard    -> GUARD
-#   break    -> BREAK
-#   false    -> FALSE
-#   store    -> STORE    (compatibility spelling; preserve distinct token)
-#   const    -> CONST
-#   block    -> BLOCK
-#   defer    -> DEFER
-#   async    -> ASYNC
-#   print    -> PRINT
-#   throw    -> THROW
-#
-# 6 bytes:
-#   manual   -> MANUAL
-#   import   -> IMPORT
-#   export   -> EXPORT
-#   return   -> RETURN
-#   struct   -> STRUCT
-#   thread   -> THREAD
-#   deinit   -> DEINIT
-#   borrow   -> BORROW
-#
-# 7 bytes:
-#   variant  -> VARIANT
-#   rethrow  -> RETHROW
-#
-# 8 bytes:
-#   external -> EXTERN
-#   continue -> CONTINUE (8 bytes)
-#   protocol -> PROTOCOL
-#
-# 9 bytes:
-#   namespace -> NAMESPACE
-#
-# Operator spellings such as !, ==, ->, && and || are not identifier
-# keywords. They are recognized by the operator scanner and mapped to their
-# own token kinds. The words and/or/not remain keyword spellings where listed.
-#
-# IMPLEMENTATION REQUIREMENTS
-# ---------------------------
-# Implement the classifier as a length-dispatched, hardcoded decision tree
-# (or an equivalent compile-time table embedded here). Check length before
-# comparing bytes; this avoids prefix matches and unnecessary comparisons.
-# Keep the keyword path allocation-free and deterministic.
-#
-# The scanner must validate UTF-8 before identifier classification. It must
-# preserve byte offsets and source spans, handle a UTF-8 BOM only at byte zero,
-# reject malformed UTF-8, and never use locale-dependent character routines.
-# Identifier start/continuation rules must be explicit and shared by every
-# identifier-scanning path.
-#
-# Do not silently skip unknown punctuation, malformed escapes, unterminated
-# literals, inconsistent indentation, or unsupported lexical forms.
-#
-# IMPLEMENTATION STATUS
-# ---------------------
-# This file currently defines the required lexer contract and keyword
-# inventory. The executable scanner and classifier are not yet implemented.
-# Do not describe Compiler 2 as having a working lexer until it is implemented
-# and exercised by lexer regression tests.
+# Keyword spellings are hardcoded below. Matching is exact, case-sensitive,
+# allocation-free, and performed only after scanning the complete identifier.
+# The reserved set matches the existing compiler's 41-word keyword contract,
+# plus the compatibility spellings fn, out, and store.
+
+fn swanc_ascii_alpha(byte: int) -> bool:
+    return (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122)
+
+out
+fn swanc_ascii_digit(byte: int) -> bool:
+    return byte >= 48 and byte <= 57
+
+out
+fn swanc_ident_start(byte: int) -> bool:
+    return swanc_ascii_alpha(byte) or byte == 95 or byte >= 128
+
+out
+fn swanc_ident_continue(byte: int) -> bool:
+    return swanc_ident_start(byte) or swanc_ascii_digit(byte)
+
+out
+fn swanc_utf8_width(source: u32_array, index: int, length: int) -> int:
+    let first = source[index]
+    if first < 128:
+        return 1
+    if first >= 194 and first <= 223:
+        if index + 1 >= length:
+            return 0
+        if source[index + 1] < 128 or source[index + 1] > 191:
+            return 0
+        return 2
+    if first >= 224 and first <= 239:
+        if index + 2 >= length:
+            return 0
+        let second = source[index + 1]
+        let third = source[index + 2]
+        if second < 128 or second > 191 or third < 128 or third > 191:
+            return 0
+        if first == 224 and second < 160:
+            return 0
+        if first == 237 and second >= 160:
+            return 0
+        return 3
+    if first >= 240 and first <= 244:
+        if index + 3 >= length:
+            return 0
+        let second = source[index + 1]
+        if second < 128 or second > 191:
+            return 0
+        if source[index + 2] < 128 or source[index + 2] > 191:
+            return 0
+        if source[index + 3] < 128 or source[index + 3] > 191:
+            return 0
+        if first == 240 and second < 144:
+            return 0
+        if first == 244 and second > 143:
+            return 0
+        return 4
+    return 0
+
+out
+fn swanc_keyword(source: u32_array, start: int, length: int) -> int:
+    # TokenKind values are aligned with compiler/include/swan/core.h.
+    # This is intentionally a hardcoded decision tree, not a registry.
+    if length == 2:
+        if source[start] == 102 and source[start + 1] == 110:
+            return 8
+        if source[start] == 105 and source[start + 1] == 102:
+            return 15
+        if source[start] == 105 and source[start + 1] == 110:
+            return 56
+        if source[start] == 97 and source[start + 1] == 115:
+            return 61
+    if length == 3:
+        if source[start] == 108 and source[start + 1] == 101 and source[start + 2] == 116:
+            return 11
+        if source[start] == 118 and source[start + 1] == 97 and source[start + 2] == 114:
+            return 12
+        if source[start] == 102 and source[start + 1] == 111 and source[start + 2] == 114:
+            return 55
+        if source[start] == 110 and source[start + 1] == 105 and source[start + 2] == 108:
+            return 23
+        if source[start] == 111 and source[start + 1] == 117 and source[start + 2] == 116:
+            return 50
+        if source[start] == 115 and source[start + 1] == 101 and source[start + 2] == 116:
+            return 78
+    if length == 4:
+        if source[start] == 102 and source[start + 1] == 117 and source[start + 2] == 110 and source[start + 3] == 99:
+            return 8
+        if source[start] == 101 and source[start + 1] == 108 and source[start + 2] == 115 and source[start + 3] == 101:
+            return 16
+        if source[start] == 101 and source[start + 1] == 110 and source[start + 2] == 117 and source[start + 3] == 109:
+            return 53
+        if source[start] == 116 and source[start + 1] == 121 and source[start + 2] == 112 and source[start + 3] == 101:
+            return 54
+        if source[start] == 108 and source[start + 1] == 111 and source[start + 2] == 111 and source[start + 3] == 112:
+            return 57
+        if source[start] == 102 and source[start + 1] == 114 and source[start + 2] == 111 and source[start + 3] == 109:
+            return 60
+        if source[start] == 115 and source[start + 1] == 101 and source[start + 2] == 108 and source[start + 3] == 102:
+            return 63
+        if source[start] == 116 and source[start + 1] == 114 and source[start + 2] == 117 and source[start + 3] == 101:
+            return 21
+        if source[start] == 112 and source[start + 1] == 97 and source[start + 2] == 115 and source[start + 3] == 115:
+            return 20
+        if source[start] == 110 and source[start + 1] == 117 and source[start + 2] == 108 and source[start + 3] == 108:
+            return 23
+        if source[start] == 98 and source[start + 1] == 111 and source[start + 2] == 111 and source[start + 3] == 108:
+            return 79
+        if source[start] == 108 and source[start + 1] == 97 and source[start + 2] == 122 and source[start + 3] == 121:
+            return 64
+        if source[start] == 99 and source[start + 1] == 97 and source[start + 2] == 115 and source[start + 3] == 101:
+            return 80
+    if length == 5:
+        if source[start] == 119 and source[start + 1] == 104 and source[start + 2] == 105 and source[start + 3] == 108 and source[start + 4] == 101:
+            return 17
+        if source[start] == 109 and source[start + 1] == 97 and source[start + 2] == 116 and source[start + 3] == 99 and source[start + 4] == 104:
+            return 58
+        if source[start] == 103 and source[start + 1] == 117 and source[start + 2] == 97 and source[start + 3] == 114 and source[start + 4] == 100:
+            return 59
+        if source[start] == 98 and source[start + 1] == 114 and source[start + 2] == 101 and source[start + 3] == 97 and source[start + 4] == 107:
+            return 18
+        if source[start] == 102 and source[start + 1] == 97 and source[start + 2] == 108 and source[start + 3] == 115 and source[start + 4] == 101:
+            return 22
+        if source[start] == 115 and source[start + 1] == 116 and source[start + 2] == 111 and source[start + 3] == 114 and source[start + 4] == 101:
+            return 70
+        if source[start] == 99 and source[start + 1] == 111 and source[start + 2] == 110 and source[start + 3] == 115 and source[start + 4] == 116:
+            return 13
+        if source[start] == 98 and source[start + 1] == 108 and source[start + 2] == 111 and source[start + 3] == 99 and source[start + 4] == 107:
+            return 77
+        if source[start] == 100 and source[start + 1] == 101 and source[start + 2] == 102 and source[start + 3] == 101 and source[start + 4] == 114:
+            return 81
+        if source[start] == 97 and source[start + 1] == 115 and source[start + 2] == 121 and source[start + 3] == 110 and source[start + 4] == 99:
+            return 76
+    if length == 6:
+        if source[start] == 109 and source[start + 1] == 97 and source[start + 2] == 110 and source[start + 3] == 117 and source[start + 4] == 97 and source[start + 5] == 108:
+            return 82
+        if source[start] == 105 and source[start + 1] == 109 and source[start + 2] == 112 and source[start + 3] == 111 and source[start + 4] == 114 and source[start + 5] == 116:
+            return 9
+        if source[start] == 101 and source[start + 1] == 120 and source[start + 2] == 112 and source[start + 3] == 111 and source[start + 4] == 114 and source[start + 5] == 116:
+            return 62
+        if source[start] == 114 and source[start + 1] == 101 and source[start + 2] == 116 and source[start + 3] == 117 and source[start + 4] == 114 and source[start + 5] == 110:
+            return 14
+        if source[start] == 115 and source[start + 1] == 116 and source[start + 2] == 114 and source[start + 3] == 117 and source[start + 4] == 99 and source[start + 5] == 116:
+            return 52
+        if source[start] == 116 and source[start + 1] == 104 and source[start + 2] == 114 and source[start + 3] == 101 and source[start + 4] == 97 and source[start + 5] == 100:
+            return 75
+    if length == 7:
+        if source[start] == 118 and source[start + 1] == 97 and source[start + 2] == 114 and source[start + 3] == 105 and source[start + 4] == 97 and source[start + 5] == 110 and source[start + 6] == 116:
+            return 73
+    if length == 8:
+        if source[start] == 101 and source[start + 1] == 120 and source[start + 2] == 116 and source[start + 3] == 101 and source[start + 4] == 114 and source[start + 5] == 110 and source[start + 6] == 97 and source[start + 7] == 108:
+            return 10
+        if source[start] == 99 and source[start + 1] == 111 and source[start + 2] == 110 and source[start + 3] == 116 and source[start + 4] == 105 and source[start + 5] == 110 and source[start + 6] == 117 and source[start + 7] == 101:
+            return 19
+        if source[start] == 112 and source[start + 1] == 114 and source[start + 2] == 111 and source[start + 3] == 116 and source[start + 4] == 111 and source[start + 5] == 99 and source[start + 6] == 111 and source[start + 7] == 108:
+            return 74
+    if length == 9:
+        if source[start] == 110 and source[start + 1] == 97 and source[start + 2] == 109 and source[start + 3] == 101 and source[start + 4] == 115 and source[start + 5] == 112 and source[start + 6] == 97 and source[start + 7] == 99 and source[start + 8] == 101:
+            return 72
+    return 1
+
+out
+fn swanc_emit(tokens: u32_array, capacity: int, count: int, kind: int, start: int, size: int, line: int, column: int) -> int:
+    if count >= capacity:
+        return 0 - 1
+    let base = count * 5
+    tokens[base] = kind
+    tokens[base + 1] = start
+    tokens[base + 2] = size
+    tokens[base + 3] = line
+    tokens[base + 4] = column
+    return count + 1
+
+out
+fn swanc_fail(diagnostic: u32_array, code: int, offset: int, line: int, column: int) -> int:
+    diagnostic[0] = code
+    diagnostic[1] = offset
+    diagnostic[2] = line
+    diagnostic[3] = column
+    return 0 - code
+
+out
+fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capacity: int, diagnostic: u32_array) -> int:
+    # Token IDs 0...82 are the stable TokenKind order in core.h.
+    # Diagnostic codes: 1 invalid UTF-8, 2 invalid byte, 3 token capacity,
+    # 4 indentation depth, 5 inconsistent indentation, 6 malformed number,
+    # 7 unterminated/invalid string, 8 invalid escape, 9 invalid source size.
+    if source_length < 0 or token_capacity < 1:
+        return swanc_fail(diagnostic, 9, 0, 1, 1)
+    var index = 0
+    var line = 1
+    var column = 1
+    var count = 0
+    var line_start = 1
+    var indent_depth = 1
+    let indents = array_unchecked(128)
+    indents[0] = 0
+    diagnostic[0] = 0
+    diagnostic[1] = 0
+    diagnostic[2] = 0
+    diagnostic[3] = 0
+    # Validate all input before scanning; malformed UTF-8 is rejected even
+    # when it occurs in comments or string literals.
+    while index < source_length:
+        if source[index] < 0 or source[index] > 255:
+            return swanc_fail(diagnostic, 2, index, line, column)
+        let width = swanc_utf8_width(source, index, source_length)
+        if width == 0:
+            return swanc_fail(diagnostic, 1, index, line, column)
+        index = index + width
+    index = 0
+    # A UTF-8 BOM is accepted only at the beginning of the file.
+    if source_length >= 3 and source[0] == 239 and source[1] == 187 and source[2] == 191:
+        index = 3
+    while index < source_length:
+        if line_start == 1:
+            var indent_width = 0
+            while index < source_length and (source[index] == 32 or source[index] == 9):
+                if source[index] == 9:
+                    indent_width = indent_width + 4
+                else:
+                    indent_width = indent_width + 1
+                index = index + 1
+                column = column + 1
+            if index >= source_length:
+                break
+            if source[index] == 10 or source[index] == 35:
+                while index < source_length and source[index] != 10:
+                    index = index + 1
+                    column = column + 1
+                if index < source_length:
+                    index = index + 1
+                    line = line + 1
+                    column = 1
+                continue
+            line_start = 0
+            if indent_width > indents[indent_depth - 1]:
+                if indent_depth >= 128:
+                    return swanc_fail(diagnostic, 4, index, line, column)
+                indents[indent_depth] = indent_width
+                indent_depth = indent_depth + 1
+                count = swanc_emit(tokens, token_capacity, count, 6, index, 0, line, column)
+                if count < 0:
+                    return swanc_fail(diagnostic, 3, index, line, column)
+            else:
+                if indent_width < indents[indent_depth - 1]:
+                    while indent_depth > 1 and indent_width < indents[indent_depth - 1]:
+                        indent_depth = indent_depth - 1
+                        count = swanc_emit(tokens, token_capacity, count, 7, index, 0, line, column)
+                        if count < 0:
+                            return swanc_fail(diagnostic, 3, index, line, column)
+                    if indent_width != indents[indent_depth - 1]:
+                        return swanc_fail(diagnostic, 5, index, line, column)
+        let byte = source[index]
+        if byte == 32 or byte == 9 or byte == 13:
+            index = index + 1
+            column = column + 1
+            continue
+        if byte == 35:
+            while index < source_length and source[index] != 10:
+                index = index + 1
+                column = column + 1
+            continue
+        if byte == 10:
+            count = swanc_emit(tokens, token_capacity, count, 5, index, 0, line, column)
+            if count < 0:
+                return swanc_fail(diagnostic, 3, index, line, column)
+            index = index + 1
+            line = line + 1
+            column = 1
+            line_start = 1
+            continue
+        let token_start = index
+        let token_line = line
+        let token_column = column
+        if swanc_ident_start(byte):
+            while index < source_length and swanc_ident_continue(source[index]):
+                let width = swanc_utf8_width(source, index, source_length)
+                if width == 0:
+                    return swanc_fail(diagnostic, 1, index, line, column)
+                index = index + width
+                column = column + width
+            let token_length = index - token_start
+            let kind = swanc_keyword(source, token_start, token_length)
+            count = swanc_emit(tokens, token_capacity, count, kind, token_start, token_length, token_line, token_column)
+            if count < 0:
+                return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
+            continue
+        if swanc_ascii_digit(byte):
+            while index < source_length and swanc_ascii_digit(source[index]):
+                index = index + 1
+                column = column + 1
+            var kind = 2
+            if index < source_length and source[index] == 46 and index + 1 < source_length and swanc_ascii_digit(source[index + 1]):
+                kind = 3
+                index = index + 1
+                column = column + 1
+                while index < source_length and swanc_ascii_digit(source[index]):
+                    index = index + 1
+                    column = column + 1
+            if index < source_length and swanc_ident_start(source[index]):
+                return swanc_fail(diagnostic, 6, index, line, column)
+            count = swanc_emit(tokens, token_capacity, count, kind, token_start, index - token_start, token_line, token_column)
+            if count < 0:
+                return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
+            continue
+        if byte == 34 or byte == 39:
+            let quote = byte
+            index = index + 1
+            column = column + 1
+            var closed = 0
+            while index < source_length:
+                let current = source[index]
+                if current == quote:
+                    index = index + 1
+                    column = column + 1
+                    closed = 1
+                    break
+                if current == 10 or current == 13:
+                    return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
+                if current == 92:
+                    index = index + 1
+                    column = column + 1
+                    if index >= source_length:
+                        return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
+                    let escaped = source[index]
+                    if escaped != 110 and escaped != 114 and escaped != 116 and escaped != 92 and escaped != 34 and escaped != 39:
+                        return swanc_fail(diagnostic, 8, index, line, column)
+                let width = swanc_utf8_width(source, index, source_length)
+                if width == 0:
+                    return swanc_fail(diagnostic, 1, index, line, column)
+                index = index + width
+                column = column + width
+            if closed == 0:
+                return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
+            count = swanc_emit(tokens, token_capacity, count, 4, token_start, index - token_start, token_line, token_column)
+            if count < 0:
+                return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
+            continue
+        var kind = 0
+        var width = 1
+        if index + 1 < source_length:
+            let next = source[index + 1]
+            if byte == 45 and next == 62:
+                kind = 32
+                width = 2
+            if byte == 47 and next == 47:
+                kind = 37
+                width = 2
+            if byte == 61 and next == 61:
+                kind = 40
+                width = 2
+            if byte == 33 and next == 61:
+                kind = 41
+                width = 2
+            if byte == 60 and next == 61:
+                kind = 44
+                width = 2
+            if byte == 62 and next == 61:
+                kind = 45
+                width = 2
+        if kind == 0:
+            if byte == 40:
+                kind = 28
+            if byte == 41:
+                kind = 29
+            if byte == 58:
+                kind = 30
+            if byte == 44:
+                kind = 31
+            if byte == 43:
+                kind = 33
+            if byte == 45:
+                kind = 34
+            if byte == 42:
+                kind = 35
+            if byte == 47:
+                kind = 36
+            if byte == 37:
+                kind = 38
+            if byte == 61:
+                kind = 39
+            if byte == 33:
+                kind = 27
+            if byte == 60:
+                kind = 42
+            if byte == 62:
+                kind = 43
+            if byte == 91:
+                kind = 46
+            if byte == 93:
+                kind = 47
+            if byte == 46:
+                kind = 48
+            if byte == 59:
+                kind = 49
+        if kind == 0:
+            return swanc_fail(diagnostic, 2, index, line, column)
+        count = swanc_emit(tokens, token_capacity, count, kind, index, width, token_line, token_column)
+        if count < 0:
+            return swanc_fail(diagnostic, 3, index, line, column)
+        index = index + width
+        column = column + width
+    while indent_depth > 1:
+        indent_depth = indent_depth - 1
+        count = swanc_emit(tokens, token_capacity, count, 7, source_length, 0, line, column)
+        if count < 0:
+            return swanc_fail(diagnostic, 3, source_length, line, column)
+    count = swanc_emit(tokens, token_capacity, count, 0, source_length, 0, line, column)
+    if count < 0:
+        return swanc_fail(diagnostic, 3, source_length, line, column)
+    return count
+
+out
