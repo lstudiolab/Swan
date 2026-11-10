@@ -26,7 +26,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
  if(!e)return true;
  switch(e->kind){
   case E_INT:case E_FLOAT:case E_STRING:case E_BOOL:return true;
-  case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(v->manual_checked&&v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}return true;}
+  case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(v->manual_checked){if(v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}swan_error(err,&e->token,"manual allocation handles may only be indexed or released with free");return false;}return true;}
   case E_CALL:{
    const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or dotted function path");return false;}
    if(!strcmp(callee,"free")){
@@ -57,7 +57,8 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    if(!e->left||e->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->token.text,NULL)){
     swan_error(err,&e->token,"array indexing requires a declared array variable");return false;
    }
-   return swan_check_expr(p,e->left,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
+   {size_t base_index;if(swan_symbol_find(symbols,e->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->token,"use of manually freed variable '%s'",e->left->token.text);return false;}}
+   return swan_check_expr(p,e->right,symbols,err);
   case E_UNARY:return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
@@ -66,7 +67,8 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
      if(!e->left->left||e->left->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->left->token.text,NULL)){
       swan_error(err,&e->token,"array assignment requires a declared array variable");return false;
      }
-     return swan_check_expr(p,e->left->left,symbols,err)&&swan_check_expr(p,e->left->right,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
+     {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->left->token,"use of manually freed variable '%s'",e->left->left->token.text);return false;}}
+     return swan_check_expr(p,e->left->right,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
     }
     if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");return false;}
     size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)){swan_error(err,&e->left->token,"unknown variable '%s'",e->left->token.text);return false;}
