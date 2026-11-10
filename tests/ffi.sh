@@ -40,6 +40,7 @@ status=$?
 set -e
 if [ "$status" -ne 42 ]; then
     echo "FAIL: linked FFI executable returned $status; expected 42" >&2
+    objdump -d "$TMP/ffi" | tail -100 >&2 || true
     exit 1
 fi
 printf 'PASS: C header import, void/i64/i32 calls, and native object linking\n'
