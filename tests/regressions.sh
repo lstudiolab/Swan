@@ -245,3 +245,89 @@ fi
 printf 'PASS: escaped arrays are not prematurely released\n'
 
 printf 'PASS: compiler regression suite\n'
+
+cat > "$TMP/manual-valid.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    values[0] = 27
+    log values[0]
+    free(values)
+    return 0
+out
+SWAN
+"$SWAN" build "$TMP/manual-valid.swan" -o "$TMP/manual-valid"
+test "$("$TMP/manual-valid")" = "27"
+printf 'PASS: manual var allocation has explicit single-owner release\n'
+
+cat > "$TMP/manual-leak.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    return 0
+out
+SWAN
+expect_rejected manual-leak
+
+cat > "$TMP/manual-double-free.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    free(values)
+    free(values)
+    return 0
+out
+SWAN
+expect_rejected manual-double-free
+
+cat > "$TMP/manual-use-after-free.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    free(values)
+    log values[0]
+    return 0
+out
+SWAN
+expect_rejected manual-use-after-free
+
+cat > "$TMP/manual-free-auto.swan" <<'SWAN'
+fn main():
+    var values = array(4)
+    free(values)
+    return 0
+out
+SWAN
+expect_rejected manual-free-auto
+
+cat > "$TMP/manual-alias.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    var alias = values
+    free(values)
+    return 0
+out
+SWAN
+expect_rejected manual-alias
+
+cat > "$TMP/manual-branch-mismatch.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    if true
+        free(values)
+    else
+        pass
+    return 0
+out
+SWAN
+expect_rejected manual-branch-mismatch
+
+cat > "$TMP/manual-branch-release.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    if true
+        free(values)
+    else
+        free(values)
+    return 0
+out
+SWAN
+"$SWAN" build "$TMP/manual-branch-release.swan" -o "$TMP/manual-branch-release"
+printf 'PASS: manual ownership merges across exhaustive branches\n'
+
