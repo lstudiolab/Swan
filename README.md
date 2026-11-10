@@ -186,7 +186,7 @@ func main() -> int:
     return 0
 ```
 
-`echo!("literal")` is a compiler-recognized output intrinsic for a string literal. Foundation includes integer helpers such as `abs_int`, `min_int`, `max_int`, `clamp_int`, `factorial_int`, `sum_to_int`, `is_even`, and `is_odd`.
+`echo!("literal")` is a compiler-recognized output intrinsic for a string literal. Foundation includes `echo_int` and `echo_bool`, plus integer helpers `abs_int`, `min_int`, `max_int`, `clamp_int`, `sign_int`, `square_int`, `cube_int`, `power_int`, `factorial_int`, `sum_to_int`, `average_int`, `is_even`, `is_odd`, and `in_range_int`.
 
 Set `SWAN_STDLIB` or pass `--stdlib <directory>` to select a standard-library directory.
 
