@@ -1,5 +1,0 @@
-# Compiler 2 — Linker integration
-# Owns object/library selection, startup objects, runtime linkage, system linker
-# invocation, output paths and linker diagnostics.
-# TODO: implement platform toolchain discovery and safe argument construction.
-# The linker stage consumes emitted artifacts; it does not interpret source or IR.

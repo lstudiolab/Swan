@@ -1,5 +1,0 @@
-# Compiler 2 — STA backend
-# Owns target ABI lowering, instruction selection, register allocation, spill
-# placement, frame layout, prologue/epilogue generation and assembly/object emission.
-# TODO: implement real backends behind a common interface. A target is unavailable
-# until it passes assembler/linker and native execution tests.
