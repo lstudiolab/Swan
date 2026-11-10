@@ -108,6 +108,9 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
    case S_EXPR:
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
+   case S_FREE:
+    if(!s->value||!swan_check_expr(p,s->value,symbols,err))return false;
+    break;
    case S_IF:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
     size_t outer=symbols->count;bool before[1024],then_state[1024],else_state[1024];
