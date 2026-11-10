@@ -1,0 +1,5 @@
+# Compiler 2 — SIL generation
+# Lowers the semantically checked AST into typed SSA SIL/SVM input.
+# TODO: define value/block/instruction builders, explicit terminators, phi/block
+# arguments, source locations, function signatures and deterministic value IDs.
+# SIL generation must not emit partially typed or unverifiable instructions.
