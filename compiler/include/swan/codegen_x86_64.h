@@ -912,12 +912,12 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     Local *v=local_find(l,s->name);
     if(v&&v->stack_array){
      cg_save_volatile(o,l);
-     if(!v->array_unchecked)text_add(o,"    mov QWORD PTR [rbp - %d], %lld\\n",v->array_stack_offset+8,(long long)v->array_length);
-     if(v->array_length){text_add(o,"    lea rdi, [rbp - %d]\\n    xor eax, eax\\n    mov ecx, %lld\\n    rep stosd\\n",v->array_stack_offset,(long long)v->array_length);}
-     text_add(o,"    lea rax, [rbp - %d]\\n",v->array_stack_offset);
+     if(!v->array_unchecked)text_add(o,"    mov QWORD PTR [rbp - %d], %lld\n",v->array_stack_offset+8,(long long)v->array_length);
+     if(v->array_length){text_add(o,"    lea rdi, [rbp - %d]\n    xor eax, eax\n    mov ecx, %lld\n    rep stosd\n",v->array_stack_offset,(long long)v->array_length);}
+     text_add(o,"    lea rax, [rbp - %d]\n",v->array_stack_offset);
      cg_restore_volatile(o,l);
-     if(v->reg>=0)text_add(o,"    mov %s, rax\\n",cg_reg_name(v->reg));
-     else text_add(o,"    mov QWORD PTR [rbp - %d], rax\\n",v->slot*8);
+     if(v->reg>=0)text_add(o,"    mov %s, rax\n",cg_reg_name(v->reg));
+     else text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);
      break;
     }
     long long value=0;bool immediate=!s->value;
