@@ -427,6 +427,47 @@ fn main() -> int:
         return 7
     if tokens[5] != 0
         return 8
+    let program = array_unchecked(24)
+    program[0] = 102
+    program[1] = 117
+    program[2] = 110
+    program[3] = 99
+    program[4] = 32
+    program[5] = 120
+    program[6] = 40
+    program[7] = 41
+    program[8] = 58
+    program[9] = 92
+    program[10] = 110
+    program[11] = 32
+    program[12] = 32
+    program[13] = 32
+    program[14] = 32
+    program[15] = 114
+    program[16] = 101
+    program[17] = 116
+    program[18] = 117
+    program[19] = 114
+    program[20] = 110
+    program[21] = 32
+    program[22] = 52
+    program[23] = 50
+    program[24] = 92
+    program[25] = 110
+    let program_tokens = array_unchecked(60)
+    let full_count = swan_lex(program, 24, program_tokens, 12, diagnostic)
+    if full_count != 12
+        return 9
+    if program_tokens[0] != 8 or program_tokens[5] != 1 or program_tokens[10] != 28
+        return 10
+    if program_tokens[15] != 29 or program_tokens[20] != 30 or program_tokens[25] != 5
+        return 11
+    if program_tokens[30] != 6 or program_tokens[35] != 14 or program_tokens[40] != 2
+        return 12
+    if program_tokens[45] != 5 or program_tokens[50] != 7 or program_tokens[55] != 0
+        return 13
+    if program_tokens[31] != 14 or program_tokens[33] != 2 or program_tokens[34] != 5
+        return 14
     return 0
 out
 "$SWAN" "$TMP/swanc-lexer-test.swan" --emit-asm -o "$TMP/swanc-lexer-test.s"
