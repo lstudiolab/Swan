@@ -23,6 +23,10 @@ The repository is licensed under Apache License 2.0.
 
 The typed-IR optimizer currently runs width-aware constant folding, CFG simplification, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, a post-hoisting CSE pass, and dead-code elimination. DCE uses a value worklist so liveness propagation is linear in the number of SSA values and operand edges, rather than repeatedly rescanning every instruction. Every pass is followed by IR verification. The SVM target runs this pipeline before execution and before writing `.swvm` modules. These passes apply only to the typed-IR path; the established AST compatibility backend retains its own optimizations.
 
+SVM execution uses the optimized IR produced by that pipeline; `swan build --target svm` writes the optimized module, while `swan run --target svm` executes that same optimized IR directly in memory instead of serializing and reopening a temporary module. The VM assigns local stack slots lazily on first execution of each alloca and caches them by call-frame generation. This removes the per-call scan of every IR block while preserving one slot per local across loop iterations and recursive calls. Loading a `.swvm` artifact verifies it before execution; artifacts produced by the Swan compiler are already optimized.
+
+The semantic checker and each backend reject unknown AST/IR kinds instead of treating unhandled nodes as empty statements. IR is verified before optimization, after every pass, and again after the final cleanup. A feature not implemented by the selected backend therefore fails with a diagnostic rather than silently generating partial code.
+
 `main.c` is the only compiled compiler translation unit. Compiler subsystems are C headers under `compiler/include/swan/`. The system assembler and linker only consume assembly already emitted by Swan.
 
 ## Build and run
