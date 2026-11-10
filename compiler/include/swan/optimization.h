@@ -177,7 +177,7 @@ static inline void swan_ir_mark_live_value(const SwanIRFunction *fn,uint32_t val
     if(!value||value>=fn->next_value||live[value])return;
     live[value]=1;work[(*top)++]=value;
 }
-static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
+static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module,bool *changed_out){
     bool changed=false;
     for(size_t f=0;f<module->function_count;f++){
         SwanIRFunction *fn=&module->functions[f];
@@ -231,7 +231,8 @@ static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
         }
         free(definitions);free(live);free(work);
     }
-    return changed;
+    if(changed_out)*changed_out=changed;
+    return true;
 }
 static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char *error,size_t cap){
     *changed=false;
@@ -436,7 +437,9 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
     if(pass==SWAN_IR_PASS_DEAD_CODE){
-        if(!swan_ir_dead_code_eliminate(module)){if(error&&cap)snprintf(error,cap,"out of memory during dead-code elimination");return false;}
+        bool changed=false;
+        if(!swan_ir_dead_code_eliminate(module,&changed)){if(error&&cap)snprintf(error,cap,"out of memory during dead-code elimination");return false;}
+        (void)changed;
         return swan_ir_verify(module,error,cap);
     }
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
