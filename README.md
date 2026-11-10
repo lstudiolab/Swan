@@ -161,6 +161,56 @@ sh test.sh
 
 CI runs the complete suite, including compiler construction, header isolation, parser and semantic checks, native execution, arrays, loop control, ABI alignment, Foundation imports, and typed SSA verification, optimization pass tests, IR lowering, SVM execution and module round-trips, WebAssembly 32/64 module validation, and AArch64, ARMv7 and RISC-V64 object emission.
 
+## Portable target-triple backend
+
+Swan keeps its optimized hand-written backends as the default. For targets outside
+that native matrix, the optional LLVM IR bridge can emit assembly or relocatable
+objects for any target triple supported by the installed Clang/LLVM toolchain.
+
+```sh
+# AArch64 Linux ELF object
+swan build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
+
+# 32-bit ARM Linux object (choose the ABI/toolchain triple explicitly)
+swan build app.swan --target-triple armv7-unknown-linux-gnueabihf -o app.o
+
+# Windows x64 COFF object
+swan build app.swan --target-triple x86_64-pc-windows-msvc -o app.obj
+
+# Apple Silicon Mach-O object
+swan build app.swan --target-triple arm64-apple-macosx14.0 -o app.o
+
+# WebAssembly relocatable object; WASI and unknown-unknown triples are distinct
+swan build app.swan --target-triple wasm32-unknown-unknown -o app.o
+swan build app.swan --target-triple wasm64-unknown-unknown -o app.o
+
+# Inspect the generated LLVM IR or target assembly
+swan build app.swan --target-triple aarch64-unknown-linux-gnu --emit-llvm -o app.ll
+swan build app.swan --target-triple aarch64-unknown-linux-gnu --emit-asm -o app.s
+```
+
+Pass CPU tuning with `--cpu <cpu>` and individual LLVM target features with
+`--target-feature <feature>` (repeatable). `--wasm-feature` is an alias for
+WebAssembly-focused target features such as `+simd128`, `+atomics`,
+`+bulk-memory`, and `+memory64`. The target triple determines the object
+format (ELF, COFF, Mach-O, or WebAssembly). The actual supported features depend
+on the installed Clang target backend.
+
+WebAssembly binary format version 1 is the current core module encoding; SIMD,
+threads/atomics, memory64, reference types, bulk memory, exceptions, and the
+component model are feature proposals/extensions, not separate numbered core
+binary versions. The LLVM bridge can pass supported target features through,
+but Swan's current typed IR does not yet express every SIMD, threading, exception,
+GC, or component-model operation. A relocatable `.o` file is not a final
+standalone WASM application; final linking may require `wasm-ld`, a WASI sysroot,
+or component tooling.
+
+The LLVM bridge currently lowers the verified Swan typed-IR subset. Arrays,
+general strings, runtime-lazy imports, full floating-point operations, aggregates,
+and complete platform runtime/ABI integration are not yet portable across every
+target. Unsupported source constructs fail during IR lowering instead of silently
+falling back to the x86-64 backend.
+
 ## Backend status
 
 | Target | Status | Current scope |
