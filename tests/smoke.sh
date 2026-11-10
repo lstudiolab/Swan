@@ -49,7 +49,7 @@ printf 'PASS: print built-in and explicit out block terminator\n'
 cat > "$TMP/legacy-identifiers.swan" <<'SWAN'
 fn main():
     let log = 1
-    let manual = 2
+    let manualCount = 2
     let none = 3
     let extern = 4
     let funcName = 5
