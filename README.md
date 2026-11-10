@@ -21,7 +21,7 @@ The repository is licensed under Apache License 2.0.
   -> target assembler and linker (native ELF targets)
 ```
 
-The typed-IR optimizer currently runs width-aware constant folding, CFG simplification, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, a post-hoisting CSE pass, and dead-code elimination. Every pass is followed by IR verification. These passes apply only to the typed-IR path; the established AST compatibility backend retains its own optimizations.
+The typed-IR optimizer currently runs width-aware constant folding, CFG simplification, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, a post-hoisting CSE pass, and dead-code elimination. DCE uses a value worklist so liveness propagation is linear in the number of SSA values and operand edges, rather than repeatedly rescanning every instruction. Every pass is followed by IR verification. The SVM target runs this pipeline before execution and before writing `.swvm` modules. These passes apply only to the typed-IR path; the established AST compatibility backend retains its own optimizations.
 
 `main.c` is the only compiled compiler translation unit. Compiler subsystems are C headers under `compiler/include/swan/`. The system assembler and linker only consume assembly already emitted by Swan.
 
@@ -103,17 +103,17 @@ fn main():
     return 0
 ```
 
-Use the `manual` declaration modifier to opt an allocation out of automatic cleanup. Release it explicitly with `free`:
+Use `manual var` to opt an allocation out of automatic cleanup. Unlike an ordinary `var`, a manual binding has a single owner and must be released explicitly with `free`:
 
 ```swan
 fn main():
-    manual let values = array(1024)
+    manual var values = array(1024)
     values[0] = 42
     free(values)
     return 0
 ```
 
-SAMC conservatively leaves arrays allocated when their ownership escapes through a return, alias assignment, or function argument. This prevents premature frees in code where the compiler cannot prove that the current function is the final owner. Those escaped allocations require an explicit ownership strategy; SAMC does not yet perform interprocedural lifetime analysis or per-block last-use cleanup. Manual allocations are never implicitly freed.
+The semantic checker rejects manual allocation leaks at scope exit, double-free, use-after-free, aliasing/copying, passing the owner to a function, returning the owner, and ownership-state mismatches across branches or loops. These are compile-time checks; they add no runtime reference counting or ownership bookkeeping. The current manual form is intentionally restricted to direct array allocations and local single-owner lifetimes. Ownership transfer, borrowing, destructors, and manual heap objects are not implemented yet. The older `store` modifier remains accepted for compatibility but does not opt into the new strict ownership checks.
 
 ## Lazy imports and library tree shaking
 
