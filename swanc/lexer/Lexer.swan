@@ -36,6 +36,7 @@
 #   if       -> IF
 #   in       -> IN
 #   as       -> AS
+#   or       -> OR
 #
 # 3 bytes:
 #   let      -> LET
@@ -61,10 +62,8 @@
 #   bool     -> BOOL_TYPE
 #   lazy     -> LAZY
 #   case     -> CASE
-#   or       -> OR
 #   init     -> INIT
 #   free     -> FREE
-#   print    -> PRINT    (5 bytes; see the 5-byte group below)
 #
 # 5 bytes:
 #   while    -> WHILE
@@ -88,7 +87,6 @@
 #   struct   -> STRUCT
 #   thread   -> THREAD
 #   deinit   -> DEINIT
-#   rethrow  -> RETHROW (7 bytes; see the 7-byte group below)
 #   borrow   -> BORROW
 #
 # 7 bytes:
