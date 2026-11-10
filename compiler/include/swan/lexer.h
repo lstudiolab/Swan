@@ -71,6 +71,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"guard",5))return T_GUARD;
   if(!memcmp(s,"break",5))return T_BREAK;
   if(!memcmp(s,"false",5))return T_FALSE;
+  if(!memcmp(s,"store",5))return T_STORE; /* deprecated manual-memory syntax alias */
   if(!memcmp(s,"const",5))return T_CONST;
   if(!memcmp(s,"block",5))return T_BLOCK;
   if(!memcmp(s,"defer",5))return T_DEFER;
