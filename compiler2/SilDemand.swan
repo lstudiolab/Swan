@@ -1,0 +1,4 @@
+# Compiler 2 — SIL demand analysis
+# Owns backward liveness, value-demand propagation and use analysis.
+# TODO: implement CFG-aware fixed-point dataflow, block live-in/live-out sets,
+# instruction-level demand, and tests for loops, branches, and block arguments.
