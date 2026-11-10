@@ -90,6 +90,6 @@ Unsupported source constructs must fail during semantic analysis or lowering. Un
 
 ## Migration status
 
-The repository currently has target-specific IR emitters for x86-64, AArch64, ARMv7, RISC-V64, WebAssembly, and an optional LLVM bridge. They are not yet unified behind one SVM driver, and backend feature coverage is not equal. The current `svm.h` still contains the legacy IR interpreter and `.swvm` serializer. This document defines the destination architecture; those legacy paths must be removed only as the compiled target pipeline and CLI tests replace them.
+The repository has target-specific IR emitters for x86-64, AArch64, ARMv7, RISC-V64, WebAssembly, and an optional LLVM bridge. `swan_svm_prepare_ir` is now the shared lowering, optimization, and verification entry point used by every target pipeline. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Backend feature coverage is still unequal and the driver still has target-specific output handling; the next migration step is a unified backend registry and common object/link pipeline.
 
-The migration is complete only when all normal compile/run commands use the SVM compile pipeline, `--target svm` and `swan vm` no longer imply interpreter execution, the legacy interpreter has no production call sites, and the target matrix passes its compile/link/run or module-validation tests.
+The shared SVM frontend/optimization pipeline is now used for all registered compiled targets. Completion still requires consolidating target-specific emission and linker orchestration, expanding each backend to the same language subset, and passing per-target compile/link/run or module-validation tests.

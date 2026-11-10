@@ -4,21 +4,9 @@
 /* The executable entry point owns command-line orchestration. The headers
  * provide independently testable compiler stages and shared utilities. */
 static int swan_run(int argc,char **argv){
- if(argc>=3&&!strcmp(argv[1],"vm")){
-  uint64_t fuel=10000000u;
-  if(argc==5&&!strcmp(argv[3],"--fuel")){char *end=NULL;errno=0;unsigned long long parsed=strtoull(argv[4],&end,10);if(errno||!end||*end||!parsed){fprintf(stderr,"swan: invalid SVM fuel limit '%s'\\n",argv[4]);return 2;}fuel=(uint64_t)parsed;}
-  else if(argc!=3){fprintf(stderr,"Usage: swan vm <file.swvm> [--fuel instructions]\\n");return 2;}
-  FILE *artifact=fopen(argv[2],"rb");if(!artifact){perror(argv[2]);return 1;}
-  SwanIRModule module={0};char detail[256]={0};
-  bool loaded=swan_svm_read_module(artifact,&module,detail,sizeof(detail));fclose(artifact);
-  if(!loaded){fprintf(stderr,"swan: invalid SVM module: %s\\n",detail);swan_ir_destroy(&module);return 1;}
-  int64_t result=0;bool ok=swan_svm_run(&module,"main",fuel,&result,detail,sizeof(detail));
-  if(!ok)fprintf(stderr,"swan: SVM execution failed: %s\\n",detail);
-  swan_ir_destroy(&module);return ok?(int)((uint64_t)result&255u):1;
- }
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--link object] [-L dir] [-l library] [-o output] | swan vm <file.swvm> [--fuel instructions]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
@@ -208,30 +196,6 @@ static int swan_run(int argc,char **argv){
    if(result)fprintf(stderr,"swan: RISC-V64 assembly failed; install a Clang toolchain with RISC-V support\n");
   }
   free(assembly.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
- }
- if(target->architecture==SWAN_ARCH_SVM){
-  if(mode==SWAN_EMIT){fprintf(stderr,"swan: --emit-asm is not valid for the SVM target\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
-  SwanIRModule ir={0};char vm_error[256]={0};
-  bool optimized=swan_svm_prepare_ir(&p,&ir,&err,vm_error,sizeof(vm_error));
-  if(!optimized){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:vm_error);
-   swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
-  }
-  bool save_module=mode==SWAN_BUILD||output!=NULL;
-  if(save_module){
-   const char *dest=output?output:"a.swvm";FILE *artifact=fopen(dest,"wb");
-   stage=swan_profile_start();bool saved=artifact&&swan_svm_write_module(artifact,&ir);swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
-   if(artifact&&fclose(artifact)!=0)saved=false;
-   if(!saved){fprintf(stderr,"swan: failed to write portable SVM module\\n");swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
-  }
-  int result=0;
-  if(mode!=SWAN_BUILD){
-   int64_t vm_result=0;stage=swan_profile_start();
-   if(!swan_svm_run(&ir,"main",UINT64_C(1000000000),&vm_result,vm_error,sizeof(vm_error))){fprintf(stderr,"swan: %s\\n",vm_error);result=1;}
-   else result=(int)(uint8_t)vm_result;
-   swan_profile_end(SWAN_PROFILE_RUN,stage);
-  }
-  swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
  char exe[1024];bool temporary_output=output==NULL;int exe_len;

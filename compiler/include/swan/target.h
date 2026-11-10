@@ -13,14 +13,12 @@ typedef enum {
     SWAN_ARCH_RISCV64,
     SWAN_ARCH_WASM32,
     SWAN_ARCH_WASM64,
-    SWAN_ARCH_SVM,
     SWAN_ARCH_LLVM
 } SwanArchitecture;
 
 typedef enum {
     SWAN_OBJECT_ELF,
     SWAN_OBJECT_WASM,
-    SWAN_OBJECT_SVM,
     SWAN_OBJECT_COFF,
     SWAN_OBJECT_MACHO
 } SwanObjectFormat;
@@ -48,8 +46,7 @@ static const SwanTarget swan_targets[] = {
     {"armv7", "armv7-unknown-linux-gnueabihf", SWAN_ARCH_ARMV7, SWAN_OBJECT_ELF, SWAN_ABI_AAPCS32, true},
     {"riscv64", "riscv64-unknown-linux-gnu", SWAN_ARCH_RISCV64, SWAN_OBJECT_ELF, SWAN_ABI_RISCV, true},
     {"wasm32", "wasm32-unknown-unknown", SWAN_ARCH_WASM32, SWAN_OBJECT_WASM, SWAN_ABI_WASM, true},
-    {"wasm64", "wasm64-unknown-unknown", SWAN_ARCH_WASM64, SWAN_OBJECT_WASM, SWAN_ABI_WASM, true},
-    {"svm", "swanvm-unknown-portable", SWAN_ARCH_SVM, SWAN_OBJECT_SVM, SWAN_ABI_WASM, true}
+    {"wasm64", "wasm64-unknown-unknown", SWAN_ARCH_WASM64, SWAN_OBJECT_WASM, SWAN_ABI_WASM, true}
 };
 
 static inline SwanObjectFormat swan_object_format_for_triple(const char *triple) {

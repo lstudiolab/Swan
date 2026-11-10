@@ -51,7 +51,7 @@ SVM is the target-independent compilation engine, not a CPU target and not an in
 
 Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target is allowed to execute the IR through an interpreter loop.
 
-The migration is in progress. The CLI still exposes the legacy `--target svm`, `swan vm`, and `.swvm` IR-interpreter path for compatibility; these are not the destination architecture and must be removed after compiled-target coverage and tests replace them. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
+The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
 
 ### Fail-fast behavior
 
@@ -123,7 +123,7 @@ The typed-IR generator currently handles scalar integer/boolean expressions, dir
 | RISC-V64 Linux | Swan-owned ELF object/assembly for a limited scalar IR subset |
 | WebAssembly 32 | Swan-owned WASM module for the implemented scalar/control-flow subset |
 | WebAssembly 64 | Swan-owned memory64 module emission for its implemented subset |
-| SVM | Portable verified-IR interpreter and versioned `.swvm` artifact |
+| SVM | Shared target-independent compilation engine; not a runtime target |
 | Other LLVM triples | Optional explicit `--target-triple` bridge; depends on installed Clang/LLVM target support and the Swan typed-IR subset |
 
 Object emission is not proof of execution or complete ABI integration on the destination platform. Cross-target runtime linking, full standard-library support, aggregate ABI lowering, and complete feature parity are not implemented.

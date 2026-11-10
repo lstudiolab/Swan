@@ -10,7 +10,6 @@
 #include "swan/c_header.h"
 #include "swan/irgen.h"
 #include "swan/optimization.h"
-#include "swan/svm.h"
 #include "swan/codegen_wasm32.h"
 #include "swan/codegen_aarch64.h"
 #include "swan/codegen_riscv64.h"

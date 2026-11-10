@@ -54,7 +54,7 @@ The x86-64 path retains AST code generation for supported constructs not yet rep
 | `sil_bridge.h` | Lower eligible scalar AST functions through Swan-authored SIL into typed IR |
 | `ir.h` / `irgen.h` | Typed SSA data model, verifier support and AST-to-IR lowering |
 | `optimization.h` | Target-independent typed-IR optimization passes |
-| `svm.h` | Legacy interpreter and `.swvm` serialization; scheduled for removal |
+| `codegen.h` | Shared SVM compilation engine: lowering, optimization, verification, and native backend entry point |
 | `codegen_*.h` | Swan-owned target-specific lowering |
 | `codegen_llvm.h` | Optional explicit LLVM IR portability bridge |
 | `emitter.h` | Assembly serialization |
@@ -70,7 +70,7 @@ The optimization pipeline performs width-aware constant folding, select and CFG 
 
 ## Runtime and memory
 
-The intended SVM architecture emits target machine code or target modules; it does not interpret IR at runtime. The current `svm.h` runtime and `.swvm` format are legacy compatibility code and are scheduled for removal. Alloca storage is lazily initialized per frame generation rather than by scanning all instructions at every function entry.
+The intended SVM architecture emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WebAssembly targets emit WebAssembly modules. Alloca storage is lazily initialized per frame generation rather than by scanning all instructions at every function entry.
 
 The x86-64 compatibility backend supports the currently implemented u32 array forms and SAMC cleanup. Small fixed-size non-escaping arrays can use a stack-frame fast path. The newer `manual var` syntax opts a direct array allocation into strict local single-owner checks; it does not implement borrowing or ownership transfer. Legacy `store` syntax remains compatible and is not subject to the new strict checks.
 
