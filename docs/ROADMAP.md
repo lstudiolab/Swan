@@ -1,42 +1,60 @@
-# Swan Performance Engineering
+# Swan Engineering Roadmap
 
-## Current architecture
+This roadmap separates implemented work from remaining engineering. It is not a claim that every planned item is already supported.
 
-Swan has two x86-64 paths:
-- The established AST backend for the broader existing language subset, including checked/unchecked u32 arrays, logging and runtime-lazy imports.
-- A verified typed-IR backend preferred for the scalar subset. It emits Swan-owned System V assembly.
+## Current baseline
 
-The same typed IR is consumed by the AArch64, ARMv7, RISC-V64, WASM32 and WASM64 generators for their documented subsets. SVM executes the IR portably and can load/store a versioned .swvm artifact. No C transpilation or LLVM code-generation fallback is used.
+- C11 compiler host with a Swan-authored SIL scalar subsystem compiled during bootstrap.
+- UTF-8-aware lexer and indentation-based parser.
+- AST semantic analysis, standard-library module loading, limited scalar C header import, and reachability analysis.
+- General typed SSA IR, verifier, AST-to-IR lowering, and target-independent optimizer.
+- x86-64 typed-IR codegen plus AST compatibility codegen for additional implemented features.
+- Swan-owned AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM typed-IR backends.
+- Optional explicit LLVM target-triple bridge.
+- Strict local ownership checking for `manual var`, SAMC cleanup for eligible local arrays, and a stack-array fast path for small fixed non-escaping arrays.
+- SVM in-memory execution, versioned `.swvm` artifacts, fuel limits, and per-frame lazy alloca initialization.
 
-## Implemented compile-time work
+## Completed optimization work
 
-- Arena-backed AST storage and compact token storage.
-- Hash-indexed function, semantic-symbol and backend-local lookup.
-- Typed SSA IR with control-flow, PHI nodes, calls and memory operations.
-- IR verifier for SSA bounds/uniqueness, dominance, branch targets, PHI completeness, call signatures and operand types.
-- IR generation for integer/boolean expressions, direct calls, mutable locals, branches, loops, loop control and short-circuit logic.
-- Verified optimization pass manager: width-aware constant folding, select folding, constant-branch/CFG simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware CSE, conservative loop-invariant code motion and iterative DCE.
-- Versioned, bounded .swvm serialization and portable SVM execution.
-- Dedicated assembly emitter and linker helper interfaces.
+- Arena-backed AST allocation and compact token storage.
+- Hash-indexed function and scoped-symbol lookup.
+- Typed SSA IR and structural/type verification.
+- Width-aware constant folding and constant-select folding.
+- CFG/constant-branch simplification and unreachable-block pruning.
+- Algebraic simplification and trivial-PHI copy propagation.
+- Dominance-aware CSE.
+- Conservative loop-invariant code motion and post-hoisting CSE.
+- Worklist-based dead-code elimination.
+- SVM lazy local-slot initialization by frame generation.
+- x86-64 compatibility-path register locals, call preservation, leaf-frame elimination, small-function inlining, arithmetic strength reduction, and specialized array access/allocation paths.
 
-## Implemented runtime work
+## Priority 1: correctness and parity
 
-- Existing x86-64 AST backend: register-backed locals, caller/callee-saved register handling, spills, leaf inlining, constant folding, short-circuit logic, power-of-two division lowering, selected loop strength reduction and optimized u32 array indexing.
-- IR backends: scalar instruction selection, calls, stack-local memory, CFG and PHI edge copies for supported targets.
-- SVM: typed integer semantics, recursive calls, memory, PHI/control flow, fuel and recursion limits.
+1. Keep the full test suite green, including C ABI, UTF-8, manual ownership, legacy syntax, lazy imports, SVM, and target emission.
+2. Add differential execution tests for equivalent programs compiled through typed-IR and AST compatibility paths.
+3. Expand negative tests for unsupported source constructs and backend operation/type combinations.
+4. Verify ABI behavior with executable tests on native runners for AArch64, ARMv7, and RISC-V64.
+5. Validate WASM32 and WASM64 behavior with suitable runtimes, not only binary inspection.
 
-The IR backends currently use stack/register slots and conservative lowering. They are correctness-oriented and not yet a replacement for the optimized x86-64 AST backend on array-heavy/runtime-critical workloads.
+## Priority 2: runtime performance
 
-## Remaining performance work before SIL
+1. Profile typed-IR generated native programs and identify hot instruction-selection and value-storage paths.
+2. Implement liveness analysis and a global register allocator for typed-IR machine-code backends.
+3. Add spill insertion and register-pressure tests.
+4. Improve target-specific instruction selection and scheduling only where measurements justify it.
+5. Expand typed IR to arrays/slices and bounds-check semantics without regressing the compatibility backend.
+6. Add floating-point execution semantics and backend coverage.
+7. Compare SVM dispatch and memory-access strategies against native execution on identical workloads.
 
-1. Implement liveness analysis and global register allocation for IR backends.
-2. Expand global value numbering and target-aware value reuse with dominance-aware tests.
-3. Add target-aware instruction selection and scheduling.
-4. Add array/slice IR, bounds-check semantics and native lowering.
-5. Add floating-point IR semantics, SVM execution and target instruction selection.
-6. Add complete import/module lowering and target runtime linking.
-7. Expand ABI and execution tests on native/cross-architecture runners.
-8. Differentially test the IR x86-64 path against the legacy AST path over the existing source corpus.
-9. Measure runtime and compile-time deltas on identical benchmark workloads before adopting IR optimizations in the default fast path.
+## Priority 3: language completeness
 
-SIL is intentionally not part of this work. It remains deferred until the typed IR, codegen, artifact and target support boundaries above are stable.
+1. Define complete static typing and type inference rules.
+2. Implement struct layout, field access, method resolution, and aggregate ABI lowering.
+3. Define pointer/reference and ownership-transfer semantics before implementing borrowing.
+4. Add string values and general output to typed IR.
+5. Expand imports and runtime module linking across targets.
+6. Turn recognized-but-unimplemented keywords into explicit feature work or remove/deprecate them from the public language surface.
+
+## Performance policy
+
+A change is not a performance win merely because it reduces source lines, instruction count, or compile time. Measure compile time and runtime separately, validate checksums, report memory use, and record the exact compiler revision and machine configuration. Do not claim superiority over C, Rust, or other languages without reproducible, current results.
