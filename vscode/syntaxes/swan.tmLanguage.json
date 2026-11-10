@@ -13,25 +13,28 @@
       "include": "#numbers"
     },
     {
+      "include": "#constants"
+    },
+    {
       "include": "#declarations"
     },
     {
       "include": "#control"
     },
     {
-      "include": "#operations"
+      "include": "#types"
     },
     {
-      "include": "#constants"
+      "include": "#builtins"
+    },
+    {
+      "include": "#functions"
     },
     {
       "include": "#operators"
     },
     {
       "include": "#punctuation"
-    },
-    {
-      "include": "#types"
     }
   ],
   "repository": {
@@ -52,7 +55,7 @@
           "patterns": [
             {
               "name": "constant.character.escape.swan",
-              "match": "\\\\\\\\."
+              "match": "\\\\."
             }
           ]
         }
@@ -61,36 +64,12 @@
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric.integer.swan",
-          "match": "\\\\b[0-9]+\\\\b"
-        }
-      ]
-    },
-    "declarations": {
-      "patterns": [
-        {
-          "name": "storage.type.function.swan",
-          "match": "\\\\bfn\\\\b"
+          "name": "constant.numeric.float.swan",
+          "match": "\\b[0-9]+\\.[0-9]+\\b"
         },
         {
-          "name": "storage.modifier.swan",
-          "match": "\\\\b(import|let|var|const)\\\\b"
-        }
-      ]
-    },
-    "control": {
-      "patterns": [
-        {
-          "name": "keyword.control.swan",
-          "match": "\\\\b(if|else|while|break|continue|return|pass)\\\\b"
-        }
-      ]
-    },
-    "operations": {
-      "patterns": [
-        {
-          "name": "support.function.builtin.swan",
-          "match": "\\\\b(log|echo|array|array_unchecked|array_u32|array_u32_unchecked)\\\\b"
+          "name": "constant.numeric.integer.swan",
+          "match": "\\b[0-9]+\\b"
         }
       ]
     },
@@ -98,7 +77,59 @@
       "patterns": [
         {
           "name": "constant.language.swan",
-          "match": "\\\\b(true|false|none)\\\\b"
+          "match": "\\b(true|false|null|nil)\\b"
+        }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "name": "storage.type.function.swan",
+          "match": "\\b(func|thread|async)\\b"
+        },
+        {
+          "name": "storage.modifier.swan",
+          "match": "\\b(let|var|const|external|lazy)\\b"
+        },
+        {
+          "name": "keyword.other.swan",
+          "match": "\\b(import|namespace|export|from|as|self|set)\\b"
+        }
+      ]
+    },
+    "control": {
+      "patterns": [
+        {
+          "name": "keyword.control.swan",
+          "match": "\\b(if|else|while|for|in|loop|block|guard|defer|match|case|return|break|continue|pass)\\b"
+        }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "storage.type.swan",
+          "match": "\\b(bool|struct|enum|type|variant|protocol)\\b"
+        }
+      ]
+    },
+    "builtins": {
+      "patterns": [
+        {
+          "name": "support.function.builtin.swan",
+          "match": "\\bprint\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "functions": {
+      "patterns": [
+        {
+          "name": "entity.name.function.swan",
+          "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
+        },
+        {
+          "name": "variable.other.member.swan",
+          "match": "(?<=\\.)[A-Za-z_][A-Za-z0-9_]*"
         }
       ]
     },
@@ -106,7 +137,7 @@
       "patterns": [
         {
           "name": "keyword.operator.swan",
-          "match": "->|==|!=|<=|>=|=|\\\\+|-|\\\\*|/|%|<|>|!|\\\\b(and|or|not)\\\\b"
+          "match": "->|==|!=|<=|>=|=|\\+|-|\\*|/|%|<|>|!|&&|\\|\\||\\b(and|or|not)\\b"
         }
       ]
     },
@@ -118,21 +149,9 @@
         },
         {
           "name": "punctuation.section.brackets.swan",
-          "match": "[()\\\\[\\\\]]"
-        }
-      ]
-    },
-    "types": {
-      "patterns": [
-        {
-          "name": "storage.type.swan",
-          "match": "\\\\b(int|bool|string|void)\\\\b"
-        },
-        {
-          "name": "entity.name.function.swan",
-          "match": "\\\\b[A-Za-z_][A-Za-z0-9_]*(?=\\\\s*\\\\()"
+          "match": "[()\\[\\]]"
         }
       ]
     }
   }
-}
+}\n
