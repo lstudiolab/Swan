@@ -1,62 +1,99 @@
-# Compiler Architecture
-
-Swan owns its frontend, typed intermediate representation, and optimization passes. Its optimized native path uses Swan-owned machine-code backends. An optional LLVM IR portability backend serializes verified Swan IR and invokes Clang/LLVM for targets and object formats outside the native backend matrix; it is not used by default.
+# Swan Compiler Architecture
 
 ## Implementation model
 
-The compiler is C11. `main.c` is the only compiled translation unit; compiler subsystems are headers under `compiler/include/swan/`.
+Swan is a compiled language with a C11 compiler host and a Swan-authored SIL subsystem. `main.c` is the host compiler's only compiled C translation unit; most host compiler components are headers in `compiler/include/swan/`. The SIL builder and passes live as `.swan` files in `compiler/sil/` and are compiled to a native object during the build.
 
-## Active compilation paths
+Swan owns source parsing, AST construction, semantic analysis, typed IR, optimization, and its native target code generators. Swan source is not transpiled to C.
 
-The x86-64 compiler has two active paths:
+## Build and bootstrap
+
+`build.sh` performs these steps:
+
+1. Compile `main.c` as a temporary C11 bootstrap compiler with SIL bridge integration disabled.
+2. Concatenate the SIL source stages, removing their module import declarations for the bootstrap compilation unit.
+3. Ask the bootstrap compiler to emit assembly for the SIL runtime source.
+4. Assemble that output to an object.
+5. Link the object with `main.c` to produce `build/swan`.
+
+The production executable therefore includes native code generated from Swan-authored SIL. The SIL stage is intentionally small and does not replace the C11 host frontend or general typed-IR lowering.
+
+## Active source-lowering paths
 
 ```text
-.swan -> lexer -> parser / AST -> imports -> semantic analysis
-  -> typed SSA IR -> verified scalar optimizations -> Swan x86-64 IR backend
-  -> assembly emitter -> system assembler/linker
+.swan source
+  -> UTF-8 validation / lexer
+  -> indentation-aware parser / AST
+  -> C-header declarations + Swan module loading
+  -> semantic analysis
+  -> reachability analysis
+  -> choose lowering path
+       SIL bridge for eligible straight-line scalar functions
+       general AST -> typed SSA IR for remaining IR-supported functions
+       AST -> x86-64 compatibility codegen for features outside IR
+  -> typed IR verifier and optimizer
+  -> selected target backend
+  -> emitter / assembler / linker
 ```
 
-The compatibility path still lowers constructs not yet represented in IR (including the existing array, logging, and runtime-lazy import implementation) directly from the AST to Swan-generated x86-64 assembly.
+The SIL bridge is an optimization/lowering route for a narrow subset, not a mandatory stage for every function. It first creates a general typed-IR candidate, then substitutes SIL output for eligible functions. Unsupported SIL functions retain general IR lowering.
 
-Cross-target AArch64, ARMv7, RISC-V64, WASM32, WASM64, and SVM consume the documented typed-IR subset. The optional LLVM IR bridge accepts arbitrary LLVM target triples (subject to the installed Clang target build) and can emit target assembly or relocatable objects. All cross-target routes currently consume the typed-IR subset; this does not imply full language or runtime parity.
+The x86-64 path retains AST code generation for supported constructs not yet represented in typed IR, particularly arrays, output/logging, and runtime-lazy imports. Other targets consume typed IR and therefore have a narrower source-feature set.
 
-## Implemented compiler components
+## Compiler components
 
-- Lexer, indentation-aware parser, AST, import resolution, and semantic analysis.
-- Typed SSA IR with integer widths, booleans, pointers, arithmetic, comparisons, branches, PHI nodes, calls, and local memory.
-- IR verifier for SSA definitions, use-before-definition, dominance, CFG edges, PHI predecessor coverage, operand types, and call signatures.
-- Verified optimization passes: width-aware constant folding, constant-select folding, CFG simplification, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, and iterative dead-code elimination.
-- Portable `.swvm` artifact serialization with versioning, bounded reads, malformed-input checks, and explicit ownership of decoded strings.
-- SVM execution with typed integer semantics, calls, local memory, PHI/CFG execution, fuel limits, and call-depth limits.
-- Swan-owned x86-64 System V AST compatibility and typed-IR code generation.
-- Swan-owned AArch64, ARMv7, RISC-V64, WASM32, and WASM64 typed-IR emitters.
-- Separate assembly emission and linker-driver interfaces.
+| Component | Responsibility |
+|---|---|
+| `core.h` | Shared tokens, errors, text buffers, arena and profiling support |
+| `lexer.h` | UTF-8 validation, indentation tokens, literals and keyword recognition |
+| `ast.h` / `parser.h` | AST model and indentation-aware syntax parser |
+| `c_header.h` | Clang-assisted import of supported C function declarations |
+| `compiler.h` | Module loading, semantic pipeline, reachability and CLI-facing orchestration helpers |
+| `sema.h` | Name/scope checks, declaration checks and strict `manual var` ownership analysis |
+| `sil_bridge.h` | Lower eligible scalar AST functions through Swan-authored SIL into typed IR |
+| `ir.h` / `irgen.h` | Typed SSA data model, verifier support and AST-to-IR lowering |
+| `optimization.h` | Target-independent typed-IR optimization passes |
+| `svm.h` | Portable register-based interpreter and `.swvm` serialization |
+| `codegen_*.h` | Swan-owned target-specific lowering |
+| `codegen_llvm.h` | Optional explicit LLVM IR portability bridge |
+| `emitter.h` | Assembly serialization |
+| `linker.h` | Host assembler/linker process invocation |
 
-## Current limitations
+## Typed IR contract
 
-The IR generator does not yet lower array/slice operations, strings and logging, floating-point arithmetic, closures, aggregate values, or runtime-lazy imports. Those constructs continue to use the x86-64 compatibility path where supported; unsupported target/language combinations must fail with explicit diagnostics.
+Typed IR is target-independent SSA with function-local value IDs, basic blocks, explicit terminators, typed instructions, and PHI incoming edges. The IR model represents scalar integer and floating-point types, booleans, pointers, arithmetic, comparisons, select, PHI, alloca/load/store, and calls.
 
-IR backends currently use conservative stack/register slots. A global liveness-driven register allocator, spill insertion, loop-invariant code motion, broader target instruction selection, and complete cross-target runtime integration remain unfinished.
+The verifier checks structural and type invariants, including value definitions, use-before-definition, dominance, CFG targets, terminators, PHI predecessor coverage, operand types, and call signatures. A data-model operation is not necessarily supported by every source lowerer or target backend.
 
-SAMC currently provides conservative local array cleanup in the AST backend. Escaping arrays are deliberately not implicitly released; interprocedural ownership and per-block last-use analysis remain future work.
+The optimization pipeline performs width-aware constant folding, select and CFG simplification, algebraic simplification, trivial-PHI propagation, dominance-aware CSE, conservative LICM, post-hoisting CSE, and DCE. DCE uses a value worklist to propagate liveness. Transformations are checked with IR verification.
 
-## Target and ABI boundaries
+## Runtime and memory
 
-- x86-64 currently targets the System V Linux ABI.
-- AArch64 targets the AAPCS64 Linux ABI.
-- ARMv7 targets the AAPCS32 ARM-state Linux ABI and uses EABI division helpers for integer division/remainder.
-- RISC-V64 targets the documented Linux integer ABI subset.
-- WASM32 emits a WebAssembly 32-bit memory module.
-- WASM64 emits a WebAssembly memory64 module; runtime interoperability depends on a compatible Memory64 runtime.
-- SVM executes verified typed IR as a portable virtual machine.
+SVM executes verified IR with typed integer behavior, calls, PHI/CFG control flow, local memory, a fuel limit, and a maximum call depth. Alloca storage is lazily initialized per frame generation rather than by scanning all instructions at every function entry.
 
-The hand-written backends remain Linux-focused. Windows COFF, Apple Mach-O, additional ARM profiles, and other LLVM-supported targets can be selected through `--target-triple`, provided the installed Clang build supports them. This path emits relocatable objects or assembly; final executable linking and platform runtime integration are separate steps.
+The x86-64 compatibility backend supports the currently implemented u32 array forms and SAMC cleanup. Small fixed-size non-escaping arrays can use a stack-frame fast path. The newer `manual var` syntax opts a direct array allocation into strict local single-owner checks; it does not implement borrowing or ownership transfer. Legacy `store` syntax remains compatible and is not subject to the new strict checks.
 
-## Engineering rules
+## Backend and ABI boundaries
 
-1. Never transpile Swan source into C.
-2. Keep the default native backends Swan-owned. LLVM/Clang may be used only through the explicit `--target-triple` portability path.
-3. System assemblers and linkers may consume Swan-generated assembly.
-4. Never claim full target parity based only on successful object/module emission.
-5. Every optimization requires correctness tests and reproducible performance measurements.
-6. Keep the pre-SIL IR and compatibility pipelines stable before beginning another IR layer.
+| Backend | Object/runtime boundary | Scope |
+|---|---|---|
+| x86-64 | System V Linux | Native executable/assembly; typed scalar IR and broader AST compatibility features |
+| AArch64 | AAPCS64 Linux | Limited scalar IR object/assembly emission |
+| ARMv7 | AAPCS32 Linux, ARM state | Limited i32/i1 IR object/assembly emission |
+| RISC-V64 | Linux integer ABI subset | Limited scalar IR object/assembly emission |
+| WASM32 | WebAssembly 32-bit memory | Limited scalar/control-flow module emission |
+| WASM64 | WebAssembly memory64 | Limited memory64 module emission |
+| SVM | Host-independent virtual ISA | Verified IR interpretation and `.swvm` artifacts |
+| LLVM triple | Depends on target triple/toolchain | Explicit typed-IR portability route; Clang/LLVM must support the target |
+
+Successful object emission is not proof of runtime ABI compatibility. Cross-target linking, full runtime support, standard-library module bundling, aggregates, and full frontend parity remain incomplete.
+
+## Engineering invariants
+
+1. Do not transpile Swan source to C.
+2. Keep the native backend path Swan-owned.
+3. Keep the LLVM bridge explicit through `--target-triple`; it is not a silent fallback.
+4. Reject unsupported constructs with diagnostics rather than emitting partial code.
+5. Verify typed IR before and after transformations.
+6. Describe parser, semantic, IR, and backend support separately.
+7. Treat performance as unproven until measured on reproducible workloads.
