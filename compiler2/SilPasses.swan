@@ -1,0 +1,5 @@
+# Compiler 2 — Individual SIL passes
+# Owns reusable, independently testable SIL analysis and transformation passes.
+# TODO: add constant folding, copy propagation, dead instruction elimination,
+# canonicalization, control-flow simplification, strength reduction and verifier hooks.
+# Each pass declares its preconditions, preserved invariants and invalidation effects.
