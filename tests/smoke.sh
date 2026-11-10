@@ -389,8 +389,35 @@ printf 'PASS: binary search over heap arrays\\n'
 test -x "$TMP/binary-search-20m"
 printf 'PASS: full 20M x 20M binary-search workload compiles\n'
 
-# Compiler 2's Swan-authored lexer must remain valid Swan and lower to native
-# assembly through the current bootstrap compiler.
-"$SWAN" "$ROOT/swanc/lexer/Lexer.swan" --emit-asm -o "$TMP/swanc-lexer.s"
-test -s "$TMP/swanc-lexer.s"
-printf 'PASS: Compiler 2 Swan lexer parses and lowers through Compiler 1 bootstrap\n'
+# Compile and execute Compiler 2's Swan-authored lexer through Compiler 1.
+# The temporary main is a test harness; production Lexer.swan remains a module.
+cat "$ROOT/swanc/lexer/Lexer.swan" > "$TMP/swanc-lexer-test.swan"
+cat >> "$TMP/swanc-lexer-test.swan" <<'SWAN'
+fn main() -> int:
+    let source = array_unchecked(3)
+    let tokens = array_unchecked(20)
+    let diagnostic = array_unchecked(4)
+    source[0] = 105
+    source[1] = 102
+    source[2] = 32
+    let count = swan_lex(source, 3, tokens, 4, diagnostic)
+    if count != 2
+        return 1
+    if tokens[0] != 15
+        return 2
+    if tokens[5] != 0
+        return 3
+    let prefix = array_unchecked(4)
+    prefix[0] = 105
+    prefix[1] = 102
+    prefix[2] = 102
+    prefix[3] = 121
+    if swanc_keyword(prefix, 0, 4) != 1
+        return 4
+    return 0
+out
+SWAN
+"$SWAN" "$TMP/swanc-lexer-test.swan" --emit-asm -o "$TMP/swanc-lexer-test.s"
+${CC:-cc} -x assembler "$TMP/swanc-lexer-test.s" -o "$TMP/swanc-lexer-test"
+"$TMP/swanc-lexer-test"
+printf 'PASS: Compiler 2 Swan lexer tokenization and exact keyword boundaries\n'
