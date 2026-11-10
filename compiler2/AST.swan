@@ -1,0 +1,8 @@
+# Compiler 2 — AST and 50 checkers
+# Owns AST node definitions, compact AST storage, traversal utilities and 50
+# individually named AST validation/checker passes.
+# TODO: define stable node kinds and source spans, then implement checker registry.
+# Checker contract: inspect AST, report deterministic diagnostics, return failure on
+# invalid structure, and never mutate source semantics silently.
+# The 50-checker inventory and tests will be maintained in AST_CHECKERS.md.
+# No checker is considered implemented until it has behavior and a regression test.
