@@ -14,7 +14,7 @@ int main(void) {
     };
     static const char *const identifiers[] = {
         "extern","manual","log","none","and","or","not","echo","init",
-        "deinit","free","throw","rethrow","store","borrow"
+        "deinit","free","throw","rethrow","borrow"
     };
     char source[1024] = {0};
     for (size_t i=0;i<sizeof(keywords)/sizeof(keywords[0]);i++) {
@@ -46,8 +46,8 @@ int main(void) {
         }
     }
     free(ts.items);free(ts.text_storage);memset(&ts,0,sizeof(ts));
-    assert(swan_lex("fn out",&ts,&error));
-    assert(ts.items[0].kind==T_FN&&ts.items[1].kind==T_OUT);
+    assert(swan_lex("fn out store",&ts,&error));
+    assert(ts.items[0].kind==T_FN&&ts.items[1].kind==T_OUT&&ts.items[2].kind==T_STORE);
     free(ts.items);free(ts.text_storage);
     puts("PASS: exact 40-word Swan keyword set and deprecated syntax aliases");
     return 0;
