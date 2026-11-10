@@ -46,7 +46,7 @@ The x86-64 path retains AST code generation for supported constructs not yet rep
 |---|---|
 | `core.h` | Shared tokens, errors, text buffers, arena and profiling support |
 | `lexer.h` | UTF-8 validation, indentation tokens, literals and keyword recognition |
-| `ast.h` / `parser.h` | AST model and indentation-aware syntax parser |
+| `ast.h` / `parser.h` | AST model and indentation-aware syntax parser, including a dedicated explicit-release statement node |
 | `c_header.h` | Clang-assisted import of supported C function declarations |
 | `compiler.h` | Module loading, semantic pipeline, reachability and CLI-facing orchestration helpers |
 | `sema.h` | Name/scope checks, declaration checks and strict `manual var` ownership analysis |
