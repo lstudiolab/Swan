@@ -34,6 +34,14 @@ fn main() -> int:
     return twice(21)
 out
 SWAN
+"$SWAN" "$TMP/scalar.swan" --target x86_64 --emit-asm -o "$TMP/scalar.s"
+grep -q 'imul rax, 2' "$TMP/scalar.s"
+if grep -q 'mov rax, 2' "$TMP/scalar.s"; then
+    echo "FAIL: embedded scalar constant was materialized in a stack slot" >&2
+    exit 1
+fi
+cc -x assembler "$TMP/scalar.s" -o "$TMP/scalar"
+test "$("$TMP/scalar"; printf '%s' "$?")" = "42"
 "$SWAN" "$TMP/scalar.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
 grep -q "stp x29, x30" "$TMP/aarch64.s"
 "$SWAN" "$TMP/scalar.swan" --target riscv64 --emit-asm -o "$TMP/riscv64.s"
