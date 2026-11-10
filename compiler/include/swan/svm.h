@@ -25,6 +25,9 @@ typedef struct {
     size_t function_slot_count;
     int64_t *register_frames[SWAN_SVM_MAX_CALL_DEPTH];
     size_t register_capacities[SWAN_SVM_MAX_CALL_DEPTH];
+    uint64_t *allocation_generations[SWAN_SVM_MAX_CALL_DEPTH];
+    size_t allocation_capacities[SWAN_SVM_MAX_CALL_DEPTH];
+    uint64_t frame_generations[SWAN_SVM_MAX_CALL_DEPTH];
 } SwanVM;
 
 static inline uint64_t swan_svm_hash_name(const char *name) {
@@ -112,12 +115,11 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
     values[0]=0;
     size_t memory_mark=vm->memory_count;
     for (size_t i = 0; i < argument_count; ++i) values[i + 1] = swan_svm_normalize_value(arguments[i],fn->parameter_types[i]);
-    for(size_t bi=0;bi<fn->block_count;bi++)for(size_t ii=0;ii<fn->blocks[bi].instruction_count;ii++){
-        const SwanIRInst *alloc=&fn->blocks[bi].instructions[ii];
-        if(alloc->op==SWAN_IR_ALLOCA){
-            if(vm->memory_count>=4095||alloc->result>=value_count){vm->memory_count=memory_mark;return swan_svm_fail(vm,"SVM local memory limit exceeded");}
-            values[alloc->result]=(int64_t)++vm->memory_count;
-        }
+    uint64_t generation=++vm->frame_generations[frame_index];
+    if(!generation){
+        if(vm->allocation_generations[frame_index])
+            memset(vm->allocation_generations[frame_index],0,vm->allocation_capacities[frame_index]*sizeof(uint64_t));
+        generation=vm->frame_generations[frame_index]=1;
     }
     ++vm->depth;
     size_t block_index = 0, predecessor = SIZE_MAX;
@@ -190,7 +192,22 @@ static inline bool swan_svm_eval(SwanVM *vm, size_t function_index,
                     if (ok && !swan_svm_eval(vm, callee, args, in->incoming_count, &v)) ok = false;
                     break;
                 }
-                case SWAN_IR_ALLOCA: v=values[in->result];break;
+                case SWAN_IR_ALLOCA: {
+                    size_t slot=in->result;
+                    if(slot>=value_count){ok=swan_svm_fail(vm,"SVM allocation register out of range");break;}
+                    if(vm->allocation_capacities[frame_index]<value_count){
+                        uint64_t *grown=realloc(vm->allocation_generations[frame_index],value_count*sizeof(uint64_t));
+                        if(!grown){ok=swan_svm_fail(vm,"SVM out of memory growing allocation metadata");break;}
+                        memset(grown+vm->allocation_capacities[frame_index],0,(value_count-vm->allocation_capacities[frame_index])*sizeof(uint64_t));
+                        vm->allocation_generations[frame_index]=grown;vm->allocation_capacities[frame_index]=value_count;
+                    }
+                    if(vm->allocation_generations[frame_index][slot]!=generation){
+                        if(vm->memory_count>=4095){ok=swan_svm_fail(vm,"SVM local memory limit exceeded");break;}
+                        values[slot]=(int64_t)++vm->memory_count;
+                        vm->allocation_generations[frame_index][slot]=generation;
+                    }
+                    v=values[slot];break;
+                }
                 case SWAN_IR_LOAD:
                     if(a<=0||(uint64_t)a>vm->memory_count){ok=swan_svm_fail(vm,"SVM invalid memory load");break;}
                     v=vm->memory[a];break;
@@ -248,7 +265,7 @@ static inline bool swan_svm_run(const SwanIRModule *module, const char *entry,
     }
     bool ok=swan_svm_eval(&vm,index,NULL,0,result);
     free(vm.function_slots);
-    for(size_t i=0;i<SWAN_SVM_MAX_CALL_DEPTH;i++)free(vm.register_frames[i]);
+    for(size_t i=0;i<SWAN_SVM_MAX_CALL_DEPTH;i++){free(vm.register_frames[i]);free(vm.allocation_generations[i]);}
     return ok;
 }
 
