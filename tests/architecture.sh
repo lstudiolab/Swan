@@ -41,7 +41,11 @@ if grep -q 'mov rax, 2' "$TMP/scalar.s"; then
     exit 1
 fi
 cc -x assembler "$TMP/scalar.s" -o "$TMP/scalar"
-test "$("$TMP/scalar"; printf '%s' "$?")" = "42"
+set +e
+"$TMP/scalar"
+scalar_status=$?
+set -e
+test "$scalar_status" -eq 42
 "$SWAN" "$TMP/scalar.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
 grep -q "stp x29, x30" "$TMP/aarch64.s"
 "$SWAN" "$TMP/scalar.swan" --target riscv64 --emit-asm -o "$TMP/riscv64.s"
