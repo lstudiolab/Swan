@@ -261,7 +261,11 @@ SWAN
 "$SWAN" "$TMP/array-known-length.swan" --emit-asm -o "$TMP/array-known-length.s"
 grep -Eq 'cmp rcx, 8' "$TMP/array-known-length.s"
 grep -Eq 'DWORD PTR \[[a-z0-9]+ \+ 12\]' "$TMP/array-known-length.s"
-grep -Eq 'mov edi, 10' "$TMP/array-known-length.s"
+grep -q 'rep stosd' "$TMP/array-known-length.s"
+if grep -q 'call calloc@PLT' "$TMP/array-known-length.s"; then
+  echo 'FAIL: fixed non-escaping array used heap allocation' >&2
+  exit 1
+fi
 if grep -q 'add rax, 2' "$TMP/array-known-length.s"; then
   echo 'FAIL: constant array allocation retained dynamic length arithmetic' >&2
   exit 1
