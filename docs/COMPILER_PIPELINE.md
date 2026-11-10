@@ -35,7 +35,7 @@ source file
        eligible scalar functions: AST -> Swan SIL -> typed IR
        other IR-supported functions: AST -> typed IR
        x86-only compatibility features: AST -> x86-64 assembly
-  -> typed-IR verification and optimization (when using IR)
+  -> SVM shared compile core: typed-IR verification and optimization
   -> selected target code generation
   -> assembly/object/module emission
   -> assembler/linker (when applicable)
@@ -75,10 +75,9 @@ The bridge accepts only straight-line functions with one return expression and s
 - `--target x86_64`: native System V Linux code generation; may use typed IR or AST compatibility lowering.
 - `--target aarch64`, `armv7`, `riscv64`: Swan-owned limited scalar IR backends that emit target objects/assembly.
 - `--target wasm32`, `wasm64`: Swan-owned limited WebAssembly module emitters.
-- `--target svm`: optimized typed IR execution or `.swvm` module output.
 - `--target-triple <triple>`: explicit LLVM portability bridge. Requires an installed Clang/LLVM target backend and is restricted to Swan typed IR.
 
-The CLI's target list identifies available generators, not full source-language parity. Each backend has its own supported types, operations, argument limits, and ABI restrictions. See [ARCHITECTURE.md](ARCHITECTURE.md) and the root README for the current summary.
+SVM is the shared compiler engine, not a target. The legacy IR interpreter and `.swvm` target have been removed. The CLI's target list identifies available generators, not full source-language parity. Each backend has its own supported types, operations, argument limits, and ABI restrictions. See [ARCHITECTURE.md](ARCHITECTURE.md) and the root README for the current summary.
 
 ## Failure behavior
 

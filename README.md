@@ -28,9 +28,9 @@ The compatibility path is intentional. A construct supported by the x86-64 front
   -> typed IR verification
   -> target-independent optimization
   -> selected Swan backend:
-       x86-64 | AArch64 | ARMv7 | RISC-V64 | WASM32 | WASM64 | SVM
+       x86-64 | AArch64 | ARMv7 | RISC-V64 | WASM32 | WASM64
        or explicit LLVM target-triple bridge
-  -> assembly / object / WebAssembly / .swvm
+  -> assembly / object / WebAssembly module
   -> assembler and linker where applicable
 ```
 
@@ -136,10 +136,6 @@ Object emission is not proof of execution or complete ABI integration on the des
 
 # Swan-owned WebAssembly module
 ./build/swan build app.swan --target wasm32 -o app.wasm
-
-# Portable SVM module
-./build/swan build app.swan --target svm -o app.swvm
-./build/swan vm app.swvm
 
 # Explicit LLVM portability path
 ./build/swan build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
@@ -258,7 +254,7 @@ The script builds the compiler, checks header isolation and C11 compilation, run
 ## Repository map
 
 - `main.c` — CLI orchestration and compiler entry point.
-- `compiler/include/swan/` — lexer, parser, AST, semantic analysis, IR, optimizer, VM, code generators, emitter, linker, and support headers.
+- `compiler/include/swan/` — lexer, parser, AST, semantic analysis, IR, optimizer, code generators, emitter, linker, and support headers.
 - `compiler/sil/` — Swan-authored SIL builder and passes used during bootstrap.
 - `stdlib/` — source-level standard library.
 - `tests/` — compiler, runtime, ABI, regression, and target tests.

@@ -16,7 +16,7 @@ This document defines the current stage boundaries and invariants.
        Swan SIL bridge (eligible scalar functions)
        general AST -> typed SSA IR
        AST -> x86-64 compatibility backend
-  -> typed-IR verification and optimization
+  -> SVM compile core: typed-IR verification and optimization
   -> Swan-owned target codegen or explicit LLVM bridge
   -> emitter / object or module writer
   -> assembler / linker where applicable
@@ -43,7 +43,7 @@ The SIL route is an optional narrow lowering path, not a mandatory pipeline stag
 | AST compatibility codegen | Checked AST + x86-64 target | x86-64 assembly | Handle the supported legacy feature subset not yet in IR |
 | Emitter | Assembly buffer | Output stream | Serialize assembly without semantic changes |
 | Linker | Assembly/object + toolchain | Object/executable | Invoke system toolchain; no C transpilation |
-| SVM | Verified IR or `.swvm` | Execution result | Interpret bounded, verified IR with fuel/call-depth controls |
+| SVM compile core | Checked program | Verified optimized typed IR | Shared target-independent lowering, verification, and optimization before target-specific code generation |
 
 ## Typed IR and verifier
 
@@ -68,7 +68,6 @@ The implemented builder is bounded to 256 value IDs and 256 instructions. Its su
 - x86-64 System V: native executable/assembly; typed IR plus AST compatibility route.
 - AArch64, ARMv7, RISC-V64: Swan-owned limited scalar IR object/assembly.
 - WASM32 and WASM64: Swan-owned limited scalar WebAssembly emitters.
-- SVM: verified IR interpreter and versioned `.swvm` artifact.
 - LLVM target triple: explicit portability route for the supported typed-IR subset and installed Clang/LLVM targets.
 
 Object emission is not equivalent to native execution or complete platform ABI support. Cross-target runtime integration remains a separate task.
