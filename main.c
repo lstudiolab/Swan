@@ -18,13 +18,13 @@ static int swan_run(int argc,char **argv){
  }
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target>] [--link object] [-L dir] [-l library] [-o output] | swan vm <file.swvm> [--fuel instructions]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--link object] [-L dir] [-l library] [-o output] | swan vm <file.swvm> [--fuel instructions]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
- if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target x86_64] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
+ if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
  const char *input=argv[index++],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  bool emit_asm=false,emit_llvm=false;const char *link_args[120];size_t link_arg_count=0;
@@ -43,7 +43,7 @@ static int swan_run(int argc,char **argv){
    custom_target.object_format=swan_object_format_for_triple(triple);custom_target.abi=SWAN_ABI_SYSV;
    custom_target.backend_available=true;target=&custom_target;
   }
-  else if(!strcmp(argv[i],"--target-feature")&&i+1<argc){
+  else if((!strcmp(argv[i],"--target-feature")||!strcmp(argv[i],"--wasm-feature"))&&i+1<argc){
    const char *feature=argv[++i];size_t n=strlen(feature);
    if(!n||n>=64||target_feature_count>=32){fprintf(stderr,"swan: invalid or excessive target feature\n");return 2;}
    for(size_t k=0;k<n;k++)if(!((feature[k]>='A'&&feature[k]<='Z')||(feature[k]>='a'&&feature[k]<='z')||(feature[k]>='0'&&feature[k]<='9')||feature[k]=='+'||feature[k]=='-'||feature[k]=='_')){
