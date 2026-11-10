@@ -1,5 +1,131 @@
-# Compiler 2 — Lexer
-# Owns UTF-8 scanning, tokenization, source spans, indentation and lexical diagnostics.
-# TODO: implement source cursor, token arena, keyword/identifier scanning, numeric and
-# string literals, comments, operators, indentation tokens and malformed UTF-8 errors.
-# Lexer output must be consumed by Parser.swan without reparsing source text.
+# Swan Compiler 2 — Lexer
+#
+# The lexer owns source validation, token boundaries, keyword recognition,
+# literal scanning, operators, indentation and lexical diagnostics.
+#
+# KEYWORD POLICY
+# -------------
+# Keywords are intrinsic to Swan and MUST be hardcoded in this file.
+# There is no keyword registry, runtime registration, configuration file,
+# plugin hook, import-time keyword loading, or semantic-stage keyword rewrite.
+#
+# The spelling table below is the lexical source of truth for Compiler 2.
+# Keep it synchronized with TokenKind and the parser grammar. A spelling may
+# only be added or removed by an intentional language change with tests.
+#
+# Matching contract:
+#   1. Scan the complete identifier first; never classify a prefix.
+#   2. Compare the complete byte sequence against this exact, case-sensitive
+#      table. "if" is a keyword; "iffy" and "IF" are identifiers.
+#   3. Do not normalize case, Unicode, or compatibility characters.
+#   4. Keywords are ASCII spellings. Non-ASCII identifier bytes remain part
+#      of identifiers and can never accidentally match a keyword.
+#   5. Do not allocate or hash a temporary string just to classify a keyword.
+#      Compare the source slice by byte length and contents.
+#   6. A failed match produces IDENT, not a lexical error.
+#   7. Every listed spelling maps to exactly one token kind.
+#
+# HARD-CODED KEYWORD TABLE
+# ------------------------
+# Canonical spellings and compatibility aliases are explicit. Aliases are
+# still recognized lexically; deprecation diagnostics belong to a later
+# diagnostic policy, not to keyword matching.
+#
+# 2 bytes:
+#   fn       -> FN       (compatibility spelling; retained for existing code)
+#   if       -> IF
+#   in       -> IN
+#   as       -> AS
+#
+# 3 bytes:
+#   let      -> LET
+#   var      -> VAR
+#   for      -> FOR
+#   nil      -> NONE     (compatibility spelling)
+#   out      -> OUT      (block terminator)
+#   set      -> SET
+#   and      -> AND
+#   not      -> NOT
+#
+# 4 bytes:
+#   func     -> FN       (canonical function declaration spelling)
+#   else     -> ELSE
+#   enum     -> ENUM
+#   type     -> TYPE
+#   loop     -> LOOP
+#   from     -> FROM
+#   self     -> SELF
+#   true     -> TRUE
+#   pass     -> PASS
+#   null     -> NONE     (compatibility spelling)
+#   bool     -> BOOL_TYPE
+#   lazy     -> LAZY
+#   case     -> CASE
+#   or       -> OR
+#   init     -> INIT
+#   free     -> FREE
+#   print    -> PRINT    (5 bytes; see the 5-byte group below)
+#
+# 5 bytes:
+#   while    -> WHILE
+#   match    -> MATCH
+#   guard    -> GUARD
+#   break    -> BREAK
+#   false    -> FALSE
+#   store    -> STORE    (compatibility spelling; preserve distinct token)
+#   const    -> CONST
+#   block    -> BLOCK
+#   defer    -> DEFER
+#   async    -> ASYNC
+#   print    -> PRINT
+#   throw    -> THROW
+#
+# 6 bytes:
+#   manual   -> MANUAL
+#   import   -> IMPORT
+#   export   -> EXPORT
+#   return   -> RETURN
+#   struct   -> STRUCT
+#   thread   -> THREAD
+#   deinit   -> DEINIT
+#   rethrow  -> RETHROW (7 bytes; see the 7-byte group below)
+#   borrow   -> BORROW
+#
+# 7 bytes:
+#   variant  -> VARIANT
+#   rethrow  -> RETHROW
+#
+# 8 bytes:
+#   external -> EXTERN
+#   continue -> CONTINUE (8 bytes)
+#   protocol -> PROTOCOL
+#
+# 9 bytes:
+#   namespace -> NAMESPACE
+#
+# Operator spellings such as !, ==, ->, && and || are not identifier
+# keywords. They are recognized by the operator scanner and mapped to their
+# own token kinds. The words and/or/not remain keyword spellings where listed.
+#
+# IMPLEMENTATION REQUIREMENTS
+# ---------------------------
+# Implement the classifier as a length-dispatched, hardcoded decision tree
+# (or an equivalent compile-time table embedded here). Check length before
+# comparing bytes; this avoids prefix matches and unnecessary comparisons.
+# Keep the keyword path allocation-free and deterministic.
+#
+# The scanner must validate UTF-8 before identifier classification. It must
+# preserve byte offsets and source spans, handle a UTF-8 BOM only at byte zero,
+# reject malformed UTF-8, and never use locale-dependent character routines.
+# Identifier start/continuation rules must be explicit and shared by every
+# identifier-scanning path.
+#
+# Do not silently skip unknown punctuation, malformed escapes, unterminated
+# literals, inconsistent indentation, or unsupported lexical forms.
+#
+# IMPLEMENTATION STATUS
+# ---------------------
+# This file currently defines the required lexer contract and keyword
+# inventory. The executable scanner and classifier are not yet implemented.
+# Do not describe Compiler 2 as having a working lexer until it is implemented
+# and exercised by lexer regression tests.
