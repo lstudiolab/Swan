@@ -53,3 +53,4 @@ AST.swan will own 50 explicit validation/checker passes. This ledger makes the c
 | 47 | MacroExpansionShape | expanded macro node structure | Planned |
 | 48 | ErrorNodeContainment | parser error-node containment | Planned |
 | 49 | ASTReachability | unreachable/orphan AST node detection | Planned |
+| 50 | ControlFlowNodeShape | valid AST representation of control-flow nodes | Planned |
