@@ -400,7 +400,14 @@ fn main() -> int:
     source[0] = 105
     source[1] = 102
     source[2] = 32
+    log 100
+    let width = swanc_utf8_width(source, 0, 3)
+    log width
+    let keyword = swanc_keyword(source, 0, 2)
+    log keyword
+    log 200
     let count = swan_lex(source, 3, tokens, 4, diagnostic)
+    log count
     if count != 2
         return 1
     if tokens[0] != 15
