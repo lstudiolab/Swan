@@ -79,7 +79,8 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
       if(outgoing)text_add(o,"    sub rsp, %zu\n",outgoing);
       for(size_t k=6;k<in->incoming_count;k++)text_add(o,"    mov r10, QWORD PTR [rbp-%d]\n    mov QWORD PTR [rsp+%zu], r10\n",swan_x64_slot(in->incoming[k].value),(k-6u)*8u);
       for(size_t k=0;k<in->incoming_count&&k<6;k++)text_add(o,"    mov %s, QWORD PTR [rbp-%d]\n",args[k],swan_x64_slot(in->incoming[k].value));
-      text_add(o,"    xor eax, eax\n    call %s\n",in->symbol);
+      if(!swan_x64_internal_call(m,in->symbol))text_add(o,"    xor eax, eax\n");
+      text_add(o,"    call %s\n",in->symbol);
       if(outgoing)text_add(o,"    add rsp, %zu\n",outgoing);
       if(in->type==SWAN_IR_I32)text_add(o,"    movsxd rax, eax\n");else if(in->type==SWAN_IR_I1)text_add(o,"    movzx eax, al\n");
       if(in->type!=SWAN_IR_VOID)text_add(o,"    mov QWORD PTR [rbp-%d], rax\n",d);break;}
@@ -88,9 +89,9 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
       bool swap=ca&&!cb&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_MUL||in->op==SWAN_IR_AND||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR);
       if(swap){a=z;cb=true;cb_value=ca_value;}
       if(cb&&cb_value>=INT32_MIN&&cb_value<=INT32_MAX)
-       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n    %s rax, %lld\\n    mov QWORD PTR [rbp-%d], rax\\n",a,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"imul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":"xor",(long long)cb_value,d);
+       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    %s rax, %lld\n    mov QWORD PTR [rbp-%d], rax\n",a,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"imul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":"xor",(long long)cb_value,d);
       else
-       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n    mov rcx, QWORD PTR [rbp-%d]\\n    %s rax, rcx\\n    mov QWORD PTR [rbp-%d], rax\\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"imul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":"xor",d);
+       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, rcx\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"imul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":"xor",d);
       break;
      }
      case SWAN_IR_SDIV:case SWAN_IR_SREM:
@@ -98,14 +99,14 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
      case SWAN_IR_UDIV:case SWAN_IR_UREM:
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    xor edx, edx\n    div rcx\n    mov QWORD PTR [rbp-%d], %s\n",a,z,d,in->op==SWAN_IR_UDIV?"rax":"rdx");break;
      case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
-      if(cb)text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n    %s rax, %u\\n    mov QWORD PTR [rbp-%d], rax\\n",a,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",(unsigned)((uint64_t)cb_value&63u),d);
-      else text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n    mov rcx, QWORD PTR [rbp-%d]\\n    %s rax, cl\\n    mov QWORD PTR [rbp-%d], rax\\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);
+      if(cb)text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    %s rax, %u\n    mov QWORD PTR [rbp-%d], rax\n",a,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",(unsigned)((uint64_t)cb_value&63u),d);
+      else text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, cl\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);
       break;
      case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
-      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n",a);
-      if(cb&&cb_value>=INT32_MIN&&cb_value<=INT32_MAX)text_add(o,"    cmp rax, %lld\\n",(long long)cb_value);
-      else text_add(o,"    mov rcx, QWORD PTR [rbp-%d]\\n    cmp rax, rcx\\n",z);
-      text_add(o,"    set%s al\\n    movzx eax, al\\n    mov QWORD PTR [rbp-%d], rax\\n",in->op==SWAN_IR_ICMP_EQ?"e":in->op==SWAN_IR_ICMP_NE?"ne":in->op==SWAN_IR_ICMP_SLT?"l":in->op==SWAN_IR_ICMP_SLE?"le":in->op==SWAN_IR_ICMP_SGT?"g":"ge",d);break;
+      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n",a);
+      if(cb&&cb_value>=INT32_MIN&&cb_value<=INT32_MAX)text_add(o,"    cmp rax, %lld\n",(long long)cb_value);
+      else text_add(o,"    mov rcx, QWORD PTR [rbp-%d]\n    cmp rax, rcx\n",z);
+      text_add(o,"    set%s al\n    movzx eax, al\n    mov QWORD PTR [rbp-%d], rax\n",in->op==SWAN_IR_ICMP_EQ?"e":in->op==SWAN_IR_ICMP_NE?"ne":in->op==SWAN_IR_ICMP_SLT?"l":in->op==SWAN_IR_ICMP_SLE?"le":in->op==SWAN_IR_ICMP_SGT?"g":"ge",d);break;
      default:if(error&&cap)snprintf(error,cap,"x86-64 backend encountered unsupported IR opcode %u",(unsigned)in->op);return false;
     }
    }
