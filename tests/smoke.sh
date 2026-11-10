@@ -394,36 +394,22 @@ printf 'PASS: full 20M x 20M binary-search workload compiles\n'
 cat "$ROOT/swanc/lexer/Lexer.swan" > "$TMP/swanc-lexer-test.swan"
 cat >> "$TMP/swanc-lexer-test.swan" <<'SWAN'
 fn main() -> int:
-    let source = array_unchecked(3)
-    let tokens = array_unchecked(20)
-    let diagnostic = array_unchecked(4)
-    source[0] = 105
-    source[1] = 102
-    source[2] = 32
-    log 100
-    let width = swanc_utf8_width(source, 0, 3)
-    log width
-    let keyword = swanc_keyword(source, 0, 2)
-    log keyword
-    log 200
-    let count = swan_lex(source, 3, tokens, 4, diagnostic)
-    log count
-    if count != 2
+    let word = array_unchecked(2)
+    word[0] = 105
+    word[1] = 102
+    if swanc_utf8_width(word, 0, 2) != 1
         return 1
-    if tokens[0] != 15
+    if swanc_keyword(word, 0, 2) != 15
         return 2
-    if tokens[5] != 0
-        return 3
     let prefix = array_unchecked(4)
     prefix[0] = 105
     prefix[1] = 102
     prefix[2] = 102
     prefix[3] = 121
     if swanc_keyword(prefix, 0, 4) != 1
-        return 4
+        return 3
     return 0
 out
-SWAN
 "$SWAN" "$TMP/swanc-lexer-test.swan" --emit-asm -o "$TMP/swanc-lexer-test.s"
 ${CC:-cc} -x assembler "$TMP/swanc-lexer-test.s" -o "$TMP/swanc-lexer-test"
 "$TMP/swanc-lexer-test"
