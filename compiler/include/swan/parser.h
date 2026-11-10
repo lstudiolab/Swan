@@ -50,6 +50,7 @@ static inline Stmt *statement(Parser *p){
  if(eat(p,T_PASS))return new_stmt(p,S_PASS,t);
  if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=swan_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){swan_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
  if(is(p,T_IDENT)&&!strcmp(pk(p)->text,"free")){
+  Token free_token=take(p);Expr *callee=new_expr(p,E_NAME,free_token);
   if(!need(p,T_LP,"expected '(' after free"))return NULL;
   Expr *argument=expression(p,1);
   if(!need(p,T_RP,"expected ')' after free argument"))return NULL;
