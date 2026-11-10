@@ -36,7 +36,7 @@ out
 SWAN
 "$SWAN" "$TMP/scalar.swan" --target x86_64 --emit-asm -o "$TMP/scalar.s"
 grep -q 'imul rax, 2' "$TMP/scalar.s"
-if grep -qE '^[[:space:]]*mov rax, 2
+if grep -q 'mov rax, 2$' "$TMP/scalar.s"; then
     echo "FAIL: embedded scalar constant was materialized in a stack slot" >&2
     exit 1
 fi
