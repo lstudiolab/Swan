@@ -61,12 +61,14 @@ static inline bool swan_llvm_emit_inst(Text *out, const SwanIRFunction *fn, cons
     }
     if (in->op == SWAN_IR_CONST) {
         if (!type) return false;
-        if (in->type == SWAN_IR_PTR) text_add(out, "  %%v%u = inttoptr i64 %lld to ptr\n", in->result, (long long)in->immediate);
-        else text_add(out, "  %%v%u = add %s 0, %lld\n", in->result, type, (long long)in->immediate);
+        if (in->type == SWAN_IR_PTR) text_add(out, "  %%v%u = inttoptr i64 %lld to ptr\\n", in->result, (long long)in->immediate);
+        else if (in->type == SWAN_IR_F32) text_add(out, "  %%v%u = bitcast i32 %d to float\\n", in->result, (int32_t)in->immediate);
+        else if (in->type == SWAN_IR_F64) text_add(out, "  %%v%u = bitcast i64 %lld to double\\n", in->result, (long long)in->immediate);
+        else text_add(out, "  %%v%u = add %s 0, %lld\\n", in->result, type, (long long)in->immediate);
         return !out->failed;
     }
     if (in->op == SWAN_IR_ALLOCA) {
-        text_add(out, "  %%v%u = alloca i8, align 8\n", in->result);
+        text_add(out, "  %%v%u = alloca i64, align 8\n", in->result);
         return !out->failed;
     }
     if (in->op == SWAN_IR_LOAD) {
