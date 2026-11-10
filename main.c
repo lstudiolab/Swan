@@ -19,7 +19,7 @@ static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
  if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target>] [--link object] [-L dir] [-l library] [-o output] | swan vm <file.swvm> [--fuel instructions]\n",SWAN_VERSION);return 0;}
- enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT } mode=SWAN_RUN_DEFAULT;
+ enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
@@ -27,9 +27,31 @@ static int swan_run(int argc,char **argv){
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm] [--target x86_64] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
  const char *input=argv[index++],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
- bool emit_asm=false;const char *link_args[120];size_t link_arg_count=0;const SwanTarget *target=swan_target_find("x86_64");
+ bool emit_asm=false,emit_llvm=false;const char *link_args[120];size_t link_arg_count=0;
+ const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
+ SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
+  else if(!strcmp(argv[i],"--emit-llvm"))emit_llvm=true;
+  else if(!strcmp(argv[i],"--target-triple")&&i+1<argc){
+   const char *triple=argv[++i];size_t n=strlen(triple);
+   if(!n||n>=256){fprintf(stderr,"swan: target triple must be 1-255 characters\n");return 2;}
+   for(size_t k=0;k<n;k++)if(!((triple[k]>='A'&&triple[k]<='Z')||(triple[k]>='a'&&triple[k]<='z')||(triple[k]>='0'&&triple[k]<='9')||triple[k]=='-'||triple[k]=='_'||triple[k]=='.')){
+    fprintf(stderr,"swan: invalid character in target triple\n");return 2;
+   }
+   custom_target.name="llvm";custom_target.triple=triple;custom_target.architecture=SWAN_ARCH_LLVM;
+   custom_target.object_format=swan_object_format_for_triple(triple);custom_target.abi=SWAN_ABI_SYSV;
+   custom_target.backend_available=true;target=&custom_target;
+  }
+  else if(!strcmp(argv[i],"--target-feature")&&i+1<argc){
+   const char *feature=argv[++i];size_t n=strlen(feature);
+   if(!n||n>=64||target_feature_count>=32){fprintf(stderr,"swan: invalid or excessive target feature\n");return 2;}
+   for(size_t k=0;k<n;k++)if(!((feature[k]>='A'&&feature[k]<='Z')||(feature[k]>='a'&&feature[k]<='z')||(feature[k]>='0'&&feature[k]<='9')||feature[k]=='+'||feature[k]=='-'||feature[k]=='_')){
+    fprintf(stderr,"swan: invalid target feature\n");return 2;
+   }
+   target_features[target_feature_count++]=feature;
+  }
+  else if(!strcmp(argv[i],"--cpu")&&i+1<argc)target_cpu=argv[++i];
   else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;
   else if(!strcmp(argv[i],"--stdlib")&&i+1<argc)stdlib_dir=argv[++i];
   else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
@@ -42,8 +64,10 @@ static int swan_run(int argc,char **argv){
    if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);return 2;}
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);return 2;}
  }
- if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: native linker inputs are currently supported only for x86_64\n");return 2;}
- if(emit_asm)mode=SWAN_EMIT;
+ if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");return 2;}
+ if((target_feature_count||target_cpu)&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --cpu and --target-feature require --target-triple\n");return 2;}
+ if(emit_asm&&emit_llvm){fprintf(stderr,"swan: choose either --emit-asm or --emit-llvm\n");return 2;}
+ if(emit_asm)mode=SWAN_EMIT;else if(emit_llvm)mode=SWAN_EMIT_LLVM;
  swan_profile_reset();
  uint64_t stage=swan_profile_start();
  char *source=swan_read_file(input);
@@ -69,13 +93,55 @@ static int swan_run(int argc,char **argv){
  swan_profile_end(SWAN_PROFILE_SEMA,stage);
  stage=swan_profile_start();
  swan_compute_reachability(&p);swan_profile_end(SWAN_PROFILE_REACHABILITY,stage);
- if(target->architecture!=SWAN_ARCH_X86_64){
+ if(target->architecture!=SWAN_ARCH_X86_64&&target->architecture!=SWAN_ARCH_LLVM){
   for(size_t i=0;i<p.count;i++)if(p.function_reachable[i]&&p.functions[i]->external){
    fprintf(stderr,"swan: external C ABI calls are currently supported only by the x86_64 System V backend\n");
    swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;
   }
  }
  bool has_lazy=swan_has_lazy_imports(&p);
+ if(target->architecture==SWAN_ARCH_LLVM){
+  if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){
+   fprintf(stderr,"swan: cross-target LLVM output cannot run on this host; use 'swan build' or --emit-asm\n");
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;
+  }
+  if(link_arg_count){fprintf(stderr,"swan: --link is not available with LLVM object emission yet\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+  if(has_lazy){fprintf(stderr,"swan: the portable IR backend does not yet lower runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+  SwanIRModule ir={0};Text llvm={0};char detail[256]={0};
+  stage=swan_profile_start();bool lowered=swan_compile_ir_program(&p,&ir,&err);swan_profile_end(SWAN_PROFILE_IRGEN,stage);
+  stage=swan_profile_start();bool optimized=lowered&&swan_ir_optimize(&ir,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_IR_OPT,stage);
+  stage=swan_profile_start();bool generated=optimized&&swan_codegen_llvm_ir(&ir,&llvm,target->triple,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+  if(!generated){
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:detail);free(llvm.data);swan_ir_destroy(&ir);
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+  }
+  const char *suffix=target->object_format==SWAN_OBJECT_COFF?".obj":".o";
+  char default_output[64];snprintf(default_output,sizeof(default_output),"a%s",mode==SWAN_EMIT_LLVM?".ll":mode==SWAN_EMIT?".s":suffix);
+  const char *dest=output?output:default_output;int result=0;
+  if(mode==SWAN_EMIT_LLVM){
+   FILE *of=fopen(dest,"wb");bool ok=of&&fwrite(llvm.data,1,llvm.len,of)==llvm.len;
+   if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write LLVM IR '%s'\n",dest);result=1;}
+  }else{
+   char temp[]="/tmp/swan-llvm-XXXXXX";int fd=mkstemp(temp);
+   if(fd<0)result=1;
+   else{
+    size_t written=0;while(written<llvm.len){ssize_t n=write(fd,llvm.data+written,llvm.len-written);if(n<0){if(errno==EINTR)continue;result=1;break;}written+=(size_t)n;}
+    if(close(fd)!=0)result=1;
+    if(!result){
+     char *args[180];size_t n=0;args[n++]="clang";
+     char target_arg[280];snprintf(target_arg,sizeof(target_arg),"--target=%s",target->triple);args[n++]=target_arg;
+     char cpu_arg[160];if(target_cpu){snprintf(cpu_arg,sizeof(cpu_arg),"-mcpu=%s",target_cpu);args[n++]=cpu_arg;}
+     for(size_t k=0;k<target_feature_count;k++){args[n++]="-Xclang";args[n++]="-target-feature";args[n++]="-Xclang";args[n++]=(char*)target_features[k];}
+     args[n++]=mode==SWAN_EMIT?"-S":"-c";args[n++]="-x";args[n++]="ir";args[n++]=temp;args[n++]="-o";args[n++]=(char*)dest;args[n]=NULL;
+     result=swan_exec(args,true);
+    }
+    unlink(temp);
+   }
+   if(result)fprintf(stderr,"swan: Clang could not emit target output for '%s'; check that this Clang build includes the requested target backend\n",target->triple);
+  }
+  free(llvm.data);swan_ir_destroy(&ir);swan_release_modules(module_sources,module_texts,module_count);
+  free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
+ }
  if(target->architecture==SWAN_ARCH_WASM32||target->architecture==SWAN_ARCH_WASM64){
   if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM32 output is a WebAssembly module; run it with a WebAssembly runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(has_lazy){fprintf(stderr,"swan: WASM32 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
