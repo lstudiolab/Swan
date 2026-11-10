@@ -74,7 +74,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     return swan_check_expr(p,e->right,symbols,err);
    }
    return swan_check_expr(p,e->left,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
-  default:return true;
+  default:swan_error(err,&e->token,"expression kind %d is not implemented by semantic analysis",(int)e->kind);return false;
  }
 }
 static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymbols *symbols,SwanError *err,unsigned loop_depth){
