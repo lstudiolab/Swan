@@ -435,7 +435,10 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
     if(pass==SWAN_IR_PASS_COPY_PROPAGATION){(void)swan_ir_copy_propagation(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
-    if(pass==SWAN_IR_PASS_DEAD_CODE){(void)swan_ir_dead_code_eliminate(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_DEAD_CODE){
+        if(!swan_ir_dead_code_eliminate(module)){if(error&&cap)snprintf(error,cap,"out of memory during dead-code elimination");return false;}
+        return swan_ir_verify(module,error,cap);
+    }
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
 }
 static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t cap) {
