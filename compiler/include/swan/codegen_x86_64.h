@@ -953,6 +953,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     break;
     case S_RETURN:if(samc_has_cleanup(l)&&samc_expr_uses_owned_array(s->value,l)){if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");cg_push(o,"rax");emit_samc_cleanup(o,l);cg_pop(o,"rax");}else{emit_samc_cleanup(o,l);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");}emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:if(!emit_accumulate_statement(o,s->value,l,err)&&!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
+   case S_FREE:if(s->value)emit_expr(o,s->value,l,err);break;
    case S_PASS:break;
    case S_BREAK:if(!o->loop_depth)swan_error(err,&s->token,"break is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_end_%d\n",o->loop_break[o->loop_depth-1]);break;
    case S_CONTINUE:if(!o->loop_depth)swan_error(err,&s->token,"continue is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_%d\n",o->loop_continue[o->loop_depth-1]);break;
