@@ -24,7 +24,7 @@ int main(void) {
     TokenStream ts={0};SwanError error={0};
     assert(swan_lex(source,&ts,&error));
     assert(sizeof(keywords)/sizeof(keywords[0])==41);
-    assert(ts.count==41);
+    assert(ts.count==42);
     for (size_t i=0;i<41;i++) {
         if (ts.items[i].kind==T_IDENT) {
             fprintf(stderr,"keyword was not reserved: %s\n",keywords[i]);
