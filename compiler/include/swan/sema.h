@@ -83,7 +83,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
 static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymbols *symbols,SwanError *err,unsigned loop_depth){
  size_t scope_mark=symbols->count;
  for(size_t i=0;i<count;i++){
-  Stmt *s=body[i];
+  Stmt *s=body[i];if(s->token.text&&(!strcmp(s->token.text,"free")||!strcmp(s->token.text,"values")))fprintf(stderr,"DEBUG stmt kind=%d token=%s\\n",(int)s->kind,s->token.text);
   switch(s->kind){
    case S_VARIABLE:{
     if(s->manual_checked&&(!s->mutable_value||!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||
