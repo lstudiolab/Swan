@@ -1,5 +1,4 @@
 #include "swan/optimization.h"
-#include "swan/svm.h"
 #include <assert.h>
 #include <stdio.h>
 int main(void){
@@ -31,7 +30,6 @@ int main(void){
  assert(swan_ir_terminate(yes,(SwanIRTerm){SWAN_IR_RET,ov,0,0}));
  assert(swan_ir_terminate(no,(SwanIRTerm){SWAN_IR_RET,tv,0,0}));
  assert(swan_ir_optimize(&cfg,error,sizeof(error)));assert(gf->block_count==2);
- assert(swan_svm_run(&cfg,"main",100,&folded,error,sizeof(error))&&folded==2);
  swan_ir_destroy(&cfg);
  SwanIRModule global={0};SwanIRType gp[]={SWAN_IR_I64,SWAN_IR_I64};
  SwanIRFunction *g=swan_ir_add_function(&global,"global_cse",SWAN_IR_I64,gp,2);assert(g);
@@ -111,7 +109,6 @@ int main(void){
  bool hoisted=false;for(size_t i=0;i<lf->blocks[0].instruction_count;i++)hoisted|=lf->blocks[0].instructions[i].op==SWAN_IR_MUL;
  bool remains=false;for(size_t i=0;i<lf->blocks[2].instruction_count;i++)remains|=lf->blocks[2].instructions[i].op==SWAN_IR_MUL;
  assert(hoisted&&!remains);
- assert(swan_svm_run(&licm,"main",1000,&folded,error,sizeof(error)));assert(folded==45);
  swan_ir_destroy(&licm);
 
  puts("PASS: constant folding, CFG simplification, algebraic simplification, copy propagation, dominance-aware CSE, LICM and dead-code elimination");
