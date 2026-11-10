@@ -885,7 +885,7 @@ static inline void samc_assign_stack_arrays(Locals *l){
   size_t data=(size_t)v->array_length*4u;
   if(data>65536u)continue;
   size_t storage=data+(v->array_unchecked?0u:8u);
-  if(!v->array_unchecked&&!data)storage=8u;
+  if(!data)storage+=4u;
   if(storage>262144u-total)continue;
   total+=storage;
   v->array_stack_offset=(int)(base+total-(v->array_unchecked?0u:8u));
