@@ -6,7 +6,7 @@ Compiler 1 remains in `compiler/` as the C bootstrap compiler. It is intentional
 
 ## Current implementation order
 
-1. Lexer: scan UTF-8 source into tokens with source locations.
+1. Lexer: scan UTF-8 source into tokens with source locations. Swan keywords are hardcoded in `swanc/lexer/Lexer.swan`; no runtime or external keyword registry is allowed. Exact, case-sensitive whole-identifier matching is required.
 2. Parser: consume tokens and build the AST.
 3. AST: define the node model shared by later compiler stages.
 
@@ -22,4 +22,5 @@ Compiler 1 builds `swanc`; `swanc` then builds itself. Self-hosting is only cons
 - Keep the intermediate representation target-independent.
 - Keep target-specific lowering and code generation separate from parsing.
 - Reject unsupported or invalid constructs with diagnostics; never silently skip them.
+- Keep the keyword inventory, token kinds, and parser grammar synchronized; keyword changes require lexer regression tests for exact matches, prefixes, case sensitivity, and identifier boundaries.
 - Preserve Compiler 1 until explicit authorization is given to remove it.
