@@ -171,7 +171,7 @@ func main() -> int:
     return 0
 ```
 
-The strict manual form is limited to direct array allocations with a single local owner. The checker rejects leaks at scope exit, double-free, use-after-free, aliasing/copying, passing or returning the owner, and incompatible ownership states across branches or loops. Ownership transfer, borrowing, destructors, and manually owned general heap objects are not implemented. Legacy `store` syntax remains accepted for compatibility and does not enable the new strict ownership checks.
+The strict manual form is limited to direct array allocations with a single local owner. `free(values)` is parsed as a dedicated release statement, not as an ordinary user-function call. The checker rejects leaks at scope exit, double-free, use-after-free, aliasing/copying, passing or returning the owner, and incompatible ownership states across branches or loops. Ownership transfer, borrowing, destructors, and manually owned general heap objects are not implemented. Legacy `store` syntax remains accepted for compatibility and does not enable the new strict ownership checks.
 
 ## Imports and Foundation
 
