@@ -247,7 +247,6 @@ printf 'PASS: escaped arrays are not prematurely released\n'
 
 printf 'PASS: compiler regression suite\n'
 
-printf "DEBUG test manual-valid\\n"
 cat > "$TMP/manual-valid.swan" <<'SWAN'
 fn main():
     manual var values = array(4)
@@ -320,7 +319,6 @@ out
 SWAN
 expect_rejected manual-branch-mismatch
 
-printf "DEBUG test manual-branch-release\\n"
 cat > "$TMP/manual-branch-release.swan" <<'SWAN'
 fn main():
     manual var values = array(4)
