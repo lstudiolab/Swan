@@ -41,7 +41,8 @@
     ]
   ],
   "indentationRules": {
-    "increaseIndentPattern": "^\\s*(?:(?:func|struct|enum|variant|protocol|namespace|if|else|while|for|loop|match|guard|thread|async)\\b.*|.*):\\s*$"
+    "increaseIndentPattern": "^\\s*(?:(?:func|struct|enum|variant|protocol|namespace|if|else|while|for|loop|match|guard|thread|async)\\b.*|.*):\\s*$",
+    "decreaseIndentPattern": "^\\\\s*else\\\\b.*:\\\\s*$"
   },
   "onEnterRules": [
     {
