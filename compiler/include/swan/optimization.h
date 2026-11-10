@@ -201,23 +201,23 @@ static inline bool swan_ir_dead_code_eliminate(SwanIRModule *module){
             for(size_t i=0;i<bb->instruction_count;i++){
                 const SwanIRInst *in=&bb->instructions[i];
                 if(!swan_ir_inst_has_side_effect(in))continue;
-                swan_ir_mark_live_value(fn,in->result,definitions,live,work,&top);
-                swan_ir_mark_live_value(fn,in->a,definitions,live,work,&top);
-                swan_ir_mark_live_value(fn,in->b,definitions,live,work,&top);
-                swan_ir_mark_live_value(fn,in->c,definitions,live,work,&top);
+                swan_ir_mark_live_value(fn,in->result,live,work,&top);
+                swan_ir_mark_live_value(fn,in->a,live,work,&top);
+                swan_ir_mark_live_value(fn,in->b,live,work,&top);
+                swan_ir_mark_live_value(fn,in->c,live,work,&top);
                 for(size_t k=0;k<in->incoming_count;k++)
-                    swan_ir_mark_live_value(fn,in->incoming[k].value,definitions,live,work,&top);
+                    swan_ir_mark_live_value(fn,in->incoming[k].value,live,work,&top);
             }
         }
         while(top){
             uint32_t id=work[--top];
             const SwanIRInst *in=definitions[id];
             if(!in)continue;
-            swan_ir_mark_live_value(fn,in->a,definitions,live,work,&top);
-            swan_ir_mark_live_value(fn,in->b,definitions,live,work,&top);
-            swan_ir_mark_live_value(fn,in->c,definitions,live,work,&top);
+            swan_ir_mark_live_value(fn,in->a,live,work,&top);
+            swan_ir_mark_live_value(fn,in->b,live,work,&top);
+            swan_ir_mark_live_value(fn,in->c,live,work,&top);
             for(size_t k=0;k<in->incoming_count;k++)
-                swan_ir_mark_live_value(fn,in->incoming[k].value,definitions,live,work,&top);
+                swan_ir_mark_live_value(fn,in->incoming[k].value,live,work,&top);
         }
         for(size_t b=0;b<fn->block_count;b++){
             SwanIRBlock *bb=&fn->blocks[b];size_t out=0;
