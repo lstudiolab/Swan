@@ -95,7 +95,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     break;
    }
    case S_LOG:
-    if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&symbols->items[index].manual_memory){swan_error(err,&s->value->token,"manual allocation handles cannot be printed or copied");return false;}}
+    if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&symbols->items[index].manual_checked){swan_error(err,&s->value->token,"manual allocation handles cannot be printed or copied");return false;}}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_RETURN:
@@ -118,7 +118,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     for(size_t k=0;k<outer;k++)else_state[k]=symbols->items[k].manual_freed;
     swan_symbols_leave(symbols,outer);
     for(size_t k=0;k<outer;k++){
-     if(symbols->items[k].manual_memory&&then_state[k]!=else_state[k]){
+     if(symbols->items[k].manual_checked&&then_state[k]!=else_state[k]){
       swan_error(err,&s->token,"manual variable '%s' must have the same ownership state on every branch",symbols->items[k].name);return false;
      }
      symbols->items[k].manual_freed=then_state[k];
