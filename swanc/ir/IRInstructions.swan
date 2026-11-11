@@ -1,0 +1,3 @@
+# Swan IR Instructions
+# Define typed low-level IR opcodes, operand constraints, result rules,
+# side-effect properties, and control-flow terminators.
