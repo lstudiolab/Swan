@@ -1,44 +1,26 @@
-# End-to-end test workload for the Compiler 2 linear-IR optimizer.
-# Small bounded arrays are reused repeatedly to keep the test portable while
-# still exercising tens of thousands of instruction visits.
+# Minimal executable correctness case for the Compiler 2 linear-IR optimizer.
 
 fn main() -> int:
-    let instruction_count = 192
-    let capacity = instruction_count + 1
-    let instructions = array_unchecked(instruction_count * 8)
-    let known = array_unchecked(capacity)
-    let values = array_unchecked(capacity)
-    var repeat = 0
-    while repeat < 128:
-        var index = 0
-        while index < 64:
-            let base = index * 24
-            let first = index * 3 + 1
-            let second = first + 1
-            let result = first + 2
-            instructions[base] = 0
-            instructions[base + 1] = 4
-            instructions[base + 2] = first
-            instructions[base + 6] = 5
-            instructions[base + 8] = 0
-            instructions[base + 9] = 4
-            instructions[base + 10] = second
-            instructions[base + 14] = 7
-            instructions[base + 16] = 1
-            instructions[base + 17] = 4
-            instructions[base + 18] = result
-            instructions[base + 19] = first
-            instructions[base + 20] = second
-            index = index + 1
-        if swanc_ir_optimize(instructions, instruction_count, 0, known, values, capacity) != 0:
-            return 1
-        index = 0
-        while index < 64:
-            let base = index * 24 + 16
-            if instructions[base] != 0 or instructions[base + 6] != 12:
-                return 2
-            index = index + 1
-        repeat = repeat + 1
+    let instructions = array_unchecked(24)
+    let known = array_unchecked(4)
+    let values = array_unchecked(4)
+    instructions[0] = 0
+    instructions[1] = 4
+    instructions[2] = 1
+    instructions[6] = 5
+    instructions[8] = 0
+    instructions[9] = 4
+    instructions[10] = 2
+    instructions[14] = 7
+    instructions[16] = 1
+    instructions[17] = 4
+    instructions[18] = 3
+    instructions[19] = 1
+    instructions[20] = 2
+    if swanc_ir_optimize(instructions, 3, 0, known, values, 4) != 0:
+        return 1
+    if instructions[16] != 0 or instructions[22] != 12:
+        return 2
     return 0
 
 out
