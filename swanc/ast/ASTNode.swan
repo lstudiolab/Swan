@@ -1,0 +1,3 @@
+# AST Node Core
+# Define node identity, node kind, source span, and common traversal contracts.
+# Keep syntax nodes immutable after parsing except for explicit semantic annotations.
