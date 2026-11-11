@@ -1,0 +1,3 @@
+# Semantic Type Checker
+# Check expressions, statements, declarations, calls, operators, conversions,
+# function bodies, and return types. Reject unresolved or unsupported types.
