@@ -37,5 +37,7 @@ jobs:
         run: sh tests/riscv64.sh
       - name: Verify arbitrary LLVM target-triple backend
         run: sh tests/llvm-target.sh
+      - name: Verify Compiler 2 optimizer slice
+        run: sh tests/swanc-optimizer.sh
       - name: Verify compiler version
         run: ./build/swan --version
