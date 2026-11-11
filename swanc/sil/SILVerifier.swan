@@ -1,0 +1,3 @@
+# SIL Verifier
+# Check SSA dominance, operand types, terminators, CFG consistency, ownership
+# correctness, and instruction effect contracts before and after every pass.
