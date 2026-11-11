@@ -1,0 +1,3 @@
+# Object Emitter
+# Emit relocatable object files, symbols, sections, and relocations for each
+# supported object format.
