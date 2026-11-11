@@ -1,0 +1,3 @@
+# Ownership and Borrow Checking
+# Enforce Swan's value ownership, borrowing, lifetime, move, and manual-memory
+# rules. Produce explicit semantic facts consumed by SILGen.
