@@ -1,0 +1,19 @@
+# Swan Compiler 2 — SVM Optimization
+#
+# Optimize verified SVM before target-specific instruction selection.
+#
+# Required optimization families:
+# - Sparse conditional constant propagation.
+# - Dead instruction and dead block elimination.
+# - Common subexpression elimination.
+# - Algebraic simplification and strength reduction.
+# - Copy propagation and virtual-register coalescing preparation.
+# - Loop-invariant code motion where dominance and effects are proven.
+# - Control-flow simplification and branch folding.
+# - Memory-operation forwarding only with valid alias/effect information.
+#
+# Every pass must preserve traps, side effects, volatile/atomic semantics,
+# ownership effects, and observable ordering. Verify after each pass.
+#
+# Implementation status: contract; the current ConstantFold.swan is a narrow
+# i32 add/subtract/multiply pass, not this complete optimization pipeline.
