@@ -468,6 +468,34 @@ fn main() -> int:
         return 13
     if program_tokens[31] != 14 or program_tokens[33] != 2 or program_tokens[34] != 5
         return 14
+    let text_input = array_unchecked(9)
+    text_input[0] = 108
+    text_input[1] = 111
+    text_input[2] = 103
+    text_input[3] = 32
+    text_input[4] = 34
+    text_input[5] = 111
+    text_input[6] = 107
+    text_input[7] = 34
+    text_input[8] = 10
+    let text_tokens = array_unchecked(20)
+    let text_count = swan_lex(text_input, 9, text_tokens, 4, diagnostic)
+    if text_count != 4
+        return 15
+    if text_tokens[0] != 1 or text_tokens[5] != 4 or text_tokens[8] != 4
+        return 16
+    if text_tokens[10] != 5 or text_tokens[15] != 0
+        return 17
+    let invalid_utf8 = array_unchecked(1)
+    invalid_utf8[0] = 192
+    let invalid_count = swan_lex(invalid_utf8, 1, text_tokens, 4, diagnostic)
+    if invalid_count != 0 - 1 or diagnostic[0] != 1
+        return 18
+    let invalid_character = array_unchecked(1)
+    invalid_character[0] = 64
+    let invalid_character_count = swan_lex(invalid_character, 1, text_tokens, 4, diagnostic)
+    if invalid_character_count != 0 - 2 or diagnostic[0] != 2
+        return 19
     return 0
 out
 "$SWAN" "$TMP/swanc-lexer-test.swan" --emit-asm -o "$TMP/swanc-lexer-test.s"
