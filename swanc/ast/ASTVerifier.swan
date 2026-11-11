@@ -1,0 +1,4 @@
+# AST Structural Verifier
+# Validate node kinds, child indices, source spans, declaration placement,
+# required children, and tree/arena invariants before semantic analysis.
+# Invalid AST is an internal compiler error, never silently repaired.
