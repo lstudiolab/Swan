@@ -1,67 +1,142 @@
 # swanc — Swan Compiler 2
 
-\`swanc\` is the self-hosted compiler implementation. Compiler 1 remains in \`compiler/\` and is the bootstrap compiler until Compiler 2 can compile itself and pass the same regression suite.
+Compiler 2 is Swan's self-hosted compiler. It follows the **architectural separation used by the Swift compiler**: parsing and semantic analysis produce a typed AST; SILGen lowers that AST into a high-level, ownership-aware SIL; SIL analyses and optimizations operate before IRGen; IRGen lowers SIL into Swan's target-independent machine IR; SVM generation and optimization prepare it for target lowering, code generation, and linking.
 
-## Required pipeline
+This is an architectural model, not a dependency on the Swift compiler or LLVM. Swan owns its language semantics, SIL, IR, SVM, optimizers, and backends.
 
-\`\`\`text
-Swan source
-  -> UTF-8 source buffer
-  -> Lexer
-  -> Parser
-  -> AST validation
-  -> semantic analysis
-  -> SVM typed IR generation
-  -> IR verification
-  -> optimization
-  -> target lowering
-  -> target code generation
-  -> object / assembly / WebAssembly emission
-  -> linker (where the target requires it)
-\`\`\`
+Compiler 1 remains in `compiler/` as the bootstrap compiler and behavioral reference until Compiler 2 can compile itself and pass the same regression suite.
 
-SVM is the target-independent compilation engine. It is not a CPU target, bytecode interpreter, or runtime execution loop. Compilation must fail with a diagnostic when a construct is invalid or unsupported by the selected lowering/backend.
+## Compiler pipeline
 
-## Source organization
+```text
+.swan source
+    |
+    v
+ driver/driver.swan
+    |
+    v
+ lexer/Lexer.swan
+    |
+    v
+ parser/Parser.swan
+    |
+    v
+ ast/AST.swan
+    |
+    v
+ sema/sema.swan
+    |
+    v
+ sil/Silgen.swan
+    |
+    v
+ SIL verification
+    |
+    v
+ sil/Sildemand.swan
+    |
+    v
+ sil/SilOptimization.swan
+    |
+    v
+ ir/IRGen.swan
+    |
+    v
+ SVM IR verification
+    |
+    v
+ svm/SvmGen.swan
+    |
+    v
+ svm/SvmOptimization.swan
+    |
+    v
+ backend/targetbackend.swan
+    |
+    v
+ backend/codegen.swan
+    |
+    v
+ linker/linker.swan
+    |
+    v
+ executable / object / assembly / WebAssembly
+```
 
-Subsystems own their files; do not put the compiler in one enormous source file.
+## Responsibilities and boundaries
 
-- \`lexer/Lexer.swan\` — the lexer remains one cohesive source file.
-- \`parser/Parser.swan\` — the parser remains one cohesive source file.
-- \`ast/\` — AST representation, traversal, and structural validation.
-- \`sema/\` — name resolution, type checking, control-flow checks, and ownership checks.
-- \`ir/\` — typed, target-independent SVM IR and its verifier.
-- \`silgen/\` — lowering from validated AST into SVM IR.
-- \`optimization/\` — verified optimization passes, including constant folding and dead-code elimination.
-- \`targets/x86_64/\`, \`aarch64/\`, \`armv7/\`, \`riscv64/\`, \`wasm32/\` — target-specific lowering and emission.
-- \`driver/\` — command-line orchestration, source loading, diagnostics, and build modes.
-- \`linker/\` — object and executable linking orchestration.
-- \`tests/\` — Compiler 2 unit, regression, negative, and bootstrap tests.
+- **Driver:** command-line interface, build modes, target selection, source loading, diagnostics, output paths, and orchestration only.
+- **Lexer:** UTF-8 scanning and tokenization. It remains one cohesive file.
+- **Parser:** source grammar and AST construction. It remains one cohesive file.
+- **AST:** source-level syntax representation, traversal, and structural invariants.
+- **Sema:** module/name resolution, type checking, inference, control-flow validation, definite initialization, and ownership/borrowing checks.
+- **SILGen:** AST-to-SIL lowering. SIL is typed, SSA-based, control-flow explicit, and ownership-aware.
+- **SIL demand analysis:** value liveness, use/def relationships, and observable-effect tracking used by SIL passes.
+- **SIL optimization:** high-level transformations while source-language type and ownership information remains available.
+- **IRGen:** lower verified SIL into Swan's lower-level, target-independent IR. This is Swan's analogue of Swift IRGen; it does not emit LLVM IR.
+- **SVM generation:** lower typed IR into SVM's machine-level representation. SVM is a compiler representation, not an interpreter or CPU target.
+- **SVM optimization:** machine-level constant propagation, DCE, CSE, CFG simplification, loop transforms, and other verified passes.
+- **Target backend:** target triple, ABI, data layout, instruction legalization, and target lowering.
+- **Codegen:** emit assembly, object files, or WebAssembly from target-lowered instructions.
+- **Linker:** invoke the correct target toolchain and produce the final artifact.
 
-Only add a subsystem file when implementing its behavior. Do not add placeholder modules or speculative features.
+A stage may only consume the output contract of the preceding stage. No stage may silently skip verification. Unsupported syntax, semantic constructs, IR operations, or target instructions are hard compilation errors.
 
-## Current Compiler 2 implementation
+## Source layout
 
-- Lexer: scans UTF-8 source bytes into caller-owned token storage. Token records use five words: kind, byte offset, byte length, starting line, and starting column. Keyword recognition is hardcoded, exact, and case-sensitive.
+```text
+swanc/
+├── driver/
+│   └── driver.swan
+├── lexer/
+│   └── Lexer.swan
+├── parser/
+│   └── Parser.swan
+├── ast/
+│   └── AST.swan
+├── sema/
+│   └── sema.swan
+├── sil/
+│   ├── Silgen.swan
+│   ├── Sildemand.swan
+│   └── SilOptimization.swan
+├── ir/
+│   ├── IR.swan
+│   └── IRGen.swan
+├── svm/
+│   ├── SvmGen.swan
+│   └── SvmOptimization.swan
+├── backend/
+│   ├── targetbackend.swan
+│   └── codegen.swan
+├── linker/
+│   └── linker.swan
+└── optimization/
+    └── ConstantFold.swan
+```
+
+Keep the lexer and parser as single cohesive source files. Other subsystems should be decomposed into focused files as their implementations grow. Do not create a monolithic compiler file.
+
+## Implementation status
+
+The files added for the Swift-inspired stages currently define architectural contracts and invariants; they are **not yet complete implementations** and are not wired into an executable driver.
+
+Existing implemented slices:
+- Lexer: scans UTF-8 source bytes into caller-owned token storage. Token records use five words: kind, byte offset, byte length, starting line, and starting column.
 - Parser: currently parses integer expressions using Pratt precedence. It is not yet a complete source-file parser.
-- AST: defines the existing five-word expression-node layout and validates node kinds, token bounds, child references, and root placement.
-- SVM IR: defines an initial eight-word linear instruction format, typed opcodes, SSA result numbering, and structural/use-before-definition verification.
-- Optimization: contains an initial integer i32 constant-folding pass for add, subtract, and multiply. This is not yet the complete optimizer.
+- AST: initial five-word expression-node representation and structural validation.
+- IR: initial eight-word linear typed instruction representation, SSA result numbering, and structural/use-before-definition verification.
+- Optimization: narrow i32 constant folding for add, subtract, and multiply.
 
-These are real implementation slices, not a claim that Compiler 2 is complete. The C compiler remains the behavioral reference for language semantics, diagnostics, IR invariants, optimizations, target contracts, and tests.
-
-## Lexer contract
-
-\`swan_lex(source, source_length, tokens, token_capacity, diagnostic)\` accepts UTF-8 bytes stored as integer elements in a \`u32_array\`. The caller owns every buffer. Each token occupies five words: token kind, byte offset, byte length, starting line, and starting column. The diagnostic buffer contains error code, byte offset, line, and column. Success returns the token count including EOF; a negative result indicates failure. Token kinds are aligned with \`compiler/include/swan/core.h\`.
-
-The lexer and parser must remain single cohesive files. All other compiler subsystems should be decomposed into focused files within their subsystem directories.
+The previous C implementation remains the behavioral reference for language semantics, diagnostics, SIL bridge behavior, IR invariants, optimizations, target ABIs, code generation, linking, and regression tests. Port and verify each stage before enabling it in the driver.
 
 ## Bootstrap contract
 
-1. Compiler 1 builds Compiler 2 from the Swan sources in \`swanc/\`.
-2. Compiler 2 compiles its own complete source tree.
-3. The resulting stage-2 compiler rebuilds the same source tree.
-4. Stage-2 and stage-3 outputs must be deterministic or have explicitly normalized metadata, and their regression results must match.
-5. Compiler 1 is retained until this process is repeatable and verified.
+1. Compiler 1 builds Compiler 2 from the Swan sources in `swanc/`.
+2. Compiler 2 compiles its complete source tree without invoking C implementations for compiler stages.
+3. The stage-2 compiler rebuilds the same source tree.
+4. Stage-2 and stage-3 outputs are deterministic, or metadata is normalized before comparison.
+5. Both stages pass the same positive, negative, regression, and target tests.
+6. Keep Compiler 1 until bootstrap is repeatable and verified.
 
-A successful build of a partial Compiler 2 is not proof of self-hosting. Self-hosting is achieved only when Compiler 2 compiles all of its own implementation without falling back to C for compiler stages.
+A successful build of a partial Compiler 2 is not proof of self-hosting.
