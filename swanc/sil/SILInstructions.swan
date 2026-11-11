@@ -1,0 +1,3 @@
+# SIL Instructions
+# Define high-level typed SIL operations and their operand/result/effect
+# contracts. Each operation must declare side effects and ownership behavior.
