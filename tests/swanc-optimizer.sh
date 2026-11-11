@@ -13,10 +13,7 @@ ASSEMBLY="$ROOT/build/swanc-optimizer-module.s"
     cat "$ROOT/swanc/optimization/Optimization.swan"
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
-fn main() -> int:
-    return 0
-out
-SWAN
+fn main() -> int:\n    return swanc_ir_optimize(array_unchecked(8), 0, array_unchecked(2), array_unchecked(2), 2, array_unchecked(2))\nout\nSWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
 sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_optimizer_module_stub\2/g' "$ASSEMBLY"
 cc -O2 "$ASSEMBLY" "$ROOT/tests/swanc_optimizer.c" -o "$ROOT/build/swanc-optimizer-test"
