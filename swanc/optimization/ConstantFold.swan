@@ -1,0 +1,53 @@
+# Swan Compiler 2 — scalar constant folding
+#
+# Operates on the eight-word linear IR instruction format from ir/IR.swan.
+# It folds integer add/subtract/multiply when both operands are known constants.
+# The pass preserves result IDs and rewrites folded instructions in place.
+# Control-flow-aware propagation and dead-code elimination require the CFG IR
+# layer and are deliberately not approximated by this linear pass.
+
+fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, parameter_count: int, known: u32_array, values: u32_array, capacity: int) -> int:
+    if instruction_count < 0 or parameter_count < 0 or capacity < parameter_count + instruction_count + 1:
+        return -1
+    var index = 0
+    while index < capacity:
+        known[index] = 0
+        values[index] = 0
+        index = index + 1
+    index = 0
+    while index < instruction_count:
+        let base = index * 8
+        let opcode = instructions[base]
+        let type_id = instructions[base + 1]
+        let result_id = instructions[base + 2]
+        let a = instructions[base + 3]
+        let b = instructions[base + 4]
+        if opcode == 0:
+            if result_id > 0 and result_id < capacity:
+                known[result_id] = 1
+                values[result_id] = instructions[base + 6]
+        else
+            if (opcode == 1 or opcode == 2 or opcode == 3) and type_id == 4:
+                if a > 0 and b > 0 and a < capacity and b < capacity:
+                    if known[a] == 1 and known[b] == 1:
+                        var folded = 0
+                        if opcode == 1:
+                            folded = values[a] + values[b]
+                        else
+                            if opcode == 2:
+                                folded = values[a] - values[b]
+                            else
+                                folded = values[a] * values[b]
+                        if folded >= 0 and folded <= 4294967295:
+                            instructions[base] = 0
+                            instructions[base + 3] = 0
+                            instructions[base + 4] = 0
+                            instructions[base + 5] = 0
+                            instructions[base + 6] = folded
+                            instructions[base + 7] = 0
+                            known[result_id] = 1
+                            values[result_id] = folded
+        index = index + 1
+    return 0
+
+out
