@@ -1,0 +1,3 @@
+# Semantic Control-Flow Checks
+# Validate definite initialization, return completeness, unreachable code,
+# break/continue targets, and control-flow-sensitive ownership constraints.
