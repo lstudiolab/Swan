@@ -3,16 +3,15 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 mkdir -p "$ROOT/build"
-SOURCE="$ROOT/build/swanc-optimizer-test.swan"
+SOURCE="$ROOT/build/swanc-optimizer-module.swan"
+ASSEMBLY="$ROOT/build/swanc-optimizer-module.s"
 {
     cat "$ROOT/swanc/ir/IR.swan"
     printf '\n'
     cat "$ROOT/swanc/optimization/ConstantFold.swan"
     printf '\n'
     cat "$ROOT/swanc/optimization/Optimization.swan"
-    printf '\n'
-    cat "$ROOT/tests/swanc_optimizer.swan"
 } > "$SOURCE"
-"$ROOT/build/swan" build "$SOURCE" -o "$ROOT/build/swanc-optimizer-test"
+"$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
+cc -O2 "$ASSEMBLY" "$ROOT/tests/swanc_optimizer.c" -o "$ROOT/build/swanc-optimizer-test"
 "$ROOT/build/swanc-optimizer-test"
-printf 'Compiler 2 linear-IR optimizer test passed.\n'
