@@ -104,7 +104,8 @@ swanc/
 │   ├── ToolchainDiscovery.swan
 │   └── LinkArguments.swan
 └── optimization/
-    └── ConstantFold.swan
+    ├── ConstantFold.swan
+    └── Optimization.swan
 ```
 
 ## Component boundaries
@@ -131,7 +132,8 @@ Existing implementation slices:
 - Parser: Pratt parsing for integer expressions; not yet a complete source-file parser.
 - AST: initial five-word expression-node representation and structural validation.
 - IR: initial eight-word linear typed instruction representation, SSA result numbering, and structural/use-before-definition verification.
-- Optimization: narrow i32 constant folding for add, subtract, and multiply.
+- Optimization: a verified linear-IR pass-manager slice with conservative i32 add/subtract/multiply constant folding. The pass manager verifies input and output; it is not yet a complete optimizer.
+- Validation: `tests/swanc-optimizer.swan` exercises 1,024 constant-folding cases, and `benchmarks/swanc_optimizer.py` measures the verified optimizer slice. The benchmark explicitly runs Compiler 2 optimizer source through the Compiler 1 bootstrap; it is not a full Compiler 2 or self-hosted compiler benchmark.
 
 The component breakdown is an implementation map, not a claim of feature completeness. Implement each component with concrete types, functions, invariants, unit tests, negative tests, and integration before enabling it in the driver.
 
