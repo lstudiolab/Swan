@@ -11,6 +11,7 @@ ASSEMBLY="$ROOT/build/swanc-optimizer-module.s"
     cat "$ROOT/swanc/optimization/ConstantFold.swan"
     printf '\n'
     cat "$ROOT/swanc/optimization/Optimization.swan"
+    printf '\\nextern fn swan_optimizer_test_main() -> int\\nfn main() -> int:\\n    return swan_optimizer_test_main()\\nout\\n'
 } > "$SOURCE"
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
 cc -O2 "$ASSEMBLY" "$ROOT/tests/swanc_optimizer.c" -o "$ROOT/build/swanc-optimizer-test"
