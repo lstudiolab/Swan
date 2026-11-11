@@ -1,0 +1,3 @@
+# Semantic Module Loader
+# Resolve source modules and imports, detect cycles, and establish compilation
+# units. File discovery and module identity must be deterministic.
