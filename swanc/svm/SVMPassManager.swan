@@ -1,0 +1,3 @@
+# SVM Pass Manager
+# Schedule machine-level optimization passes and invalidate/recompute analyses
+# after transformations. Verify output after each transforming pass.
