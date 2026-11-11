@@ -33,7 +33,7 @@ fn swanc_ir_width(type_id: int) -> int:
 out
 fn swanc_ir_emit(instructions: u32_array, capacity: int, state: u32_array, record: u32_array) -> int:
     let count = state[0]
-    if count < 0 or count >= capacity or capacity > 0x0fffffff:
+    if count < 0 or count >= capacity or capacity > 268435455:
         state[2] = 1
         return -1
     let opcode = record[0]
@@ -45,7 +45,7 @@ fn swanc_ir_emit(instructions: u32_array, capacity: int, state: u32_array, recor
     var result_id = 0
     if type_id != 0:
         result_id = state[1]
-        if result_id < 1 or result_id >= 0x7fffffff:
+        if result_id < 1 or result_id >= 2147483647:
             state[2] = 3
             return -3
         state[1] = result_id + 1
@@ -73,7 +73,7 @@ fn swanc_ir_defined_before(instructions: u32_array, instruction_index: int, valu
 
 out
 fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_count: int, diagnostic: u32_array) -> int:
-    if instruction_count < 0 or parameter_count < 0 or instruction_count > 0x0fffffff:
+    if instruction_count < 0 or parameter_count < 0 or instruction_count > 268435455:
         diagnostic[0] = 1
         diagnostic[1] = 0
         return -1
