@@ -1,0 +1,3 @@
+# Driver Argument Parsing
+# Parse command-line options, build modes, input paths, target selection,
+# optimization level, diagnostics options, and output destinations.
