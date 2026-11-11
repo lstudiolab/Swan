@@ -7,7 +7,7 @@
 # layer and are deliberately not approximated by this linear pass.
 
 fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, parameter_count: int, known: u32_array, values: u32_array, capacity: int) -> int:
-    if instruction_count < 0 or parameter_count < 0 or capacity < parameter_count + instruction_count + 1:
+    if instruction_count < 0 or parameter_count < 0 or instruction_count > 268435455 or parameter_count > 268435455 or capacity < parameter_count + instruction_count + 1:
         return -1
     var index = 0
     while index < capacity:
@@ -23,13 +23,18 @@ fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, param
         let a = instructions[base + 3]
         let b = instructions[base + 4]
         if opcode == 0:
-            if result_id > 0 and result_id < capacity:
+            if type_id == 4:
+                if result_id < 1 or result_id >= capacity:
+                    return -2
                 known[result_id] = 1
                 values[result_id] = instructions[base + 6]
         else
             if (opcode == 1 or opcode == 2 or opcode == 3) and type_id == 4:
-                if a > 0 and b > 0 and a < capacity and b < capacity:
-                    if known[a] == 1 and known[b] == 1:
+                if result_id < 1 or result_id >= capacity:
+                    return -2
+                if a < 1 or b < 1 or a >= capacity or b >= capacity:
+                    return -3
+                if known[a] == 1 and known[b] == 1:
                         var folded = 0
                         if opcode == 1:
                             folded = values[a] + values[b]
