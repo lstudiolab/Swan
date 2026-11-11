@@ -5,9 +5,8 @@
 # This initial pipeline is intentionally small: the linear IR currently has
 # no CFG, so CFG-dependent passes are not enabled here.
 
-fn swanc_ir_optimize(instructions: u32_array, instruction_count: int, parameter_count: int, known: u32_array, values: u32_array, capacity: int, diagnostic: u32_array) -> int:
-    diagnostic[0] = 0
-    diagnostic[1] = 0
+fn swanc_ir_optimize(instructions: u32_array, instruction_count: int, parameter_count: int, known: u32_array, values: u32_array, capacity: int) -> int:
+    let diagnostic = array_unchecked(2)
     if swanc_ir_verify(instructions, instruction_count, parameter_count, diagnostic) != 0:
         return -1
     if swanc_ir_constant_fold(instructions, instruction_count, parameter_count, known, values, capacity) != 0:
