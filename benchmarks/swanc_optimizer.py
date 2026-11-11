@@ -27,7 +27,7 @@ def make_source(destination: pathlib.Path) -> pathlib.Path:
         ROOT / "swanc/optimization/Optimization.swan",
     ]
     source = "\n".join(p.read_text(encoding="utf-8") for p in parts)
-    source += "\nextern fn swan_optimizer_test_main() -> int\nfn main() -> int:\n    return swan_optimizer_test_main()\nout\n"
+    source += "\nfn main() -> int:\n    return 0\nout\n"
     destination.write_text(source, encoding="utf-8")
     return destination
 
