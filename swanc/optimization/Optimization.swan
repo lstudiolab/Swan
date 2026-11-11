@@ -8,11 +8,11 @@
 fn swanc_ir_optimize(instructions: u32_array, instruction_count: int, known: u32_array, values: u32_array, capacity: int, diagnostic: u32_array) -> int:
     if swanc_ir_verify(instructions, instruction_count, 0, diagnostic) != 0:
         return -1
-    if swanc_ir_constant_fold(instructions, instruction_count, parameter_count, known, values, capacity) != 0:
+    if swanc_ir_constant_fold(instructions, instruction_count, 0, known, values, capacity) != 0:
         diagnostic[0] = 11
         diagnostic[1] = 0
         return -2
-    if swanc_ir_verify(instructions, instruction_count, parameter_count, diagnostic) != 0:
+    if swanc_ir_verify(instructions, instruction_count, 0, diagnostic) != 0:
         return -3
     return 0
 
