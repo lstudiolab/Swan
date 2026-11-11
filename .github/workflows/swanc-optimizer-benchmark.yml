@@ -1,0 +1,46 @@
+name: swanc Optimizer Benchmark
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'swanc/**'
+      - 'tests/swanc_optimizer.swan'
+      - 'tests/swanc-optimizer.sh'
+      - 'benchmarks/swanc_optimizer.py'
+      - 'build.sh'
+      - 'main.c'
+      - '.github/workflows/swanc-optimizer-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  optimizer-benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build bootstrap compiler
+        run: sh build.sh
+      - name: Test Compiler 2 optimizer correctness
+        run: sh tests/swanc-optimizer.sh
+      - name: Benchmark Compiler 2 optimizer slice
+        run: python3 benchmarks/swanc_optimizer.py --repeats 9 --output-dir benchmark-results
+      - name: Publish benchmark summary
+        if: always()
+        run: |
+          if [ -f benchmark-results/swanc-optimizer.md ]; then
+            cat benchmark-results/swanc-optimizer.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "No optimizer benchmark report was produced." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload benchmark reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: swanc-optimizer-benchmark
+          path: benchmark-results/
+          if-no-files-found: warn
+          retention-days: 30
