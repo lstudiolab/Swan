@@ -1,0 +1,18 @@
+# Swan Compiler 2 — SVM Generation
+#
+# Generate Swan Virtual Machine representation from verified typed IR.
+# SVM is Swan's target-independent machine-level compilation representation.
+# It is not a runtime virtual machine and does not interpret source programs.
+#
+# Responsibilities:
+# - Lower typed IR operations into a stable SVM instruction set.
+# - Assign virtual registers and explicit control-flow edges.
+# - Model calls, stack slots, memory, atomics, and ABI boundaries.
+# - Keep target-specific register names and instruction encodings out of SVM.
+# - Emit relocation and symbol requirements for later target lowering.
+#
+# Output must pass the SVM verifier. Every opcode must have defined semantics.
+# Unknown opcodes and unsupported types are compilation errors.
+#
+# Implementation status: contract; current IR.swan is an early foundation,
+# not a complete SVM instruction selection or machine representation.
