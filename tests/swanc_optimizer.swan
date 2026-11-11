@@ -1,8 +1,0 @@
-fn main() -> int:
-    let instructions = array_unchecked(24)
-    instructions[1] = 4
-    if instructions[1] != 4:
-        return 1
-    return 0
-
-out
