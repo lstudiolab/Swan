@@ -1,0 +1,3 @@
+# Semantic Scopes
+# Implement lexical/module/type scopes, parent lookup, shadowing rules,
+# declaration insertion, and duplicate-declaration diagnostics.
