@@ -1,0 +1,3 @@
+# AST Declarations
+# Own modules, imports, functions, variables, types, extensions, and generics.
+# Declaration identity is distinct from the spelling of its source name.
