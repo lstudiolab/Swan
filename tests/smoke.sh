@@ -480,7 +480,7 @@ fn main() -> int:
     let text_count = swan_lex(text_input, 9, text_tokens, 4, diagnostic)
     if text_count != 4
         return 15
-    if text_tokens[0] != 1 or text_tokens[5] != 4 or text_tokens[8] != 4
+    if text_tokens[0] != 1 or text_tokens[5] != 4 or text_tokens[7] != 4
         return 16
     if text_tokens[10] != 5 or text_tokens[15] != 0
         return 17
