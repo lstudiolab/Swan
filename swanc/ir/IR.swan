@@ -115,24 +115,24 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                     return -6
             else
                 if opcode == 23:
-                    if !swanc_ir_defined_before(instructions, index, a):
+                    if a < 1 or a >= expected_result:
                         diagnostic[0] = 7
                         diagnostic[1] = index
                         return -7
                 else
                     if opcode == 24:
-                        if !swanc_ir_defined_before(instructions, index, a) or !swanc_ir_defined_before(instructions, index, b):
+                        if a < 1 or a >= expected_result or b < 1 or b >= expected_result:
                             diagnostic[0] = 8
                             diagnostic[1] = index
                             return -8
                     else
                         if opcode == 20:
-                            if !swanc_ir_defined_before(instructions, index, a) or !swanc_ir_defined_before(instructions, index, b) or !swanc_ir_defined_before(instructions, index, c):
+                            if a < 1 or a >= expected_result or b < 1 or b >= expected_result or c < 1 or c >= expected_result:
                                 diagnostic[0] = 9
                                 diagnostic[1] = index
                                 return -9
                         else
-                            if !swanc_ir_defined_before(instructions, index, a) or !swanc_ir_defined_before(instructions, index, b):
+                            if a < 1 or a >= expected_result or b < 1 or b >= expected_result:
                                 diagnostic[0] = 10
                                 diagnostic[1] = index
                                 return -10
