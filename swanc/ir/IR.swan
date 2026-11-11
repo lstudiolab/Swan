@@ -87,7 +87,11 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
         let a = instructions[base + 3]
         let b = instructions[base + 4]
         let c = instructions[base + 5]
-        if opcode > 25 or type_id > 8:
+        if opcode > 25:
+            diagnostic[0] = 2
+            diagnostic[1] = index
+            return -2
+        if type_id > 8:
             diagnostic[0] = 2
             diagnostic[1] = index
             return -2
@@ -102,7 +106,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                 diagnostic[1] = index
                 return -4
         if opcode == 0:
-            if type_id == 0 or type_id > 8:
+            if type_id == 0:
                 diagnostic[0] = 5
                 diagnostic[1] = index
                 return -5
