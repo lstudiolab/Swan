@@ -58,13 +58,13 @@ def main() -> None:
             raise RuntimeError(f"Compiler 2 optimizer module failed to compile:\n{emitted.stderr[-12000:]}")
         rename = subprocess.run(
             ["sed", "-i", "-E",
-             r"s/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\\1swan_optimizer_module_stub\\2/g",
+             r"s/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_optimizer_module_stub\2/g",
              str(assembly)], cwd=ROOT, text=True, capture_output=True,
         )
         if rename.returncode:
             raise RuntimeError(f"Could not rename generated module entry point:\n{rename.stderr}")
         subprocess.run(
-            ["sed", "-i", "-E", r"s/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\\1swan_optimizer_module_stub\\2/g", str(assembly)],
+            ["sed", "-i", "-E", r"s/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_optimizer_module_stub\2/g", str(assembly)],
             cwd=ROOT, check=True,
         )
         linked = subprocess.run(
