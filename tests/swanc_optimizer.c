@@ -5,7 +5,7 @@
 #define CONSTANTS 128
 #define ROUNDS 128
 extern int64_t swan_fn_swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, uint32_t *, int64_t, uint32_t *);
-int main(void) {
+int64_t swan_optimizer_test_main(void) {
     uint32_t instructions[IR_INSTRUCTIONS * 8];
     uint32_t known[IR_INSTRUCTIONS + 1], values[IR_INSTRUCTIONS + 1], diagnostic[2];
     for (int round = 0; round < ROUNDS; ++round) {
