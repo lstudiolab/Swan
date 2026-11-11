@@ -1,0 +1,4 @@
+# AST Expressions
+# Own expression node kinds: literals, names, calls, member access, operators,
+# closures, casts, tuples, collections, and control-flow expressions.
+# Parser must reject expression forms not represented by this schema.
