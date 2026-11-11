@@ -1,0 +1,43 @@
+# End-to-end test workload for the Compiler 2 linear-IR optimizer.
+# The shell test concatenates this harness with swanc/ir/IR.swan,
+# swanc/optimization/ConstantFold.swan, and Optimization.swan.
+
+fn main() -> int:
+    let instruction_count = 3072
+    let capacity = instruction_count + 1
+    let instructions = array_unchecked(instruction_count * 8)
+    let known = array_unchecked(capacity)
+    let values = array_unchecked(capacity)
+    let diagnostic = array_unchecked(2)
+    var index = 0
+    while index < 1024:
+        let base = index * 24
+        let first = index * 3 + 1
+        let second = first + 1
+        let result = first + 2
+        instructions[base] = 0
+        instructions[base + 1] = 4
+        instructions[base + 2] = first
+        instructions[base + 6] = 5
+        instructions[base + 8] = 0
+        instructions[base + 9] = 4
+        instructions[base + 10] = second
+        instructions[base + 14] = 7
+        instructions[base + 16] = 1
+        instructions[base + 17] = 4
+        instructions[base + 18] = result
+        instructions[base + 19] = first
+        instructions[base + 20] = second
+        index = index + 1
+    let status = swanc_ir_optimize(instructions, instruction_count, 0, known, values, capacity, diagnostic)
+    if status != 0:
+        return 1
+    index = 0
+    while index < 1024:
+        let base = index * 24 + 16
+        if instructions[base] != 0 or instructions[base + 6] != 12:
+            return 2
+        index = index + 1
+    return 0
+
+out
