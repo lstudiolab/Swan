@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-"""Benchmark the executable Compiler 2 linear-IR optimization slice.
+"""Benchmark Swan-authored Compiler 2 optimizer code emitted by Compiler 1.
 
-This deliberately labels the execution model: Compiler 1 bootstraps and runs
-the Swan-authored Compiler 2 optimizer source. It is not a full swanc compiler
-benchmark because Compiler 2's driver and later pipeline stages are not wired.
+Measures only the implemented linear-IR verifier + i32 constant-folding
+pipeline. It is not a whole-compiler or self-hosted swanc benchmark.
 """
 from __future__ import annotations
-
 import argparse
 import json
 import pathlib
@@ -17,7 +15,8 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-INSTRUCTIONS = 192 * 128
+INSTRUCTIONS_PER_RUN = 256 * 128
+FOLDS_PER_RUN = 128 * 128
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 
 
@@ -26,12 +25,9 @@ def make_source(destination: pathlib.Path) -> pathlib.Path:
         ROOT / "swanc/ir/IR.swan",
         ROOT / "swanc/optimization/ConstantFold.swan",
         ROOT / "swanc/optimization/Optimization.swan",
-        ROOT / "tests/swanc_optimizer.swan",
     ]
-    destination.write_text(
-        "\n".join(path.read_text(encoding="utf-8") for path in parts),
-        encoding="utf-8",
-    )
+    destination.write_text("\n".join(p.read_text(encoding="utf-8") for p in parts),
+                           encoding="utf-8")
     return destination
 
 
@@ -39,8 +35,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--compiler", type=pathlib.Path, default=DEFAULT_COMPILER)
     parser.add_argument("--repeats", type=int, default=9)
-    parser.add_argument("--output-dir", type=pathlib.Path,
-                        default=ROOT / "benchmark-results")
+    parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "benchmark-results")
     args = parser.parse_args()
     if args.repeats < 1:
         parser.error("--repeats must be at least 1")
@@ -51,61 +46,68 @@ def main() -> None:
     with tempfile.TemporaryDirectory(prefix="swanc-optimizer-") as temporary:
         directory = pathlib.Path(temporary)
         source = make_source(directory / "optimizer.swan")
+        assembly = directory / "optimizer.s"
         executable = directory / "optimizer-test"
-        build_start = time.perf_counter()
-        built = subprocess.run(
-            [str(compiler), "build", str(source), "-o", str(executable)],
+        started = time.perf_counter()
+        emitted = subprocess.run(
+            [str(compiler), str(source), "--target", "x86_64", "--emit-asm", "-o", str(assembly)],
             cwd=ROOT, text=True, capture_output=True,
         )
-        build_seconds = time.perf_counter() - build_start
-        if built.returncode:
-            raise RuntimeError(f"Compiler 2 optimizer harness failed to build:\n{built.stderr[-12000:]}")
+        if emitted.returncode:
+            raise RuntimeError(f"Compiler 2 optimizer module failed to compile:\n{emitted.stderr[-12000:]}")
+        linked = subprocess.run(
+            ["cc", "-O2", str(assembly), str(ROOT / "tests/swanc_optimizer.c"), "-o", str(executable)],
+            cwd=ROOT, text=True, capture_output=True,
+        )
+        build_seconds = time.perf_counter() - started
+        if linked.returncode:
+            raise RuntimeError(f"Optimizer benchmark harness failed to link:\n{linked.stderr[-12000:]}")
+        check = subprocess.run([str(executable)], cwd=ROOT, text=True, capture_output=True)
+        if check.returncode:
+            raise RuntimeError(f"Optimizer correctness check failed:\n{check.stderr}")
         samples = []
         for _ in range(args.repeats):
             started = time.perf_counter()
-            run = subprocess.run([str(executable)], cwd=ROOT, check=False,
-                                 text=True, capture_output=True)
+            run = subprocess.run([str(executable)], cwd=ROOT, text=True, capture_output=True)
             elapsed = time.perf_counter() - started
             if run.returncode:
-                raise RuntimeError(
-                    f"Optimizer correctness harness failed ({run.returncode}):\n{run.stderr}"
-                )
+                raise RuntimeError(f"Optimizer benchmark run failed:\n{run.stderr}")
             samples.append(elapsed)
 
     median = statistics.median(samples)
     result = {
         "host": platform.platform(),
         "machine": platform.machine(),
-        "compiler_generation": "Compiler 1 bootstrap executing Swan-authored Compiler 2 optimizer",
+        "compiler_generation": "Compiler 1 bootstrapping Swan-authored Compiler 2 optimizer",
         "scope": "linear IR verification plus i32 constant folding; not full swanc",
-        "instruction_count": INSTRUCTIONS,
+        "ir_instructions_per_run": INSTRUCTIONS_PER_RUN,
+        "constant_folds_per_run": FOLDS_PER_RUN,
         "repeats": args.repeats,
-        "build_seconds": build_seconds,
+        "module_compile_and_link_seconds": build_seconds,
         "runtime_samples_seconds": samples,
         "runtime_median_seconds": median,
-        "instructions_per_second": INSTRUCTIONS / median if median else None,
+        "ir_instructions_per_second": INSTRUCTIONS_PER_RUN / median if median else None,
+        "constant_folds_per_second": FOLDS_PER_RUN / median if median else None,
     }
     output = args.output_dir.resolve()
     output.mkdir(parents=True, exist_ok=True)
-    (output / "swanc-optimizer.json").write_text(
-        json.dumps(result, indent=2) + "\n", encoding="utf-8"
-    )
+    (output / "swanc-optimizer.json").write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
     report = [
         "# swanc optimizer microbenchmark", "",
         f"- Host: {result['host']} ({result['machine']})",
         f"- Execution: {result['compiler_generation']}",
         f"- Scope: {result['scope']}",
-        f"- IR instructions: {INSTRUCTIONS}",
-        f"- Harness build time: {build_seconds:.9f} s",
-        f"- Median process runtime: {median:.9f} s",
-        f"- Throughput: {result['instructions_per_second']:.2f} instructions/s",
-        f"- Samples: {', '.join(f'{sample:.9f}' for sample in samples)}",
+        f"- IR instructions per run: {INSTRUCTIONS_PER_RUN:,}",
+        f"- Constant folds per run: {FOLDS_PER_RUN:,}",
+        f"- Module compile + link: {build_seconds:.9f} s",
+        f"- Median runtime: {median:.9f} s",
+        f"- IR throughput: {result['ir_instructions_per_second']:.2f} instructions/s",
+        f"- Fold throughput: {result['constant_folds_per_second']:.2f} folds/s",
+        f"- Samples: {', '.join(f'{x:.9f}' for x in samples)}",
         "",
-        "This result measures the implemented Compiler 2 optimizer slice only. "
-        "It must not be presented as whole-compiler or self-hosted swanc performance.",
+        "This result measures the implemented Compiler 2 optimizer slice only; it is not whole-compiler or self-hosted swanc performance.",
     ]
-    (output / "swanc-optimizer.md").write_text("\n".join(report) + "\n",
-                                                 encoding="utf-8")
+    (output / "swanc-optimizer.md").write_text("\n".join(report) + "\n", encoding="utf-8")
     print("\n".join(report))
     print(f"JSON report: {output / 'swanc-optimizer.json'}")
 
