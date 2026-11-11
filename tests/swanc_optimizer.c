@@ -4,7 +4,7 @@
 #define IR_INSTRUCTIONS 256
 #define CONSTANTS 128
 #define ROUNDS 128
-extern int64_t swan_fn_swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, uint32_t *, int64_t, uint32_t *);
+extern int64_t swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, uint32_t *, int64_t, uint32_t *);
 int main(void) {
     uint32_t instructions[IR_INSTRUCTIONS * 8];
     uint32_t known[IR_INSTRUCTIONS + 1], values[IR_INSTRUCTIONS + 1], diagnostic[2];
