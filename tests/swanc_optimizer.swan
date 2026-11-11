@@ -21,6 +21,12 @@ fn main() -> int:
     log instructions[0]
     log instructions[1]
     log instructions[2]
+    if instructions[1] != 4:
+        return 30
+    if instructions[9] != 4:
+        return 31
+    if instructions[17] != 4:
+        return 32
     let status = swanc_ir_optimize(instructions, 3, known, values, 4, diagnostic)
     if status != 0:
         return 10 - diagnostic[0]
