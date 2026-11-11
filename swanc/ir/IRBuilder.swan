@@ -1,0 +1,3 @@
+# Swan IR Builder
+# Provide deterministic construction APIs for functions, blocks, values,
+# instructions, constants, and terminators. Builder output must verify.
