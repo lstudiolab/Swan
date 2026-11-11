@@ -8,7 +8,6 @@ fn main() -> int:
     let instructions = array_unchecked(instruction_count * 8)
     let known = array_unchecked(capacity)
     let values = array_unchecked(capacity)
-    let diagnostic = array_unchecked(2)
     var index = 0
     while index < 1024:
         let base = index * 24
@@ -29,7 +28,7 @@ fn main() -> int:
         instructions[base + 19] = first
         instructions[base + 20] = second
         index = index + 1
-    let status = swanc_ir_optimize(instructions, instruction_count, 0, known, values, capacity, diagnostic)
+    let status = swanc_ir_optimize(instructions, instruction_count, 0, known, values, capacity)
     if status != 0:
         return 1
     index = 0
