@@ -1,8 +1,8 @@
 # swanc — Swan Compiler 2
 
-Compiler 2 is Swan's self-hosted compiler. It follows the **architectural separation used by the Swift compiler**: parsing and semantic analysis produce a typed AST; SILGen lowers that AST into a high-level, ownership-aware SIL; SIL analyses and optimizations operate before IRGen; IRGen lowers SIL into Swan's target-independent machine IR; SVM generation and optimization prepare it for target lowering, code generation, and linking.
+Compiler 2 is Swan's self-hosted compiler. It adopts the architectural separation of the Swift compiler: parsing and semantic analysis produce a typed AST; SILGen lowers that AST into high-level, ownership-aware SIL; SIL analyses and optimizations operate before IRGen; IRGen lowers SIL into Swan's target-independent machine IR; SVM generation and optimization prepare it for target lowering, code generation, and linking.
 
-This is an architectural model, not a dependency on the Swift compiler or LLVM. Swan owns its language semantics, SIL, IR, SVM, optimizers, and backends.
+This is an architectural model, not a dependency on Swift or LLVM. Swan owns its language semantics, SIL, IR, SVM, optimizers, and backends. The objective is a capable, maintainable, multi-target compiler—not an arbitrary source-line-count contest with Swift. Swift's compiler is a very large mature project; Swan should exceed it only where we have concrete language or backend capabilities, not by adding empty files.
 
 Compiler 1 remains in `compiler/` as the bootstrap compiler and behavioral reference until Compiler 2 can compile itself and pass the same regression suite.
 
@@ -10,125 +10,134 @@ Compiler 1 remains in `compiler/` as the bootstrap compiler and behavioral refer
 
 ```text
 .swan source
-    |
-    v
- driver/driver.swan
-    |
-    v
- lexer/Lexer.swan
-    |
-    v
- parser/Parser.swan
-    |
-    v
- ast/AST.swan
-    |
-    v
- sema/sema.swan
-    |
-    v
- sil/Silgen.swan
-    |
-    v
- SIL verification
-    |
-    v
- sil/Sildemand.swan
-    |
-    v
- sil/SilOptimization.swan
-    |
-    v
- ir/IRGen.swan
-    |
-    v
- SVM IR verification
-    |
-    v
- svm/SvmGen.swan
-    |
-    v
- svm/SvmOptimization.swan
-    |
-    v
- backend/targetbackend.swan
-    |
-    v
- backend/codegen.swan
-    |
-    v
- linker/linker.swan
-    |
-    v
- executable / object / assembly / WebAssembly
+  -> driver
+  -> lexer -> parser -> AST -> AST verifier
+  -> semantic analysis (modules, scopes, lookup, types, inference,
+     control flow, ownership)
+  -> SILGen -> SIL verifier -> SIL demand analysis -> SIL pass manager
+  -> SIL optimization
+  -> IRGen -> IR builder -> IR verifier
+  -> SVM generation -> SVM verifier -> SVM pass manager
+  -> SVM optimization
+  -> target triple / ABI / data layout
+  -> instruction legalization -> register allocation
+  -> assembly or object emission
+  -> linker -> executable / library / WebAssembly
 ```
 
-## Responsibilities and boundaries
+SVM is Swan's target-independent machine-level compilation representation. It is not an interpreter, a runtime execution loop, or a CPU target. The backend is responsible for target-specific lowering. Unsupported syntax, semantic constructs, IR operations, or target instructions are hard compilation errors.
 
-- **Driver:** command-line interface, build modes, target selection, source loading, diagnostics, output paths, and orchestration only.
-- **Lexer:** UTF-8 scanning and tokenization. It remains one cohesive file.
-- **Parser:** source grammar and AST construction. It remains one cohesive file.
-- **AST:** source-level syntax representation, traversal, and structural invariants.
-- **Sema:** module/name resolution, type checking, inference, control-flow validation, definite initialization, and ownership/borrowing checks.
-- **SILGen:** AST-to-SIL lowering. SIL is typed, SSA-based, control-flow explicit, and ownership-aware.
-- **SIL demand analysis:** value liveness, use/def relationships, and observable-effect tracking used by SIL passes.
-- **SIL optimization:** high-level transformations while source-language type and ownership information remains available.
-- **IRGen:** lower verified SIL into Swan's lower-level, target-independent IR. This is Swan's analogue of Swift IRGen; it does not emit LLVM IR.
-- **SVM generation:** lower typed IR into SVM's machine-level representation. SVM is a compiler representation, not an interpreter or CPU target.
-- **SVM optimization:** machine-level constant propagation, DCE, CSE, CFG simplification, loop transforms, and other verified passes.
-- **Target backend:** target triple, ABI, data layout, instruction legalization, and target lowering.
-- **Codegen:** emit assembly, object files, or WebAssembly from target-lowered instructions.
-- **Linker:** invoke the correct target toolchain and produce the final artifact.
+## Source organization
 
-A stage may only consume the output contract of the preceding stage. No stage may silently skip verification. Unsupported syntax, semantic constructs, IR operations, or target instructions are hard compilation errors.
-
-## Source layout
+The implementation is split into focused source files. Each file owns one data model, analysis, pass manager, or transformation boundary. The lexer and parser remain cohesive single files as previously specified; their complexity belongs in their implementations rather than being scattered across tiny files.
 
 ```text
 swanc/
 ├── driver/
-│   └── driver.swan
+│   ├── driver.swan
+│   ├── Arguments.swan
+│   ├── Diagnostics.swan
+│   └── CompilationSession.swan
 ├── lexer/
 │   └── Lexer.swan
 ├── parser/
 │   └── Parser.swan
 ├── ast/
-│   └── AST.swan
+│   ├── AST.swan
+│   ├── ASTNode.swan
+│   ├── ASTVerifier.swan
+│   ├── SourceLocation.swan
+│   ├── Expressions.swan
+│   ├── Statements.swan
+│   ├── Declarations.swan
+│   └── TypeSyntax.swan
 ├── sema/
-│   └── sema.swan
+│   ├── sema.swan
+│   ├── ModuleLoader.swan
+│   ├── Scopes.swan
+│   ├── Symbols.swan
+│   ├── NameLookup.swan
+│   ├── Types.swan
+│   ├── TypeChecker.swan
+│   ├── TypeInference.swan
+│   ├── ControlFlow.swan
+│   └── Ownership.swan
 ├── sil/
 │   ├── Silgen.swan
+│   ├── SILModule.swan
+│   ├── SILFunction.swan
+│   ├── SILValues.swan
+│   ├── SILInstructions.swan
+│   ├── SILBasicBlock.swan
+│   ├── SILVerifier.swan
 │   ├── Sildemand.swan
+│   ├── SILDemandAnalysis.swan
+│   ├── SILPassManager.swan
 │   └── SilOptimization.swan
 ├── ir/
 │   ├── IR.swan
-│   └── IRGen.swan
+│   ├── IRGen.swan
+│   ├── IRTypes.swan
+│   ├── IRInstructions.swan
+│   ├── IRBuilder.swan
+│   └── IRVerifier.swan
 ├── svm/
 │   ├── SvmGen.swan
-│   └── SvmOptimization.swan
+│   ├── SvmOptimization.swan
+│   ├── SVMInstructionSet.swan
+│   ├── SVMRegisters.swan
+│   ├── SVMControlFlow.swan
+│   ├── SVMVerifier.swan
+│   └── SVMPassManager.swan
 ├── backend/
 │   ├── targetbackend.swan
-│   └── codegen.swan
+│   ├── codegen.swan
+│   ├── TargetTriple.swan
+│   ├── TargetABI.swan
+│   ├── TargetDataLayout.swan
+│   ├── InstructionLegalizer.swan
+│   ├── RegisterAllocator.swan
+│   ├── AssemblyEmitter.swan
+│   └── ObjectEmitter.swan
 ├── linker/
-│   └── linker.swan
+│   ├── linker.swan
+│   ├── ToolchainDiscovery.swan
+│   └── LinkArguments.swan
 └── optimization/
     └── ConstantFold.swan
 ```
 
-Keep the lexer and parser as single cohesive source files. Other subsystems should be decomposed into focused files as their implementations grow. Do not create a monolithic compiler file.
+## Component boundaries
+
+- **Driver:** CLI, build modes, target selection, source loading, diagnostics, output paths, and orchestration only.
+- **Lexer / parser:** lexical and grammatical analysis. Both remain one cohesive file.
+- **AST:** source syntax nodes, source locations, traversal, and structural verification.
+- **Sema:** module loading, scopes, symbol resolution, canonical types, type checking, inference, control-flow checks, and ownership/borrowing.
+- **SIL:** typed SSA representation with explicit basic blocks, effects, and ownership. SILGen must consume only semantically valid AST.
+- **SIL analyses and passes:** demand/liveness analysis, pass scheduling, and high-level optimization. Preserve side effects, traps, and ownership semantics.
+- **IRGen / IR:** lower verified SIL into Swan's lower-level target-independent IR. This is Swan's analogue of Swift IRGen; it does not emit LLVM IR.
+- **SVM:** generate and optimize Swan's target-independent machine-level representation. It contains no physical CPU register names or target opcodes.
+- **Backend:** target triples, ABIs, data layout, legalization, register allocation, and target-specific emission.
+- **Linker:** toolchain discovery, safe argument construction, and final artifact linking.
+
+A stage may consume only the preceding stage's defined output. Every representation has a verifier. Every transformation must preserve observable behavior and rerun the relevant verifier. A file is not considered implemented merely because it exists: it must contain working code, tests, and integration into its owning stage.
 
 ## Implementation status
 
-The files added for the Swift-inspired stages currently define architectural contracts and invariants; they are **not yet complete implementations** and are not wired into an executable driver.
+Compiler 2 is still early and is **not yet a complete or executable compiler pipeline**. The newly separated component files currently document implementation boundaries and invariants; they are not all implemented algorithms and are not wired into a working driver.
 
-Existing implemented slices:
-- Lexer: scans UTF-8 source bytes into caller-owned token storage. Token records use five words: kind, byte offset, byte length, starting line, and starting column.
-- Parser: currently parses integer expressions using Pratt precedence. It is not yet a complete source-file parser.
+Existing implementation slices:
+- Lexer: UTF-8 scanning into caller-owned token storage, with five-word token records.
+- Parser: Pratt parsing for integer expressions; not yet a complete source-file parser.
 - AST: initial five-word expression-node representation and structural validation.
 - IR: initial eight-word linear typed instruction representation, SSA result numbering, and structural/use-before-definition verification.
 - Optimization: narrow i32 constant folding for add, subtract, and multiply.
 
-The previous C implementation remains the behavioral reference for language semantics, diagnostics, SIL bridge behavior, IR invariants, optimizations, target ABIs, code generation, linking, and regression tests. Port and verify each stage before enabling it in the driver.
+The component breakdown is an implementation map, not a claim of feature completeness. Implement each component with concrete types, functions, invariants, unit tests, negative tests, and integration before enabling it in the driver.
+
+## Targets
+
+The architecture must support multiple independent target backends, including x86-64, AArch64, ARM, RISC-V, and WebAssembly. A target is supported only when its ABI, data layout, legalization, register allocation (where applicable), emitter, object format, and tests are implemented. A target name alone does not constitute support.
 
 ## Bootstrap contract
 
