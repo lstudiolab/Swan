@@ -1,0 +1,3 @@
+# Linker Toolchain Discovery
+# Discover and validate target linker/toolchain availability and version.
+# Do not assume host linker can link every cross-target artifact.
