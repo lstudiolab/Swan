@@ -1,10 +1,15 @@
 # Minimal executable correctness case for the Compiler 2 linear-IR optimizer.
+# Dynamic lengths deliberately exercise heap-backed arrays, not stack-array
+# lowering, so the test measures the optimizer rather than local-array codegen.
 
 fn main() -> int:
-    let instructions = array_unchecked(24)
-    let known = array_unchecked(4)
-    let values = array_unchecked(4)
-    let diagnostic = array_unchecked(2)
+    var instruction_words = 24
+    var scratch_words = 4
+    var diagnostic_words = 2
+    let instructions = array_unchecked(instruction_words)
+    let known = array_unchecked(scratch_words)
+    let values = array_unchecked(scratch_words)
+    let diagnostic = array_unchecked(diagnostic_words)
     instructions[0] = 0
     instructions[1] = 4
     instructions[2] = 1
@@ -18,15 +23,6 @@ fn main() -> int:
     instructions[18] = 3
     instructions[19] = 1
     instructions[20] = 2
-    log instructions[0]
-    log instructions[1]
-    log instructions[2]
-    if instructions[1] != 4:
-        return 30
-    if instructions[9] != 4:
-        return 31
-    if instructions[17] != 4:
-        return 32
     let status = swanc_ir_optimize(instructions, 3, known, values, 4, diagnostic)
     if status != 0:
         return 10 - diagnostic[0]
