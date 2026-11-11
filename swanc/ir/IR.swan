@@ -1,0 +1,144 @@
+# Swan Compiler 2 — target-independent typed IR
+#
+# Instruction records occupy eight u32 words:
+# [opcode, type, result, operand_a, operand_b, operand_c, immediate_low, immediate_high]
+# Value IDs are one-based and definitions are emitted before their uses in this
+# initial linear IR form. CFG blocks and PHI edges are layered on this format later.
+#
+# Types: 0 void, 1 i1, 2 i8, 3 i16, 4 i32, 5 i64, 6 f32, 7 f64, 8 ptr.
+# Opcodes: 0 const, 1 add, 2 sub, 3 mul, 4 sdiv, 5 udiv, 6 srem, 7 urem,
+# 8 and, 9 or, 10 xor, 11 shl, 12 lshr, 13 ashr, 14 eq, 15 ne,
+# 16 slt, 17 sle, 18 sgt, 19 sge, 20 select, 21 phi, 22 alloca,
+# 23 load, 24 store, 25 call.
+
+fn swanc_ir_type_valid(type_id: int) -> bool:
+    return type_id >= 0 and type_id <= 8
+
+out
+fn swanc_ir_value_type(type_id: int) -> bool:
+    return type_id > 0 and type_id <= 8
+
+out
+fn swanc_ir_width(type_id: int) -> int:
+    if type_id == 1 or type_id == 2:
+        return 8
+    if type_id == 3:
+        return 16
+    if type_id == 4 or type_id == 6:
+        return 32
+    if type_id == 5 or type_id == 7 or type_id == 8:
+        return 64
+    return 0
+
+out
+fn swanc_ir_emit(instructions: u32_array, capacity: int, state: u32_array, record: u32_array) -> int:
+    let count = state[0]
+    if count < 0 or count >= capacity or capacity > 0x0fffffff:
+        state[2] = 1
+        return -1
+    let opcode = record[0]
+    let type_id = record[1]
+    if opcode < 0 or opcode > 25 or !swanc_ir_type_valid(type_id):
+        state[2] = 2
+        return -2
+    let base = count * 8
+    var result_id = 0
+    if type_id != 0:
+        result_id = state[1]
+        if result_id < 1 or result_id >= 0x7fffffff:
+            state[2] = 3
+            return -3
+        state[1] = result_id + 1
+    instructions[base] = opcode
+    instructions[base + 1] = type_id
+    instructions[base + 2] = result_id
+    instructions[base + 3] = record[2]
+    instructions[base + 4] = record[3]
+    instructions[base + 5] = record[4]
+    instructions[base + 6] = record[5]
+    instructions[base + 7] = record[6]
+    state[0] = count + 1
+    return result_id
+
+out
+fn swanc_ir_defined_before(instructions: u32_array, instruction_index: int, value_id: int) -> bool:
+    if value_id < 1:
+        return false
+    var index = 0
+    while index < instruction_index:
+        if instructions[index * 8 + 2] == value_id:
+            return true
+        index = index + 1
+    return false
+
+out
+fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_count: int, diagnostic: u32_array) -> int:
+    if instruction_count < 0 or parameter_count < 0 or instruction_count > 0x0fffffff:
+        diagnostic[0] = 1
+        diagnostic[1] = 0
+        return -1
+    var index = 0
+    var expected_result = parameter_count + 1
+    while index < instruction_count:
+        let base = index * 8
+        let opcode = instructions[base]
+        let type_id = instructions[base + 1]
+        let result_id = instructions[base + 2]
+        let a = instructions[base + 3]
+        let b = instructions[base + 4]
+        let c = instructions[base + 5]
+        if opcode > 25 or !swanc_ir_type_valid(type_id):
+            diagnostic[0] = 2
+            diagnostic[1] = index
+            return -2
+        if type_id == 0:
+            if result_id != 0:
+                diagnostic[0] = 3
+                diagnostic[1] = index
+                return -3
+        else
+            if result_id != expected_result:
+                diagnostic[0] = 4
+                diagnostic[1] = index
+                return -4
+            expected_result = expected_result + 1
+        if opcode == 0:
+            if !swanc_ir_value_type(type_id):
+                diagnostic[0] = 5
+                diagnostic[1] = index
+                return -5
+        else
+            if opcode == 22:
+                if type_id != 8:
+                    diagnostic[0] = 6
+                    diagnostic[1] = index
+                    return -6
+            else
+                if opcode == 23:
+                    if !swanc_ir_defined_before(instructions, index, a):
+                        diagnostic[0] = 7
+                        diagnostic[1] = index
+                        return -7
+                else
+                    if opcode == 24:
+                        if !swanc_ir_defined_before(instructions, index, a) or !swanc_ir_defined_before(instructions, index, b):
+                            diagnostic[0] = 8
+                            diagnostic[1] = index
+                            return -8
+                    else
+                        if opcode == 20:
+                            if !swanc_ir_defined_before(instructions, index, a) or !swanc_ir_defined_before(instructions, index, b) or !swanc_ir_defined_before(instructions, index, c):
+                                diagnostic[0] = 9
+                                diagnostic[1] = index
+                                return -9
+                        else
+                            if !swanc_ir_defined_before(instructions, index, a) or !swanc_ir_defined_before(instructions, index, b):
+                                diagnostic[0] = 10
+                                diagnostic[1] = index
+                                return -10
+        index = index + 1
+    diagnostic[0] = 0
+    diagnostic[1] = 0
+    return 0
+
+out
