@@ -11,7 +11,7 @@ ASSEMBLY="$ROOT/build/swanc-optimizer-module.s"
     cat "$ROOT/swanc/optimization/ConstantFold.swan"
     printf '\n'
     cat "$ROOT/swanc/optimization/Optimization.swan"
-    printf '\\nextern fn swan_optimizer_test_main() -> int\\nfn main() -> int:\\n    return swan_optimizer_test_main()\\nout\\n'
+    printf '\nextern fn swan_optimizer_test_main() -> int\\nfn main() -> int:\\n    return swan_optimizer_test_main()\\nout\\n'
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
 fn main() -> int:
