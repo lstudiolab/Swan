@@ -1,0 +1,3 @@
+# SVM Virtual Registers
+# Own virtual-register identity, classes, liveness metadata, and value mapping.
+# Physical register assignment belongs to target-specific backend code.
