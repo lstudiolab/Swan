@@ -1,8 +1,63 @@
-# Compiler 2 — AST and 50 checkers
-# Owns AST node definitions, compact AST storage, traversal utilities and 50
-# individually named AST validation/checker passes.
-# TODO: define stable node kinds and source spans, then implement checker registry.
-# Checker contract: inspect AST, report deterministic diagnostics, return failure on
-# invalid structure, and never mutate source semantics silently.
-# The 50-checker inventory and tests will be maintained in AST_CHECKERS.md.
-# No checker is considered implemented until it has behavior and a regression test.
+# Swan Compiler 2 — AST storage contract and structural validation
+#
+# Expression nodes use five u32 words:
+# [kind, operator_or_literal_token_index, left_node_id, right_node_id, literal_value]
+# Node IDs are one-based. Children must refer to earlier nodes (post-order storage).
+# Current parser node kinds: 1 = integer literal, 4 = binary expression.
+
+fn swanc_ast_node_kind(nodes: u32_array, node_id: int) -> int:
+    if node_id < 1:
+        return -1
+    return nodes[(node_id - 1) * 5]
+
+out
+fn swanc_ast_node_token(nodes: u32_array, node_id: int) -> int:
+    if node_id < 1:
+        return -1
+    return nodes[(node_id - 1) * 5 + 1]
+
+out
+fn swanc_ast_node_left(nodes: u32_array, node_id: int) -> int:
+    if node_id < 1:
+        return -1
+    return nodes[(node_id - 1) * 5 + 2]
+
+out
+fn swanc_ast_node_right(nodes: u32_array, node_id: int) -> int:
+    if node_id < 1:
+        return -1
+    return nodes[(node_id - 1) * 5 + 3]
+
+out
+fn swanc_ast_node_literal(nodes: u32_array, node_id: int) -> int:
+    if node_id < 1:
+        return -1
+    return nodes[(node_id - 1) * 5 + 4]
+
+out
+fn swanc_ast_validate(nodes: u32_array, node_count: int, token_count: int, root_id: int) -> int:
+    if node_count < 1 or token_count < 1 or root_id < 1 or root_id > node_count:
+        return -1
+    var index = 0
+    while index < node_count:
+        let base = index * 5
+        let kind = nodes[base]
+        let token = nodes[base + 1]
+        let left = nodes[base + 2]
+        let right = nodes[base + 3]
+        if token >= token_count:
+            return -2
+        if kind == 1:
+            if left != 0 or right != 0:
+                return -3
+        else
+            if kind != 4:
+                return -4
+            if left < 1 or right < 1 or left >= index + 1 or right >= index + 1:
+                return -5
+        index = index + 1
+    if root_id != node_count:
+        return -6
+    return 0
+
+out
