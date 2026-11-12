@@ -39,5 +39,7 @@ jobs:
         run: sh tests/llvm-target.sh
       - name: Verify Compiler 2 optimizer slice
         run: sh tests/swanc-optimizer.sh
+      - name: Verify Compiler 2 ownership and borrowing slice
+        run: sh tests/swanc-ownership.sh
       - name: Verify compiler version
         run: ./build/swan --version
