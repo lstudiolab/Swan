@@ -13,9 +13,8 @@ ASSEMBLY="$ROOT/build/swanc-parser-module.s"
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
 func swanc_parser_test(source: u32_array, tokens: u32_array, nodes: u32_array, state: u32_array) -> int:
-    let diagnostic = array_unchecked(5)
-    diagnostic[4] = 128
-    let token_count = swan_lex(source, state[4], tokens, diagnostic)
+    nodes[4] = 128
+    let token_count = swan_lex(source, state[4], tokens, nodes)
     if token_count < 1:
         return -100
     state[2] = token_count
@@ -29,7 +28,7 @@ out
 func main() -> int:
     let source = array_unchecked(1)
     let tokens = array_unchecked(5)
-    let nodes = array_unchecked(5)
+    let nodes = array_unchecked(640)
     let state = array_unchecked(5)
     return swanc_parser_test(source, tokens, nodes, state)
 out
