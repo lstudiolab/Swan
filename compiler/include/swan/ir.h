@@ -160,21 +160,30 @@ static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t
  }
  return swan_ir_fail(error,cap,"use of undefined value",f->name,use_block,use_inst);
 }
+static inline bool swan_ir_integer_type(SwanIRType t) {
+ return t>=SWAN_IR_I1&&t<=SWAN_IR_I64;
+}
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
+ if(!m||(m->function_count&&!m->functions))return swan_ir_fail(error,cap,"invalid module storage",NULL,0,0);
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
   if(fn->name)for(size_t prior=0;prior<f;prior++)if(m->functions[prior].name&&!strcmp(m->functions[prior].name,fn->name))return swan_ir_fail(error,cap,"duplicate function name",fn->name,0,0);
   if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT32_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
+  if(fn->parameter_count>UINT32_MAX-1u||(fn->parameter_count&&!fn->parameter_types)||fn->block_count>fn->block_capacity||(fn->block_count&&!fn->blocks))return swan_ir_fail(error,cap,"invalid function storage or parameter table",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
   if(fn->external){if(fn->block_count)return swan_ir_fail(error,cap,"external function must not contain a body",fn->name,0,0);continue;}
   if(!fn->block_count)return swan_ir_fail(error,cap,"function has no entry block",fn->name,0,0);
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];
+   if(bb->instruction_count>bb->instruction_capacity||(bb->instruction_count&&!bb->instructions))return swan_ir_fail(error,cap,"invalid block instruction storage",fn->name,b,0);
    if(!bb->terminated)return swan_ir_fail(error,cap,"block has no terminator",fn->name,b,bb->instruction_count);
+   bool saw_non_phi=false;
    for(size_t i=0;i<bb->instruction_count;i++){
     const SwanIRInst *in=&bb->instructions[i];
     if((unsigned)in->op>SWAN_IR_CALL||!swan_ir_type_valid(in->type)||(in->type==SWAN_IR_VOID?in->result!=0:in->result==0))return swan_ir_fail(error,cap,"invalid instruction opcode, result type, or ID",fn->name,b,i);
+    if(in->op==SWAN_IR_PHI){if(saw_non_phi)return swan_ir_fail(error,cap,"phi instructions must precede non-phi instructions",fn->name,b,i);}
+    else saw_non_phi=true;
     if(in->result){
      if(in->result>=fn->next_value)return swan_ir_fail(error,cap,"SSA value ID exceeds function register range",fn->name,b,i);
      if(in->result<=fn->parameter_count)return swan_ir_fail(error,cap,"instruction redefines a parameter",fn->name,b,i);
@@ -205,8 +214,9 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
     else if(in->op==SWAN_IR_CALL){
      if(!in->symbol||(in->incoming_count&&!in->incoming))return swan_ir_fail(error,cap,"call has no callee symbol or argument array",fn->name,b,i);
      const SwanIRFunction *callee=NULL;
-     for(size_t ci=0;ci<m->function_count;ci++)if(!strcmp(m->functions[ci].name,in->symbol)){callee=&m->functions[ci];break;}
+     for(size_t ci=0;ci<m->function_count;ci++)if(m->functions[ci].name&&!strcmp(m->functions[ci].name,in->symbol)){callee=&m->functions[ci];break;}
      if(!callee)return swan_ir_fail(error,cap,"call references an unknown function",fn->name,b,i);
+     if(!swan_ir_type_valid(callee->return_type)||(callee->parameter_count&&!callee->parameter_types))return swan_ir_fail(error,cap,"callee has an invalid signature",fn->name,b,i);
      if(callee->return_type!=in->type||callee->parameter_count!=in->incoming_count)return swan_ir_fail(error,cap,"call signature does not match callee",fn->name,b,i);
      for(size_t ai=0;ai<in->incoming_count;ai++){
       uint32_t id=in->incoming[ai].value;
@@ -225,11 +235,32 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
      if(!swan_ir_verify_use(fn,in->a,b,i,error,cap)||!swan_ir_verify_use(fn,in->b,b,i,error,cap))return false;
      SwanIRType a=swan_ir_value_type_of(fn,in->a),c=swan_ir_value_type_of(fn,in->b);
      bool cmp=in->op>=SWAN_IR_ICMP_EQ&&in->op<=SWAN_IR_ICMP_SGE;
-     if(a!=c||(cmp?in->type!=SWAN_IR_I1:a!=in->type))return swan_ir_fail(error,cap,"binary operand type mismatch",fn->name,b,i);
+     if(!swan_ir_integer_type(a)||a!=c||(cmp?in->type!=SWAN_IR_I1:a!=in->type))return swan_ir_fail(error,cap,"binary operation requires matching integer operands and a valid result type",fn->name,b,i);
+    }
+    if(in->op==SWAN_IR_CONST){
+     if(in->type==SWAN_IR_PTR||in->a||in->b||in->c||in->symbol||in->incoming_count)return swan_ir_fail(error,cap,"constant has an invalid type or unused operands",fn->name,b,i);
+    }else if(in->op==SWAN_IR_ALLOCA){
+     if(in->type!=SWAN_IR_PTR||in->a||in->b||in->c||in->symbol||in->incoming_count)return swan_ir_fail(error,cap,"alloca has an invalid result or unused operands",fn->name,b,i);
+    }else if(in->op==SWAN_IR_LOAD){
+     if(!swan_ir_value_type(in->type)||in->b||in->c||in->symbol||in->incoming_count)return swan_ir_fail(error,cap,"load has an invalid result or unused operands",fn->name,b,i);
+    }else if(in->op==SWAN_IR_STORE){
+     if(in->type!=SWAN_IR_VOID||in->c||in->symbol||in->incoming_count)return swan_ir_fail(error,cap,"store has an invalid result or unused operands",fn->name,b,i);
+    }else if(in->op==SWAN_IR_CALL){
+     if(in->a||in->b||in->c)return swan_ir_fail(error,cap,"call has unexpected scalar operands",fn->name,b,i);
+    }else if(in->op==SWAN_IR_PHI){
+     if(!swan_ir_value_type(in->type)||in->a||in->b||in->c||in->symbol)return swan_ir_fail(error,cap,"phi has an invalid result or unused operands",fn->name,b,i);
+    }else if(in->op==SWAN_IR_SELECT){
+     if(!swan_ir_value_type(in->type)||in->symbol||in->incoming_count)return swan_ir_fail(error,cap,"select has invalid metadata",fn->name,b,i);
+    }else if(in->symbol||in->incoming_count||in->a==0||in->b==0||in->c){
+     return swan_ir_fail(error,cap,"binary instruction has invalid operands or metadata",fn->name,b,i);
     }
    }
    const SwanIRTerm *t=&bb->terminator;
    if((unsigned)t->kind>SWAN_IR_UNREACHABLE)return swan_ir_fail(error,cap,"invalid terminator",fn->name,b,bb->instruction_count);
+   if(t->kind==SWAN_IR_BR&&(t->value||t->alternate))return swan_ir_fail(error,cap,"unconditional branch has unused operands",fn->name,b,bb->instruction_count);
+   if(t->kind==SWAN_IR_COND_BR&&!t->value)return swan_ir_fail(error,cap,"conditional branch is missing its condition",fn->name,b,bb->instruction_count);
+   if(t->kind==SWAN_IR_RET&&(t->target||t->alternate))return swan_ir_fail(error,cap,"return terminator has branch targets",fn->name,b,bb->instruction_count);
+   if(t->kind==SWAN_IR_UNREACHABLE&&(t->value||t->target||t->alternate))return swan_ir_fail(error,cap,"unreachable terminator has unused operands",fn->name,b,bb->instruction_count);
    if((t->kind==SWAN_IR_BR||t->kind==SWAN_IR_COND_BR)&&(t->target>=fn->block_count||(t->kind==SWAN_IR_COND_BR&&t->alternate>=fn->block_count)))return swan_ir_fail(error,cap,"branch target is outside function",fn->name,b,bb->instruction_count);
    if(t->kind==SWAN_IR_COND_BR&&(!swan_ir_verify_use(fn,t->value,b,bb->instruction_count,error,cap)||swan_ir_value_type_of(fn,t->value)!=SWAN_IR_I1))return swan_ir_fail(error,cap,"conditional branch requires i1 condition",fn->name,b,bb->instruction_count);
    if(t->kind==SWAN_IR_RET){
