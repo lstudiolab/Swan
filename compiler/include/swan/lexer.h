@@ -22,7 +22,8 @@ static inline bool swan_utf8_valid(const unsigned char *s,size_t n,size_t *bad) 
    for(size_t j=1;j<width;j++)if((s[i+j]&0xC0)!=0x80){if(bad)*bad=i+j;return false;}
    if((s[i]==0xE0&&s[i+1]<0xA0)||(s[i]==0xED&&s[i+1]>=0xA0)||
       (s[i]==0xF0&&s[i+1]<0x90)||(s[i]==0xF4&&s[i+1]>=0x90)){
-    if(bad)*bad=i;return false;
+    if(bad)*bad=i;
+     return false;
    }
   }
   i+=width;
