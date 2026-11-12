@@ -10,7 +10,7 @@ extern int64_t swan_fn_swanc_lex_test(
 
 static int lexer_smoke(void) {
     uint32_t source[] = {50, 43, 51};
-    uint32_t tokens[20] = {0}, diagnostic[5] = {0};
+    uint32_t tokens[20] = {0}, diagnostic[138] = {0};
     fprintf(stderr, "lexer-call-begin\\n");
     int64_t count = swan_fn_swanc_lex_test(source, 3, tokens, diagnostic);
     fprintf(stderr, "lexer-call-end: %lld\\n", (long long)count);
@@ -70,7 +70,7 @@ static int left_associativity(void) {
 static int unicode_columns(void) {
     /* UTF-8 é occupies two bytes but one source column. */
     uint32_t source[] = {0xC3, 0xA9, 32, 64};
-    uint32_t tokens[20] = {0}, diagnostic[5] = {0};
+    uint32_t tokens[20] = {0}, diagnostic[138] = {0};
     int64_t status = swan_fn_swanc_lex_test(source, 4, tokens, diagnostic);
     if (status != -2 || diagnostic[0] != 2 || diagnostic[1] != 3 ||
         diagnostic[2] != 1 || diagnostic[3] != 3) {
