@@ -114,6 +114,7 @@ def main() -> None:
         f"- Median runtime: {median:.9f} s",
         f"- IR throughput: {result['ir_instructions_per_second']:.2f} instructions/s",
         f"- Fold throughput: {result['constant_folds_per_second']:.2f} folds/s",
+        f"- Dead instructions removed: {result['dead_instructions_removed_per_run']:,}",
         f"- Samples: {', '.join(f'{x:.9f}' for x in samples)}",
         "",
         "This result measures the implemented Compiler 2 optimizer slice only; it is not whole-compiler or self-hosted swanc performance.",
