@@ -57,10 +57,13 @@ fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, works
                             if left == 0:
                                 folded = 0
                             else
-                                if right <= 4294967295 / left:
-                                    folded = left * right
+                                if right == 0:
+                                    folded = 0
                                 else
-                                    can_fold = false
+                                    if left <= 65535 and right <= 65535:
+                                        folded = left * right
+                                    else
+                                        can_fold = false
                     if can_fold and folded >= 0 and folded <= 4294967295:
                         instructions[base] = 0
                         instructions[base + 3] = 0
