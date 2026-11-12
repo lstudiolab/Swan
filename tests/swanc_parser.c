@@ -22,7 +22,7 @@ static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
 }
 
 static int arithmetic_precedence(void) {
-    uint32_t nodes[128 * 5] = {0}, state[2] = {0};
+    uint32_t nodes[128 * 5] = {0}, state[4] = {0};
     int root = parse("2 + 3 * (4 - 1)", nodes, state);
     if (root != 7 || state[1] != 7) {
         fprintf(stderr, "precedence parse failed: root=%d nodes=%u\n", root, state[1]);
