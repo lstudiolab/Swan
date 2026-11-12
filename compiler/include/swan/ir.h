@@ -235,7 +235,7 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
      if(!swan_ir_verify_use(fn,in->a,b,i,error,cap)||!swan_ir_verify_use(fn,in->b,b,i,error,cap))return false;
      SwanIRType a=swan_ir_value_type_of(fn,in->a),c=swan_ir_value_type_of(fn,in->b);
      bool cmp=in->op>=SWAN_IR_ICMP_EQ&&in->op<=SWAN_IR_ICMP_SGE;
-     if(!swan_ir_integer_type(a)||a!=c||(cmp?in->type!=SWAN_IR_I1:a!=in->type))return swan_ir_fail(error,cap,"binary operation requires matching integer operands and a valid result type",fn->name,b,i);
+     if(!swan_ir_integer_type(a)||a!=c||(cmp?in->type!=SWAN_IR_I1:a!=in->type))return swan_ir_fail(error,cap,"binary operand type mismatch: operation requires matching integer operands",fn->name,b,i);
     }
     if(in->op==SWAN_IR_CONST){
      if(in->type==SWAN_IR_PTR||in->a||in->b||in->c||in->symbol||in->incoming_count)return swan_ir_fail(error,cap,"constant has an invalid type or unused operands",fn->name,b,i);
