@@ -74,7 +74,9 @@ static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
    size_t cap=*capacity?*capacity*2:8;if(cap>1024)cap=1024;
    Stmt **items=swan_arena_alloc(p->program,cap*sizeof(*items));
    if(!items){swan_error(p->err,pk(p),"out of memory while parsing block");p->failed=true;break;}
-   if(*count)memcpy(items,*out,*count*sizeof(*items));*out=items;*capacity=cap;
+   if(*count)memcpy(items,*out,*count*sizeof(*items));
+    *out=items;
+    *capacity=cap;
   }
   size_t before=p->ts->pos;(*out)[(*count)++]=statement(p);separators(p);
   if(before==p->ts->pos){swan_error(p->err,pk(p),"parser made no progress");p->failed=true;}
