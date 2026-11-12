@@ -36,6 +36,35 @@ static int workload(void){
     }
     return 0;
 }
+static int constant_fold_overflow(void){
+    uint32_t ir[13*8]={0},ws[3*14+2]={0};
+    put(ir,0,22,8,1,0,0,0,0);
+    put(ir,1,0,4,2,0,0,0,UINT32_MAX);
+    put(ir,2,0,4,3,0,0,0,1);
+    put(ir,3,1,4,4,2,3,0,0);       /* unsigned addition overflow */
+    put(ir,4,0,4,5,0,0,0,0);
+    put(ir,5,2,4,6,5,3,0,0);       /* unsigned subtraction underflow */
+    put(ir,6,3,4,7,2,3,0,0);       /* unsigned multiplication overflow */
+    put(ir,7,24,0,0,1,4,0,0);
+    put(ir,8,24,0,0,1,6,0,0);
+    put(ir,9,24,0,0,1,7,0,0);
+    put(ir,10,0,4,8,0,0,0,UINT32_MAX-1u);
+    put(ir,11,1,4,9,8,3,0,0);       /* exact UINT32_MAX result */
+    put(ir,12,24,0,0,1,9,0,0);
+    if(swan_fn_swanc_ir_optimize(ir,13,ws,14)!=0){
+        fprintf(stderr,"overflow folding test failed: diagnostic=%u at=%u\n",ws[0],ws[1]);
+        return 40;
+    }
+    if(ir[3*8]!=1||ir[5*8]!=2||ir[6*8]!=3){
+        fprintf(stderr,"overflowing i32 operation was folded\n");
+        return 41;
+    }
+    if(ir[11*8]!=0||ir[11*8+6]!=UINT32_MAX){
+        fprintf(stderr,"valid UINT32_MAX addition was not folded\n");
+        return 42;
+    }
+    return 0;
+}
 static int edge_cases(void){
     uint32_t ir[12*8]={0},ws[3*13+2]={0};
     put(ir,0,22,8,1,0,0,0,0);
@@ -133,7 +162,7 @@ static int invalid_ir(void){
     return 0;
 }
 int main(void){
-    int s=workload();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
+    int s=workload();if(s)return s;s=constant_fold_overflow();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
     puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
     return 0;
 }
