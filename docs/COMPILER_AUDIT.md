@@ -36,7 +36,7 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 - The x86-64 AST compatibility backend now null-initializes eligible heap-array handles before conditional control flow, null-checks and clears handles during cleanup, and releases non-escaping arrays after their final top-level use when the AST liveness walk proves that no later statement references them.
 - Branches and loops are treated conservatively as enclosing statements for last-use analysis. Early returns and the function epilogue can both emit cleanup safely because released handles are cleared.
 - Escaping arrays remain excluded from last-use cleanup; ownership transfer and explicit borrow semantics are not yet implemented. The typed-IR backends do not yet share this array lifetime implementation.
-- Legacy `manual var` and `store` syntax and SAMC identifiers still exist. Their removal requires a complete ownership-state and borrow/move model; this change does not claim that migration is complete.
+- `manual`, `store`, and related legacy spellings are no longer reserved keywords; the lexer emits them as identifiers. The C11 parser no longer recognizes them as memory-management modifiers. Its internal SAMC-era ownership fields remain technical debt pending the complete Compiler 2 ownership pipeline.
 
 ## Backend status
 
