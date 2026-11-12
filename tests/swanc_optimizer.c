@@ -55,16 +55,13 @@ static int constant_fold_overflow(void){
     put(ir,11,0,4,9,0,0,0,UINT32_MAX-1u);
     put(ir,12,1,4,10,9,3,0,0);
     put(ir,13,24,0,0,1,10,0,0);
-    fprintf(stderr,"overflow regression: verify\n");
+    uint32_t original[14*8];memcpy(original,ir,sizeof(ir));
     int64_t status=swan_fn_swanc_ir_verify(ir,14,0,ws);
     if(status){fprintf(stderr,"verify status=%lld diag=%u\n",(long long)status,ws[0]);return 40;}
-    fprintf(stderr,"overflow regression: fold\n");
     status=swan_fn_swanc_ir_constant_fold(ir,14,ws,15);
     if(status){fprintf(stderr,"fold status=%lld\n",(long long)status);return 41;}
-    fprintf(stderr,"overflow regression: dce\n");
     status=swan_fn_swanc_ir_dead_code_eliminate(ir,14,ws,15);
     if(status){fprintf(stderr,"dce status=%lld\n",(long long)status);return 42;}
-    fprintf(stderr,"overflow regression: final verify\n");
     status=swan_fn_swanc_ir_verify(ir,14,0,ws);
     if(status){fprintf(stderr,"final verify status=%lld diag=%u\n",(long long)status,ws[0]);return 43;}
     if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3){
@@ -74,6 +71,12 @@ static int constant_fold_overflow(void){
     if(ir[12*8]!=0||ir[12*8+6]!=UINT32_MAX){
         fprintf(stderr,"valid UINT32_MAX addition was not folded\n");
         return 45;
+    }
+    memcpy(ir,original,sizeof(ir));memset(ws,0,sizeof(ws));
+    status=swan_fn_swanc_ir_optimize(ir,14,ws,15);
+    if(status){fprintf(stderr,"overflow optimizer pipeline failed: diagnostic=%u at=%u\n",ws[0],ws[1]);return 46;}
+    if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3||ir[12*8]!=0||ir[12*8+6]!=UINT32_MAX){
+        fprintf(stderr,"overflow optimizer pipeline changed an unsafe result\n");return 47;
     }
     return 0;
 }
@@ -175,6 +178,6 @@ static int invalid_ir(void){
 }
 int main(void){
     int s=workload();if(s)return s;s=constant_fold_overflow();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
-    puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
+    puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; overflow-safe folding, capacity guards, side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
     return 0;
 }
