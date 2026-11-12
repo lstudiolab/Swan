@@ -8,7 +8,9 @@ dead-code elimination. The verifier now checks sequential SSA definitions,
 use-before-definition, operand arity, integer-only arithmetic, comparison and
 select types, pointer requirements for loads/stores, alloca result types, and
 call argument layout. Its type table is kept in the caller-owned optimizer
-workspace. Compiler 1 currently compiles these Swan files into a native object.
+workspace, and the optimizer rejects undersized or out-of-range workspace
+capacities before running verification. Compiler 1 currently compiles these
+Swan files into a native object.
 The benchmark measures that optimizer implementation; it does not measure a
 complete Compiler 2 frontend, SIL optimizer, SVM optimizer, self-hosted compiler,
 target backend, or application runtime.
