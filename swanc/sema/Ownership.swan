@@ -63,6 +63,10 @@ fn swanc_ownership_analyze(events: u32_array, event_count: int, workspace: u32_a
         let kind = events[event_base]
         let symbol = events[event_base + 1]
         let location = events[event_base + 2]
+        let reserved = events[event_base + 3]
+        if reserved != 0:
+            workspace[3] = location
+            return swanc_ownership_fail(workspace, 17, event_index, symbol)
         if symbol < 0 or symbol >= symbol_count
             workspace[3] = location
             return swanc_ownership_fail(workspace, 3, event_index, symbol)
