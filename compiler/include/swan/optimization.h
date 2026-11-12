@@ -272,15 +272,21 @@ static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn,bool *
         bool ca=swan_ir_constant_lookup(fn,in->a,&a,known,values);
         bool cz=swan_ir_constant_lookup(fn,in->b,&z,known,values);
         uint32_t replacement=0;
+        bool make_all_ones=false;
         unsigned bits=swan_ir_integer_bits(in->type);
         uint64_t all_ones=swan_ir_width_mask(bits);
+        bool safe_a=in->a<=fn->parameter_count||
+            (in->a<count&&definitions[in->a]&&definitions[in->a]->op==SWAN_IR_CONST);
+        bool safe_b=in->b<=fn->parameter_count||
+            (in->b<count&&definitions[in->b]&&definitions[in->b]->op==SWAN_IR_CONST);
         /*
-         * Only eliminate an operand when the other operand remains in the
-         * program. Turning x * 0, x % 1, x == x, or select(c, x, x) into a
-         * constant can erase a trapping computation when DCE runs later.
-         * Constant folding handles the fully-constant cases safely.
+         * Operand-dropping rewrites are legal only for parameters and
+         * constants. A computed value may depend on a trapping operation;
+         * replacing its consumer could let DCE erase that trap.
          */
-        if(cz&&z==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_SUB||in->op==SWAN_IR_OR||
+        if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_OR&&safe_a)make_all_ones=true;
+        else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_OR&&safe_b)make_all_ones=true;
+        else if(cz&&z==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_SUB||in->op==SWAN_IR_OR||
                 in->op==SWAN_IR_XOR||in->op==SWAN_IR_SHL||in->op==SWAN_IR_LSHR||in->op==SWAN_IR_ASHR))replacement=in->a;
         else if(ca&&a==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR))replacement=in->b;
         else if(cz&&z==1&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_SDIV||in->op==SWAN_IR_UDIV))replacement=in->a;
@@ -289,6 +295,13 @@ static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn,bool *
         else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->b;
         if(replacement){
             swan_ir_replace_uses(fn,in->result,replacement);
+            changed=true;
+        }else if(make_all_ones){
+            in->op=SWAN_IR_CONST;
+            in->a=in->b=in->c=0;
+            in->immediate=swan_ir_signed_value(all_ones,bits);
+            known[id]=1;
+            values[id]=in->immediate;
             changed=true;
         }
     }
