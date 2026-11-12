@@ -1,4 +1,5 @@
 #include "swan/lexer.h"
+#include "swan/ast.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +50,11 @@ int main(void) {
     assert(swan_lex("fn out store",&ts,&error));
     assert(ts.items[0].kind==T_FN&&ts.items[1].kind==T_OUT&&ts.items[2].kind==T_STORE);
     free(ts.items);free(ts.text_storage);
+    Program arena_program={0};
+    void *arena_value=swan_arena_alloc(&arena_program,1);
+    assert(arena_value&&((uintptr_t)arena_value%_Alignof(max_align_t))==0);
+    assert(!swan_arena_alloc(&arena_program,SIZE_MAX));
+    swan_program_destroy(&arena_program);
     puts("PASS: exact 41-word Swan keyword set and deprecated syntax aliases");
     return 0;
 }
