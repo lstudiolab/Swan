@@ -6,6 +6,7 @@ on:
     paths:
       - 'swanc/**'
       - 'tests/swanc-optimizer.sh'
+      - 'tests/swanc_optimizer.c'
       - 'benchmarks/swanc_optimizer.py'
       - 'build.sh'
       - 'main.c'
