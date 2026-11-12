@@ -110,6 +110,6 @@ static int invalid_ir(void){
 }
 int main(void){
     int s=workload();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_ir();if(s)return s;
-    puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; side effects, trapping operations, calls, cascading DCE, and invalid IR checked.");
+    puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
     return 0;
 }
