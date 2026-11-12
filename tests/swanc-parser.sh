@@ -19,6 +19,9 @@ func swanc_parser_test(source: u32_array, source_length: int, tokens: u32_array,
         return -100
     return swanc_parse(source, tokens, token_count, nodes, node_capacity, state)
 out
+func swanc_lex_test(source: u32_array, source_length: int, tokens: u32_array, token_capacity: int, diagnostic: u32_array) -> int:
+    return swan_lex(source, source_length, tokens, token_capacity, diagnostic)
+out
 func main() -> int:
     let source = array_unchecked(1)
     let tokens = array_unchecked(5)
