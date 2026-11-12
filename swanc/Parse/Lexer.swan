@@ -168,7 +168,8 @@ fn swanc_fail(diagnostic: u32_array, code: int, offset: int, line: int, column: 
     return 0 - code
 
 out
-fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capacity: int, diagnostic: u32_array) -> int:
+fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic: u32_array) -> int:
+    let token_capacity = diagnostic[4]
     # Token IDs are the stable Compiler 2 lexer ABI; keyword IDs are explicit below.
     # Diagnostic codes: 1 invalid UTF-8, 2 invalid byte, 3 token capacity,
     # 4 indentation depth, 5 inconsistent indentation, 6 malformed number,
