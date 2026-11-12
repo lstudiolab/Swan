@@ -15,7 +15,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-INSTRUCTIONS_PER_RUN = 256 * 128
+INSTRUCTIONS_PER_RUN = 384 * 128
 FOLDS_PER_RUN = 128 * 128
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 
