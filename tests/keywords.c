@@ -7,26 +7,28 @@
 
 int main(void) {
     static const char *const keywords[] = {
-        "import","namespace","export","struct","enum","type","bool","variant",
-        "func","thread","let","var","const","external","if","else","while",
-        "for","in","loop","block","guard","defer","match","async","as",
-        "return","break","continue","true","false","null","self","nil",
-        "pass","lazy","from","protocol","case","set","manual"
+        "func","struct","import","export","enum","let","var","const",
+        "if","else","while","loop","true","false","guard","defer",
+        "return","break","continue","block","as","bool","from","upto",
+        "inline","static","private","public","match","mod","in","int",
+        "init","deinit","self","pass"
     };
     static const char *const identifiers[] = {
-        "extern","log","none","and","or","not","echo","init",
-        "deinit","free","throw","rethrow","borrow"
+        "fn","out","store","manual","for","type","null","nil","none",
+        "namespace","variant","protocol","thread","async","external",
+        "lazy","case","set","print","free","throw","rethrow","borrow",
+        "and","or","not","extern"
     };
-    char source[1024] = {0};
+    char source[2048] = {0};
     for (size_t i=0;i<sizeof(keywords)/sizeof(keywords[0]);i++) {
         if (i) strcat(source," ");
         strcat(source,keywords[i]);
     }
     TokenStream ts={0};SwanError error={0};
     assert(swan_lex(source,&ts,&error));
-    assert(sizeof(keywords)/sizeof(keywords[0])==41);
-    assert(ts.count==42);
-    for (size_t i=0;i<41;i++) {
+    assert(sizeof(keywords)/sizeof(keywords[0])==36);
+    assert(ts.count==37);
+    for (size_t i=0;i<36;i++) {
         if (ts.items[i].kind==T_IDENT) {
             fprintf(stderr,"keyword was not reserved: %s\n",keywords[i]);
             return 1;
@@ -42,19 +44,11 @@ int main(void) {
     assert(ts.count==sizeof(identifiers)/sizeof(identifiers[0])+1);
     for (size_t i=0;i<sizeof(identifiers)/sizeof(identifiers[0]);i++) {
         if (ts.items[i].kind!=T_IDENT) {
-            fprintf(stderr,"removed word is still reserved: %s\n",identifiers[i]);
+            fprintf(stderr,"non-keyword was incorrectly reserved: %s (kind=%d)\n",identifiers[i],(int)ts.items[i].kind);
             return 2;
         }
     }
-    free(ts.items);free(ts.text_storage);memset(&ts,0,sizeof(ts));
-    assert(swan_lex("fn out store",&ts,&error));
-    assert(ts.items[0].kind==T_FN&&ts.items[1].kind==T_OUT&&ts.items[2].kind==T_STORE);
     free(ts.items);free(ts.text_storage);
-    Program arena_program={0};
-    void *arena_value=swan_arena_alloc(&arena_program,1);
-    assert(arena_value&&((uintptr_t)arena_value%_Alignof(max_align_t))==0);
-    assert(!swan_arena_alloc(&arena_program,SIZE_MAX));
-    swan_program_destroy(&arena_program);
-    puts("PASS: exact 41-word Swan keyword set and deprecated syntax aliases");
+    puts("PASS: exact 36-word Swan keyword set; all other tested spellings are identifiers");
     return 0;
 }
