@@ -134,9 +134,10 @@ Existing implementation slices:
 - AST: initial five-word expression-node representation and structural validation.
 - IR: initial eight-word linear typed instruction representation, SSA result numbering, and structural/use-before-definition verification.
 - Optimization: a verified linear-IR pass-manager slice with conservative i32 add/subtract/multiply constant folding. The pass manager verifies input and output; it is not yet a complete optimizer.
+- Ownership: an executable linearized ownership-event verifier checks initialization, reads/writes, shared and exclusive borrows, borrow closure, moves, drops, and use-after-move/drop. It rejects malformed event streams and reports the first failing event. It is not yet connected to AST/CFG semantic analysis, does not infer borrow regions or insert drops, and is not a complete Rust-style ownership implementation.
 - Validation: `tests/swanc-optimizer.swan` exercises 1,024 constant-folding cases, and `benchmarks/swanc_optimizer.py` measures the verified optimizer slice. The benchmark explicitly runs Compiler 2 optimizer source through the Compiler 1 bootstrap; it is not a full Compiler 2 or self-hosted compiler benchmark.
 
-The component breakdown is an implementation map, not a claim of feature completeness. Implement each component with concrete types, functions, invariants, unit tests, negative tests, and integration before enabling it in the driver.
+The ownership regression harness in `tests/swanc-ownership.sh` compiles the Swan-authored verifier with Compiler 1 and exercises valid and invalid ownership traces. The component breakdown is an implementation map, not a claim of feature completeness. Implement each component with concrete types, functions, invariants, unit tests, negative tests, and integration before enabling it in the driver.
 
 ## Targets
 
