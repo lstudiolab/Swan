@@ -80,7 +80,6 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"public",6))return T_PUBLIC;
   if(!memcmp(s,"inline",6))return T_INLINE;
   if(!memcmp(s,"static",6))return T_STATIC;
-  if(!memcmp(s,"private",7))return T_PRIVATE;
   if(!memcmp(s,"deinit",6))return T_DEINIT;
   break;
  case 7:
