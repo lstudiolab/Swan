@@ -4,10 +4,14 @@
 
 The current executable Compiler 2 slice consists of Swan-authored linear-IR
 verification, i32 constant folding, SSA use-count analysis, and conservative
-dead-code elimination. Compiler 1 currently compiles those Swan files into a
-native object. The benchmark measures that optimizer implementation; it does
-not measure a complete Compiler 2 frontend, SIL optimizer, SVM optimizer,
-self-hosted compiler, target backend, or application runtime.
+dead-code elimination. The verifier now checks sequential SSA definitions,
+use-before-definition, operand arity, integer-only arithmetic, comparison and
+select types, pointer requirements for loads/stores, alloca result types, and
+call argument layout. Its type table is kept in the caller-owned optimizer
+workspace. Compiler 1 currently compiles these Swan files into a native object.
+The benchmark measures that optimizer implementation; it does not measure a
+complete Compiler 2 frontend, SIL optimizer, SVM optimizer, self-hosted compiler,
+target backend, or application runtime.
 
 Do not compare this number directly with a whole-program compiler benchmark.
 
@@ -64,9 +68,10 @@ ownership effects, trapping behavior, or memory ordering.
 
 ## Next optimization milestones
 
-- Replace repeated prefix scans with a single definition table and explicit
-  operand/type validation in the linear verifier.
-- Add basic-block-aware CFG and PHI verification before block optimizations.
+- Add parameter type metadata to the linear IR contract so operations using
+  function arguments receive the same type checks as local SSA definitions.
+- Replace the linear PHI placeholder with explicit basic blocks, predecessor
+  edges, and edge-specific incoming values before enabling CFG optimizations.
 - Add reusable analyses with explicit invalidation in a real pass manager.
 - Add sparse conditional constant propagation and CFG simplification.
 - Add dominance-aware common-subexpression elimination.
