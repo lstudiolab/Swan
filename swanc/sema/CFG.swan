@@ -15,13 +15,6 @@
 # blocks are reported through workspace[3], not rejected: later reachability
 # and dead-block passes decide whether they can be removed.
 
-fn swanc_cfg_fail(workspace: u32_array, code: int, block_id: int, observed: int) -> int:
-    workspace[0] = code
-    workspace[1] = block_id
-    workspace[2] = observed
-    return 0 - code
-
-out
 fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, workspace_capacity: int) -> int:
     if block_count < 1 or block_count > 429496729:
         workspace[0] = 1
@@ -54,20 +47,35 @@ fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, w
         let declared_predecessors = blocks[base + 3]
         let flags = blocks[base + 4]
         if flags != 0:
-            return swanc_cfg_fail(workspace, 3, index + 1, flags)
+            workspace[0] = 3
+            workspace[1] = index + 1
+            workspace[2] = flags
+            return 0 - 3
         if terminator < 1 or terminator > 4:
-            return swanc_cfg_fail(workspace, 4, index + 1, terminator)
+            workspace[0] = 4
+            workspace[1] = index + 1
+            workspace[2] = terminator
+            return 0 - 4
 
         if terminator == 1 or terminator == 4:
             if first != 0 or second != 0:
-                return swanc_cfg_fail(workspace, 5, index + 1, first)
+                workspace[0] = 5
+                workspace[1] = index + 1
+                workspace[2] = first
+                return 0 - 5
         else
             if terminator == 2:
                 if first < 1 or first > block_count or second != 0:
-                    return swanc_cfg_fail(workspace, 6, index + 1, first)
+                    workspace[0] = 6
+                    workspace[1] = index + 1
+                    workspace[2] = first
+                    return 0 - 6
             else
                 if first < 1 or first > block_count or second < 1 or second > block_count:
-                    return swanc_cfg_fail(workspace, 7, index + 1, first)
+                    workspace[0] = 7
+                    workspace[1] = index + 1
+                    workspace[2] = first
+                    return 0 - 7
         index = index + 1
 
     # Compute predecessor counts from edges, with overflow-safe bounds.
@@ -81,12 +89,18 @@ fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, w
             let slot_a = pred_base + first - 1
             workspace[slot_a] = workspace[slot_a] + 1
             if workspace[slot_a] > block_count * 2:
-                return swanc_cfg_fail(workspace, 8, first, workspace[slot_a])
+                workspace[0] = 8
+                workspace[1] = first
+                workspace[2] = workspace[slot_a]
+                return 0 - 8
         if terminator == 3:
             let slot_b = pred_base + second - 1
             workspace[slot_b] = workspace[slot_b] + 1
             if workspace[slot_b] > block_count * 2:
-                return swanc_cfg_fail(workspace, 8, second, workspace[slot_b])
+                workspace[0] = 8
+                workspace[1] = second
+                workspace[2] = workspace[slot_b]
+                return 0 - 8
         index = index + 1
 
     index = 0
@@ -94,10 +108,16 @@ fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, w
         let declared = blocks[index * 5 + 3]
         let observed = workspace[pred_base + index]
         if declared != observed:
-            return swanc_cfg_fail(workspace, 9, index + 1, observed)
+            workspace[0] = 9
+            workspace[1] = index + 1
+            workspace[2] = observed
+            return 0 - 9
         index = index + 1
     if workspace[pred_base] != 0:
-        return swanc_cfg_fail(workspace, 10, 1, workspace[pred_base])
+        workspace[0] = 10
+        workspace[1] = 1
+        workspace[2] = workspace[pred_base]
+        return 0 - 10
 
     # Iterative breadth-first traversal from entry block 1.
     # This avoids recursion and bounds queue growth to block_count.
