@@ -37,4 +37,7 @@ SWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
 sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_parser_module_stub\2/g' "$ASSEMBLY"
 cc -O2 "$ASSEMBLY" "$ROOT/tests/swanc_parser.c" -o "$ROOT/build/swanc-parser-test"
+if command -v gdb >/dev/null 2>&1; then
+    gdb -batch -ex run -ex bt --args "$ROOT/build/swanc-parser-test" || true
+fi
 "$ROOT/build/swanc-parser-test"
