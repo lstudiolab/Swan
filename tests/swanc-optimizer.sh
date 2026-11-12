@@ -10,6 +10,10 @@ ASSEMBLY="$ROOT/build/swanc-optimizer-module.s"
     printf '\n'
     cat "$ROOT/swanc/optimization/ConstantFold.swan"
     printf '\n'
+    cat "$ROOT/swanc/optimization/UseCountAnalysis.swan"
+    printf '\n'
+    cat "$ROOT/swanc/optimization/DeadCodeElimination.swan"
+    printf '\n'
     cat "$ROOT/swanc/optimization/Optimization.swan"
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
