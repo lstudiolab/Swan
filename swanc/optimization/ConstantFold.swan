@@ -41,14 +41,24 @@ fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, works
                     let left = workspace[capacity + a + 2]
                     let right = workspace[capacity + b + 2]
                     var folded = 0
+                    var can_fold = true
                     if opcode == 1:
-                        folded = left + right
+                        if left <= 4294967295 - right:
+                            folded = left + right
+                        else
+                            can_fold = false
                     else
                         if opcode == 2:
-                            folded = left - right
+                            if left >= right:
+                                folded = left - right
+                            else
+                                can_fold = false
                         else
-                            folded = left * right
-                    if folded >= 0 and folded <= 4294967295:
+                            if left == 0 or right <= 4294967295 / left:
+                                folded = left * right
+                            else
+                                can_fold = false
+                    if can_fold and folded >= 0 and folded <= 4294967295:
                         instructions[base] = 0
                         instructions[base + 3] = 0
                         instructions[base + 4] = 0
