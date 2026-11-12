@@ -17,7 +17,9 @@ func swanc_parser_test(source: u32_array, source_length: int, tokens: u32_array,
     let token_count = swan_lex(source, source_length, tokens, 128, diagnostic)
     if token_count < 1:
         return -100
-    return swanc_parse(source, tokens, token_count, nodes, 128, state)
+    state[2] = token_count
+    state[3] = 128
+    return swanc_parse(source, tokens, nodes, state)
 out
 func swanc_lex_test(source: u32_array, source_length: int, tokens: u32_array, diagnostic: u32_array) -> int:
     return swan_lex(source, source_length, tokens, 4, diagnostic)
