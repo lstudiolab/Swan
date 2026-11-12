@@ -202,7 +202,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             validation_line = validation_line + 1
             validation_column = 1
         else:
-            validation_column = validation_column + width
+            validation_column = validation_column + 1
         index = index + width
     index = 0
     # A UTF-8 BOM is accepted only at the beginning of the file.
@@ -222,7 +222,8 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 break
             if source[index] == 10 or source[index] == 35:
                 while index < source_length and source[index] != 10:
-                    index = index + 1
+                    let comment_width = swanc_utf8_width(source, index, source_length)
+                    index = index + comment_width
                     column = column + 1
                 if index < source_length:
                     index = index + 1
@@ -264,7 +265,8 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
             continue
         if byte == 35:
             while index < source_length and source[index] != 10:
-                index = index + 1
+                let comment_width = swanc_utf8_width(source, index, source_length)
+                index = index + comment_width
                 column = column + 1
             continue
         if byte == 10:
@@ -290,7 +292,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 if width == 0:
                     return swanc_fail(diagnostic, 1, index, line, column)
                 index = index + width
-                column = column + width
+                column = column + 1
             let token_length = index - token_start
             let kind = swanc_keyword(source, token_start, token_length)
             record[0] = kind
@@ -351,7 +353,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capa
                 if width == 0:
                     return swanc_fail(diagnostic, 1, index, line, column)
                 index = index + width
-                column = column + width
+                column = column + 1
             if closed == 0:
                 return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
             record[0] = 4
