@@ -201,6 +201,31 @@ fi
 grep -q 'rep stosd' "$TMP/samc-auto.s"
 printf 'PASS: SAMC places small non-escaping arrays in the native stack frame\n'
 
+cat > "$TMP/array-conditional-drop.swan" <<'SWAN'
+fn main():
+    var length = 8
+    if false:
+        let values = array(length)
+    return 0
+out
+SWAN
+"$SWAN" build "$TMP/array-conditional-drop.swan" -o "$TMP/array-conditional-drop"
+"$TMP/array-conditional-drop"
+printf 'PASS: cleanup safely skips arrays whose declaration branch did not execute\\n'
+
+cat > "$TMP/array-early-return.swan" <<'SWAN'
+fn main():
+    var length = 8
+    if true:
+        let values = array(length)
+        return 0
+    return 0
+out
+SWAN
+"$SWAN" build "$TMP/array-early-return.swan" -o "$TMP/array-early-return"
+"$TMP/array-early-return"
+printf 'PASS: early-return cleanup is safe and idempotent\\n'
+
 cat > "$TMP/samc-manual.swan" <<'SWAN'
 fn main():
     store let values = array(8)
