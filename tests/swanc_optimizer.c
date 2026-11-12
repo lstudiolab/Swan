@@ -147,6 +147,37 @@ static int verifier_contracts(void){
     if(expect_verifier_error(ir,3,14,"phi incoming type"))return 37;
     return 0;
 }
+static int parameter_type_contracts(void){
+    uint32_t ir[3*8]={0}, ws[32]={0}, parameter_types[1]={4};
+    put(ir,0,0,5,2,0,0,0,1);
+    put(ir,1,1,5,3,1,2,0,0);
+    int64_t status=swan_fn_swanc_ir_verify(ir,2,parameter_types,1,ws);
+    if(status==0||ws[0]!=14){
+        fprintf(stderr,"mismatched parameter type accepted: status=%lld diagnostic=%u\\n",
+                (long long)status,ws[0]);
+        return 48;
+    }
+
+    memset(ir,0,sizeof(ir));memset(ws,0,sizeof(ws));
+    parameter_types[0]=4;
+    put(ir,0,0,4,2,0,0,0,1);
+    put(ir,1,1,4,3,1,2,0,0);
+    status=swan_fn_swanc_ir_verify(ir,2,parameter_types,1,ws);
+    if(status!=0){
+        fprintf(stderr,"matching parameter type rejected: status=%lld diagnostic=%u\\n",
+                (long long)status,ws[0]);
+        return 49;
+    }
+
+    parameter_types[0]=0;
+    status=swan_fn_swanc_ir_verify(ir,0,parameter_types,1,ws);
+    if(status==0||ws[0]!=17){
+        fprintf(stderr,"invalid parameter type accepted: status=%lld diagnostic=%u\\n",
+                (long long)status,ws[0]);
+        return 50;
+    }
+    return 0;
+}
 static int invalid_workspace(void){
     uint32_t ir[8]={0},ws[8]={0};
     int64_t status=swan_fn_swanc_ir_optimize(ir,1,ws,1);
@@ -178,7 +209,7 @@ static int invalid_ir(void){
     return 0;
 }
 int main(void){
-    int s=workload();if(s)return s;s=constant_fold_overflow();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
+    int s=workload();if(s)return s;s=constant_fold_overflow();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=parameter_type_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
     puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; overflow-safe folding, capacity guards, side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
     return 0;
 }
