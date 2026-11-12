@@ -391,6 +391,7 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
   o->uses_array_bounds=true;
   break;
  }
+ case E_MEMBER:swan_error(err,&e->token,"member access is not supported by the x86-64 backend");break;
  case E_BINARY:
   if(e->token.kind==T_AND||e->token.kind==T_OR){int id=o->next_label++;char target[64];snprintf(target,sizeof(target),".Lswan_logic_true_%d",id);emit_condition_jump(o,e,l,err,target,true);text_add(o,"    xor eax, eax\n    jmp .Lswan_logic_end_%d\n%s:\n    mov eax, 1\n.Lswan_logic_end_%d:\n",id,target,id);break;}
   if(e->token.kind==T_PLUS&&!expr_has_call(e)){
