@@ -22,7 +22,6 @@ fn main() -> int:
 out
 SWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
-sed -n '2950,2962p' "$ASSEMBLY" >&2
 sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_optimizer_module_stub\2/g' "$ASSEMBLY"
 cc -O2 "$ASSEMBLY" "$ROOT/tests/swanc_optimizer.c" -o "$ROOT/build/swanc-optimizer-test"
 "$ROOT/build/swanc-optimizer-test"
