@@ -432,7 +432,14 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
             size_t *map=malloc(n*sizeof(*map));SwanIRBlock *blocks=calloc(live,sizeof(*blocks));
             if(!map||!blocks){free(map);free(blocks);free(reachable);free(queue);if(error&&cap)snprintf(error,cap,"out of memory compacting IR control-flow graph");return false;}
             size_t next=0;for(size_t b=0;b<n;b++)map[b]=reachable[b]?next++:SIZE_MAX;
-            for(size_t b=0;b<n;b++)if(reachable[b])blocks[map[b]]=fn->blocks[b];
+            for(size_t b=0;b<n;b++){
+                if(reachable[b])blocks[map[b]]=fn->blocks[b];
+                else{
+                    for(size_t i=0;i<fn->blocks[b].instruction_count;i++)
+                        free(fn->blocks[b].instructions[i].incoming);
+                    free(fn->blocks[b].instructions);
+                }
+            }
             free(fn->blocks);fn->blocks=blocks;fn->block_count=fn->block_capacity=live;
             for(size_t b=0;b<live;b++){
                 SwanIRBlock *bb=&fn->blocks[b];SwanIRTerm *t=&bb->terminator;
