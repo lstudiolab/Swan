@@ -53,8 +53,8 @@ static inline void swan_profile_print(void){
  }
  fprintf(stderr,"  %-30s %0.9f s\n","Total wall time",(double)elapsed/1e9);
 }
-#define SWAN_VERSION "0.7.0-samc"
-#define SWAN_MEMORY_MODEL "SAMC"
+#define SWAN_VERSION "0.8.0"
+#define SWAN_MEMORY_MODEL "Automatic ownership with borrow checking"
 #define SWAN_MAX_TOKENS 131072
 #define SWAN_MAX_NODES 32768
 #define SWAN_MAX_TEXT 512
@@ -64,7 +64,7 @@ typedef enum {
  T_TRUE,T_FALSE,T_NONE,T_AND,T_OR,T_NOT,T_BANG,T_LP,T_RP,T_COLON,T_COMMA,T_ARROW,
  T_PLUS,T_MINUS,T_STAR,T_SLASH,T_FLOORDIV,T_PERCENT,T_ASSIGN,T_EQ,T_NE,T_LT,T_GT,T_LE,T_GE,
  T_LB,T_RB,T_DOT,T_SEMI,T_OUT,T_PRINT,T_STRUCT,T_ENUM,T_TYPE,T_FOR,T_IN,T_LOOP,T_MATCH,T_GUARD,T_FROM,T_AS,T_EXPORT,T_SELF,T_LAZY,T_INIT,T_DEINIT,T_FREE,T_THROW,T_RETHROW,T_STORE,T_BORROW,
- T_NAMESPACE,T_VARIANT,T_PROTOCOL,T_THREAD,T_ASYNC,T_BLOCK,T_SET,T_BOOL_TYPE,T_CASE,T_DEFER,T_MANUAL
+ T_NAMESPACE,T_VARIANT,T_PROTOCOL,T_THREAD,T_ASYNC,T_BLOCK,T_SET,T_BOOL_TYPE,T_CASE,T_DEFER,T_MANUAL,T_MOD,T_UPTO,T_INLINE,T_STATIC,T_PRIVATE,T_PUBLIC
 } TokenKind;
 typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
