@@ -38,9 +38,12 @@ fn swanc_ownership_fail(workspace: u32_array, code: int, event_index: int, symbo
 out
 
 fn swanc_ownership_analyze(events: u32_array, event_count: int, symbol_count: int, workspace: u32_array, workspace_capacity: int) -> int:
+    # Never write diagnostics unless the caller supplied the four-word header.
+    if workspace_capacity < 4:
+        return -1
     if event_count < 0 or event_count > 268435455 or symbol_count < 0 or symbol_count > 67108863:
         return swanc_ownership_fail(workspace, 1, 0, 0, 0)
-    if workspace_capacity < 4 or workspace_capacity < 4 + symbol_count * 4:
+    if workspace_capacity < 4 + symbol_count * 4:
         return swanc_ownership_fail(workspace, 1, 0, 0, 0)
 
     var clear_index = 0
