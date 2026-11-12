@@ -129,37 +129,119 @@ static inline bool swan_ir_commutative(SwanIROp op){
     return op==SWAN_IR_ADD||op==SWAN_IR_MUL||op==SWAN_IR_AND||op==SWAN_IR_OR||
         op==SWAN_IR_XOR||op==SWAN_IR_ICMP_EQ||op==SWAN_IR_ICMP_NE;
 }
-static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *m){
+typedef struct {
+    uint64_t hash;
+    uint32_t a,b,c,result;
+    size_t block,index,next;
+    SwanIROp op;
+    SwanIRType type;
+} SwanIRCSEEntry;
+static inline uint64_t swan_ir_cse_hash(SwanIROp op,SwanIRType type,uint32_t a,uint32_t b,uint32_t c){
+    uint64_t fields[5]={(uint64_t)op,(uint64_t)type,a,b,c};
+    uint64_t hash=UINT64_C(1469598103934665603);
+    for(size_t i=0;i<5;i++){hash^=fields[i];hash*=UINT64_C(1099511628211);}
+    return hash;
+}
+static inline uint32_t swan_ir_resolve_replacement(uint32_t value,const uint32_t *map,size_t count){
+    size_t steps=0;
+    while(value&&value<count&&map[value]!=value&&steps++<count)value=map[value];
+    return value<count?value:0;
+}
+static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *module,bool *changed_out,char *error,size_t cap){
     bool changed=false;
-    for(size_t f=0;f<m->function_count;f++){
-        SwanIRFunction *fn=&m->functions[f];
+    for(size_t f=0;f<module->function_count;f++){
+        SwanIRFunction *fn=&module->functions[f];
+        size_t total=0,value_count=fn->next_value;
+        for(size_t b=0;b<fn->block_count;b++){
+            if(fn->blocks[b].instruction_count>SIZE_MAX-total){
+                if(error&&cap)snprintf(error,cap,"CSE instruction count overflow");
+                return false;
+            }
+            total+=fn->blocks[b].instruction_count;
+        }
+        if(!total)continue;
+        if(total>SIZE_MAX/sizeof(SwanIRCSEEntry)||value_count>SIZE_MAX/sizeof(uint32_t)||total>SIZE_MAX/2){
+            if(error&&cap)snprintf(error,cap,"CSE analysis size overflow");
+            return false;
+        }
+        size_t bucket_count=1;
+        while(bucket_count<total*2){
+            if(bucket_count>SIZE_MAX/2){
+                if(error&&cap)snprintf(error,cap,"CSE hash table size overflow");
+                return false;
+            }
+            bucket_count*=2;
+        }
+        if(bucket_count>SIZE_MAX/sizeof(size_t)){
+            if(error&&cap)snprintf(error,cap,"CSE bucket allocation overflow");
+            return false;
+        }
+        SwanIRCSEEntry *entries=malloc(total*sizeof(*entries));
+        size_t *heads=malloc(bucket_count*sizeof(*heads));
+        uint32_t *replacement=malloc(value_count*sizeof(*replacement));
+        if(!entries||!heads||!replacement){
+            free(entries);free(heads);free(replacement);
+            if(error&&cap)snprintf(error,cap,"out of memory during common-subexpression elimination");
+            return false;
+        }
+        for(size_t i=0;i<bucket_count;i++)heads[i]=SIZE_MAX;
+        for(size_t id=0;id<value_count;id++)replacement[id]=(uint32_t)id;
+        size_t entry_count=0;
         for(size_t b=0;b<fn->block_count;b++){
             SwanIRBlock *bb=&fn->blocks[b];
             for(size_t i=0;i<bb->instruction_count;i++){
                 SwanIRInst *in=&bb->instructions[i];
-                if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
-                uint32_t a=in->a,z=in->b;
+                if(!in->result||in->result>=value_count||!swan_ir_pure_cse_op(in->op))continue;
+                uint32_t a=swan_ir_resolve_replacement(in->a,replacement,value_count);
+                uint32_t z=swan_ir_resolve_replacement(in->b,replacement,value_count);
+                uint32_t c=swan_ir_resolve_replacement(in->c,replacement,value_count);
                 if(swan_ir_commutative(in->op)&&a>z){uint32_t t=a;a=z;z=t;}
-                bool replaced=false;
-                for(size_t pb=0;pb<fn->block_count&&!replaced;pb++){
-                    if(pb!=b&&!swan_ir_block_dominates(fn,pb,b))continue;
-                    SwanIRBlock *prior_block=&fn->blocks[pb];
-                    size_t limit=pb==b?i:prior_block->instruction_count;
-                    for(size_t j=0;j<limit;j++){
-                        SwanIRInst *prior=&prior_block->instructions[j];
-                        if(!prior->result||prior->op!=in->op||prior->type!=in->type)continue;
-                        uint32_t pa=prior->a,pz=prior->b;
-                        if(swan_ir_commutative(prior->op)&&pa>pz){uint32_t t=pa;pa=pz;pz=t;}
-                        if(pa==a&&pz==z&&prior->c==in->c){
-                            swan_ir_replace_uses(fn,in->result,prior->result);
-                            changed=true;replaced=true;break;
+                uint64_t hash=swan_ir_cse_hash(in->op,in->type,a,z,c);
+                size_t bucket=(size_t)(hash&(uint64_t)(bucket_count-1));
+                size_t candidate=heads[bucket];
+                bool found=false;
+                while(candidate!=SIZE_MAX){
+                    const SwanIRCSEEntry *entry=&entries[candidate];
+                    if(entry->hash==hash&&entry->op==in->op&&entry->type==in->type&&
+                       entry->a==a&&entry->b==z&&entry->c==c){
+                        bool dominates=entry->block==b?entry->index<i:
+                            swan_ir_block_dominates(fn,entry->block,b);
+                        if(dominates){
+                            replacement[in->result]=entry->result;
+                            changed=true;found=true;break;
                         }
                     }
+                    candidate=entry->next;
+                }
+                if(!found){
+                    SwanIRCSEEntry *entry=&entries[entry_count];
+                    entry->hash=hash;entry->a=a;entry->b=z;entry->c=c;
+                    entry->result=in->result;entry->block=b;entry->index=i;
+                    entry->op=in->op;entry->type=in->type;entry->next=heads[bucket];
+                    heads[bucket]=entry_count++;
                 }
             }
         }
+        if(changed){
+            for(size_t b=0;b<fn->block_count;b++){
+                SwanIRBlock *bb=&fn->blocks[b];
+                for(size_t i=0;i<bb->instruction_count;i++){
+                    SwanIRInst *in=&bb->instructions[i];
+                    if(in->a<value_count)in->a=swan_ir_resolve_replacement(in->a,replacement,value_count);
+                    if(in->b<value_count)in->b=swan_ir_resolve_replacement(in->b,replacement,value_count);
+                    if(in->c<value_count)in->c=swan_ir_resolve_replacement(in->c,replacement,value_count);
+                    for(size_t k=0;k<in->incoming_count;k++)
+                        if(in->incoming[k].value<value_count)
+                            in->incoming[k].value=swan_ir_resolve_replacement(in->incoming[k].value,replacement,value_count);
+                }
+                if(bb->terminator.value<value_count)
+                    bb->terminator.value=swan_ir_resolve_replacement(bb->terminator.value,replacement,value_count);
+            }
+        }
+        free(entries);free(heads);free(replacement);
     }
-    return changed;
+    if(changed_out)*changed_out=changed;
+    return true;
 }
 static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn,bool *changed_out,char *error,size_t cap){
     bool changed=false;
@@ -605,7 +687,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_ALGEBRAIC){bool changed=false;if(!swan_ir_algebraic_simplify(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_COPY_PROPAGATION){bool changed=false;if(!swan_ir_copy_propagation(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){bool changed=false;if(!swan_ir_common_subexpression_eliminate(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
     if(pass==SWAN_IR_PASS_DEAD_CODE){
         bool changed=false;
