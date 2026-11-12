@@ -9,8 +9,11 @@ use-before-definition, operand arity, integer-only arithmetic, comparison and
 select types, pointer requirements for loads/stores, alloca result types, and
 call argument layout. Its type table is kept in the caller-owned optimizer
 workspace, and the optimizer rejects undersized or out-of-range workspace
-capacities before running verification. Compiler 1 currently compiles these
-Swan files into a native object.
+capacities before running verification. Each individual analysis and
+transformation also validates its count and capacity bounds before indexing
+workspace segments. Multiplication folding uses a conservative 16-bit operand
+bound so intermediate arithmetic cannot overflow. Compiler 1 currently
+compiles these Swan files into a native object.
 The benchmark measures that optimizer implementation; it does not measure a
 complete Compiler 2 frontend, SIL optimizer, SVM optimizer, self-hosted compiler,
 target backend, or application runtime.
