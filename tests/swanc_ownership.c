@@ -35,6 +35,7 @@ static int negative(void){
  memset(e,0,sizeof(e));ev(e,0,99,0,1);if(bad(e,1,1,2,"invalid-event"))return 22;
  memset(e,0,sizeof(e));ev(e,0,DECLARE,1,1);if(bad(e,1,1,3,"invalid-symbol"))return 23;
  memset(e,0,sizeof(e));ev(e,0,READ,0,1);if(bad(e,1,1,5,"read-before-declare"))return 24;
+ memset(e,0,sizeof(e));ev(e,0,DECLARE,0,1);e[3]=1;if(bad(e,1,1,17,"reserved-event-field"))return 25;
  return 0;
 }
 int main(void){
