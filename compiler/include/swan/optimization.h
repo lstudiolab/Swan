@@ -349,28 +349,67 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
     }
     return true;
 }
-static inline bool swan_ir_copy_propagation(SwanIRModule *module){
+static inline bool swan_ir_copy_propagation(SwanIRModule *module,bool *changed_out,char *error,size_t cap){
     bool changed=false;
     for(size_t f=0;f<module->function_count;f++){
         SwanIRFunction *fn=&module->functions[f];
+        size_t value_count=fn->next_value;
+        if(value_count>SIZE_MAX/sizeof(uint32_t)){
+            if(error&&cap)snprintf(error,cap,"copy-propagation map size overflow");
+            return false;
+        }
+        uint32_t *replacement=malloc(value_count*sizeof(*replacement));
+        if(!replacement){
+            if(error&&cap)snprintf(error,cap,"out of memory during copy propagation");
+            return false;
+        }
+        for(size_t id=0;id<value_count;id++)replacement[id]=(uint32_t)id;
         for(size_t b=0;b<fn->block_count;b++){
             SwanIRBlock *bb=&fn->blocks[b];
             for(size_t i=0;i<bb->instruction_count;i++){
                 SwanIRInst *in=&bb->instructions[i];
-                uint32_t replacement=0;
+                uint32_t source=0;
                 if(in->op==SWAN_IR_PHI&&in->incoming_count){
-                    replacement=in->incoming[0].value;
+                    source=in->incoming[0].value;
                     for(size_t k=1;k<in->incoming_count;k++)
-                        if(in->incoming[k].value!=replacement){replacement=0;break;}
-                }else if(in->op==SWAN_IR_SELECT&&in->b==in->c)replacement=in->b;
-                if(replacement&&in->result&&replacement!=in->result){
-                    swan_ir_replace_uses(fn,in->result,replacement);
-                    changed=true;
-                }
+                        if(in->incoming[k].value!=source){source=0;break;}
+                }else if(in->op==SWAN_IR_SELECT&&in->b==in->c)source=in->b;
+                if(in->result&&in->result<value_count&&source&&source<value_count&&source!=in->result)
+                    replacement[in->result]=source;
             }
         }
+        for(size_t id=1;id<value_count;id++){
+            uint32_t current=(uint32_t)id;
+            size_t steps=0;
+            while(replacement[current]!=current){
+                current=replacement[current];
+                if(current>=value_count||++steps>=value_count){
+                    free(replacement);
+                    if(error&&cap)snprintf(error,cap,"cyclic copy-propagation replacement");
+                    return false;
+                }
+            }
+            if(replacement[id]!=current)changed=true;
+            replacement[id]=current;
+        }
+        for(size_t b=0;b<fn->block_count;b++){
+            SwanIRBlock *bb=&fn->blocks[b];
+            for(size_t i=0;i<bb->instruction_count;i++){
+                SwanIRInst *in=&bb->instructions[i];
+                if(in->a<value_count)in->a=replacement[in->a];
+                if(in->b<value_count)in->b=replacement[in->b];
+                if(in->c<value_count)in->c=replacement[in->c];
+                for(size_t k=0;k<in->incoming_count;k++)
+                    if(in->incoming[k].value<value_count)
+                        in->incoming[k].value=replacement[in->incoming[k].value];
+            }
+            if(bb->terminator.value<value_count)
+                bb->terminator.value=replacement[bb->terminator.value];
+        }
+        free(replacement);
     }
-    return changed;
+    if(changed_out)*changed_out=changed;
+    return true;
 }
 
 static inline bool swan_ir_licm_opcode(SwanIROp op){
@@ -518,7 +557,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
     }
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_ALGEBRAIC){bool changed=false;if(!swan_ir_algebraic_simplify(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){(void)swan_ir_copy_propagation(module);return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){bool changed=false;if(!swan_ir_copy_propagation(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
     if(pass==SWAN_IR_PASS_DEAD_CODE){
