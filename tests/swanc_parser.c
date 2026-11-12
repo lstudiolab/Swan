@@ -77,6 +77,17 @@ static int unicode_columns(void) {
     return 0;
 }
 
+static int integer_literal_range(void) {
+    uint32_t nodes[128 * 5] = {0}, state[5] = {0};
+    if (parse("65536", nodes, state) != 1 || nodes[4] != 65536) return 10;
+    if (parse("4294967295", nodes, state) != 1 || nodes[4] != UINT32_MAX) return 11;
+    if (parse("4294967296", nodes, state) >= 0) {
+        fprintf(stderr, "u32-overflowing integer literal unexpectedly accepted\\n");
+        return 12;
+    }
+    return 0;
+}
+
 static int parentheses_and_rejections(void) {
     uint32_t nodes[128 * 5] = {0}, state[5] = {0};
     if (parse("(12)", nodes, state) != 1 || nodes[0] != 1 || nodes[4] != 12)
@@ -102,6 +113,8 @@ int main(void) {
     status = arithmetic_precedence();
     if (status) return status;
     status = left_associativity();
+    if (status) return status;
+    status = integer_literal_range();
     if (status) return status;
     status = parentheses_and_rejections();
     if (status) return status;
