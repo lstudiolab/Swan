@@ -10,7 +10,7 @@
 # remain stable. Overflowing unsigned i32 results are left unchanged.
 
 fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, workspace: u32_array, capacity: int) -> int:
-    if instruction_count < 0 or instruction_count > 268435455 or capacity < instruction_count + 1:
+    if instruction_count < 0 or instruction_count > 268435455 or capacity < instruction_count + 1 or capacity > 268435455:
         return -1
     var index = 0
     while index < capacity:
