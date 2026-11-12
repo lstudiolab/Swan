@@ -26,7 +26,7 @@ func main() -> int:
     let source = array_unchecked(1)
     let tokens = array_unchecked(5)
     let nodes = array_unchecked(5)
-    let state = array_unchecked(2)
+    let state = array_unchecked(4)
     return swanc_parser_test(source, 0, tokens, nodes, state)
 out
 SWAN
