@@ -4,6 +4,8 @@ This roadmap separates implemented work from remaining engineering. It is not a 
 
 ## Current baseline
 
+- Exact 36-word reserved-keyword contract shared by the C11 bootstrap lexer and Compiler 2 lexer, with regression tests for non-keyword legacy spellings.
+
 - C11 compiler host with a Swan-authored SIL scalar subsystem compiled during bootstrap.
 - UTF-8-aware lexer and indentation-based parser.
 - AST semantic analysis, standard-library module loading, limited scalar C header import, and reachability analysis.
