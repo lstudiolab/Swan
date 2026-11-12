@@ -4,13 +4,10 @@
 
 extern int64_t swan_fn_swanc_parser_test(
     uint32_t *source, int64_t source_length,
-    uint32_t *tokens, int64_t token_capacity,
-    uint32_t *nodes, int64_t node_capacity,
-    uint32_t *state);
+    uint32_t *tokens, uint32_t *nodes, uint32_t *state);
 extern int64_t swan_fn_swanc_lex_test(
     uint32_t *source, int64_t source_length,
-    uint32_t *tokens, int64_t token_capacity,
-    uint32_t *diagnostic);
+    uint32_t *tokens, uint32_t *diagnostic);
 
 static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     uint32_t source[128] = {0};
@@ -21,7 +18,7 @@ static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     memset(nodes, 0, 128 * 5 * sizeof(uint32_t));
     state[0] = state[1] = 0;
     return (int)swan_fn_swanc_parser_test(source, (int64_t)length,
-        tokens, 128, nodes, 128, state);
+        tokens, nodes, state);
 }
 
 static int arithmetic_precedence(void) {
@@ -61,7 +58,7 @@ static int unicode_columns(void) {
     /* UTF-8 é occupies two bytes but one source column. */
     uint32_t source[] = {0xC3, 0xA9, 32, 64};
     uint32_t tokens[20] = {0}, diagnostic[4] = {0};
-    int64_t status = swan_fn_swanc_lex_test(source, 4, tokens, 4, diagnostic);
+    int64_t status = swan_fn_swanc_lex_test(source, 4, tokens, diagnostic);
     if (status != -2 || diagnostic[0] != 2 || diagnostic[1] != 3 ||
         diagnostic[2] != 1 || diagnostic[3] != 3) {
         fprintf(stderr, "UTF-8 diagnostic column incorrect: status=%lld offset=%u line=%u column=%u\\n",
