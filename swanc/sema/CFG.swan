@@ -23,7 +23,7 @@ fn swanc_cfg_fail(workspace: u32_array, code: int, block: int, observed: int) ->
 
 out
 fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, workspace_capacity: int) -> int:
-    if block_count < 1 or block_count > 1073741821:
+    if block_count < 1 or block_count > 715827880:
         workspace[0] = 1
         workspace[1] = 0
         workspace[2] = block_count
@@ -80,12 +80,12 @@ fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, w
         if terminator == 2 or terminator == 3:
             let slot_a = pred_base + first - 1
             workspace[slot_a] = workspace[slot_a] + 1
-            if workspace[slot_a] > block_count:
+            if workspace[slot_a] > block_count * 2:
                 return swanc_cfg_fail(workspace, 8, first, workspace[slot_a])
         if terminator == 3:
             let slot_b = pred_base + second - 1
             workspace[slot_b] = workspace[slot_b] + 1
-            if workspace[slot_b] > block_count:
+            if workspace[slot_b] > block_count * 2:
                 return swanc_cfg_fail(workspace, 8, second, workspace[slot_b])
         index = index + 1
 
