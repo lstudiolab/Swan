@@ -256,14 +256,16 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
             case S_RETURN:{
                 uint32_t value=s->value?swan_irgen_expr_as(g,s->value,g->function->return_type):0;if(s->value&&!value)return false;
                 if(!s->value&&g->function->return_type!=SWAN_IR_VOID)return swan_irgen_fail(g,&s->token,"non-void function must return a value");
-                if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_RET,value,0,0}))return false;break;
+                if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_RET,value,0,0}))return false;
+                break;
             }
             case S_IF:if(!swan_irgen_if(g,s))return false;break;
             case S_WHILE:if(!swan_irgen_while(g,s))return false;break;
             case S_BREAK:case S_CONTINUE:{
                 if(!g->loop_depth)return swan_irgen_fail(g,&s->token,"loop control outside loop");
                 size_t target=s->kind==S_BREAK?g->break_targets[g->loop_depth-1]:g->continue_targets[g->loop_depth-1];
-                if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)target,0}))return false;break;
+                if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)target,0}))return false;
+                break;
             }
             case S_EXPR:if(s->value){uint32_t result=swan_irgen_expr(g,s->value);if(!result){bool void_call=false;if(s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME&&!g->error->message[0])for(size_t fi=0;fi<g->module->function_count;fi++)if(!strcmp(g->module->functions[fi].name,s->value->left->token.text)&&g->module->functions[fi].return_type==SWAN_IR_VOID){void_call=true;break;}if(!void_call)return false;}}break;
             case S_PASS:break;
