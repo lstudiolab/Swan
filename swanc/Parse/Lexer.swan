@@ -197,10 +197,13 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
     # when it occurs in comments or string literals.
     var validation_line = 1
     var validation_column = 1
+    diagnostic[0] = 94
     while index < source_length:
+        diagnostic[0] = 95
         if source[index] < 0 or source[index] > 255:
             return swanc_fail(diagnostic, 2, index, validation_line, validation_column)
         let width = swanc_utf8_width(source, index, source_length)
+        diagnostic[0] = 96
         if width == 0:
             return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
         if width == 1 and source[index] == 10:
