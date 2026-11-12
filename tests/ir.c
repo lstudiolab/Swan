@@ -18,6 +18,9 @@ int main(void) {
     add.b = 1;
     uint32_t result = swan_ir_add_inst(f, entry, add);
     assert(result == 2);
+    assert(swan_ir_value_type_of(f, 1) == SWAN_IR_I64);
+    assert(swan_ir_value_type_of(f, result) == SWAN_IR_I64);
+    assert(swan_ir_value_type_of(f, 99) == SWAN_IR_VOID);
 
     SwanIRTerm ret = {SWAN_IR_RET, result, 0, 0};
     assert(swan_ir_terminate(entry, ret));
