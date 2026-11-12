@@ -50,7 +50,10 @@ static void check_transitive_copy_propagation(void){
  SwanIRInst add={0};add.op=SWAN_IR_ADD;add.type=SWAN_IR_I64;add.a=second_copy;add.b=first_copy;
  uint32_t result=swan_ir_add_inst(fn,entry,add);assert(result==5);
  assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}));
- char error[256]={0};assert(swan_ir_optimize(&module,error,sizeof(error)));
+ char error[256]={0};assert(swan_ir_verify(&module,error,sizeof(error)));
+ bool changed=false;
+ assert(swan_ir_copy_propagation(&module,&changed,error,sizeof(error))&&changed);
+ assert(swan_ir_dead_code_eliminate(&module,&changed));
  assert(swan_ir_verify(&module,error,sizeof(error)));
  assert(entry->instruction_count==1);
  assert(entry->instructions[0].op==SWAN_IR_ADD);
