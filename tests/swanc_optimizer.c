@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include <string.h>
 
-#define IR_INSTRUCTIONS 256
-#define CONSTANTS 128
+#define IR_INSTRUCTIONS 384
+#define CONSTANTS 256
+#define ADDITIONS 128
 #define ROUNDS 128
 #define WORKSPACE_WORDS (2 * (IR_INSTRUCTIONS + 1) + 2)
 
@@ -29,7 +30,7 @@ int main(void) {
             instructions[base + 2] = i + 1;
             instructions[base + 6] = i + 1;
         }
-        for (uint32_t i = 0; i < CONSTANTS; ++i) {
+        for (uint32_t i = 0; i < ADDITIONS; ++i) {
             uint32_t base = (CONSTANTS + i) * 8;
             instructions[base] = 1;
             instructions[base + 1] = 4;
@@ -46,7 +47,7 @@ int main(void) {
                     (long long)status, workspace[0], workspace[1]);
             return 1;
         }
-        for (uint32_t i = 0; i < CONSTANTS; ++i) {
+        for (uint32_t i = 0; i < ADDITIONS; ++i) {
             uint32_t base = (CONSTANTS + i) * 8;
             uint32_t expected = (i * 2 + 1) + (i * 2 + 2);
             if (instructions[base] != 0 || instructions[base + 6] != expected) {
@@ -55,6 +56,6 @@ int main(void) {
             }
         }
     }
-    puts("Compiler 2 optimizer correctness passed: 128 rounds, 32,768 IR instructions, 16,384 folds.");
+    puts("Compiler 2 optimizer correctness passed: 128 rounds, 49,152 IR instructions, 16,384 folds.");
     return 0;
 }
