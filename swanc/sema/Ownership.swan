@@ -1,3 +1,156 @@
-# Ownership and Borrow Checking
-# Enforce Swan's value ownership, borrowing, lifetime, move, and manual-memory
-# rules. Produce explicit semantic facts consumed by SILGen.
+# Swan Compiler 2 — ownership event verifier.
+#
+# This executable semantic-analysis slice validates a linearized ownership
+# event stream. It enforces single ownership, shared/exclusive borrow
+# exclusivity, moves, drops, use-after-move/drop, and borrow closure.
+#
+# Event record (four u32 words):
+#   [kind, symbol_id, source_location, reserved]
+# Kinds:
+#   1 DECLARE       create one owned value
+#   2 READ          read an owned value
+#   3 WRITE         mutate an owned value
+#   4 BORROW_SHARED begin an immutable borrow
+#   5 BORROW_MUT    begin an exclusive mutable borrow
+#   6 END_SHARED    end one immutable borrow
+#   7 END_MUT       end the exclusive mutable borrow
+#   8 MOVE          transfer ownership out of this binding
+#   9 DROP          explicitly destroy this binding
+#
+# Workspace layout:
+#   [diagnostic_code, event_index, symbol_id, source_location,
+#    then four words per symbol: owner_state, shared_borrow_count,
+#    mutable_borrow_active, reserved]
+# Owner states: 0 uninitialized, 1 live/owned, 2 moved, 3 dropped.
+#
+# A live owner at function exit is valid: SILGen inserts its automatic drop.
+# Outstanding borrows at function exit are always rejected.
+#
+# Return value: 0 on success; negative diagnostic code on failure.
+# The caller must not run SILGen or any later stage after a nonzero result.
+
+fn swanc_ownership_fail(workspace: u32_array, code: int, event_index: int, symbol: int, location: int) -> int:
+    workspace[0] = code
+    workspace[1] = event_index
+    workspace[2] = symbol
+    workspace[3] = location
+    return 0 - code
+out
+
+fn swanc_ownership_analyze(events: u32_array, event_count: int, symbol_count: int, workspace: u32_array, workspace_capacity: int) -> int:
+    if event_count < 0 or event_count > 268435455 or symbol_count < 0 or symbol_count > 67108863:
+        return swanc_ownership_fail(workspace, 1, 0, 0, 0)
+    if workspace_capacity < 4 or workspace_capacity < 4 + symbol_count * 4:
+        return swanc_ownership_fail(workspace, 1, 0, 0, 0)
+
+    var clear_index = 0
+    while clear_index < 4 + symbol_count * 4
+        workspace[clear_index] = 0
+        clear_index = clear_index + 1
+
+    var event_index = 0
+    while event_index < event_count
+        let event_base = event_index * 4
+        let kind = events[event_base]
+        let symbol = events[event_base + 1]
+        let location = events[event_base + 2]
+        if symbol >= symbol_count
+            return swanc_ownership_fail(workspace, 3, event_index, symbol, location)
+
+        let base = 4 + symbol * 4
+        let owner = workspace[base]
+        let shared = workspace[base + 1]
+        let mutable_borrow = workspace[base + 2]
+
+        if kind == 1
+            if owner != 0
+                return swanc_ownership_fail(workspace, 4, event_index, symbol, location)
+            workspace[base] = 1
+        else
+            if kind == 2
+                if owner == 0
+                    return swanc_ownership_fail(workspace, 5, event_index, symbol, location)
+                if owner == 2
+                    return swanc_ownership_fail(workspace, 6, event_index, symbol, location)
+                if owner == 3
+                    return swanc_ownership_fail(workspace, 7, event_index, symbol, location)
+                if mutable_borrow != 0
+                    return swanc_ownership_fail(workspace, 8, event_index, symbol, location)
+            else
+                if kind == 3
+                    if owner == 0
+                        return swanc_ownership_fail(workspace, 5, event_index, symbol, location)
+                    if owner == 2
+                        return swanc_ownership_fail(workspace, 6, event_index, symbol, location)
+                    if owner == 3
+                        return swanc_ownership_fail(workspace, 7, event_index, symbol, location)
+                    if shared != 0 or mutable_borrow != 0
+                        return swanc_ownership_fail(workspace, 9, event_index, symbol, location)
+                else
+                    if kind == 4
+                        if owner == 0
+                            return swanc_ownership_fail(workspace, 5, event_index, symbol, location)
+                        if owner == 2
+                            return swanc_ownership_fail(workspace, 6, event_index, symbol, location)
+                        if owner == 3
+                            return swanc_ownership_fail(workspace, 7, event_index, symbol, location)
+                        if mutable_borrow != 0
+                            return swanc_ownership_fail(workspace, 10, event_index, symbol, location)
+                        if shared == 2147483647
+                            return swanc_ownership_fail(workspace, 1, event_index, symbol, location)
+                        workspace[base + 1] = shared + 1
+                    else
+                        if kind == 5
+                            if owner == 0
+                                return swanc_ownership_fail(workspace, 5, event_index, symbol, location)
+                            if owner == 2
+                                return swanc_ownership_fail(workspace, 6, event_index, symbol, location)
+                            if owner == 3
+                                return swanc_ownership_fail(workspace, 7, event_index, symbol, location)
+                            if shared != 0 or mutable_borrow != 0
+                                return swanc_ownership_fail(workspace, 11, event_index, symbol, location)
+                            workspace[base + 2] = 1
+                        else
+                            if kind == 6
+                                if shared == 0
+                                    return swanc_ownership_fail(workspace, 12, event_index, symbol, location)
+                                workspace[base + 1] = shared - 1
+                            else
+                                if kind == 7
+                                    if mutable_borrow == 0
+                                        return swanc_ownership_fail(workspace, 13, event_index, symbol, location)
+                                    workspace[base + 2] = 0
+                                else
+                                    if kind == 8
+                                        if owner == 0
+                                            return swanc_ownership_fail(workspace, 5, event_index, symbol, location)
+                                        if owner == 2
+                                            return swanc_ownership_fail(workspace, 6, event_index, symbol, location)
+                                        if owner == 3
+                                            return swanc_ownership_fail(workspace, 7, event_index, symbol, location)
+                                        if shared != 0 or mutable_borrow != 0
+                                            return swanc_ownership_fail(workspace, 14, event_index, symbol, location)
+                                        workspace[base] = 2
+                                    else
+                                        if kind == 9
+                                            if owner == 0
+                                                return swanc_ownership_fail(workspace, 5, event_index, symbol, location)
+                                            if owner == 2
+                                                return swanc_ownership_fail(workspace, 6, event_index, symbol, location)
+                                            if owner == 3
+                                                return swanc_ownership_fail(workspace, 7, event_index, symbol, location)
+                                            if shared != 0 or mutable_borrow != 0
+                                                return swanc_ownership_fail(workspace, 15, event_index, symbol, location)
+                                            workspace[base] = 3
+                                        else
+                                            return swanc_ownership_fail(workspace, 2, event_index, symbol, location)
+    event_index = event_index + 1
+
+    var symbol_index = 0
+    while symbol_index < symbol_count
+        let base = 4 + symbol_index * 4
+        if workspace[base + 1] != 0 or workspace[base + 2] != 0
+            return swanc_ownership_fail(workspace, 16, event_count, symbol_index, 0)
+        symbol_index = symbol_index + 1
+    return 0
+out
