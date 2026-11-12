@@ -9,7 +9,8 @@ fn swanc_ir_optimize(instructions: u32_array, instruction_count: int, workspace:
         workspace[0] = 13
         workspace[1] = 0
         return -5
-    if swanc_ir_verify(instructions, instruction_count, 0, workspace) != 0:
+    let no_parameter_types = array_unchecked(1)
+    if swanc_ir_verify(instructions, instruction_count, no_parameter_types, 0, workspace) != 0:
         return -1
     if swanc_ir_constant_fold(instructions, instruction_count, workspace, capacity) != 0:
         workspace[0] = 11
@@ -19,7 +20,7 @@ fn swanc_ir_optimize(instructions: u32_array, instruction_count: int, workspace:
         workspace[0] = 12
         workspace[1] = 0
         return -3
-    if swanc_ir_verify(instructions, instruction_count, 0, workspace) != 0:
+    if swanc_ir_verify(instructions, instruction_count, no_parameter_types, 0, workspace) != 0:
         return -4
     return 0
 
