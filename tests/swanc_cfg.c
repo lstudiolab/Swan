@@ -35,7 +35,10 @@ static int valid_graph(void) {
     return 0;
 }
 int main(void) {
+    fprintf(stderr, "cfg-test-start\n");
+    fprintf(stderr, "valid-start\n");
     if (valid_graph()) return 1;
+    fprintf(stderr, "valid-done\n");
     uint32_t g[20] = {0};
     block(g,0,RETURN,0,0,0,0);
     block(g,1,RETURN,0,0,0,0);
