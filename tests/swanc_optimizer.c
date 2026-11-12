@@ -67,7 +67,7 @@ int main(void) {
         );
         if (status != 0) {
             fprintf(stderr, "optimizer failed: status=%lld diagnostic=%u at instruction=%u\n",
-                    (long long)status, workspace[0], workspace[1]);
+                    (long long)status, workspace[0], workspace[1], instructions[0], instructions[1], instructions[2]);
             return 1;
         }
         for (uint32_t i = 0; i < ADDITIONS; ++i) {
