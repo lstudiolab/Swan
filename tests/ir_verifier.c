@@ -111,8 +111,23 @@ static int rejects_bad_terminator(void){
     swan_ir_destroy(&m);
     return status;
 }
+static int builder_guards(void){
+    SwanIRModule m={0};
+    if(swan_ir_add_function(NULL,"bad",SWAN_IR_I32,NULL,0))return 70;
+    if(swan_ir_add_function(&m,"bad",SWAN_IR_I32,NULL,1))return 71;
+    if(swan_ir_add_function(&m,"",SWAN_IR_I32,NULL,0))return 72;
+    if(swan_ir_add_block(NULL,"bad"))return 73;
+    if(swan_ir_add_inst(NULL,NULL,(SwanIRInst){0}))return 74;
+    void *storage=NULL;size_t capacity=0;
+    if(swan_ir_reserve(&storage,&capacity,SIZE_MAX,2))return 75;
+    if(storage||capacity)return 76;
+    swan_ir_destroy(NULL);
+    swan_ir_destroy(&m);
+    return 0;
+}
 int main(void){
-    int status=valid_scalar_and_call();if(status)return status;
+    int status=builder_guards();if(status)return status;
+    status=valid_scalar_and_call();if(status)return status;
     status=rejects_float_arithmetic();if(status)return status;
     status=rejects_late_phi();if(status)return status;
     status=rejects_unused_load_operand();if(status)return status;
