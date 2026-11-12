@@ -43,6 +43,28 @@ static int valid_scalar_and_call(void){
     swan_ir_destroy(&m);
     return status;
 }
+static int rejects_bad_call_signature(void){
+    SwanIRModule m={0};
+    SwanIRFunction *callee=swan_ir_add_function(&m,"identity",SWAN_IR_I32,
+        (SwanIRType[]){SWAN_IR_I32},1);
+    SwanIRFunction *caller=swan_ir_add_function(&m,"main",SWAN_IR_I32,NULL,0);
+    if(!callee||!caller)return 15;
+    callee->external=true;
+    SwanIRBlock *entry=swan_ir_add_block(caller,"entry");
+    if(!entry)return 16;
+    SwanIRInst constant={0};constant.op=SWAN_IR_CONST;
+    constant.type=SWAN_IR_I64;constant.immediate=42;
+    uint32_t argument=swan_ir_add_inst(caller,entry,constant);
+    SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_I32;
+    call.symbol="identity";call.incoming=malloc(sizeof(*call.incoming));
+    if(!call.incoming)return 17;
+    call.incoming[0]=(SwanIRIncoming){argument,0};call.incoming_count=1;
+    uint32_t result=swan_ir_add_inst(caller,entry,call);
+    if(!result||!swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}))return 18;
+    int status=expect_invalid(&m,"call argument type mismatch","call argument type mismatch");
+    swan_ir_destroy(&m);
+    return status;
+}
 static int rejects_float_arithmetic(void){
     SwanIRModule m={0};SwanIRFunction *f=swan_ir_add_function(&m,"main",SWAN_IR_F32,NULL,0);
     SwanIRBlock *b=f?swan_ir_add_block(f,"entry"):NULL;
@@ -128,6 +150,7 @@ static int builder_guards(void){
 int main(void){
     int status=builder_guards();if(status)return status;
     status=valid_scalar_and_call();if(status)return status;
+    status=rejects_bad_call_signature();if(status)return status;
     status=rejects_float_arithmetic();if(status)return status;
     status=rejects_late_phi();if(status)return status;
     status=rejects_unused_load_operand();if(status)return status;
