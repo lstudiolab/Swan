@@ -124,11 +124,8 @@ fn swanc_emit(tokens: u32_array, capacity: int, count: int, workspace: u32_array
     return count + 1
 
 out
-fn swanc_fail(diagnostic: u32_array, code: int, offset: int, line: int, column: int) -> int:
+fn swanc_fail(diagnostic: u32_array, code: int) -> int:
     diagnostic[0] = code
-    diagnostic[1] = offset
-    diagnostic[2] = line
-    diagnostic[3] = column
     return 0 - code
 
 out
@@ -140,7 +137,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
     # 4 indentation depth, 5 inconsistent indentation, 6 malformed number,
     # 7 unterminated/invalid string, 8 invalid escape, 9 invalid source size.
     if source_length < 0 or token_capacity < 1:
-        return swanc_fail(diagnostic, 9, 0, 1, 1)
+        diagnostic[1] = 0
+        diagnostic[2] = 1
+        diagnostic[3] = 1
+        return swanc_fail(diagnostic, 9)
     var index = 0
     var line = 1
     var column = 1
@@ -161,44 +161,80 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
     while index < source_length:
         diagnostic[0] = 95
         if source[index] < 0 or source[index] > 255:
-            return swanc_fail(diagnostic, 2, index, validation_line, validation_column)
+            diagnostic[1] = index
+            diagnostic[2] = validation_line
+            diagnostic[3] = validation_column
+            return swanc_fail(diagnostic, 2)
         var width = 1
         let first = source[index]
         if first >= 128:
             if first >= 194 and first <= 223:
                 if index + 1 >= source_length:
-                    return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                    diagnostic[1] = index
+                    diagnostic[2] = validation_line
+                    diagnostic[3] = validation_column
+                    return swanc_fail(diagnostic, 1)
                 let second = source[index + 1]
                 if second < 128 or second > 191:
-                    return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                    diagnostic[1] = index
+                    diagnostic[2] = validation_line
+                    diagnostic[3] = validation_column
+                    return swanc_fail(diagnostic, 1)
                 width = 2
             else:
                 if first >= 224 and first <= 239:
                     if index + 2 >= source_length:
-                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        diagnostic[1] = index
+                        diagnostic[2] = validation_line
+                        diagnostic[3] = validation_column
+                        return swanc_fail(diagnostic, 1)
                     let second = source[index + 1]
                     let third = source[index + 2]
                     if second < 128 or second > 191 or third < 128 or third > 191:
-                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        diagnostic[1] = index
+                        diagnostic[2] = validation_line
+                        diagnostic[3] = validation_column
+                        return swanc_fail(diagnostic, 1)
                     if first == 224 and second < 160:
-                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        diagnostic[1] = index
+                        diagnostic[2] = validation_line
+                        diagnostic[3] = validation_column
+                        return swanc_fail(diagnostic, 1)
                     if first == 237 and second >= 160:
-                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        diagnostic[1] = index
+                        diagnostic[2] = validation_line
+                        diagnostic[3] = validation_column
+                        return swanc_fail(diagnostic, 1)
                     width = 3
                 else:
                     if first >= 240 and first <= 244:
                         if index + 3 >= source_length:
-                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                            diagnostic[1] = index
+                            diagnostic[2] = validation_line
+                            diagnostic[3] = validation_column
+                            return swanc_fail(diagnostic, 1)
                         let second = source[index + 1]
                         if second < 128 or second > 191 or source[index + 2] < 128 or source[index + 2] > 191 or source[index + 3] < 128 or source[index + 3] > 191:
-                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                            diagnostic[1] = index
+                            diagnostic[2] = validation_line
+                            diagnostic[3] = validation_column
+                            return swanc_fail(diagnostic, 1)
                         if first == 240 and second < 144:
-                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                            diagnostic[1] = index
+                            diagnostic[2] = validation_line
+                            diagnostic[3] = validation_column
+                            return swanc_fail(diagnostic, 1)
                         if first == 244 and second > 143:
-                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                            diagnostic[1] = index
+                            diagnostic[2] = validation_line
+                            diagnostic[3] = validation_column
+                            return swanc_fail(diagnostic, 1)
                         width = 4
                     else:
-                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        diagnostic[1] = index
+                        diagnostic[2] = validation_line
+                        diagnostic[3] = validation_column
+                        return swanc_fail(diagnostic, 1)
         diagnostic[0] = 96
         if width == 1 and source[index] == 10:
             validation_line = validation_line + 1
@@ -245,7 +281,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             line_start = 0
             if indent_width > diagnostic[5 + indent_depth - 1]:
                 if indent_depth >= 128:
-                    return swanc_fail(diagnostic, 4, index, line, column)
+                    diagnostic[1] = index
+                    diagnostic[2] = line
+                    diagnostic[3] = column
+                    return swanc_fail(diagnostic, 4)
                 diagnostic[5 + indent_depth] = indent_width
                 indent_depth = indent_depth + 1
                 diagnostic[133] = 6
@@ -255,7 +294,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                 diagnostic[137] = column
                 count = swanc_emit(tokens, token_capacity, count, diagnostic)
                 if count < 0:
-                    return swanc_fail(diagnostic, 3, index, line, column)
+                    diagnostic[1] = index
+                    diagnostic[2] = line
+                    diagnostic[3] = column
+                    return swanc_fail(diagnostic, 3)
             else:
                 if indent_width < diagnostic[5 + indent_depth - 1]:
                     while indent_depth > 1 and indent_width < diagnostic[5 + indent_depth - 1]:
@@ -267,9 +309,15 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                         diagnostic[137] = column
                         count = swanc_emit(tokens, token_capacity, count, diagnostic)
                         if count < 0:
-                            return swanc_fail(diagnostic, 3, index, line, column)
+                            diagnostic[1] = index
+                            diagnostic[2] = line
+                            diagnostic[3] = column
+                            return swanc_fail(diagnostic, 3)
                     if indent_width != diagnostic[5 + indent_depth - 1]:
-                        return swanc_fail(diagnostic, 5, index, line, column)
+                        diagnostic[1] = index
+                        diagnostic[2] = line
+                        diagnostic[3] = column
+                        return swanc_fail(diagnostic, 5)
         let byte = source[index]
         if byte == 32 or byte == 9 or byte == 13:
             index = index + 1
@@ -297,7 +345,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             diagnostic[137] = column
             count = swanc_emit(tokens, token_capacity, count, diagnostic)
             if count < 0:
-                return swanc_fail(diagnostic, 3, index, line, column)
+                diagnostic[1] = index
+                diagnostic[2] = line
+                diagnostic[3] = column
+                return swanc_fail(diagnostic, 3)
             index = index + 1
             line = line + 1
             column = 1
@@ -328,7 +379,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             diagnostic[137] = token_column
             count = swanc_emit(tokens, token_capacity, count, diagnostic)
             if count < 0:
-                return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
+                diagnostic[1] = token_start
+                diagnostic[2] = token_line
+                diagnostic[3] = token_column
+                return swanc_fail(diagnostic, 3)
             continue
         if swanc_ascii_digit(byte):
             while index < source_length and swanc_ascii_digit(source[index]):
@@ -343,7 +397,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                     index = index + 1
                     column = column + 1
             if index < source_length and swanc_ident_start(source[index]):
-                return swanc_fail(diagnostic, 6, index, line, column)
+                diagnostic[1] = index
+                diagnostic[2] = line
+                diagnostic[3] = column
+                return swanc_fail(diagnostic, 6)
             diagnostic[133] = kind
             diagnostic[134] = token_start
             diagnostic[135] = index - token_start
@@ -351,7 +408,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             diagnostic[137] = token_column
             count = swanc_emit(tokens, token_capacity, count, diagnostic)
             if count < 0:
-                return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
+                diagnostic[1] = token_start
+                diagnostic[2] = token_line
+                diagnostic[3] = token_column
+                return swanc_fail(diagnostic, 3)
             continue
         if byte == 34 or byte == 39:
             let quote = byte
@@ -366,15 +426,24 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                     closed = 1
                     break
                 if current == 10 or current == 13:
-                    return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
+                    diagnostic[1] = token_start
+                    diagnostic[2] = token_line
+                    diagnostic[3] = token_column
+                    return swanc_fail(diagnostic, 7)
                 if current == 92:
                     index = index + 1
                     column = column + 1
                     if index >= source_length:
-                        return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
+                        diagnostic[1] = token_start
+                        diagnostic[2] = token_line
+                        diagnostic[3] = token_column
+                        return swanc_fail(diagnostic, 7)
                     let escaped = source[index]
                     if escaped != 110 and escaped != 114 and escaped != 116 and escaped != 92 and escaped != 34 and escaped != 39:
-                        return swanc_fail(diagnostic, 8, index, line, column)
+                        diagnostic[1] = index
+                        diagnostic[2] = line
+                        diagnostic[3] = column
+                        return swanc_fail(diagnostic, 8)
                 var width = 1
                 if source[index] >= 240:
                     width = 4
@@ -387,7 +456,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                 index = index + width
                 column = column + 1
             if closed == 0:
-                return swanc_fail(diagnostic, 7, token_start, token_line, token_column)
+                diagnostic[1] = token_start
+                diagnostic[2] = token_line
+                diagnostic[3] = token_column
+                return swanc_fail(diagnostic, 7)
             diagnostic[133] = 4
             diagnostic[134] = token_start
             diagnostic[135] = index - token_start
@@ -395,7 +467,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             diagnostic[137] = token_column
             count = swanc_emit(tokens, token_capacity, count, diagnostic)
             if count < 0:
-                return swanc_fail(diagnostic, 3, token_start, token_line, token_column)
+                diagnostic[1] = token_start
+                diagnostic[2] = token_line
+                diagnostic[3] = token_column
+                return swanc_fail(diagnostic, 3)
             continue
         var kind = 0
         var width = 1
@@ -455,7 +530,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             if byte == 59:
                 kind = 49
         if kind == 0:
-            return swanc_fail(diagnostic, 2, index, line, column)
+            diagnostic[1] = index
+            diagnostic[2] = line
+            diagnostic[3] = column
+            return swanc_fail(diagnostic, 2)
         diagnostic[133] = kind
         diagnostic[134] = index
         diagnostic[135] = width
@@ -463,7 +541,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
         diagnostic[137] = token_column
         count = swanc_emit(tokens, token_capacity, count, diagnostic)
         if count < 0:
-            return swanc_fail(diagnostic, 3, index, line, column)
+            diagnostic[1] = index
+            diagnostic[2] = line
+            diagnostic[3] = column
+            return swanc_fail(diagnostic, 3)
         index = index + width
         column = column + width
     while indent_depth > 1:
@@ -475,7 +556,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
         diagnostic[137] = column
         count = swanc_emit(tokens, token_capacity, count, diagnostic)
         if count < 0:
-            return swanc_fail(diagnostic, 3, source_length, line, column)
+            diagnostic[1] = source_length
+            diagnostic[2] = line
+            diagnostic[3] = column
+            return swanc_fail(diagnostic, 3)
     diagnostic[133] = 0
     diagnostic[134] = source_length
     diagnostic[135] = 0
@@ -483,7 +567,10 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
     diagnostic[137] = column
     count = swanc_emit(tokens, token_capacity, count, diagnostic)
     if count < 0:
-        return swanc_fail(diagnostic, 3, source_length, line, column)
+        diagnostic[1] = source_length
+        diagnostic[2] = line
+        diagnostic[3] = column
+        return swanc_fail(diagnostic, 3)
     diagnostic[0] = 0
     return count
 
