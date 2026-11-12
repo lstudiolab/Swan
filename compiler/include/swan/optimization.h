@@ -135,12 +135,22 @@ static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *m){
     }
     return changed;
 }
-static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
+static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn){
     bool changed=false;
-    for(size_t f=0;f<m->function_count;f++){
-        SwanIRFunction *fn=&m->functions[f];
-        for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
-            SwanIRInst *in=&fn->blocks[b].instructions[i];
+    size_t count=fn->next_value;
+    if(count>SIZE_MAX/sizeof(int64_t)||count>SIZE_MAX/sizeof(SwanIRInst*))return false;
+    unsigned char *known=calloc(count,sizeof(*known));
+    int64_t *values=calloc(count,sizeof(*values));
+    SwanIRInst **definitions=calloc(count,sizeof(*definitions));
+    if(!known||!values||!definitions){free(known);free(values);free(definitions);return false;}
+    for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+        SwanIRInst *in=&fn->blocks[b].instructions[i];
+        if(in->result&&in->result<count)definitions[in->result]=in;
+    }
+    for(uint32_t id=(uint32_t)fn->parameter_count+1;id<fn->next_value;id++){
+        SwanIRInst *in=definitions[id];
+        if(!in)continue;
+        if(in->op==SWAN_IR_CONST){known[id]=1;values[id]=in->immediate;continue;}
             if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
             if(in->op==SWAN_IR_SELECT){
                 if(in->b==in->c){swan_ir_replace_uses(fn,in->result,in->b);changed=true;}
@@ -175,7 +185,17 @@ static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
                 in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=make_all_ones?swan_ir_signed_value(all_ones,bits):(make_one?1:0);changed=true;
             }
         }
+        if(in->op==SWAN_IR_CONST&&in->result){
+            known[id]=1;values[id]=in->immediate;
+        }
     }
+    free(known);free(values);free(definitions);
+    return changed;
+}
+static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
+    bool changed=false;
+    for(size_t f=0;f<m->function_count;f++)
+        changed=swan_ir_algebraic_simplify_function(&m->functions[f])||changed;
     return changed;
 }
 static inline size_t swan_ir_use_count(const SwanIRFunction *fn,uint32_t value){
