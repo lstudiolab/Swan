@@ -38,7 +38,7 @@ fn swanc_ir_emit(instructions: u32_array, capacity: int, state: u32_array, recor
         return -1
     let opcode = record[0]
     let type_id = record[1]
-    if opcode > 25 or type_id > 8:
+    if opcode < 0 or opcode > 25 or type_id < 0 or type_id > 8 or record[2] < 0 or record[3] < 0 or record[4] < 0:
         state[2] = 2
         return -2
     let base = count * 8
@@ -105,7 +105,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
         let a = instructions[base + 3]
         let b = instructions[base + 4]
         let c = instructions[base + 5]
-        if opcode > 25 or type_id > 8:
+        if opcode < 0 or opcode > 25 or type_id < 0 or type_id > 8 or result_id < 0:
             workspace[0] = 2
             workspace[1] = index
             return -2
@@ -185,7 +185,9 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                 return -15
                             let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
                             let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
-                            let type_c = swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result)
+                            var type_c = 0
+                            if c != 0:
+                                type_c = swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result)
                             if type_a < 0 or type_b < 0 or type_c < 0:
                                 workspace[0] = 13
                                 workspace[1] = index
