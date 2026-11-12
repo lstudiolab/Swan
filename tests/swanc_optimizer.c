@@ -102,6 +102,16 @@ static int verifier_contracts(void){
     if(expect_verifier_error(ir,3,14,"phi incoming type"))return 37;
     return 0;
 }
+static int invalid_workspace(void){
+    uint32_t ir[8]={0},ws[8]={0};
+    int64_t status=swan_fn_swanc_ir_optimize(ir,1,ws,1);
+    if(status==0||ws[0]!=13){
+        fprintf(stderr,"undersized workspace: status=%lld diagnostic=%u\n",
+                (long long)status,ws[0]);
+        return 22;
+    }
+    return 0;
+}
 static int invalid_ir(void){
     uint32_t ir[8]={26,0,0,0,0,0,0,0},ws[8]={0};
     if(swan_fn_swanc_ir_optimize(ir,1,ws,2)==0)return 20;
@@ -109,7 +119,7 @@ static int invalid_ir(void){
     return 0;
 }
 int main(void){
-    int s=workload();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_ir();if(s)return s;
+    int s=workload();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
     puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
     return 0;
 }
