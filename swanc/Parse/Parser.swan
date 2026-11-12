@@ -18,9 +18,9 @@ fn swanc_precedence(kind: int) -> int:
     return 0
 
 out
-fn swanc_add_node(nodes: u32_array, capacity: int, state: u32_array, kind: int, token_index: int, left: int, right: int, literal: int) -> int:
+fn swanc_add_node(nodes: u32_array, state: u32_array, kind: int, token_index: int, left: int, right: int, literal: int) -> int:
     let count = state[1]
-    if count < 0 or count >= capacity:
+    if count < 0 or count >= state[3]:
         return -1
     let id = count + 1
     let base = count * 5
@@ -33,7 +33,8 @@ fn swanc_add_node(nodes: u32_array, capacity: int, state: u32_array, kind: int, 
     return id
 
 out
-fn swanc_parse_primary(source: u32_array, tokens: u32_array, token_count: int, nodes: u32_array, node_capacity: int, state: u32_array) -> int:
+fn swanc_parse_primary(source: u32_array, tokens: u32_array, nodes: u32_array, state: u32_array) -> int:
+    let token_count = state[2]
     let position = state[0]
     if position < 0 or position >= token_count:
         return -1
@@ -55,12 +56,12 @@ fn swanc_parse_primary(source: u32_array, tokens: u32_array, token_count: int, n
                 return -2
             i = i + 1
         state[0] = position + 1
-        return swanc_add_node(nodes, node_capacity, state, 1, position, 0, 0, value)
+        return swanc_add_node(nodes, state, 1, position, 0, 0, value)
 
     # Parenthesis token kinds are 28 and 29 in Lexer.swan.
     if kind == 28:
         state[0] = position + 1
-        let inner = swanc_parse_expression(source, tokens, token_count, nodes, node_capacity, state, 1)
+        let inner = swanc_parse_expression(source, tokens, nodes, state, 1)
         if inner < 1 or state[0] >= token_count:
             return -3
         if tokens[state[0] * 5] != 29:
@@ -70,8 +71,9 @@ fn swanc_parse_primary(source: u32_array, tokens: u32_array, token_count: int, n
     return -5
 
 out
-fn swanc_parse_expression(source: u32_array, tokens: u32_array, token_count: int, nodes: u32_array, node_capacity: int, state: u32_array, minimum: int) -> int:
-    var left = swanc_parse_primary(source, tokens, token_count, nodes, node_capacity, state)
+fn swanc_parse_expression(source: u32_array, tokens: u32_array, nodes: u32_array, state: u32_array, minimum: int) -> int:
+    let token_count = state[2]
+    var left = swanc_parse_primary(source, tokens, nodes, state)
     if left < 1:
         return -1
     var running = 1
@@ -83,21 +85,22 @@ fn swanc_parse_expression(source: u32_array, tokens: u32_array, token_count: int
             running = 0
         else:
             state[0] = position + 1
-            let right = swanc_parse_expression(source, tokens, token_count, nodes, node_capacity, state, precedence + 1)
+            let right = swanc_parse_expression(source, tokens, nodes, state, precedence + 1)
             if right < 1:
                 return -2
-            left = swanc_add_node(nodes, node_capacity, state, 4, position, left, right, 0)
+            left = swanc_add_node(nodes, state, 4, position, left, right, 0)
             if left < 1:
                 return -3
     return left
 
 out
-fn swanc_parse(source: u32_array, tokens: u32_array, token_count: int, nodes: u32_array, node_capacity: int, state: u32_array) -> int:
-    if token_count < 2 or node_capacity < 1:
+fn swanc_parse(source: u32_array, tokens: u32_array, nodes: u32_array, state: u32_array) -> int:
+    let token_count = state[2]
+    if token_count < 2 or state[3] < 1:
         return -1
     state[0] = 0
     state[1] = 0
-    let root = swanc_parse_expression(source, tokens, token_count, nodes, node_capacity, state, 1)
+    let root = swanc_parse_expression(source, tokens, nodes, state, 1)
     if root < 1:
         return -2
 
