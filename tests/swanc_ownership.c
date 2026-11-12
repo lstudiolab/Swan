@@ -41,6 +41,8 @@ int main(void){
  int r=valid();if(r)return r;r=negative();if(r)return r;
  uint32_t w[8]={0},e[4]={0};
  if(swan_fn_swanc_ownership_analyze(e,0,2,w,11)!=-1||w[0]!=1)return 30;
+ memset(w,0,sizeof(w));
+ if(swan_fn_swanc_ownership_analyze(e,0,0,w,3)!=-1||w[0]!=0)return 31;
  puts("Compiler 2 ownership verifier passed: ownership, shared/exclusive borrowing, moves, drops, use-after-move/drop, conflicts, and malformed events.");
  return 0;
 }
