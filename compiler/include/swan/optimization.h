@@ -439,7 +439,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                             in->immediate=swan_ir_signed_value((uint64_t)in->immediate&swan_ir_width_mask(bits),bits);
                         }else (void)swan_ir_fold_instruction(&module->functions[f],in);
                     }
-        return swan_ir_verify(module,error,cap);
+        return swan_ir_verify_pass_result(module,error,cap);
     }
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify_pass_result(module,error,cap);}
