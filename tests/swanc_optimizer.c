@@ -1,18 +1,27 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
+
 #define IR_INSTRUCTIONS 256
 #define CONSTANTS 128
 #define ROUNDS 128
-extern int64_t swan_fn_swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, uint32_t *, int64_t, uint32_t *);
+#define WORKSPACE_WORDS (2 * (IR_INSTRUCTIONS + 1) + 2)
+
+extern int64_t swan_fn_swanc_ir_optimize(
+    uint32_t *instructions,
+    int64_t instruction_count,
+    uint32_t *workspace,
+    int64_t capacity
+);
+
 int main(void) {
     uint32_t instructions[IR_INSTRUCTIONS * 8];
-    uint32_t known[IR_INSTRUCTIONS + 1], values[IR_INSTRUCTIONS + 1], diagnostic[2];
+    uint32_t workspace[WORKSPACE_WORDS];
+
     for (int round = 0; round < ROUNDS; ++round) {
         memset(instructions, 0, sizeof(instructions));
-        memset(known, 0, sizeof(known));
-        memset(values, 0, sizeof(values));
-        memset(diagnostic, 0, sizeof(diagnostic));
+        memset(workspace, 0, sizeof(workspace));
+
         for (uint32_t i = 0; i < CONSTANTS; ++i) {
             uint32_t base = i * 8;
             instructions[base] = 0;
@@ -28,9 +37,13 @@ int main(void) {
             instructions[base + 3] = i * 2 + 1;
             instructions[base + 4] = i * 2 + 2;
         }
-        int64_t status = swan_fn_swanc_ir_optimize(instructions, IR_INSTRUCTIONS, known, values, IR_INSTRUCTIONS + 1, diagnostic);
+
+        int64_t status = swan_fn_swanc_ir_optimize(
+            instructions, IR_INSTRUCTIONS, workspace, IR_INSTRUCTIONS + 1
+        );
         if (status != 0) {
-            fprintf(stderr, "optimizer failed: status=%lld diagnostic=%u at instruction=%u\n", (long long)status, diagnostic[0], diagnostic[1]);
+            fprintf(stderr, "optimizer failed: status=%lld diagnostic=%u at instruction=%u\n",
+                    (long long)status, workspace[0], workspace[1]);
             return 1;
         }
         for (uint32_t i = 0; i < CONSTANTS; ++i) {
