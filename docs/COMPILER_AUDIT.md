@@ -9,11 +9,14 @@ This document records the implementation boundary visible in the current source 
 - Swan-authored SIL builder and optimization stages in `compiler/sil/`, compiled into the final compiler by `build.sh`.
 - UTF-8-aware, indentation-sensitive lexer and parser.
 - AST semantic analysis, standard-library loading, C header declaration import, and function reachability.
-- Typed, target-independent SSA IR with a verifier and general AST-to-IR lowering.
+- Typed, target-independent SSA IR with checked storage growth, overflow guards, SSA/dominance verification, operation-specific operand contracts, integer-only arithmetic typing, and leading-PHI validation.
 - Typed-IR optimizer with constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, LICM, and worklist DCE.
 - Shared SVM lowering/verification/optimization core feeding Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
 - Optional, explicit LLVM IR bridge for target triples supported by the installed toolchain.
 - x86-64 AST compatibility backend for supported features not yet covered by typed IR.
+
+
+The typed-IR verifier rejects malformed function/block storage, invalid operation/result combinations, pointer constants, non-integer arithmetic, misplaced PHIs, invalid call signatures, unused operands on fixed-arity operations, and malformed terminator fields. Dedicated negative tests cover these boundaries; builder APIs also reject null inputs and allocation-size overflow before mutating the IR.
 
 ## Source lowering
 
