@@ -37,6 +37,7 @@ static int workload(void){
     return 0;
 }
 static int constant_fold_overflow(void){
+    fprintf(stderr,"constant-fold overflow regression: begin\n");
     uint32_t ir[13*8]={0},ws[3*14+2]={0};
     put(ir,0,22,8,1,0,0,0,0);
     put(ir,1,0,4,2,0,0,0,UINT32_MAX);
@@ -51,10 +52,12 @@ static int constant_fold_overflow(void){
     put(ir,10,0,4,8,0,0,0,UINT32_MAX-1u);
     put(ir,11,1,4,9,8,3,0,0);       /* exact UINT32_MAX result */
     put(ir,12,24,0,0,1,9,0,0);
+    fprintf(stderr,"constant-fold overflow regression: invoking optimizer\n");
     if(swan_fn_swanc_ir_optimize(ir,13,ws,14)!=0){
         fprintf(stderr,"overflow folding test failed: diagnostic=%u at=%u\n",ws[0],ws[1]);
         return 40;
     }
+    fprintf(stderr,"constant-fold overflow regression: optimizer returned\n");
     if(ir[3*8]!=1||ir[5*8]!=2||ir[6*8]!=3){
         fprintf(stderr,"overflowing i32 operation was folded\n");
         return 41;
