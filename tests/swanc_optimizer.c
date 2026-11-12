@@ -4,10 +4,10 @@
 #define IR_INSTRUCTIONS 256
 #define CONSTANTS 128
 #define ROUNDS 128
-extern int64_t swanc_ir_optimize(int64_t *, int64_t, int64_t *, int64_t *, int64_t, int64_t *);
+extern int64_t swan_fn_swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, uint32_t *, int64_t, uint32_t *);
 int main(void) {
-    int64_t instructions[IR_INSTRUCTIONS * 8];
-    int64_t known[IR_INSTRUCTIONS + 1], values[IR_INSTRUCTIONS + 1], diagnostic[2];
+    uint32_t instructions[IR_INSTRUCTIONS * 8];
+    uint32_t known[IR_INSTRUCTIONS + 1], values[IR_INSTRUCTIONS + 1], diagnostic[2];
     for (int round = 0; round < ROUNDS; ++round) {
         memset(instructions, 0, sizeof(instructions));
         memset(known, 0, sizeof(known));
