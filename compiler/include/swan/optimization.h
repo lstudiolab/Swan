@@ -158,42 +158,48 @@ static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn,bool *
         SwanIRInst *in=definitions[id];
         if(!in)continue;
         if(in->op==SWAN_IR_CONST){known[id]=1;values[id]=in->immediate;continue;}
-            if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
-            if(in->op==SWAN_IR_SELECT){
-                if(in->b==in->c){swan_ir_replace_uses(fn,in->result,in->b);changed=true;}
-                continue;
-            }
-            int64_t a=0,z=0;bool ca=swan_ir_constant_lookup(fn,in->a,&a,known,values),cz=swan_ir_constant_lookup(fn,in->b,&z,known,values);
-            uint32_t replacement=0;bool make_zero=false,make_one=false,make_all_ones=false;
-            unsigned bits=swan_ir_integer_bits(in->type);
-            uint64_t all_ones=swan_ir_width_mask(bits);
-            if(in->a==in->b&&(in->op==SWAN_IR_SUB||in->op==SWAN_IR_XOR)){
-                make_zero=true;
-            }else if(cz&&z==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_SUB||in->op==SWAN_IR_OR||
-                    in->op==SWAN_IR_XOR||in->op==SWAN_IR_SHL||in->op==SWAN_IR_LSHR||in->op==SWAN_IR_ASHR))replacement=in->a;
-            else if(ca&&a==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR))replacement=in->b;
-            else if(cz&&z==1&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_SDIV||in->op==SWAN_IR_UDIV))replacement=in->a;
-            else if(ca&&a==1&&in->op==SWAN_IR_MUL)replacement=in->b;
-            else if(cz&&z==1&&(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM))make_zero=true;
-            else if(ca&&a==0&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_AND))make_zero=true;
-            else if(cz&&z==0&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_AND))make_zero=true;
-            else if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->a;
-            else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->b;
-            else if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_all_ones=true;
-            else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_all_ones=true;
-            else if(in->op==SWAN_IR_ICMP_EQ&&in->a==in->b)make_one=true;
-            else if(in->op==SWAN_IR_ICMP_NE&&in->a==in->b)make_zero=true;
-            else if(in->op==SWAN_IR_ICMP_SLT&&in->a==in->b)make_zero=true;
-            else if(in->op==SWAN_IR_ICMP_SGT&&in->a==in->b)make_zero=true;
-            else if(in->op==SWAN_IR_ICMP_SLE&&in->a==in->b)make_one=true;
-            else if(in->op==SWAN_IR_ICMP_SGE&&in->a==in->b)make_one=true;
-            if(replacement){swan_ir_replace_uses(fn,in->result,replacement);changed=true;}
-            else if(make_zero||make_one||make_all_ones){
-                in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=make_all_ones?swan_ir_signed_value(all_ones,bits):(make_one?1:0);changed=true;
-            }
+        if(!in->result||!swan_ir_pure_cse_op(in->op))continue;
+        if(in->op==SWAN_IR_SELECT){
+            if(in->b==in->c){swan_ir_replace_uses(fn,in->result,in->b);changed=true;}
+            continue;
         }
-        if(in->op==SWAN_IR_CONST&&in->result){
-            known[id]=1;values[id]=in->immediate;
+        int64_t a=0,z=0;
+        bool ca=swan_ir_constant_lookup(fn,in->a,&a,known,values);
+        bool cz=swan_ir_constant_lookup(fn,in->b,&z,known,values);
+        uint32_t replacement=0;
+        bool make_zero=false,make_one=false,make_all_ones=false;
+        unsigned bits=swan_ir_integer_bits(in->type);
+        uint64_t all_ones=swan_ir_width_mask(bits);
+        if(in->a==in->b&&(in->op==SWAN_IR_SUB||in->op==SWAN_IR_XOR)){
+            make_zero=true;
+        }else if(cz&&z==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_SUB||in->op==SWAN_IR_OR||
+                in->op==SWAN_IR_XOR||in->op==SWAN_IR_SHL||in->op==SWAN_IR_LSHR||in->op==SWAN_IR_ASHR))replacement=in->a;
+        else if(ca&&a==0&&(in->op==SWAN_IR_ADD||in->op==SWAN_IR_OR||in->op==SWAN_IR_XOR))replacement=in->b;
+        else if(cz&&z==1&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_SDIV||in->op==SWAN_IR_UDIV))replacement=in->a;
+        else if(ca&&a==1&&in->op==SWAN_IR_MUL)replacement=in->b;
+        else if(cz&&z==1&&(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM))make_zero=true;
+        else if(ca&&a==0&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_AND))make_zero=true;
+        else if(cz&&z==0&&(in->op==SWAN_IR_MUL||in->op==SWAN_IR_AND))make_zero=true;
+        else if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->a;
+        else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->b;
+        else if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_all_ones=true;
+        else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_all_ones=true;
+        else if(in->op==SWAN_IR_ICMP_EQ&&in->a==in->b)make_one=true;
+        else if(in->op==SWAN_IR_ICMP_NE&&in->a==in->b)make_zero=true;
+        else if(in->op==SWAN_IR_ICMP_SLT&&in->a==in->b)make_zero=true;
+        else if(in->op==SWAN_IR_ICMP_SGT&&in->a==in->b)make_zero=true;
+        else if(in->op==SWAN_IR_ICMP_SLE&&in->a==in->b)make_one=true;
+        else if(in->op==SWAN_IR_ICMP_SGE&&in->a==in->b)make_one=true;
+        if(replacement){
+            swan_ir_replace_uses(fn,in->result,replacement);
+            changed=true;
+        }else if(make_zero||make_one||make_all_ones){
+            in->op=SWAN_IR_CONST;
+            in->a=in->b=in->c=0;
+            in->immediate=make_all_ones?swan_ir_signed_value(all_ones,bits):(make_one?1:0);
+            known[id]=1;
+            values[id]=in->immediate;
+            changed=true;
         }
     }
     free(known);free(values);free(definitions);
