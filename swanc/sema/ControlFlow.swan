@@ -1,3 +1,15 @@
-# Semantic Control-Flow Checks
-# Validate definite initialization, return completeness, unreachable code,
-# break/continue targets, and control-flow-sensitive ownership constraints.
+# Swan Compiler 2 — Control-flow analysis
+#
+# CFG.swan provides the executable, allocation-free graph verifier.
+# Semantic control-flow analysis builds on verified CFGs to check:
+# - definite initialization at every join,
+# - all-path return completeness,
+# - break/continue target legality,
+# - reachability and unreachable statements,
+# - path-sensitive ownership and borrow constraints.
+#
+# Current status: graph shape and reachability verification are implemented
+# in CFG.swan and tested. AST-to-CFG construction, data-flow fixed points,
+# definite initialization, return analysis, and ownership event generation
+# remain unimplemented. Do not treat a structurally valid graph as proof that
+# its source program is semantically valid.
