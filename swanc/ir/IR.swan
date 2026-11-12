@@ -106,7 +106,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                 diagnostic[1] = index
                 return -4
         if opcode == 0:
-            if type_id == 0:
+            if result_id == 0:
                 diagnostic[0] = 5
                 diagnostic[1] = index
                 return -5
