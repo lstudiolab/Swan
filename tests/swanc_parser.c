@@ -9,6 +9,17 @@ extern int64_t swan_fn_swanc_lex_test(
     uint32_t *source, int64_t source_length,
     uint32_t *tokens, uint32_t *diagnostic);
 
+static int lexer_smoke(void) {
+    uint32_t source[] = {50, 43, 51};
+    uint32_t tokens[20] = {0}, diagnostic[4] = {0};
+    fprintf(stderr, "lexer-call-begin\\n");
+    int64_t count = swan_fn_swanc_lex_test(source, 3, tokens, diagnostic);
+    fprintf(stderr, "lexer-call-end: %lld\\n", (long long)count);
+    if (count != 4 || tokens[0] != 2 || tokens[5] != 33 ||
+        tokens[10] != 2 || tokens[15] != 0) return 9;
+    return 0;
+}
+
 static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     uint32_t source[128] = {0};
     uint32_t tokens[128 * 5] = {0};
@@ -92,7 +103,9 @@ static int parentheses_and_rejections(void) {
 
 int main(void) {
     fprintf(stderr, "parser-regression-start\\n");
-    int status = arithmetic_precedence();
+    int status = lexer_smoke();
+    if (status) return status;
+    status = arithmetic_precedence();
     if (status) return status;
     status = left_associativity();
     if (status) return status;
