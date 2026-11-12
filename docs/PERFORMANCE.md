@@ -61,6 +61,14 @@ Compiled execution no longer performs IR instruction dispatch. Each selected bac
 
 The typed-IR native backends currently use conservative value/stack slots and are not yet equivalent to a global liveness-driven register allocator with spill insertion and instruction scheduling.
 
+## Ownership lifetime lowering
+
+The x86-64 compatibility backend now initializes eligible heap-array handles to null before control flow can bypass their declarations. Generated cleanup checks each handle and clears it after release, making cleanup safe across conditional allocation and idempotent across return and epilogue paths.
+
+For non-escaping local arrays, a conservative AST liveness walk emits release after the final top-level statement that can reference the array. Branches and loops are treated as one enclosing statement, so a value used inside either construct remains live until that construct completes. Small fixed-size non-escaping arrays continue to use stack-frame storage and do not require a heap free.
+
+This is an incremental lifetime optimization, not the completed Rust-style ownership system. Escaping arrays are deliberately excluded from this release pass until ownership transfer and borrow checking are represented explicitly. The legacy manual/store syntax and SAMC identifiers remain and are scheduled for removal in the ownership-model migration. The typed-IR backends do not yet share the AST array ownership implementation.
+
 ## Profiling and measurement
 
 The CLI supports `--profile` and reports stage durations for source reading, lexing, parsing, imports, semantic analysis, reachability, IR generation, IR optimization, code generation, assembly output, native linking, and execution when applicable.

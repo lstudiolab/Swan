@@ -28,11 +28,11 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 
 ## Memory and ownership
 
-- Ordinary eligible local arrays use compiler-generated automatic cleanup (SAMC); no runtime reference counting is added.
-- Small fixed-size non-escaping arrays have a native stack-frame allocation fast path.
-- `manual var` is a strict, local single-owner form for direct array allocations. `free(owner)` is parsed as a dedicated statement and validated by semantic ownership analysis. The checker diagnoses leaks, double-free, use-after-free, alias/copy, passing/returning the owner, and incompatible branch/loop ownership states.
-- Manual ownership transfer, borrowing, destructors, and general manual heap objects are not implemented.
-- Legacy `store` is retained as compatibility syntax and does not opt into strict `manual var` analysis.
+- Eligible local arrays use compiler-generated cleanup without runtime reference counting. Small fixed-size, non-escaping arrays use native stack-frame storage.
+- The x86-64 AST compatibility backend now null-initializes eligible heap-array handles before conditional control flow, null-checks and clears handles during cleanup, and releases non-escaping arrays after their final top-level use when the AST liveness walk proves that no later statement references them.
+- Branches and loops are treated conservatively as enclosing statements for last-use analysis. Early returns and the function epilogue can both emit cleanup safely because released handles are cleared.
+- Escaping arrays remain excluded from last-use cleanup; ownership transfer and explicit borrow semantics are not yet implemented. The typed-IR backends do not yet share this array lifetime implementation.
+- Legacy `manual var` and `store` syntax and SAMC identifiers still exist. Their removal requires a complete ownership-state and borrow/move model; this change does not claim that migration is complete.
 
 ## Backend status
 
