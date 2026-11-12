@@ -15,9 +15,9 @@
 # blocks are reported through workspace[3], not rejected: later reachability
 # and dead-block passes decide whether they can be removed.
 
-fn swanc_cfg_fail(workspace: u32_array, code: int, block: int, observed: int) -> int:
+fn swanc_cfg_fail(workspace: u32_array, code: int, block_id: int, observed: int) -> int:
     workspace[0] = code
-    workspace[1] = block
+    workspace[1] = block_id
     workspace[2] = observed
     return 0 - code
 
