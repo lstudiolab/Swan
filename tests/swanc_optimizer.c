@@ -53,6 +53,55 @@ static int edge_cases(void){
     if(ir[9*8]!=0||ir[10*8]!=0||ir[11*8]!=0){fprintf(stderr,"cascading DCE failed\n");return 13;}
     return 0;
 }
+static int expect_verifier_error(uint32_t *ir,int count,uint32_t expected,const char *name){
+    uint32_t ws[3*17+2]={0};
+    int64_t status=swan_fn_swanc_ir_optimize(ir,count,ws,count+1);
+    if(status==0||ws[0]!=expected){
+        fprintf(stderr,"%s: status=%lld diagnostic=%u expected=%u\n",
+                name,(long long)status,ws[0],expected);
+        return 1;
+    }
+    return 0;
+}
+static int verifier_contracts(void){
+    uint32_t ir[16*8]={0};
+    put(ir,0,0,6,1,0,0,0,0x3f800000);
+    put(ir,1,0,6,2,0,0,0,0x40000000);
+    put(ir,2,1,6,3,1,2,0,0);
+    if(expect_verifier_error(ir,3,10,"floating-point arithmetic"))return 30;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,4,1,0,0,0,4);put(ir,1,0,4,2,0,0,0,5);
+    put(ir,2,1,5,3,1,2,0,0);
+    if(expect_verifier_error(ir,3,14,"binary operand type mismatch"))return 31;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,1,4,1,2,2,0,0);
+    if(expect_verifier_error(ir,1,13,"use before definition"))return 32;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,4,1,0,0,0,4);put(ir,1,23,4,2,1,0,0,0);
+    if(expect_verifier_error(ir,2,14,"load requires pointer"))return 33;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,4,1,0,0,0,1);put(ir,1,0,4,2,0,0,0,2);
+    put(ir,2,0,4,3,0,0,0,3);put(ir,3,20,4,4,1,2,3,0);
+    if(expect_verifier_error(ir,4,14,"select condition type"))return 34;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,22,4,1,0,0,0,0);
+    if(expect_verifier_error(ir,1,6,"alloca result type"))return 35;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,25,4,1,0,1,0,0);
+    if(expect_verifier_error(ir,1,16,"call argument layout"))return 36;
+
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,4,1,0,0,0,1);put(ir,1,0,4,2,0,0,0,2);
+    put(ir,2,21,5,3,1,2,0,0);
+    if(expect_verifier_error(ir,3,14,"phi incoming type"))return 37;
+    return 0;
+}
 static int invalid_ir(void){
     uint32_t ir[8]={26,0,0,0,0,0,0,0},ws[8]={0};
     if(swan_fn_swanc_ir_optimize(ir,1,ws,2)==0)return 20;
@@ -60,7 +109,7 @@ static int invalid_ir(void){
     return 0;
 }
 int main(void){
-    int s=workload();if(s)return s;s=edge_cases();if(s)return s;s=invalid_ir();if(s)return s;
+    int s=workload();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=invalid_ir();if(s)return s;
     puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; side effects, trapping operations, calls, cascading DCE, and invalid IR checked.");
     return 0;
 }
