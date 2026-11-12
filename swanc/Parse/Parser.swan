@@ -18,21 +18,6 @@ fn swanc_precedence(kind: int) -> int:
     return 0
 
 out
-fn swanc_add_node(nodes: u32_array, state: u32_array, kind: int, token_index: int, left: int, right: int, literal: int) -> int:
-    let count = state[1]
-    if count < 0 or count >= state[3]:
-        return -1
-    let id = count + 1
-    let base = count * 5
-    nodes[base] = kind
-    nodes[base + 1] = token_index
-    nodes[base + 2] = left
-    nodes[base + 3] = right
-    nodes[base + 4] = literal
-    state[1] = id
-    return id
-
-out
 fn swanc_parse_primary(source: u32_array, tokens: u32_array, nodes: u32_array, state: u32_array) -> int:
     let token_count = state[2]
     let position = state[0]
@@ -56,7 +41,17 @@ fn swanc_parse_primary(source: u32_array, tokens: u32_array, nodes: u32_array, s
                 return -2
             i = i + 1
         state[0] = position + 1
-        return swanc_add_node(nodes, state, 1, position, 0, 0, value)
+        let node_count = state[1]
+        if node_count < 0 or node_count >= state[3]:
+            return -1
+        let node_base = node_count * 5
+        nodes[node_base] = 1
+        nodes[node_base + 1] = position
+        nodes[node_base + 2] = 0
+        nodes[node_base + 3] = 0
+        nodes[node_base + 4] = value
+        state[1] = node_count + 1
+        return node_count + 1
 
     # Parenthesis token kinds are 28 and 29 in Lexer.swan.
     if kind == 28:
@@ -88,9 +83,17 @@ fn swanc_parse_expression(source: u32_array, tokens: u32_array, nodes: u32_array
             let right = swanc_parse_expression(source, tokens, nodes, state, precedence + 1)
             if right < 1:
                 return -2
-            left = swanc_add_node(nodes, state, 4, position, left, right, 0)
-            if left < 1:
+            let node_count = state[1]
+            if node_count < 0 or node_count >= state[3]:
                 return -3
+            let node_base = node_count * 5
+            nodes[node_base] = 4
+            nodes[node_base + 1] = position
+            nodes[node_base + 2] = left
+            nodes[node_base + 3] = right
+            nodes[node_base + 4] = 0
+            state[1] = node_count + 1
+            left = node_count + 1
     return left
 
 out
