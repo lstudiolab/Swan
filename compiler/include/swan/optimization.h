@@ -186,7 +186,7 @@ static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *module,b
         }
         for(size_t i=0;i<bucket_count;i++)heads[i]=SIZE_MAX;
         for(size_t id=0;id<value_count;id++)replacement[id]=(uint32_t)id;
-        size_t entry_count=0;
+        size_t entry_count=0;bool function_changed=false;
         for(size_t b=0;b<fn->block_count;b++){
             SwanIRBlock *bb=&fn->blocks[b];
             for(size_t i=0;i<bb->instruction_count;i++){
@@ -208,7 +208,7 @@ static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *module,b
                             swan_ir_block_dominates(fn,entry->block,b);
                         if(dominates){
                             replacement[in->result]=entry->result;
-                            changed=true;found=true;break;
+                            changed=true;function_changed=true;found=true;break;
                         }
                     }
                     candidate=entry->next;
@@ -222,7 +222,7 @@ static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *module,b
                 }
             }
         }
-        if(changed){
+        if(function_changed){
             for(size_t b=0;b<fn->block_count;b++){
                 SwanIRBlock *bb=&fn->blocks[b];
                 for(size_t i=0;i<bb->instruction_count;i++){
