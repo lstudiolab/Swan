@@ -86,7 +86,9 @@ static inline void swan_ir_replace_uses(SwanIRFunction *fn,uint32_t from,uint32_
         SwanIRBlock *bb=&fn->blocks[b];
         for(size_t i=0;i<bb->instruction_count;i++){
             SwanIRInst *in=&bb->instructions[i];
-            if(in->a==from)in->a=to;if(in->b==from)in->b=to;if(in->c==from)in->c=to;
+            if(in->a==from)in->a=to;
+            if(in->b==from)in->b=to;
+            if(in->c==from)in->c=to;
             for(size_t k=0;k<in->incoming_count;k++)if(in->incoming[k].value==from)in->incoming[k].value=to;
         }
         if(bb->terminator.value==from)bb->terminator.value=to;
