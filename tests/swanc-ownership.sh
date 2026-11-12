@@ -11,7 +11,7 @@ ASSEMBLY="$ROOT/build/swanc-ownership-module.s"
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
 fn main() -> int:
-    return swanc_ownership_analyze(array_unchecked(4), 0, 0, array_unchecked(4), 4)
+    return swanc_ownership_analyze(array_unchecked(4), 0, 0, 0, array_unchecked(4), 4)
 out
 SWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
