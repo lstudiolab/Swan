@@ -224,6 +224,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                     type_b = workspace[capacity + b - parameter_count + 1]
                             var type_c = 0
                             if c != 0:
+                                type_c = -1
                                 if c >= 1 and c < expected_result:
                                     if c <= parameter_count:
                                         type_c = 0
