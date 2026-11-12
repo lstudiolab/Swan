@@ -72,11 +72,29 @@ fn swanc_ir_defined_before(instructions: u32_array, instruction_index: int, valu
     return false
 
 out
-fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_count: int, diagnostic: u32_array) -> int:
-    if instruction_count < 0 or parameter_count < 0 or instruction_count > 268435455:
-        diagnostic[0] = 1
-        diagnostic[1] = 0
+fn swanc_ir_operand_type(workspace: u32_array, capacity: int, parameter_count: int, value_id: int, next_result: int) -> int:
+    if value_id < 1 or value_id >= next_result:
         return -1
+    if value_id <= parameter_count:
+        return 0
+    let slot = value_id - parameter_count - 1
+    return workspace[capacity + slot + 2]
+
+out
+fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_count: int, workspace: u32_array) -> int:
+    if instruction_count < 0 or parameter_count < 0 or instruction_count > 268435455:
+        workspace[0] = 1
+        workspace[1] = 0
+        return -1
+    if parameter_count > 2147483646 - instruction_count:
+        workspace[0] = 1
+        workspace[1] = 0
+        return -1
+    let capacity = instruction_count + 1
+    var slot = 0
+    while slot < instruction_count:
+        workspace[capacity + slot + 2] = 0
+        slot = slot + 1
     var index = 0
     var expected_result = parameter_count + 1
     while index < instruction_count:
@@ -87,63 +105,156 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
         let a = instructions[base + 3]
         let b = instructions[base + 4]
         let c = instructions[base + 5]
-        if opcode > 25:
-            diagnostic[0] = 2
-            diagnostic[1] = index
-            return -2
-        if type_id > 8:
-            diagnostic[0] = 2
-            diagnostic[1] = index
+        if opcode > 25 or type_id > 8:
+            workspace[0] = 2
+            workspace[1] = index
             return -2
         if type_id == 0:
             if result_id != 0:
-                diagnostic[0] = 3
-                diagnostic[1] = index
+                workspace[0] = 3
+                workspace[1] = index
                 return -3
-        else
+        else:
             if result_id != expected_result:
-                diagnostic[0] = 4
-                diagnostic[1] = index
+                workspace[0] = 4
+                workspace[1] = index
                 return -4
         if opcode == 0:
-            if result_id == 0:
-                diagnostic[0] = 5
-                diagnostic[1] = index
+            if type_id == 0 or type_id == 8 or a != 0 or b != 0 or c != 0:
+                workspace[0] = 5
+                workspace[1] = index
                 return -5
-        else
-            if opcode == 22:
-                if type_id != 8:
-                    diagnostic[0] = 6
-                    diagnostic[1] = index
-                    return -6
-            else
-                if opcode == 23:
-                    if a < 1 or a >= expected_result:
-                        diagnostic[0] = 7
-                        diagnostic[1] = index
-                        return -7
-                else
-                    if opcode == 24:
-                        if a < 1 or a >= expected_result or b < 1 or b >= expected_result:
-                            diagnostic[0] = 8
-                            diagnostic[1] = index
-                            return -8
-                    else
-                        if opcode == 20:
-                            if a < 1 or a >= expected_result or b < 1 or b >= expected_result or c < 1 or c >= expected_result:
-                                diagnostic[0] = 9
-                                diagnostic[1] = index
-                                return -9
-                        else
-                            if a < 1 or a >= expected_result or b < 1 or b >= expected_result:
-                                diagnostic[0] = 10
-                                diagnostic[1] = index
-                                return -10
+        else:
+            if opcode >= 1 and opcode <= 13:
+                if type_id < 1 or type_id > 5 or a < 1 or b < 1 or c != 0:
+                    workspace[0] = 10
+                    workspace[1] = index
+                    return -10
+                let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                if type_a < 0 or type_b < 0:
+                    workspace[0] = 13
+                    workspace[1] = index
+                    return -13
+                if (type_a != 0 and type_a != type_id) or (type_b != 0 and type_b != type_id):
+                    workspace[0] = 14
+                    workspace[1] = index
+                    return -14
+            else:
+                if opcode >= 14 and opcode <= 19:
+                    if type_id != 1 or a < 1 or b < 1 or c != 0:
+                        workspace[0] = 10
+                        workspace[1] = index
+                        return -10
+                    let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                    let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                    if type_a < 0 or type_b < 0:
+                        workspace[0] = 13
+                        workspace[1] = index
+                        return -13
+                    if (type_a != 0 and (type_a < 1 or type_a > 5)) or (type_b != 0 and (type_b < 1 or type_b > 5)):
+                        workspace[0] = 14
+                        workspace[1] = index
+                        return -14
+                    if type_a != 0 and type_b != 0 and type_a != type_b:
+                        workspace[0] = 14
+                        workspace[1] = index
+                        return -14
+                else:
+                    if opcode == 20:
+                        if type_id == 0 or a < 1 or b < 1 or c < 1:
+                            workspace[0] = 9
+                            workspace[1] = index
+                            return -9
+                        let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                        let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                        let type_c = swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result)
+                        if type_a < 0 or type_b < 0 or type_c < 0:
+                            workspace[0] = 13
+                            workspace[1] = index
+                            return -13
+                        if (type_a != 0 and type_a != 1) or (type_b != 0 and type_b != type_id) or (type_c != 0 and type_c != type_id):
+                            workspace[0] = 14
+                            workspace[1] = index
+                            return -14
+                    else:
+                        if opcode == 21:
+                            if type_id == 0 or a < 1 or b < 1 or (b == 0 and c != 0):
+                                workspace[0] = 15
+                                workspace[1] = index
+                                return -15
+                            let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                            let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                            let type_c = swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result)
+                            if type_a < 0 or type_b < 0 or type_c < 0:
+                                workspace[0] = 13
+                                workspace[1] = index
+                                return -13
+                            if (type_a != 0 and type_a != type_id) or (type_b != 0 and type_b != type_id) or (c != 0 and type_c != 0 and type_c != type_id):
+                                workspace[0] = 14
+                                workspace[1] = index
+                                return -14
+                        else:
+                            if opcode == 22:
+                                if type_id != 8 or a != 0 or b != 0 or c != 0:
+                                    workspace[0] = 6
+                                    workspace[1] = index
+                                    return -6
+                            else:
+                                if opcode == 23:
+                                    if type_id == 0 or a < 1 or b != 0 or c != 0:
+                                        workspace[0] = 7
+                                        workspace[1] = index
+                                        return -7
+                                    let pointer_type = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                                    if pointer_type < 0:
+                                        workspace[0] = 13
+                                        workspace[1] = index
+                                        return -13
+                                    if pointer_type != 0 and pointer_type != 8:
+                                        workspace[0] = 14
+                                        workspace[1] = index
+                                        return -14
+                                else:
+                                    if opcode == 24:
+                                        if type_id != 0 or a < 1 or b < 1 or c != 0:
+                                            workspace[0] = 8
+                                            workspace[1] = index
+                                            return -8
+                                        let pointer_type = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                                        let value_type = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                                        if pointer_type < 0 or value_type < 0:
+                                            workspace[0] = 13
+                                            workspace[1] = index
+                                            return -13
+                                        if pointer_type != 0 and pointer_type != 8:
+                                            workspace[0] = 14
+                                            workspace[1] = index
+                                            return -14
+                                    else:
+                                        if opcode == 25:
+                                            if (a == 0 and (b != 0 or c != 0)) or (b == 0 and c != 0):
+                                                workspace[0] = 16
+                                                workspace[1] = index
+                                                return -16
+                                            if a != 0 and swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result) < 0:
+                                                workspace[0] = 13
+                                                workspace[1] = index
+                                                return -13
+                                            if b != 0 and swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result) < 0:
+                                                workspace[0] = 13
+                                                workspace[1] = index
+                                                return -13
+                                            if c != 0 and swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result) < 0:
+                                                workspace[0] = 13
+                                                workspace[1] = index
+                                                return -13
         if type_id != 0:
+            workspace[capacity + result_id - parameter_count + 1] = type_id
             expected_result = expected_result + 1
         index = index + 1
-    diagnostic[0] = 0
-    diagnostic[1] = 0
+    workspace[0] = 0
+    workspace[1] = 0
     return 0
 
 out
