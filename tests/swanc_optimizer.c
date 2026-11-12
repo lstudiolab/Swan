@@ -7,7 +7,7 @@
 #define ROUNDS 128
 #define WORKSPACE_WORDS (3 * (IR_INSTRUCTIONS + 1) + 2)
 extern int64_t swan_fn_swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, int64_t);
-extern int64_t swan_fn_swanc_ir_verify(uint32_t *, int64_t, int64_t, uint32_t *);
+extern int64_t swan_fn_swanc_ir_verify(uint32_t *, int64_t, uint32_t *, int64_t, uint32_t *);
 extern int64_t swan_fn_swanc_ir_constant_fold(uint32_t *, int64_t, uint32_t *, int64_t);
 extern int64_t swan_fn_swanc_ir_dead_code_eliminate(uint32_t *, int64_t, uint32_t *, int64_t);
 
@@ -58,13 +58,14 @@ static int constant_fold_overflow(void){
     put(ir,14,1,4,11,10,3,0,0);
     put(ir,15,24,0,0,1,11,0,0);
     uint32_t original[16*8];memcpy(original,ir,sizeof(ir));
-    int64_t status=swan_fn_swanc_ir_verify(ir,16,0,ws);
+    uint32_t no_parameters[1] = {0};
+    int64_t status=swan_fn_swanc_ir_verify(ir,16,no_parameters,0,ws);
     if(status){fprintf(stderr,"verify status=%lld diag=%u\\n",(long long)status,ws[0]);return 40;}
     status=swan_fn_swanc_ir_constant_fold(ir,16,ws,17);
     if(status){fprintf(stderr,"fold status=%lld\\n",(long long)status);return 41;}
     status=swan_fn_swanc_ir_dead_code_eliminate(ir,16,ws,17);
     if(status){fprintf(stderr,"dce status=%lld\\n",(long long)status);return 42;}
-    status=swan_fn_swanc_ir_verify(ir,16,0,ws);
+    status=swan_fn_swanc_ir_verify(ir,16,no_parameters,0,ws);
     if(status){fprintf(stderr,"final verify status=%lld diag=%u\\n",(long long)status,ws[0]);return 43;}
     if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3){
         fprintf(stderr,"overflowing i32 operation was folded\\n");return 44;
