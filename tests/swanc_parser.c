@@ -7,6 +7,10 @@ extern int64_t swan_fn_swanc_parser_test(
     uint32_t *tokens, int64_t token_capacity,
     uint32_t *nodes, int64_t node_capacity,
     uint32_t *state);
+extern int64_t swan_fn_swanc_lex_test(
+    uint32_t *source, int64_t source_length,
+    uint32_t *tokens, int64_t token_capacity,
+    uint32_t *diagnostic);
 
 static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     uint32_t source[128] = {0};
@@ -53,6 +57,20 @@ static int left_associativity(void) {
     return 0;
 }
 
+static int unicode_columns(void) {
+    /* UTF-8 é occupies two bytes but one source column. */
+    uint32_t source[] = {0xC3, 0xA9, 32, 64};
+    uint32_t tokens[20] = {0}, diagnostic[4] = {0};
+    int64_t status = swan_fn_swanc_lex_test(source, 4, tokens, 4, diagnostic);
+    if (status != -2 || diagnostic[0] != 2 || diagnostic[1] != 3 ||
+        diagnostic[2] != 1 || diagnostic[3] != 3) {
+        fprintf(stderr, "UTF-8 diagnostic column incorrect: status=%lld offset=%u line=%u column=%u\\n",
+            (long long)status, diagnostic[1], diagnostic[2], diagnostic[3]);
+        return 8;
+    }
+    return 0;
+}
+
 static int parentheses_and_rejections(void) {
     uint32_t nodes[128 * 5] = {0}, state[2] = {0};
     if (parse("(12)", nodes, state) != 1 || nodes[0] != 1 || nodes[4] != 12)
@@ -79,6 +97,8 @@ int main(void) {
     if (status) return status;
     status = parentheses_and_rejections();
     if (status) return status;
-    puts("Compiler 2 parser regressions passed: lexer token ABI, precedence, associativity, parentheses, EOF, and invalid expressions.");
+    status = unicode_columns();
+    if (status) return status;
+    puts("Compiler 2 parser regressions passed: lexer token ABI, precedence, associativity, parentheses, EOF, invalid expressions, and UTF-8 diagnostic columns.");
     return 0;
 }
