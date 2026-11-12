@@ -60,7 +60,7 @@ The typed-IR pass manager currently includes:
 9. A post-hoisting CSE pass.
 10. Dead-code elimination using value-worklist liveness propagation.
 
-Potentially trapping operations and memory effects must be preserved. IR is verified before optimization, after transformation passes, and after final cleanup. Optimizations are semantics-preserving and target-independent.
+Potentially trapping operations and memory effects must be preserved. IR is always verified before optimization and after final cleanup. Debug builds also verify every pass boundary; optimized release builds skip redundant intermediate whole-module verifier walks and retain the final verification gate. SSA value types are indexed by value ID for constant-time type queries. Optimizations are semantics-preserving and target-independent.
 
 ## Swan-authored SIL subsystem
 
