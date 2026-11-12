@@ -174,6 +174,7 @@ fn swanc_fail(diagnostic: u32_array, code: int, offset: int, line: int, column: 
 out
 fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic: u32_array) -> int:
     let token_capacity = diagnostic[4]
+    diagnostic[0] = 91
     # Token IDs are the stable Compiler 2 lexer ABI; keyword IDs are explicit below.
     # Diagnostic codes: 1 invalid UTF-8, 2 invalid byte, 3 token capacity,
     # 4 indentation depth, 5 inconsistent indentation, 6 malformed number,
@@ -191,6 +192,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
     diagnostic[1] = 0
     diagnostic[2] = 0
     diagnostic[3] = 0
+    diagnostic[0] = 92
     # Validate all input before scanning; malformed UTF-8 is rejected even
     # when it occurs in comments or string literals.
     var validation_line = 1
@@ -207,10 +209,12 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
         else:
             validation_column = validation_column + 1
         index = index + width
+    diagnostic[0] = 93
     index = 0
     # A UTF-8 BOM is accepted only at the beginning of the file.
     if source_length >= 3 and source[0] == 239 and source[1] == 187 and source[2] == 191:
         index = 3
+    diagnostic[0] = 94
     while index < source_length:
         if line_start == 1:
             var indent_width = 0
@@ -455,6 +459,7 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
     count = swanc_emit(tokens, token_capacity, count, diagnostic)
     if count < 0:
         return swanc_fail(diagnostic, 3, source_length, line, column)
+    diagnostic[0] = 0
     return count
 
 out
