@@ -1,14 +1,6 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <string.h>
-#include <signal.h>
-#include <stdlib.h>
-
-static volatile uint32_t *active_diagnostic;
-static void on_segv(int signal_number) {
-    if (active_diagnostic) fprintf(stderr, "lexer-segv-stage=%u diag=%u,%u,%u,%u capacity=%u\\n", active_diagnostic[0], active_diagnostic[0], active_diagnostic[1], active_diagnostic[2], active_diagnostic[3], active_diagnostic[4]);
-    _Exit(128 + signal_number);
-}
 
 extern int64_t swan_fn_swanc_parser_test(
     uint32_t *source, uint32_t *tokens, uint32_t *nodes, uint32_t *state);
@@ -19,11 +11,7 @@ extern int64_t swan_fn_swanc_lex_test(
 static int lexer_smoke(void) {
     uint32_t source[] = {50, 43, 51};
     uint32_t tokens[20] = {0}, diagnostic[138] = {0};
-    active_diagnostic = diagnostic;
-    signal(SIGSEGV, on_segv);
-    fprintf(stderr, "lexer-call-begin\\n");
     int64_t count = swan_fn_swanc_lex_test(source, 3, tokens, diagnostic);
-    fprintf(stderr, "lexer-call-end: %lld\\n", (long long)count);
     if (count != 4 || tokens[0] != 2 || tokens[5] != 33 ||
         tokens[10] != 2 || tokens[15] != 0) return 9;
     return 0;
@@ -38,9 +26,7 @@ static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     memset(nodes, 0, 128 * 5 * sizeof(uint32_t));
     state[0] = state[1] = state[2] = state[3] = 0;
     state[4] = (uint32_t)length;
-    fprintf(stderr, "parser-call-begin: %s\\n", text);
     int result = (int)swan_fn_swanc_parser_test(source, tokens, nodes, state);
-    fprintf(stderr, "parser-call-end: %d nodes=%u position=%u\\n", result, state[1], state[0]);
     return result;
 }
 
@@ -111,7 +97,6 @@ static int parentheses_and_rejections(void) {
 }
 
 int main(void) {
-    fprintf(stderr, "parser-regression-start\\n");
     int status = lexer_smoke();
     if (status) return status;
     status = arithmetic_precedence();
