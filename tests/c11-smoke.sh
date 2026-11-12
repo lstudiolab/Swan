@@ -613,7 +613,7 @@ if ! grep -Eq 'cmp (rbx|r12|r13|r14|r15|rdi|rsi|rdx|r8|r9), (rbx|r12|r13|r14|r15
     exit 1
 fi
 printf 'PASS: local-to-local loop comparisons avoid stack temporaries\n'
-"$SWAN" --version | grep -q 'Swan 0.7.0-samc'
+"$SWAN" --version | grep -q 'Swan 0.8.0'
 printf 'PASS: C compiler version command\n'
 
 cat > "$TMP/compound-arithmetic.swan" <<'SWAN'
