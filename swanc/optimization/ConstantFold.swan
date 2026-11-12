@@ -1,18 +1,21 @@
 # Swan Compiler 2 — scalar constant folding
 #
-# Operates on the eight-word linear IR instruction format from ir/IR.swan.
-# It folds integer add/subtract/multiply when both operands are known constants.
-# The pass preserves result IDs and rewrites folded instructions in place.
-# Control-flow-aware propagation and dead-code elimination require the CFG IR
-# layer and are deliberately not approximated by this linear pass.
+# Workspace layout:
+#   [0..1]                 verifier diagnostics
+#   [2..capacity+1]        known-constant flags
+#   [capacity+2..2*capacity+1] constant values
+#
+# Operates on the eight-word linear IR instruction format. It folds i32
+# add/subtract/multiply when both operands are known constants. Result IDs
+# remain stable. Overflowing unsigned i32 results are left unchanged.
 
-fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, parameter_count: int, known: u32_array, values: u32_array, capacity: int) -> int:
-    if instruction_count < 0 or parameter_count < 0 or instruction_count > 268435455 or parameter_count > 268435455 or capacity < parameter_count + instruction_count + 1:
+fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, workspace: u32_array, capacity: int) -> int:
+    if instruction_count < 0 or instruction_count > 268435455 or capacity < instruction_count + 1:
         return -1
     var index = 0
     while index < capacity:
-        known[index] = 0
-        values[index] = 0
+        workspace[index + 2] = 0
+        workspace[capacity + index + 2] = 0
         index = index + 1
     index = 0
     while index < instruction_count:
@@ -26,32 +29,34 @@ fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, param
             if type_id == 4:
                 if result_id < 1 or result_id >= capacity:
                     return -2
-                known[result_id] = 1
-                values[result_id] = instructions[base + 6]
+                workspace[result_id + 2] = 1
+                workspace[capacity + result_id + 2] = instructions[base + 6]
         else
             if (opcode == 1 or opcode == 2 or opcode == 3) and type_id == 4:
                 if result_id < 1 or result_id >= capacity:
                     return -2
                 if a < 1 or b < 1 or a >= capacity or b >= capacity:
                     return -3
-                if known[a] == 1 and known[b] == 1:
-                        var folded = 0
-                        if opcode == 1:
-                            folded = values[a] + values[b]
+                if workspace[a + 2] == 1 and workspace[b + 2] == 1:
+                    let left = workspace[capacity + a + 2]
+                    let right = workspace[capacity + b + 2]
+                    var folded = 0
+                    if opcode == 1:
+                        folded = left + right
+                    else
+                        if opcode == 2:
+                            folded = left - right
                         else
-                            if opcode == 2:
-                                folded = values[a] - values[b]
-                            else
-                                folded = values[a] * values[b]
-                        if folded >= 0 and folded <= 4294967295:
-                            instructions[base] = 0
-                            instructions[base + 3] = 0
-                            instructions[base + 4] = 0
-                            instructions[base + 5] = 0
-                            instructions[base + 6] = folded
-                            instructions[base + 7] = 0
-                            known[result_id] = 1
-                            values[result_id] = folded
+                            folded = left * right
+                    if folded >= 0 and folded <= 4294967295:
+                        instructions[base] = 0
+                        instructions[base + 3] = 0
+                        instructions[base + 4] = 0
+                        instructions[base + 5] = 0
+                        instructions[base + 6] = folded
+                        instructions[base + 7] = 0
+                        workspace[result_id + 2] = 1
+                        workspace[capacity + result_id + 2] = folded
         index = index + 1
     return 0
 
