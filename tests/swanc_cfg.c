@@ -51,7 +51,7 @@ int main(void) {
     if (reject(g,1,9,"predecessor mismatch")) return 5;
     block(g,0,RETURN,0,0,0,1);
     if (reject(g,1,3,"reserved flags")) return 6;
-    block(g,0,RETURN,0,0,1,0);
+    block(g,0,BRANCH,1,0,1,0);
     if (reject(g,1,10,"entry predecessor")) return 7;
     block(g,0,RETURN,0,0,0,0);
     uint32_t w[8] = {0};
