@@ -110,6 +110,20 @@ static int invalid_workspace(void){
                 (long long)status,ws[0]);
         return 22;
     }
+    memset(ws,0,sizeof(ws));
+    status=swan_fn_swanc_ir_optimize(ir,1,ws,268435456);
+    if(status==0||ws[0]!=13){
+        fprintf(stderr,"oversized workspace capacity: status=%lld diagnostic=%u\n",
+                (long long)status,ws[0]);
+        return 23;
+    }
+    memset(ws,0,sizeof(ws));
+    status=swan_fn_swanc_ir_optimize(ir,-1,ws,1);
+    if(status==0||ws[0]!=13){
+        fprintf(stderr,"negative instruction count: status=%lld diagnostic=%u\n",
+                (long long)status,ws[0]);
+        return 24;
+    }
     return 0;
 }
 static int invalid_ir(void){
