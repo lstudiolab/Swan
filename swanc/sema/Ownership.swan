@@ -19,8 +19,8 @@
 #
 # Workspace layout:
 #   [diagnostic_code, event_index, symbol_id, source_location,
-#    then four words per symbol: owner_state, shared_borrow_count,
-#    mutable_borrow_active, reserved]
+#    symbol_count, event_capacity, then four words per symbol:
+#    owner_state, shared_borrow_count, mutable_borrow_active, reserved]
 # Owner states: 0 uninitialized, 1 live/owned, 2 moved, 3 dropped.
 #
 # A live owner at function exit is valid: SILGen inserts its automatic drop.
@@ -37,7 +37,7 @@ fn swanc_ownership_fail(workspace: u32_array, code: int, event_index: int, symbo
 out
 
 fn swanc_ownership_analyze(events: u32_array, event_count: int, workspace: u32_array, workspace_capacity: int) -> int:
-    # Never write diagnostics unless the caller supplied the four-word header.
+    # Never write diagnostics unless the caller supplied the six-word header.
     if workspace_capacity < 6:
         return -1
     let symbol_count = workspace[4]
