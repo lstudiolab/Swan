@@ -96,7 +96,7 @@ static inline SwanIRBlock *swan_ir_add_block(SwanIRFunction *f,const char *name)
  SwanIRBlock *b=&f->blocks[f->block_count++];memset(b,0,sizeof(*b));b->name=name;b->owner=f;b->index=(uint32_t)(f->block_count-1);return b;
 }
 static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRInst inst) {
- if(!f||!b||b->owner!=f||b->terminated||(inst.incoming_count&&!inst.incoming)||b->instruction_count==SIZE_MAX||!swan_ir_reserve((void**)&b->instructions,&b->instruction_capacity,b->instruction_count+1,sizeof(*b->instructions)))return 0;
+ if(!f||!b||b->owner!=f||b->index>=f->block_count||&f->blocks[b->index]!=b||b->terminated||(inst.incoming_count&&!inst.incoming)||b->instruction_count==SIZE_MAX||!swan_ir_reserve((void**)&b->instructions,&b->instruction_capacity,b->instruction_count+1,sizeof(*b->instructions)))return 0;
  if(inst.type==SWAN_IR_VOID)inst.result=0;else{
   if(!swan_ir_value_type(inst.type)||f->next_value==0||f->next_value>=(uint32_t)(INT32_MAX/8)||
      !swan_ir_reserve((void**)&f->value_types,&f->value_type_capacity,(size_t)f->next_value+1,sizeof(*f->value_types))||
@@ -105,6 +105,22 @@ static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRI
   f->value_locations[inst.result]=(SwanIRValueLocation){b->index,(uint32_t)b->instruction_count};
  }
  b->instructions[b->instruction_count++]=inst;return inst.result;
+}
+static inline bool swan_ir_rebuild_value_locations(SwanIRFunction *fn){
+ if(!fn||!fn->value_locations||fn->value_location_capacity<fn->next_value)return false;
+ for(size_t id=0;id<fn->next_value;id++)
+  fn->value_locations[id]=(SwanIRValueLocation){UINT32_MAX,UINT32_MAX};
+ for(size_t b=0;b<fn->block_count;b++){
+  if(b>UINT32_MAX)return false;
+  for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+   uint32_t id=fn->blocks[b].instructions[i].result;
+   if(id){
+    if(id>=fn->next_value||i>UINT32_MAX)return false;
+    fn->value_locations[id]=(SwanIRValueLocation){(uint32_t)b,(uint32_t)i};
+   }
+  }
+ }
+ return true;
 }
 static inline bool swan_ir_terminate(SwanIRBlock *b,SwanIRTerm term) {
  if(!b||b->terminated)return false;
