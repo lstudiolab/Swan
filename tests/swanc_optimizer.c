@@ -147,6 +147,22 @@ static int verifier_contracts(void){
     if(expect_verifier_error(ir,3,14,"phi incoming type"))return 37;
     return 0;
 }
+static int constant_width_contracts(void){
+    uint32_t ir[8]={0};
+    put(ir,0,0,1,1,0,0,0,2);
+    if(expect_verifier_error(ir,1,18,"i1 constant range"))return 51;
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,2,1,0,0,0,256);
+    if(expect_verifier_error(ir,1,18,"i8 constant range"))return 52;
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,3,1,0,0,0,65536);
+    if(expect_verifier_error(ir,1,18,"i16 constant range"))return 53;
+    memset(ir,0,sizeof(ir));
+    put(ir,0,0,4,1,0,0,0,1);
+    ir[7]=1;
+    if(expect_verifier_error(ir,1,18,"i32 high immediate"))return 54;
+    return 0;
+}
 static int parameter_type_contracts(void){
     uint32_t ir[3*8]={0}, ws[32]={0}, parameter_types[1]={4};
     put(ir,0,0,5,2,0,0,0,1);
@@ -209,7 +225,7 @@ static int invalid_ir(void){
     return 0;
 }
 int main(void){
-    int s=workload();if(s)return s;s=constant_fold_overflow();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=parameter_type_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
+    int s=workload();if(s)return s;s=constant_fold_overflow();if(s)return s;s=edge_cases();if(s)return s;s=verifier_contracts();if(s)return s;s=parameter_type_contracts();if(s)return s;s=constant_width_contracts();if(s)return s;s=invalid_workspace();if(s)return s;s=invalid_ir();if(s)return s;
     puts("Compiler 2 optimizer correctness passed: 128 rounds, 65,920 IR instructions, 16,384 folds; overflow-safe folding, capacity guards, side effects, traps, calls, cascading DCE, SSA ordering, operand types, arity, and invalid IR checked.");
     return 0;
 }
