@@ -41,5 +41,7 @@ jobs:
         run: sh tests/swanc-optimizer.sh
       - name: Verify Compiler 2 ownership and borrowing slice
         run: sh tests/swanc-ownership.sh
+      - name: Verify Compiler 2 control-flow graph verifier
+        run: sh tests/swanc-cfg.sh
       - name: Verify compiler version
         run: ./build/swan --version
