@@ -72,7 +72,7 @@ fn swanc_ir_defined_before(instructions: u32_array, instruction_index: int, valu
     return false
 
 out
-fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_count: int, workspace: u32_array) -> int:
+fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_types: u32_array, parameter_count: int, workspace: u32_array) -> int:
     if instruction_count < 0 or parameter_count < 0 or instruction_count > 268435455:
         workspace[0] = 1
         workspace[1] = 0
@@ -81,6 +81,14 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
         workspace[0] = 1
         workspace[1] = 0
         return -1
+    var parameter_index = 0
+    while parameter_index < parameter_count:
+        let parameter_type = parameter_types[parameter_index]
+        if parameter_type < 1 or parameter_type > 8:
+            workspace[0] = 17
+            workspace[1] = parameter_index
+            return -17
+        parameter_index = parameter_index + 1
     let capacity = instruction_count + 1
     workspace[2] = parameter_count
     var slot = 0
@@ -125,13 +133,13 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                 var type_a = -1
                 if a >= 1 and a < expected_result:
                     if a <= parameter_count:
-                        type_a = 0
+                        type_a = parameter_types[a - 1]
                     else:
                         type_a = workspace[capacity + a - parameter_count + 1]
                 var type_b = -1
                 if b >= 1 and b < expected_result:
                     if b <= parameter_count:
-                        type_b = 0
+                        type_b = parameter_types[b - 1]
                     else:
                         type_b = workspace[capacity + b - parameter_count + 1]
                 if type_a < 0 or type_b < 0:
@@ -151,13 +159,13 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                     var type_a = -1
                     if a >= 1 and a < expected_result:
                         if a <= parameter_count:
-                            type_a = 0
+                            type_a = parameter_types[a - 1]
                         else:
                             type_a = workspace[capacity + a - parameter_count + 1]
                     var type_b = -1
                     if b >= 1 and b < expected_result:
                         if b <= parameter_count:
-                            type_b = 0
+                            type_b = parameter_types[b - 1]
                         else:
                             type_b = workspace[capacity + b - parameter_count + 1]
                     if type_a < 0 or type_b < 0:
@@ -181,19 +189,19 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                         var type_a = -1
                         if a >= 1 and a < expected_result:
                             if a <= parameter_count:
-                                type_a = 0
+                                type_a = parameter_types[a - 1]
                             else:
                                 type_a = workspace[capacity + a - parameter_count + 1]
                         var type_b = -1
                         if b >= 1 and b < expected_result:
                             if b <= parameter_count:
-                                type_b = 0
+                                type_b = parameter_types[b - 1]
                             else:
                                 type_b = workspace[capacity + b - parameter_count + 1]
                         var type_c = -1
                         if c >= 1 and c < expected_result:
                             if c <= parameter_count:
-                                type_c = 0
+                                type_c = parameter_types[c - 1]
                             else:
                                 type_c = workspace[capacity + c - parameter_count + 1]
                         if type_a < 0 or type_b < 0 or type_c < 0:
@@ -213,21 +221,21 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                             var type_a = -1
                             if a >= 1 and a < expected_result:
                                 if a <= parameter_count:
-                                    type_a = 0
+                                    type_a = parameter_types[a - 1]
                                 else:
                                     type_a = workspace[capacity + a - parameter_count + 1]
                             var type_b = -1
                             if b >= 1 and b < expected_result:
                                 if b <= parameter_count:
-                                    type_b = 0
+                                    type_b = parameter_types[b - 1]
                                 else:
                                     type_b = workspace[capacity + b - parameter_count + 1]
-                            var type_c = 0
+                            var type_c = parameter_types[c - 1]
                             if c != 0:
                                 type_c = -1
                                 if c >= 1 and c < expected_result:
                                     if c <= parameter_count:
-                                        type_c = 0
+                                        type_c = parameter_types[c - 1]
                                     else:
                                         type_c = workspace[capacity + c - parameter_count + 1]
                             if type_a < 0 or type_b < 0 or type_c < 0:
@@ -253,7 +261,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                     var pointer_type = -1
                                     if a >= 1 and a < expected_result:
                                         if a <= parameter_count:
-                                            pointer_type = 0
+                                            pointer_type = parameter_types[a - 1]
                                         else:
                                             pointer_type = workspace[capacity + a - parameter_count + 1]
                                     if pointer_type < 0:
@@ -273,13 +281,13 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                         var pointer_type = -1
                                         if a >= 1 and a < expected_result:
                                             if a <= parameter_count:
-                                                pointer_type = 0
+                                                pointer_type = parameter_types[a - 1]
                                             else:
                                                 pointer_type = workspace[capacity + a - parameter_count + 1]
                                         var value_type = -1
                                         if b >= 1 and b < expected_result:
                                             if b <= parameter_count:
-                                                value_type = 0
+                                                value_type = parameter_types[b - 1]
                                             else:
                                                 value_type = workspace[capacity + b - parameter_count + 1]
                                         if pointer_type < 0 or value_type < 0:
