@@ -51,18 +51,20 @@ static inline const char *swan_ir_type_name(SwanIRType t) {
 static inline bool swan_ir_type_valid(SwanIRType t) { return (unsigned)t<=SWAN_IR_PTR; }
 static inline bool swan_ir_value_type(SwanIRType t) { return swan_ir_type_valid(t)&&t!=SWAN_IR_VOID; }
 static inline bool swan_ir_reserve(void **p,size_t *capacity,size_t need,size_t item_size) {
+ if(!p||!capacity||!item_size||*capacity>SIZE_MAX/item_size||need>SIZE_MAX/item_size)return false;
  if(need<=*capacity)return true;
  size_t n=*capacity?*capacity:8;
- while(n<need){if(n>SIZE_MAX/2)return false;n*=2;}
+ while(n<need){if(n>SIZE_MAX/2){n=need;break;}n*=2;}
  if(n>SIZE_MAX/item_size)return false;
  void *q=realloc(*p,n*item_size);if(!q)return false;*p=q;*capacity=n;return true;
 }
 static inline bool swan_ir_own_string(SwanIRModule *m,char *value){
- if(!value)return false;
+ if(!m||!value||m->owned_string_count==SIZE_MAX)return false;
  if(!swan_ir_reserve((void**)&m->owned_strings,&m->owned_string_capacity,m->owned_string_count+1,sizeof(*m->owned_strings)))return false;
  m->owned_strings[m->owned_string_count++]=value;return true;
 }
 static inline void swan_ir_destroy(SwanIRModule *m) {
+ if(!m)return;
  for(size_t f=0;f<m->function_count;f++){
   SwanIRFunction *fn=&m->functions[f];
   for(size_t b=0;b<fn->block_count;b++){
@@ -75,17 +77,17 @@ static inline void swan_ir_destroy(SwanIRModule *m) {
  free(m->functions);for(size_t i=0;i<m->owned_string_count;i++)free(m->owned_strings[i]);free(m->owned_strings);memset(m,0,sizeof(*m));
 }
 static inline SwanIRFunction *swan_ir_add_function(SwanIRModule *m,const char *name,SwanIRType ret,const SwanIRType *params,size_t count) {
- if(!name||!swan_ir_type_valid(ret)||count>UINT32_MAX-1u||count>SIZE_MAX/sizeof(*params)||!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
+ if(!m||!name||!name[0]||!swan_ir_type_valid(ret)||(count&&!params)||count>=(size_t)(INT32_MAX/8)||count>SIZE_MAX/sizeof(*params)||m->function_count==SIZE_MAX||!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
  SwanIRFunction *f=&m->functions[m->function_count++];memset(f,0,sizeof(*f));f->name=name;f->return_type=ret;
  if(count){f->parameter_types=malloc(count*sizeof(*params));if(!f->parameter_types){m->function_count--;return NULL;}memcpy(f->parameter_types,params,count*sizeof(*params));}
  f->parameter_count=count;f->next_value=(uint32_t)count+1;return f;
 }
 static inline SwanIRBlock *swan_ir_add_block(SwanIRFunction *f,const char *name) {
- if(f->block_count>=UINT32_MAX||!swan_ir_reserve((void**)&f->blocks,&f->block_capacity,f->block_count+1,sizeof(*f->blocks)))return NULL;
+ if(!f||f->block_count>=UINT32_MAX||f->block_count==SIZE_MAX||!swan_ir_reserve((void**)&f->blocks,&f->block_capacity,f->block_count+1,sizeof(*f->blocks)))return NULL;
  SwanIRBlock *b=&f->blocks[f->block_count++];memset(b,0,sizeof(*b));b->name=name;return b;
 }
 static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRInst inst) {
- if(!b||b->terminated||!swan_ir_reserve((void**)&b->instructions,&b->instruction_capacity,b->instruction_count+1,sizeof(*b->instructions)))return 0;
+ if(!f||!b||b->terminated||(inst.incoming_count&&!inst.incoming)||b->instruction_count==SIZE_MAX||!swan_ir_reserve((void**)&b->instructions,&b->instruction_capacity,b->instruction_count+1,sizeof(*b->instructions)))return 0;
  if(inst.type==SWAN_IR_VOID)inst.result=0;else{if(!swan_ir_value_type(inst.type)||f->next_value==0||f->next_value>=(uint32_t)(INT32_MAX/8))return 0;inst.result=f->next_value++;}
  b->instructions[b->instruction_count++]=inst;return inst.result;
 }
@@ -111,7 +113,7 @@ static inline SwanIRType swan_ir_value_type_of(const SwanIRFunction *f,uint32_t 
  * forward-numbered blocks and loop backedges without relying on block order. */
 static inline bool swan_ir_block_dominates(const SwanIRFunction *f,size_t def_block,size_t use_block) {
  size_t n=f->block_count;
- if(def_block>=n||use_block>=n)return false;
+ if(def_block>=n||use_block>=n||n>SIZE_MAX/sizeof(size_t))return false;
  if(def_block==use_block)return true;
  bool *seen=calloc(n,sizeof(*seen));
  size_t *queue=malloc(n*sizeof(*queue));
