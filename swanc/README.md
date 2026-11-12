@@ -29,7 +29,7 @@ SVM is Swan's target-independent machine-level compilation representation. It is
 
 ## Source organization
 
-The implementation is split into focused source files. Each file owns one data model, analysis, pass manager, or transformation boundary. The lexer and parser remain cohesive single files as previously specified; their complexity belongs in their implementations rather than being scattered across tiny files.
+The implementation is split into focused source files. Each file owns one data model, analysis, pass manager, or transformation boundary. The lexer and parser live together in `Parse/` as separate cohesive single files; their complexity belongs in their implementations rather than being scattered across tiny files.
 
 ```text
 swanc/
@@ -38,9 +38,8 @@ swanc/
 │   ├── Arguments.swan
 │   ├── Diagnostics.swan
 │   └── CompilationSession.swan
-├── lexer/
-│   └── Lexer.swan
-├── parser/
+├── Parse/
+│   ├── Lexer.swan
 │   └── Parser.swan
 ├── ast/
 │   ├── AST.swan
