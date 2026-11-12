@@ -105,6 +105,8 @@ swanc/
 │   └── LinkArguments.swan
 └── optimization/
     ├── ConstantFold.swan
+    ├── UseCountAnalysis.swan
+    ├── DeadCodeElimination.swan
     └── Optimization.swan
 ```
 
