@@ -30,14 +30,26 @@ The typed-IR optimizer currently performs:
 - Unreachable-block removal.
 - Algebraic simplification.
 - Trivial-PHI copy propagation.
-- Dominance-aware common-subexpression elimination.
-- Conservative loop-invariant code motion.
+- Dominance-aware hash-indexed common-subexpression elimination with one-pass SSA use rewriting.
+- Conservative loop-invariant code motion with cached definition-block lookups and stable, iterative hoist batches.
 - CSE after loop hoisting.
 - Worklist-based dead-code elimination.
 
 DCE builds value liveness from observable roots and propagates dependencies through SSA definitions. It avoids repeatedly scanning all instructions until no change. Potentially trapping division/remainder and memory operations are not treated as removable pure instructions. SSA value types are cached by value ID, making type queries constant-time instead of repeatedly walking every block. The optimizer always verifies IR at pipeline entry and exit; debug builds additionally verify every pass boundary, while release builds avoid those repeated whole-module verification walks.
 
 The SVM compile core runs the optimizer for every target using typed IR. The x86-64 AST compatibility backend retains its own constant folding, inlining, register-local, and loop/array optimizations; it does not automatically receive every typed-IR pass.
+
+## Recent measured optimizer improvements
+
+The typed-IR optimizer was measured on the Ubuntu 24.04 x86-64 GitHub runner using the pipeline stress benchmark (two warmups, median of five measured runs). Comparing revisions `21df015d` and `0dd86aef`:
+
+| Workload | IR optimization before | IR optimization after | Change |
+|---|---:|---:|---:|
+| Expression/call graph (256 functions) | 2.475 ms | 2.120 ms | 14.4% lower |
+| Control flow (64 functions) | 0.487 ms | 0.299 ms | 38.7% lower |
+| Deep call chain (512 functions) | 1.303 ms | 1.247 ms | 4.3% lower |
+
+The later revision replaced instruction-wide CSE searches with a dominance-aware hash table and replaced repeated copy-use rewrites with a single SSA replacement-map rewrite. These are stage timings only; they are not application runtime or whole-compilation speedups. Results are specific to these generated workloads and this runner class.
 
 ## Runtime and backend fast paths
 
