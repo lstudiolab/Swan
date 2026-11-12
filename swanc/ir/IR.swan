@@ -135,6 +135,11 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                 if type_a < 0 or type_b < 0:
                     workspace[0] = 13
                     workspace[1] = index
+                    workspace[2] = a
+                    workspace[3] = b
+                    workspace[4] = expected_result
+                    workspace[5] = type_a
+                    workspace[6] = type_b
                     return -13
                 if (type_a != 0 and type_a != type_id) or (type_b != 0 and type_b != type_id):
                     workspace[0] = 14
