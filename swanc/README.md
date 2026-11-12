@@ -6,6 +6,21 @@ This is an architectural model, not a dependency on Swift or LLVM. Swan owns its
 
 Compiler 1 remains in `compiler/` as the bootstrap compiler and behavioral reference until Compiler 2 can compile itself and pass the same regression suite.
 
+## Language keyword contract
+
+The reserved-keyword set is exactly these 36 case-sensitive spellings:
+
+```text
+func struct import export enum let var const
+if else while loop true false guard defer return
+break continue block as bool from upto inline static
+private public match mod in int init deinit self pass
+```
+
+No other spelling is reserved. In particular, `fn`, `out`, `store`, `manual`, `for`, `type`, `null`, `nil`, `none`, `namespace`, `variant`, `protocol`, `thread`, `async`, `external`, `lazy`, `case`, and `set` are identifiers. The bootstrap parser may accept selected legacy spellings contextually for old source compatibility, but the lexer must emit them as identifiers. This compatibility does not make them reserved words.
+
+The C11 bootstrap lexer and Compiler 2 lexer both implement this exact set. Regression coverage lives in `tests/keywords.c` and `tests/swanc_keywords.c`, and both are run in CI.
+
 ## Compiler pipeline
 
 ```text
