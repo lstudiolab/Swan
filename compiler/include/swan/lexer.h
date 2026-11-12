@@ -35,10 +35,10 @@ static inline bool swan_ascii_digit(unsigned char c){return c>='0'&&c<='9';}
 static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)||c=='_'||c>=0x80;}
 static inline bool swan_ident_continue(unsigned char c){return swan_ident_start(c)||swan_ascii_digit(c);}
 static inline TokenKind swan_keyword(const char *s,size_t n) {
- /* Length-dispatched lookup avoids allocation and hashing in the lexer hot path. */
+ /* The only reserved words in Swan. Keep this list exact and case-sensitive.
+  * Words not listed here remain ordinary identifiers. */
  switch(n) {
  case 2:
-  if(!memcmp(s,"fn",2))return T_FN; /* deprecated source-compatibility alias; func is canonical */
   if(!memcmp(s,"if",2))return T_IF;
   if(!memcmp(s,"in",2))return T_IN;
   if(!memcmp(s,"as",2))return T_AS;
@@ -46,25 +46,20 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
  case 3:
   if(!memcmp(s,"let",3))return T_LET;
   if(!memcmp(s,"var",3))return T_VAR;
-  if(!memcmp(s,"for",3))return T_FOR;
-  if(!memcmp(s,"nil",3))return T_NONE;
-  if(!memcmp(s,"out",3))return T_OUT; /* deprecated block-terminator compatibility */
-  if(!memcmp(s,"set",3))return T_SET;
+  if(!memcmp(s,"int",3))return T_INT;
+  if(!memcmp(s,"mod",3))return T_MOD;
   break;
  case 4:
   if(!memcmp(s,"func",4))return T_FN;
   if(!memcmp(s,"else",4))return T_ELSE;
   if(!memcmp(s,"enum",4))return T_ENUM;
-  if(!memcmp(s,"type",4))return T_TYPE;
   if(!memcmp(s,"loop",4))return T_LOOP;
   if(!memcmp(s,"from",4))return T_FROM;
   if(!memcmp(s,"self",4))return T_SELF;
   if(!memcmp(s,"true",4))return T_TRUE;
   if(!memcmp(s,"pass",4))return T_PASS;
-  if(!memcmp(s,"null",4))return T_NONE;
   if(!memcmp(s,"bool",4))return T_BOOL_TYPE;
-  if(!memcmp(s,"lazy",4))return T_LAZY;
-  if(!memcmp(s,"case",4))return T_CASE;
+  if(!memcmp(s,"init",4))return T_INIT;
   break;
  case 5:
   if(!memcmp(s,"while",5))return T_WHILE;
@@ -72,30 +67,28 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"guard",5))return T_GUARD;
   if(!memcmp(s,"break",5))return T_BREAK;
   if(!memcmp(s,"false",5))return T_FALSE;
-  if(!memcmp(s,"store",5))return T_STORE; /* deprecated manual-memory syntax alias */
   if(!memcmp(s,"const",5))return T_CONST;
   if(!memcmp(s,"block",5))return T_BLOCK;
   if(!memcmp(s,"defer",5))return T_DEFER;
-  if(!memcmp(s,"async",5))return T_ASYNC;
+  if(!memcmp(s,"upto",4))return T_UPTO;
+  if(!memcmp(s,"inline",6))return T_INLINE;
   break;
  case 6:
-  if(!memcmp(s,"manual",6))return T_MANUAL;
   if(!memcmp(s,"import",6))return T_IMPORT;
   if(!memcmp(s,"export",6))return T_EXPORT;
   if(!memcmp(s,"return",6))return T_RETURN;
   if(!memcmp(s,"struct",6))return T_STRUCT;
-  if(!memcmp(s,"thread",6))return T_THREAD;
+  if(!memcmp(s,"public",6))return T_PUBLIC;
+  if(!memcmp(s,"static",6))return T_STATIC;
+  if(!memcmp(s,"private",7))return T_PRIVATE;
+  if(!memcmp(s,"deinit",6))return T_DEINIT;
   break;
  case 7:
-  if(!memcmp(s,"variant",7))return T_VARIANT;
+  if(!memcmp(s,"private",7))return T_PRIVATE;
+  if(!memcmp(s,"continue",8))return T_CONTINUE;
   break;
  case 8:
-  if(!memcmp(s,"external",8))return T_EXTERN;
   if(!memcmp(s,"continue",8))return T_CONTINUE;
-  if(!memcmp(s,"protocol",8))return T_PROTOCOL;
-  break;
- case 9:
-  if(!memcmp(s,"namespace",9))return T_NAMESPACE;
   break;
  }
  return T_IDENT;
