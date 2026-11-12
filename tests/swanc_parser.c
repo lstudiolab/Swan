@@ -17,8 +17,11 @@ static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     for (size_t i = 0; i < length; ++i) source[i] = (unsigned char)text[i];
     memset(nodes, 0, 128 * 5 * sizeof(uint32_t));
     state[0] = state[1] = 0;
-    return (int)swan_fn_swanc_parser_test(source, (int64_t)length,
+    fprintf(stderr, "parser-call-begin: %s\\n", text);
+    int result = (int)swan_fn_swanc_parser_test(source, (int64_t)length,
         tokens, nodes, state);
+    fprintf(stderr, "parser-call-end: %d nodes=%u position=%u\\n", result, state[1], state[0]);
+    return result;
 }
 
 static int arithmetic_precedence(void) {
@@ -88,6 +91,7 @@ static int parentheses_and_rejections(void) {
 }
 
 int main(void) {
+    fprintf(stderr, "parser-regression-start\\n");
     int status = arithmetic_precedence();
     if (status) return status;
     status = left_associativity();
