@@ -26,10 +26,14 @@ The current `test.sh` runs:
 10. `tests/lazy-imports.sh` — reachability-based runtime-lazy module behavior.
 11. `tests/architecture.sh` — target/backend and architecture checks.
 12. Compile and run `tests/keywords.c` — keyword/token registry smoke test.
+13. `tests/swanc-optimizer.sh` — Compiler 2 verified optimizer slice.
+14. `tests/swanc-ownership.sh` — Compiler 2 ownership-event verifier.
 
 ## Coverage areas
 
-The source test suite covers compiler construction, parser/semantic diagnostics, UTF-8 handling, local bindings, function calls, control flow, arrays, bounds checks, output, Foundation imports, lazy module loading, strict `manual var` ownership, and legacy `store` compatibility.
+The source test suite covers compiler construction, parser/semantic diagnostics, UTF-8 handling, local bindings, function calls, control flow, arrays, bounds checks, output, Foundation imports, lazy module loading, Compiler 1 strict `manual var` ownership and legacy `store` compatibility. Compiler 2 ownership-event tests separately cover default ownership-state transitions and borrow conflicts; AST/CFG integration is not yet covered.
+
+Compiler 2 tests currently cover its isolated lexer/parser/IR/optimizer slices and the linearized ownership-event verifier. These are component tests, not proof that Compiler 2's full frontend, semantic analysis, SIL, SVM, backend, or driver pipeline is executable.
 
 The typed-IR tests cover SSA construction and verification, CFG and PHI invariants, scalar lowering, optimization passes, SVM execution, and module serialization. Architecture tests cover the implemented target emitters, including WebAssembly module validation and ELF object identification where configured by the test scripts.
 
