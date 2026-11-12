@@ -235,7 +235,7 @@ if [ -z "$first_log" ] || [ -z "$last_use_drop" ] || [ -z "$second_log" ] ||
     echo 'FAIL: owned array was not released immediately after its final use' >&2
     exit 1
 fi
-printf 'PASS: heap arrays are released immediately after their final use\\n'
+printf 'PASS: heap arrays are released immediately after their final use\n'
 
 cat > "$TMP/array-early-return.swan" <<'SWAN'
 fn main():
