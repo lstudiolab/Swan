@@ -123,20 +123,31 @@ test "$("$TMP/int64")" = "3000000000"
 printf 'PASS: 64-bit integer lowering\n'
 
 
-# Manual allocation is an explicit SAMC opt-out and uses the same checked array path.
-cat > "$TMP/manual-memory.swan" <<'SWAN'
+# "manual" is an ordinary identifier, not a memory-management keyword.
+cat > "$TMP/manual-identifier.swan" <<'SWAN'
 fn main():
-    manual var values = array(4)
-    values[0] = 27
-    print values[0]
-    free(values)
+    let manual = 27
+    print manual
     return 0
 out
 SWAN
-"$SWAN" "$TMP/manual-memory.swan" --emit-asm -o "$TMP/manual-memory.s"
-${CC:-cc} -x assembler "$TMP/manual-memory.s" -o "$TMP/manual-memory"
-test "$("$TMP/manual-memory")" = "27"
-printf 'PASS: manual SAMC allocation modifier and explicit free\\n'
+"$SWAN" "$TMP/manual-identifier.swan" --emit-asm -o "$TMP/manual-identifier.s"
+${CC:-cc} -x assembler "$TMP/manual-identifier.s" -o "$TMP/manual-identifier"
+test "$("$TMP/manual-identifier")" = "27"
+printf 'PASS: manual is an ordinary identifier, not a keyword\\n'
+
+# The removed manual modifier is rejected rather than silently changing ownership.
+cat > "$TMP/manual-modifier.swan" <<'SWAN'
+fn main():
+    manual var values = array(4)
+    return 0
+out
+SWAN
+if "$SWAN" "$TMP/manual-modifier.swan" --emit-asm -o "$TMP/manual-modifier.s" 2>/dev/null; then
+  echo 'FAIL: removed manual modifier was accepted' >&2
+  exit 1
+fi
+printf 'PASS: removed manual memory modifier is rejected\\n'
 
 # Struct declarations are not part of the active C11 subset yet.
 
