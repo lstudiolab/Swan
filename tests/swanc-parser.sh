@@ -19,8 +19,15 @@ func swanc_parser_test(source: u32_array, source_length: int, tokens: u32_array,
         return -100
     return swanc_parse(source, tokens, token_count, nodes, node_capacity, state)
 out
+func main() -> int:
+    let source = array_unchecked(1)
+    let tokens = array_unchecked(5)
+    let nodes = array_unchecked(5)
+    let state = array_unchecked(2)
+    return swanc_parser_test(source, 0, tokens, 1, nodes, 1, state)
+out
 SWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
-sed -i -E 's/(^|[^[:alnum:]_])swanc_parser_test([^[:alnum:]_]|$)/\1swan_parser_test_stub\2/g' "$ASSEMBLY"
+sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_parser_module_stub\2/g' "$ASSEMBLY"
 cc -O2 "$ASSEMBLY" "$ROOT/tests/swanc_parser.c" -o "$ROOT/build/swanc-parser-test"
 "$ROOT/build/swanc-parser-test"
