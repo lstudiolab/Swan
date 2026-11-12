@@ -7,6 +7,9 @@
 #define ROUNDS 128
 #define WORKSPACE_WORDS (3 * (IR_INSTRUCTIONS + 1) + 2)
 extern int64_t swan_fn_swanc_ir_optimize(uint32_t *, int64_t, uint32_t *, int64_t);
+extern int64_t swan_fn_swanc_ir_verify(uint32_t *, int64_t, int64_t, uint32_t *);
+extern int64_t swan_fn_swanc_ir_constant_fold(uint32_t *, int64_t, uint32_t *, int64_t);
+extern int64_t swan_fn_swanc_ir_dead_code_eliminate(uint32_t *, int64_t, uint32_t *, int64_t);
 
 static void put(uint32_t *ir,uint32_t i,uint32_t op,uint32_t ty,uint32_t r,
                 uint32_t a,uint32_t b,uint32_t c,uint32_t imm){
@@ -37,34 +40,40 @@ static int workload(void){
     return 0;
 }
 static int constant_fold_overflow(void){
-    fprintf(stderr,"constant-fold overflow regression: begin\n");
-    uint32_t ir[13*8]={0},ws[3*14+2]={0};
+    uint32_t ir[14*8]={0},ws[3*15+2]={0};
     put(ir,0,22,8,1,0,0,0,0);
     put(ir,1,0,4,2,0,0,0,UINT32_MAX);
     put(ir,2,0,4,3,0,0,0,1);
-    put(ir,3,1,4,4,2,3,0,0);       /* unsigned addition overflow */
+    put(ir,3,1,4,4,2,3,0,0);
     put(ir,4,0,4,5,0,0,0,0);
-    put(ir,5,2,4,6,5,3,0,0);       /* unsigned subtraction underflow */
-    put(ir,6,3,4,7,2,3,0,0);       /* unsigned multiplication overflow */
-    put(ir,7,24,0,0,1,4,0,0);
-    put(ir,8,24,0,0,1,6,0,0);
-    put(ir,9,24,0,0,1,7,0,0);
-    put(ir,10,0,4,8,0,0,0,UINT32_MAX-1u);
-    put(ir,11,1,4,9,8,3,0,0);       /* exact UINT32_MAX result */
-    put(ir,12,24,0,0,1,9,0,0);
-    fprintf(stderr,"constant-fold overflow regression: invoking optimizer\n");
-    if(swan_fn_swanc_ir_optimize(ir,13,ws,14)!=0){
-        fprintf(stderr,"overflow folding test failed: diagnostic=%u at=%u\n",ws[0],ws[1]);
-        return 40;
-    }
-    fprintf(stderr,"constant-fold overflow regression: optimizer returned\n");
-    if(ir[3*8]!=1||ir[5*8]!=2||ir[6*8]!=3){
+    put(ir,5,2,4,6,5,3,0,0);
+    put(ir,6,0,4,7,0,0,0,2);
+    put(ir,7,3,4,8,2,7,0,0);
+    put(ir,8,24,0,0,1,4,0,0);
+    put(ir,9,24,0,0,1,6,0,0);
+    put(ir,10,24,0,0,1,8,0,0);
+    put(ir,11,0,4,9,0,0,0,UINT32_MAX-1u);
+    put(ir,12,1,4,10,9,3,0,0);
+    put(ir,13,24,0,0,1,10,0,0);
+    fprintf(stderr,"overflow regression: verify\n");
+    int64_t status=swan_fn_swanc_ir_verify(ir,14,0,ws);
+    if(status){fprintf(stderr,"verify status=%lld diag=%u\n",(long long)status,ws[0]);return 40;}
+    fprintf(stderr,"overflow regression: fold\n");
+    status=swan_fn_swanc_ir_constant_fold(ir,14,ws,15);
+    if(status){fprintf(stderr,"fold status=%lld\n",(long long)status);return 41;}
+    fprintf(stderr,"overflow regression: dce\n");
+    status=swan_fn_swanc_ir_dead_code_eliminate(ir,14,ws,15);
+    if(status){fprintf(stderr,"dce status=%lld\n",(long long)status);return 42;}
+    fprintf(stderr,"overflow regression: final verify\n");
+    status=swan_fn_swanc_ir_verify(ir,14,0,ws);
+    if(status){fprintf(stderr,"final verify status=%lld diag=%u\n",(long long)status,ws[0]);return 43;}
+    if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3){
         fprintf(stderr,"overflowing i32 operation was folded\n");
-        return 41;
+        return 44;
     }
-    if(ir[11*8]!=0||ir[11*8+6]!=UINT32_MAX){
+    if(ir[12*8]!=0||ir[12*8+6]!=UINT32_MAX){
         fprintf(stderr,"valid UINT32_MAX addition was not folded\n");
-        return 42;
+        return 45;
     }
     return 0;
 }
