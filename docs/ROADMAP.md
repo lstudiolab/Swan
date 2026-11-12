@@ -13,7 +13,7 @@ This roadmap separates implemented work from remaining engineering. It is not a 
 - x86-64 typed-IR codegen plus AST compatibility codegen for additional implemented features.
 - Shared SVM compile core feeding Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
 - Optional explicit LLVM target-triple bridge.
-- Strict local ownership checking for `manual var`, SAMC cleanup for eligible local arrays, and a stack-array fast path for small fixed non-escaping arrays.
+- Automatic cleanup for eligible local arrays and a stack-array fast path for small fixed non-escaping arrays; full move/borrow analysis is still a Compiler 2 release blocker.
 
 ## Completed optimization work
 
@@ -57,7 +57,7 @@ Required completion sequence:
 
 ## Priority 1: correctness and parity
 
-1. Keep the full test suite green, including C ABI, UTF-8, manual ownership, legacy syntax, lazy imports, typed IR, and all target emission.
+1. Keep the full test suite green, including C ABI, UTF-8, automatic array lifetime, contextual compatibility syntax, lazy imports, typed IR, and all target emission.
 2. Add differential execution tests for equivalent programs compiled through typed-IR and AST compatibility paths.
 3. Expand negative tests for unsupported source constructs and backend operation/type combinations.
 4. Verify ABI behavior with executable tests on native runners for AArch64, ARMv7, and RISC-V64.
