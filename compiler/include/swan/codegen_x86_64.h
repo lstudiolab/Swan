@@ -1035,7 +1035,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   text_add(o,".section .data\n.p2align 3\n.Lswan_lazy_slot_%s:\n    .quad 0\n.text\n.globl swan_lazy_%s\nswan_lazy_%s:\n    mov rax, QWORD PTR [rip + .Lswan_lazy_slot_%s]\n    test rax, rax\n    jne .Lswan_lazy_ready_%s\n    push rdi\n    push rsi\n    push rdx\n    push rcx\n    push r8\n    push r9\n    sub rsp, 8\n    lea rdi, [rip + .Lswan_lazy_module_%s]\n    lea rsi, [rip + .Lswan_lazy_symbol_%s]\n    call swan_resolve@PLT\n    add rsp, 8\n    mov QWORD PTR [rip + .Lswan_lazy_slot_%s], rax\n    pop r9\n    pop r8\n    pop rcx\n    pop rdx\n    pop rsi\n    pop rdi\n.Lswan_lazy_ready_%s:\n    jmp QWORD PTR [rip + .Lswan_lazy_slot_%s]\n",fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name);
  }
  if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
- text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
+ text_add(o,".section .rodata\n.Lswan_fmt:\n    .string \"%%ld\\n\"\n.section .note.GNU-stack,\"\",@progbits\n");
  if(o->failed){swan_error(err,NULL,"out of memory while generating assembly");return false;}
  return err->message[0]==0;
 }
