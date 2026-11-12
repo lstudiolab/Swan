@@ -35,46 +35,6 @@ fn swanc_ident_continue(byte: int) -> bool:
     return swanc_ident_start(byte) or swanc_ascii_digit(byte)
 
 out
-fn swanc_utf8_width(source: u32_array, index: int, length: int) -> int:
-    let first = source[index]
-    if first < 128:
-        return 1
-    if first >= 194 and first <= 223:
-        if index + 1 >= length:
-            return 0
-        if source[index + 1] < 128 or source[index + 1] > 191:
-            return 0
-        return 2
-    if first >= 224 and first <= 239:
-        if index + 2 >= length:
-            return 0
-        let second = source[index + 1]
-        let third = source[index + 2]
-        if second < 128 or second > 191 or third < 128 or third > 191:
-            return 0
-        if first == 224 and second < 160:
-            return 0
-        if first == 237 and second >= 160:
-            return 0
-        return 3
-    if first >= 240 and first <= 244:
-        if index + 3 >= length:
-            return 0
-        let second = source[index + 1]
-        if second < 128 or second > 191:
-            return 0
-        if source[index + 2] < 128 or source[index + 2] > 191:
-            return 0
-        if source[index + 3] < 128 or source[index + 3] > 191:
-            return 0
-        if first == 240 and second < 144:
-            return 0
-        if first == 244 and second > 143:
-            return 0
-        return 4
-    return 0
-
-out
 fn swanc_keyword(source: u32_array, start: int, length: int) -> int:
     # Exact 36-word Swan reserved set. Every other spelling is an identifier.
     if length == 4 and source[start + 0] == 102 and source[start + 1] == 117 and source[start + 2] == 110 and source[start + 3] == 99:
@@ -203,11 +163,43 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
         if source[index] < 0 or source[index] > 255:
             return swanc_fail(diagnostic, 2, index, validation_line, validation_column)
         var width = 1
-        if source[index] >= 128:
-            width = swanc_utf8_width(source, index, source_length)
+        let first = source[index]
+        if first >= 128:
+            if first >= 194 and first <= 223:
+                if index + 1 >= source_length:
+                    return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                let second = source[index + 1]
+                if second < 128 or second > 191:
+                    return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                width = 2
+            else:
+                if first >= 224 and first <= 239:
+                    if index + 2 >= source_length:
+                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                    let second = source[index + 1]
+                    let third = source[index + 2]
+                    if second < 128 or second > 191 or third < 128 or third > 191:
+                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                    if first == 224 and second < 160:
+                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                    if first == 237 and second >= 160:
+                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                    width = 3
+                else:
+                    if first >= 240 and first <= 244:
+                        if index + 3 >= source_length:
+                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        let second = source[index + 1]
+                        if second < 128 or second > 191 or source[index + 2] < 128 or source[index + 2] > 191 or source[index + 3] < 128 or source[index + 3] > 191:
+                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        if first == 240 and second < 144:
+                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        if first == 244 and second > 143:
+                            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
+                        width = 4
+                    else:
+                        return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
         diagnostic[0] = 96
-        if width == 0:
-            return swanc_fail(diagnostic, 1, index, validation_line, validation_column)
         if width == 1 and source[index] == 10:
             validation_line = validation_line + 1
             validation_column = 1
@@ -234,7 +226,15 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                 break
             if source[index] == 10 or source[index] == 35:
                 while index < source_length and source[index] != 10:
-                    let comment_width = swanc_utf8_width(source, index, source_length)
+                    var comment_width = 1
+                    if source[index] >= 240:
+                        comment_width = 4
+                    else:
+                        if source[index] >= 224:
+                            comment_width = 3
+                        else:
+                            if source[index] >= 192:
+                                comment_width = 2
                     index = index + comment_width
                     column = column + 1
                 if index < source_length:
@@ -277,7 +277,15 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
             continue
         if byte == 35:
             while index < source_length and source[index] != 10:
-                let comment_width = swanc_utf8_width(source, index, source_length)
+                var comment_width = 1
+                if source[index] >= 240:
+                    comment_width = 4
+                else:
+                    if source[index] >= 224:
+                        comment_width = 3
+                    else:
+                        if source[index] >= 192:
+                            comment_width = 2
                 index = index + comment_width
                 column = column + 1
             continue
@@ -300,9 +308,15 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
         let token_column = column
         if swanc_ident_start(byte):
             while index < source_length and swanc_ident_continue(source[index]):
-                let width = swanc_utf8_width(source, index, source_length)
-                if width == 0:
-                    return swanc_fail(diagnostic, 1, index, line, column)
+                var width = 1
+                if source[index] >= 240:
+                    width = 4
+                else:
+                    if source[index] >= 224:
+                        width = 3
+                    else:
+                        if source[index] >= 192:
+                            width = 2
                 index = index + width
                 column = column + 1
             let token_length = index - token_start
@@ -361,9 +375,15 @@ fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, diagnostic
                     let escaped = source[index]
                     if escaped != 110 and escaped != 114 and escaped != 116 and escaped != 92 and escaped != 34 and escaped != 39:
                         return swanc_fail(diagnostic, 8, index, line, column)
-                let width = swanc_utf8_width(source, index, source_length)
-                if width == 0:
-                    return swanc_fail(diagnostic, 1, index, line, column)
+                var width = 1
+                if source[index] >= 240:
+                    width = 4
+                else:
+                    if source[index] >= 224:
+                        width = 3
+                    else:
+                        if source[index] >= 192:
+                            width = 2
                 index = index + width
                 column = column + 1
             if closed == 0:
