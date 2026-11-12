@@ -12,22 +12,22 @@ ASSEMBLY="$ROOT/build/swanc-parser-module.s"
     printf '\n'
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
-func swanc_parser_test(source: u32_array, source_length: int, tokens: u32_array, token_capacity: int, nodes: u32_array, node_capacity: int, state: u32_array) -> int:
+func swanc_parser_test(source: u32_array, source_length: int, tokens: u32_array, nodes: u32_array, state: u32_array) -> int:
     let diagnostic = array_unchecked(4)
-    let token_count = swan_lex(source, source_length, tokens, token_capacity, diagnostic)
+    let token_count = swan_lex(source, source_length, tokens, 128, diagnostic)
     if token_count < 1:
         return -100
-    return swanc_parse(source, tokens, token_count, nodes, node_capacity, state)
+    return swanc_parse(source, tokens, token_count, nodes, 128, state)
 out
-func swanc_lex_test(source: u32_array, source_length: int, tokens: u32_array, token_capacity: int, diagnostic: u32_array) -> int:
-    return swan_lex(source, source_length, tokens, token_capacity, diagnostic)
+func swanc_lex_test(source: u32_array, source_length: int, tokens: u32_array, diagnostic: u32_array) -> int:
+    return swan_lex(source, source_length, tokens, 4, diagnostic)
 out
 func main() -> int:
     let source = array_unchecked(1)
     let tokens = array_unchecked(5)
     let nodes = array_unchecked(5)
     let state = array_unchecked(2)
-    return swanc_parser_test(source, 0, tokens, 1, nodes, 1, state)
+    return swanc_parser_test(source, 0, tokens, nodes, state)
 out
 SWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
