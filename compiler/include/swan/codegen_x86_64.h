@@ -896,13 +896,34 @@ static inline void samc_assign_stack_arrays(Locals *l){
 }
 static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array)return true;}return false;}
 static inline bool samc_expr_uses_owned_array(Expr *e,Locals *l){if(!e)return false;if(e->kind==E_NAME){Local *v=local_find(l,e->token.text);return v&&v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array;}if(samc_expr_uses_owned_array(e->left,l)||samc_expr_uses_owned_array(e->right,l))return true;for(size_t i=0;i<e->argc;i++)if(samc_expr_uses_owned_array(e->args[i],l))return true;return false;}
+/* Zero-initialize owned heap handles before any branch can bypass their
+   declaration. This makes cleanup safe on every control-flow path. */
+static inline void ownership_initialize_handles(Text *o,Locals *l){
+ for(size_t i=0;i<l->count;i++){
+  Local *v=&l->items[i];
+  if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
+  if(v->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",v->slot*8);
+ }
+}
+/* Cleanup is idempotent: clear each handle after releasing it. Returns and
+   the function epilogue can both run cleanup without double-freeing. */
 static inline void emit_samc_cleanup(Text *o,Locals *l){
- for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
+ for(size_t i=0;i<l->count;i++){
+  Local *v=&l->items[i];
+  if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
+  int skip=o->next_label++;
+  if(v->reg>=0)text_add(o,"    test %s, %s\\n    je .Lswan_drop_skip_%d\\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
+  else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\\n    je .Lswan_drop_skip_%d\\n",v->slot*8,skip);
   cg_save_volatile(o,l);
-  if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));
-  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);
-  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");
-  cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+  if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));
+  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);
+  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");
+  cg_call(o,"free@PLT");
+  if(v->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",v->slot*8);
+  cg_restore_volatile(o,l);
+  text_add(o,".Lswan_drop_skip_%d:\\n",skip);
  }
 }
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
@@ -1023,6 +1044,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
+  ownership_initialize_handles(o,&l);
   const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
   for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){size_t index=a-1;Local *v=local_find(&l,fn->params[index]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);}}
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
