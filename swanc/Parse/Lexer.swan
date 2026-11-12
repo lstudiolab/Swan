@@ -12,8 +12,8 @@
 #
 # Keyword spellings are hardcoded below. Matching is exact, case-sensitive,
 # allocation-free, and performed only after scanning the complete identifier.
-# The reserved set matches the existing compiler's 41-word keyword contract,
-# plus the compatibility spellings fn, out, and store.
+# The reserved set is exactly the 36 spellings in the Swan language contract.
+# Legacy spellings such as fn and out are identifiers, never keyword tokens.
 
 fn swanc_ascii_alpha(byte: int) -> bool:
     return (byte >= 65 and byte <= 90) or (byte >= 97 and byte <= 122)
@@ -169,7 +169,7 @@ fn swanc_fail(diagnostic: u32_array, code: int, offset: int, line: int, column: 
 
 out
 fn swan_lex(source: u32_array, source_length: int, tokens: u32_array, token_capacity: int, diagnostic: u32_array) -> int:
-    # Token IDs 0...82 are the stable TokenKind order in core.h.
+    # Token IDs are the stable Compiler 2 lexer ABI; keyword IDs are explicit below.
     # Diagnostic codes: 1 invalid UTF-8, 2 invalid byte, 3 token capacity,
     # 4 indentation depth, 5 inconsistent indentation, 6 malformed number,
     # 7 unterminated/invalid string, 8 invalid escape, 9 invalid source size.
