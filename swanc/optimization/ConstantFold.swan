@@ -6,8 +6,9 @@
 #   [capacity+2..2*capacity+1] constant values
 #
 # Operates on the eight-word linear IR instruction format. It folds i32
-# add/subtract/multiply when both operands are known constants. Result IDs
-# remain stable. Overflowing unsigned i32 results are left unchanged.
+# add/subtract/multiply when both operands are known constants. Multiplication
+# is bounded to 16-bit operands so its intermediate cannot overflow. Result
+# IDs remain stable; overflowing unsigned i32 results are left unchanged.
 
 fn swanc_ir_constant_fold(instructions: u32_array, instruction_count: int, workspace: u32_array, capacity: int) -> int:
     if instruction_count < 0 or instruction_count > 268435455 or capacity < instruction_count + 1 or capacity > 268435455:
