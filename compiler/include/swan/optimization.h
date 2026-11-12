@@ -41,6 +41,30 @@ static inline bool swan_ir_constant_lookup(const SwanIRFunction *fn,uint32_t id,
     }
     return swan_ir_constant(fn,id,value);
 }
+static inline bool swan_ir_build_constant_table(const SwanIRFunction *fn,
+        unsigned char **known_out,int64_t **values_out,char *error,size_t cap){
+    size_t count=fn->next_value;
+    if(count>SIZE_MAX/sizeof(int64_t)){
+        if(error&&cap)snprintf(error,cap,"constant table size overflow");
+        return false;
+    }
+    unsigned char *known=calloc(count,sizeof(*known));
+    int64_t *values=calloc(count,sizeof(*values));
+    if(!known||!values){
+        free(known);free(values);
+        if(error&&cap)snprintf(error,cap,"out of memory building constant table");
+        return false;
+    }
+    for(size_t b=0;b<fn->block_count;b++)
+        for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+            const SwanIRInst *in=&fn->blocks[b].instructions[i];
+            if(in->op==SWAN_IR_CONST&&in->result&&in->result<count){
+                known[in->result]=1;values[in->result]=in->immediate;
+            }
+        }
+    *known_out=known;*values_out=values;
+    return true;
+}
 static inline bool swan_ir_fold_instruction_using(SwanIRFunction *fn,SwanIRInst *in,
         const unsigned char *known,const int64_t *values){
     if(in->op==SWAN_IR_SELECT){
@@ -300,11 +324,13 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
     *changed=false;
     for(size_t fi=0;fi<module->function_count;fi++){
         SwanIRFunction *fn=&module->functions[fi];size_t n=fn->block_count;
+        unsigned char *constant_known=NULL;int64_t *constant_values=NULL;
+        if(!swan_ir_build_constant_table(fn,&constant_known,&constant_values,error,cap))return false;
         for(size_t b=0;b<n;b++){
             SwanIRTerm *term=&fn->blocks[b].terminator;
             if(term->kind==SWAN_IR_COND_BR){
                 int64_t condition;
-                if(swan_ir_constant(fn,term->value,&condition)){
+                if(swan_ir_constant_lookup(fn,term->value,&condition,constant_known,constant_values)){
                     term->kind=SWAN_IR_BR;term->target=condition?term->target:term->alternate;term->alternate=0;term->value=0;*changed=true;
                 }
             }
@@ -312,6 +338,7 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
                 term->kind=SWAN_IR_BR;term->alternate=0;term->value=0;*changed=true;
             }
         }
+        free(constant_known);free(constant_values);
         if(n<=1)continue;
         bool *reachable=calloc(n,sizeof(*reachable));size_t *queue=malloc(n*sizeof(*queue));
         if(!reachable||!queue){free(reachable);free(queue);if(error&&cap)snprintf(error,cap,"out of memory simplifying IR control flow");return false;}
