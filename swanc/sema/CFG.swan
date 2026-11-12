@@ -1,0 +1,132 @@
+# Swan Compiler 2 — Control-Flow Graph verifier
+#
+# A basic block is five u32 words:
+# [terminator, successor_a, successor_b, predecessor_count, flags]
+# Block IDs are one-based. Successor 0 means no edge.
+# Terminators: 1 return, 2 unconditional branch, 3 conditional branch,
+# 4 unreachable. Flags are reserved and must be zero.
+#
+# Workspace: [error_code, block_index, observed, reachable_count,
+#             predecessor_counts[block_count], visited[block_count],
+#             BFS_queue[block_count]].
+# The caller owns all storage. The verifier never allocates.
+#
+# Return 0 for a valid graph, negative for a malformed graph. Unreachable
+# blocks are reported through workspace[3], not rejected: later reachability
+# and dead-block passes decide whether they can be removed.
+
+fn swanc_cfg_fail(workspace: u32_array, code: int, block: int, observed: int) -> int:
+    workspace[0] = code
+    workspace[1] = block
+    workspace[2] = observed
+    return 0 - code
+
+out
+fn swanc_cfg_verify(blocks: u32_array, block_count: int, workspace: u32_array, workspace_capacity: int) -> int:
+    if block_count < 1 or block_count > 1073741821:
+        workspace[0] = 1
+        workspace[1] = 0
+        workspace[2] = block_count
+        return -1
+    let required = 4 + block_count * 3
+    if workspace_capacity < required:
+        workspace[0] = 2
+        workspace[1] = 0
+        workspace[2] = required
+        return -2
+
+    let pred_base = 4
+    let visit_base = pred_base + block_count
+    let queue_base = visit_base + block_count
+    var index = 0
+    while index < block_count:
+        workspace[pred_base + index] = 0
+        workspace[visit_base + index] = 0
+        index = index + 1
+
+    # Validate every terminator and edge before following any edge.
+    index = 0
+    while index < block_count:
+        let base = index * 5
+        let terminator = blocks[base]
+        let first = blocks[base + 1]
+        let second = blocks[base + 2]
+        let declared_predecessors = blocks[base + 3]
+        let flags = blocks[base + 4]
+        if flags != 0:
+            return swanc_cfg_fail(workspace, 3, index + 1, flags)
+        if terminator < 1 or terminator > 4:
+            return swanc_cfg_fail(workspace, 4, index + 1, terminator)
+
+        if terminator == 1 or terminator == 4:
+            if first != 0 or second != 0:
+                return swanc_cfg_fail(workspace, 5, index + 1, first)
+        else
+            if terminator == 2:
+                if first < 1 or first > block_count or second != 0:
+                    return swanc_cfg_fail(workspace, 6, index + 1, first)
+            else
+                if first < 1 or first > block_count or second < 1 or second > block_count:
+                    return swanc_cfg_fail(workspace, 7, index + 1, first)
+        index = index + 1
+
+    # Compute predecessor counts from edges, with overflow-safe bounds.
+    index = 0
+    while index < block_count:
+        let base = index * 5
+        let terminator = blocks[base]
+        let first = blocks[base + 1]
+        let second = blocks[base + 2]
+        if terminator == 2 or terminator == 3:
+            let slot_a = pred_base + first - 1
+            workspace[slot_a] = workspace[slot_a] + 1
+            if workspace[slot_a] > block_count:
+                return swanc_cfg_fail(workspace, 8, first, workspace[slot_a])
+        if terminator == 3:
+            let slot_b = pred_base + second - 1
+            workspace[slot_b] = workspace[slot_b] + 1
+            if workspace[slot_b] > block_count:
+                return swanc_cfg_fail(workspace, 8, second, workspace[slot_b])
+        index = index + 1
+
+    index = 0
+    while index < block_count:
+        let declared = blocks[index * 5 + 3]
+        let observed = workspace[pred_base + index]
+        if declared != observed:
+            return swanc_cfg_fail(workspace, 9, index + 1, observed)
+        index = index + 1
+    if workspace[pred_base] != 0:
+        return swanc_cfg_fail(workspace, 10, 1, workspace[pred_base])
+
+    # Iterative breadth-first traversal from entry block 1.
+    # This avoids recursion and bounds queue growth to block_count.
+    var head = 0
+    var tail = 1
+    workspace[queue_base] = 1
+    workspace[visit_base] = 1
+    while head < tail:
+        let current = workspace[queue_base + head]
+        head = head + 1
+        let base = (current - 1) * 5
+        let terminator = blocks[base]
+        let first = blocks[base + 1]
+        let second = blocks[base + 2]
+        if terminator == 2 or terminator == 3:
+            let slot_a = visit_base + first - 1
+            if workspace[slot_a] == 0:
+                workspace[slot_a] = 1
+                workspace[queue_base + tail] = first
+                tail = tail + 1
+        if terminator == 3:
+            let slot_b = visit_base + second - 1
+            if workspace[slot_b] == 0:
+                workspace[slot_b] = 1
+                workspace[queue_base + tail] = second
+                tail = tail + 1
+    workspace[0] = 0
+    workspace[1] = 0
+    workspace[2] = 0
+    workspace[3] = tail
+    return 0
+out
