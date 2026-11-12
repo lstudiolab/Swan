@@ -6,6 +6,8 @@
 # until the IR gains block-aware instruction deletion and value renumbering.
 
 fn swanc_ir_dead_code_eliminate(instructions: u32_array, instruction_count: int, workspace: u32_array, capacity: int) -> int:
+    if instruction_count < 0 or instruction_count > 268435455 or capacity < instruction_count + 1 or capacity > 268435455:
+        return -1
     if swanc_ir_compute_use_counts(instructions, instruction_count, workspace, capacity) != 0:
         return -1
     var index = instruction_count - 1
