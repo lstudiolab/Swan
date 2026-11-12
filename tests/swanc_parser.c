@@ -3,8 +3,7 @@
 #include <string.h>
 
 extern int64_t swan_fn_swanc_parser_test(
-    uint32_t *source, int64_t source_length,
-    uint32_t *tokens, uint32_t *nodes, uint32_t *state);
+    uint32_t *source, uint32_t *tokens, uint32_t *nodes, uint32_t *state);
 extern int64_t swan_fn_swanc_lex_test(
     uint32_t *source, int64_t source_length,
     uint32_t *tokens, uint32_t *diagnostic);
@@ -27,16 +26,16 @@ static int parse(const char *text, uint32_t *nodes, uint32_t *state) {
     if (length > 128) return -99;
     for (size_t i = 0; i < length; ++i) source[i] = (unsigned char)text[i];
     memset(nodes, 0, 128 * 5 * sizeof(uint32_t));
-    state[0] = state[1] = 0;
+    state[0] = state[1] = state[2] = state[3] = 0;
+    state[4] = (uint32_t)length;
     fprintf(stderr, "parser-call-begin: %s\\n", text);
-    int result = (int)swan_fn_swanc_parser_test(source, (int64_t)length,
-        tokens, nodes, state);
+    int result = (int)swan_fn_swanc_parser_test(source, tokens, nodes, state);
     fprintf(stderr, "parser-call-end: %d nodes=%u position=%u\\n", result, state[1], state[0]);
     return result;
 }
 
 static int arithmetic_precedence(void) {
-    uint32_t nodes[128 * 5] = {0}, state[4] = {0};
+    uint32_t nodes[128 * 5] = {0}, state[5] = {0};
     int root = parse("2 + 3 * (4 - 1)", nodes, state);
     if (root != 7 || state[1] != 7) {
         fprintf(stderr, "precedence parse failed: root=%d nodes=%u\n", root, state[1]);
@@ -56,7 +55,7 @@ static int arithmetic_precedence(void) {
 }
 
 static int left_associativity(void) {
-    uint32_t nodes[128 * 5] = {0}, state[4] = {0};
+    uint32_t nodes[128 * 5] = {0}, state[5] = {0};
     int root = parse("10 - 3 - 2", nodes, state);
     if (root != 5 || nodes[3 * 5 + 1] != 1 ||
         nodes[3 * 5 + 2] != 1 || nodes[3 * 5 + 3] != 2 ||
@@ -83,7 +82,7 @@ static int unicode_columns(void) {
 }
 
 static int parentheses_and_rejections(void) {
-    uint32_t nodes[128 * 5] = {0}, state[4] = {0};
+    uint32_t nodes[128 * 5] = {0}, state[5] = {0};
     if (parse("(12)", nodes, state) != 1 || nodes[0] != 1 || nodes[4] != 12)
         return 4;
     if (parse("1.5", nodes, state) >= 0) {
