@@ -105,6 +105,8 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_ty
         let a = instructions[base + 3]
         let b = instructions[base + 4]
         let c = instructions[base + 5]
+        let immediate_low = instructions[base + 6]
+        let immediate_high = instructions[base + 7]
         if opcode < 0 or opcode > 25 or type_id < 0 or type_id > 8 or result_id < 0:
             workspace[0] = 2
             workspace[1] = index
@@ -124,6 +126,22 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_ty
                 workspace[0] = 5
                 workspace[1] = index
                 return -5
+            if type_id == 1 and (immediate_low > 1 or immediate_high != 0):
+                workspace[0] = 18
+                workspace[1] = index
+                return -18
+            if type_id == 2 and (immediate_low > 255 or immediate_high != 0):
+                workspace[0] = 18
+                workspace[1] = index
+                return -18
+            if type_id == 3 and (immediate_low > 65535 or immediate_high != 0):
+                workspace[0] = 18
+                workspace[1] = index
+                return -18
+            if (type_id == 4 or type_id == 6) and immediate_high != 0:
+                workspace[0] = 18
+                workspace[1] = index
+                return -18
         else:
             if opcode >= 1 and opcode <= 13:
                 if type_id < 1 or type_id > 5 or a < 1 or b < 1 or c != 0:
