@@ -14,7 +14,7 @@ ASSEMBLY="$ROOT/build/swanc-optimizer-module.s"
 } > "$SOURCE"
 cat >> "$SOURCE" <<'SWAN'
 fn main() -> int:
-    return swanc_ir_optimize(array_unchecked(8), 0, array_unchecked(2), 1)
+    return swanc_ir_optimize(array_unchecked(8), 0, array_unchecked(4), 1)
 out
 SWAN
 "$ROOT/build/swan" "$SOURCE" --target x86_64 --emit-asm -o "$ASSEMBLY"
