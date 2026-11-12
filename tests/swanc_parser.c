@@ -42,7 +42,7 @@ static int arithmetic_precedence(void) {
 }
 
 static int left_associativity(void) {
-    uint32_t nodes[128 * 5] = {0}, state[2] = {0};
+    uint32_t nodes[128 * 5] = {0}, state[4] = {0};
     int root = parse("10 - 3 - 2", nodes, state);
     if (root != 5 || nodes[3 * 5 + 1] != 1 ||
         nodes[3 * 5 + 2] != 1 || nodes[3 * 5 + 3] != 2 ||
@@ -69,7 +69,7 @@ static int unicode_columns(void) {
 }
 
 static int parentheses_and_rejections(void) {
-    uint32_t nodes[128 * 5] = {0}, state[2] = {0};
+    uint32_t nodes[128 * 5] = {0}, state[4] = {0};
     if (parse("(12)", nodes, state) != 1 || nodes[0] != 1 || nodes[4] != 12)
         return 4;
     if (parse("1.5", nodes, state) >= 0) {
