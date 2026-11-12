@@ -25,7 +25,7 @@ static int workload(void){
         put(ir,load,23,4,CONSTANTS+ADDITIONS+2,1,0,0,0);
         put(ir,dead,1,4,CONSTANTS+ADDITIONS+3,CONSTANTS+ADDITIONS+2,2,0,0);
         int64_t status=swan_fn_swanc_ir_optimize(ir,IR_INSTRUCTIONS,ws,IR_INSTRUCTIONS+1);
-        if(status){fprintf(stderr,"optimizer failed: status=%lld diagnostic=%u at=%u\n",(long long)status,ws[0],ws[1]);return 1;}
+        if(status){fprintf(stderr,"optimizer failed: status=%lld diagnostic=%u at=%u operands=%u,%u next=%u types=%u,%u\n",(long long)status,ws[0],ws[1],ws[2],ws[3],ws[4],ws[5],ws[6]);return 1;}
         for(uint32_t i=0;i<ADDITIONS;++i){
             uint32_t p=(1+CONSTANTS+i)*8,expected=(i*2+1)+(i*2+2);
             if(ir[p]!=0||ir[p+6]!=expected){fprintf(stderr,"incorrect fold round=%d instruction=%u\n",round,i);return 2;}
