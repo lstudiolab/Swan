@@ -60,6 +60,29 @@ static void check_transitive_copy_propagation(void){
  assert(entry->instructions[0].a==2&&entry->instructions[0].b==2);
  swan_ir_destroy(&module);
 }
+static void check_trapping_operand_is_preserved(void){
+ SwanIRModule module={0};
+ SwanIRFunction *fn=swan_ir_add_function(&module,"preserve_trap",SWAN_IR_I64,NULL,0);assert(fn);
+ SwanIRBlock *entry=swan_ir_add_block(fn,"entry");assert(entry);
+ SwanIRInst one={0};one.op=SWAN_IR_CONST;one.type=SWAN_IR_I64;one.immediate=1;
+ uint32_t one_id=swan_ir_add_inst(fn,entry,one);assert(one_id);
+ SwanIRInst zero={0};zero.op=SWAN_IR_CONST;zero.type=SWAN_IR_I64;zero.immediate=0;
+ uint32_t zero_id=swan_ir_add_inst(fn,entry,zero);assert(zero_id);
+ SwanIRInst divide={0};divide.op=SWAN_IR_SDIV;divide.type=SWAN_IR_I64;divide.a=one_id;divide.b=zero_id;
+ uint32_t quotient=swan_ir_add_inst(fn,entry,divide);assert(quotient);
+ SwanIRInst multiply={0};multiply.op=SWAN_IR_MUL;multiply.type=SWAN_IR_I64;multiply.a=quotient;multiply.b=zero_id;
+ uint32_t result=swan_ir_add_inst(fn,entry,multiply);assert(result);
+ assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}));
+ char error[256]={0};assert(swan_ir_optimize(&module,error,sizeof(error)));
+ assert(swan_ir_verify(&module,error,sizeof(error)));
+ bool division_survived=false,multiply_survived=false;
+ for(size_t i=0;i<entry->instruction_count;i++){
+  division_survived|=entry->instructions[i].op==SWAN_IR_SDIV;
+  multiply_survived|=entry->instructions[i].result==result&&entry->instructions[i].op==SWAN_IR_MUL;
+ }
+ assert(division_survived&&multiply_survived);
+ swan_ir_destroy(&module);
+}
 int main(void){
  SwanIRModule m={0};SwanIRFunction *f=swan_ir_add_function(&m,"main",SWAN_IR_I64,NULL,0);assert(f);
  SwanIRBlock *b=swan_ir_add_block(f,"entry");assert(b);
@@ -179,6 +202,7 @@ int main(void){
  assert(hoisted_product&&hoisted_sum&&!remains_product&&!remains_sum);
  swan_ir_destroy(&licm);
 
+ check_trapping_operand_is_preserved();
  check_transitive_copy_propagation();
  check_constant_chain(512);
  check_or_all_ones(SWAN_IR_I8,false);check_or_all_ones(SWAN_IR_I8,true);
