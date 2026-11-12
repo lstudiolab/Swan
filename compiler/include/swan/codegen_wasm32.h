@@ -5,18 +5,25 @@
 
 typedef struct { unsigned char *data; size_t length,capacity; } SwanWasmBuffer;
 static inline bool swan_wasm_reserve(SwanWasmBuffer *b,size_t n){
- if(!b||n>SIZE_MAX-b->length)return false;
+ if(!b||b->length>b->capacity||n>SIZE_MAX-b->length)return false;
  size_t need=b->length+n;
  if(need<=b->capacity)return true;
- size_t cap=b->capacity?b->capacity:128;while(cap<need){if(cap>SIZE_MAX/2)return false;cap*=2;}
- void *p=realloc(b->data,cap);if(!p)return false;b->data=p;b->capacity=cap;return true;
+ size_t cap=b->capacity?b->capacity:128;
+ while(cap<need){
+  if(cap>SIZE_MAX/2){cap=need;break;}
+  cap*=2;
+ }
+ void *p=realloc(b->data,cap);
+ if(!p)return false;
+ b->data=p;b->capacity=cap;
+ return true;
 }
 static inline bool swan_wasm_byte(SwanWasmBuffer *b,uint8_t v){if(!swan_wasm_reserve(b,1))return false;b->data[b->length++]=v;return true;}
-static inline bool swan_wasm_bytes(SwanWasmBuffer *b,const void *p,size_t n){if(!swan_wasm_reserve(b,n))return false;memcpy(b->data+b->length,p,n);b->length+=n;return true;}
+static inline bool swan_wasm_bytes(SwanWasmBuffer *b,const void *p,size_t n){if((n&&!p)||!swan_wasm_reserve(b,n))return false;if(n)memcpy(b->data+b->length,p,n);b->length+=n;return true;}
 static inline bool swan_wasm_u32(SwanWasmBuffer *b,uint32_t v){do{uint8_t x=(uint8_t)(v&127u);v>>=7;if(v)x|=128;if(!swan_wasm_byte(b,x))return false;}while(v);return true;}
 static inline bool swan_wasm_u64(SwanWasmBuffer *b,uint64_t v){do{uint8_t x=(uint8_t)(v&127u);v>>=7;if(v)x|=128;if(!swan_wasm_byte(b,x))return false;}while(v);return true;}
 static inline bool swan_wasm_s64(SwanWasmBuffer *b,int64_t v){bool more=true;while(more){uint8_t x=(uint8_t)(v&127);v>>=7;bool sign=(x&64)!=0;more=!((v==0&&!sign)||(v==-1&&sign));if(more)x|=128;if(!swan_wasm_byte(b,x))return false;}return true;}
-static inline bool swan_wasm_name(SwanWasmBuffer *b,const char *s){size_t n=strlen(s);return n<=UINT32_MAX&&swan_wasm_u32(b,(uint32_t)n)&&swan_wasm_bytes(b,s,n);}
+static inline bool swan_wasm_name(SwanWasmBuffer *b,const char *s){if(!s)return false;size_t n=strlen(s);return n<=UINT32_MAX&&swan_wasm_u32(b,(uint32_t)n)&&swan_wasm_bytes(b,s,n);}
 static inline uint8_t swan_wasm_type_for(SwanIRType t,bool memory64){return t==SWAN_IR_F32?0x7d:t==SWAN_IR_F64?0x7c:t==SWAN_IR_PTR?(memory64?0x7e:0x7f):t==SWAN_IR_I1||t==SWAN_IR_I8||t==SWAN_IR_I16||t==SWAN_IR_I32?0x7f:t==SWAN_IR_VOID?0x40:0x7e;}
 static inline bool swan_wasm_get(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_set(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x21)&&swan_wasm_u32(b,id-1);}
