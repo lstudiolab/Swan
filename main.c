@@ -108,7 +108,8 @@ static int swan_run(int argc,char **argv){
   const char *dest=output?output:default_output;int result=0;
   if(mode==SWAN_EMIT_LLVM){
    FILE *of=fopen(dest,"wb");bool ok=of&&fwrite(llvm.data,1,llvm.len,of)==llvm.len;
-   if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write LLVM IR '%s'\n",dest);result=1;}
+   if(of&&fclose(of)!=0)ok=false;
+    if(!ok){fprintf(stderr,"swan: cannot write LLVM IR '%s'\n",dest);result=1;}
   }else{
    char temp[]="/tmp/swan-llvm-XXXXXX";int fd=mkstemp(temp);
    if(fd<0)result=1;
