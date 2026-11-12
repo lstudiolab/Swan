@@ -59,6 +59,28 @@ SVM is the target-independent compiler engine, not a runtime target. The old IR 
 - Full cross-target runtime linking and OS/platform runtime integration are incomplete.
 - The IR machine-code backends are not yet equivalent to a globally register-allocated, scheduled optimizing backend.
 
+## Compiler 2 (swanc) implementation status
+
+Compiler 2 is not release-ready and is not yet a complete executable compiler. Compiler 1 remains the production/bootstrap compiler.
+
+| Component | Current evidence | Release status |
+|---|---|---|
+| Lexer | UTF-8 scanner with caller-owned token storage; regression coverage through Compiler 1 | Partial |
+| Parser / AST | Pratt parser for integer expressions and a small AST record format | Partial |
+| Semantic analysis | Contract files plus a linear ownership-event verifier | Not integrated |
+| Ownership | Checks declare/read/write/shared-borrow/exclusive-borrow/end/move/drop transitions and first-error diagnostics | Component slice only |
+| SIL / SILGen | Architectural source files exist; complete verified AST lowering is not integrated | Not implemented |
+| IR / IRGen | Initial linear instruction records and verifier | Partial |
+| Optimization | Verified linear pass manager with conservative integer constant folding and DCE | Component slice only |
+| SVM | Instruction-set and pass-manager contracts; complete pipeline integration is absent | Not implemented |
+| Backend | Target/ABI/register-allocation/emission component contracts | Not implemented |
+| Driver / linker | Orchestration and toolchain contracts; not wired into a complete compiler | Not implemented |
+| Self-hosting | Compiler 1 can compile selected Compiler 2 source slices | Not achieved |
+
+The ownership-event verifier is deliberately narrow. Its input is an already-linearized event stream; it does not derive events from the AST or control-flow graph, infer non-lexical borrow regions, perform path-sensitive branch joins, validate alias provenance, or insert deterministic drops. Its passing tests prove only the tested event-state transitions. They do not establish Rust-equivalent memory safety.
+
+Do not publish Compiler 2 as production-ready until the complete source frontend, AST/CFG semantic analysis, ownership and lifetime model, SIL/SVM verifiers and passes, target backend, driver, linker, and repeatable stage-2/stage-3 bootstrap are implemented and tested. Keep Compiler 1 as the supported compiler until that gate is met.
+
 ## Test policy
 
 The repository's top-level `test.sh` builds the compiler and runs header isolation, C11 smoke, C ABI, UTF-8, profiling, smoke, regression, Foundation, lazy-import, architecture, and keyword tests.
