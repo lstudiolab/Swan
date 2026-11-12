@@ -1,6 +1,25 @@
 #include "swan/optimization.h"
 #include <assert.h>
 #include <stdio.h>
+static void check_or_all_ones(SwanIRType type,bool constant_left){
+ SwanIRModule module={0};
+ SwanIRFunction *fn=swan_ir_add_function(&module,"or_all_ones",type,&type,1);assert(fn);
+ SwanIRBlock *entry=swan_ir_add_block(fn,"entry");assert(entry);
+ SwanIRInst constant={0};constant.op=SWAN_IR_CONST;constant.type=type;constant.immediate=-1;
+ uint32_t all=swan_ir_add_inst(fn,entry,constant);assert(all);
+ SwanIRInst op={0};op.op=SWAN_IR_OR;op.type=type;
+ op.a=constant_left?all:1;op.b=constant_left?1:all;
+ uint32_t result=swan_ir_add_inst(fn,entry,op);assert(result);
+ assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}));
+ char error[256]={0};assert(swan_ir_optimize(&module,error,sizeof(error)));
+ assert(swan_ir_verify(&module,error,sizeof(error)));
+ bool found=false;
+ for(size_t i=0;i<entry->instruction_count;i++)if(entry->instructions[i].result==result){
+  assert(entry->instructions[i].op==SWAN_IR_CONST);
+  assert(entry->instructions[i].immediate==-1);found=true;
+ }
+ assert(found);swan_ir_destroy(&module);
+}
 int main(void){
  SwanIRModule m={0};SwanIRFunction *f=swan_ir_add_function(&m,"main",SWAN_IR_I64,NULL,0);assert(f);
  SwanIRBlock *b=swan_ir_add_block(f,"entry");assert(b);
@@ -111,6 +130,10 @@ int main(void){
  assert(hoisted&&!remains);
  swan_ir_destroy(&licm);
 
- puts("PASS: constant folding, CFG simplification, algebraic simplification, copy propagation, dominance-aware CSE, LICM and dead-code elimination");
+ check_or_all_ones(SWAN_IR_I8,false);check_or_all_ones(SWAN_IR_I8,true);
+ check_or_all_ones(SWAN_IR_I16,false);check_or_all_ones(SWAN_IR_I16,true);
+ check_or_all_ones(SWAN_IR_I32,false);check_or_all_ones(SWAN_IR_I32,true);
+ check_or_all_ones(SWAN_IR_I64,false);check_or_all_ones(SWAN_IR_I64,true);
+ puts("PASS: constant folding, CFG simplification, algebraic identities, copy propagation, dominance-aware CSE, LICM, DCE, and all-width OR identities");
  return 0;
 }
