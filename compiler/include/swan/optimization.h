@@ -445,19 +445,36 @@ static inline bool swan_ir_licm_opcode(SwanIROp op){
         op==SWAN_IR_SHL||op==SWAN_IR_LSHR||op==SWAN_IR_ASHR||
         (op>=SWAN_IR_ICMP_EQ&&op<=SWAN_IR_ICMP_SGE)||op==SWAN_IR_SELECT;
 }
-static inline bool swan_ir_value_defined_in_loop(const SwanIRFunction *fn,uint32_t value,const bool *loop){
-    if(!value||value<=fn->parameter_count)return false;
-    for(size_t b=0;b<fn->block_count;b++)
-        for(size_t i=0;i<fn->blocks[b].instruction_count;i++)
-            if(fn->blocks[b].instructions[i].result==value)return loop[b];
-    return false;
+static inline bool swan_ir_value_defined_in_loop(const SwanIRFunction *fn,uint32_t value,
+        const uint32_t *definition_blocks,const bool *loop){
+    if(!value||value<=fn->parameter_count||value>=fn->next_value)return false;
+    uint32_t block=definition_blocks[value];
+    return block!=UINT32_MAX&&block<fn->block_count&&loop[block];
 }
 static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char *error,size_t cap){
     for(size_t fi=0;fi<module->function_count;fi++){
         SwanIRFunction *fn=&module->functions[fi];size_t n=fn->block_count;
         if(n<3)continue;
-        bool *loop=calloc(n,sizeof(*loop));size_t *queue=malloc(n*sizeof(*queue));
-        if(!loop||!queue){free(loop);free(queue);if(error&&cap)snprintf(error,cap,"out of memory finding IR natural loops");return false;}
+        size_t value_count=fn->next_value;
+        if(value_count>SIZE_MAX/sizeof(uint32_t)){
+            if(error&&cap)snprintf(error,cap,"LICM definition map size overflow");
+            return false;
+        }
+        bool *loop=calloc(n,sizeof(*loop));
+        size_t *queue=malloc(n*sizeof(*queue));
+        uint32_t *definition_blocks=malloc(value_count*sizeof(*definition_blocks));
+        uint32_t *next_definition_blocks=malloc(value_count*sizeof(*next_definition_blocks));
+        if(!loop||!queue||!definition_blocks||!next_definition_blocks){
+            free(loop);free(queue);free(definition_blocks);free(next_definition_blocks);
+            if(error&&cap)snprintf(error,cap,"out of memory finding IR natural loops");
+            return false;
+        }
+        for(size_t id=0;id<value_count;id++)definition_blocks[id]=UINT32_MAX;
+        for(size_t b=0;b<n;b++)
+            for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+                uint32_t result=fn->blocks[b].instructions[i].result;
+                if(result&&result<value_count)definition_blocks[result]=(uint32_t)b;
+            }
         for(size_t header=0;header<n;header++){
             memset(loop,0,n*sizeof(*loop));size_t head=0,tail=0;bool has_latch=false;
             loop[header]=true;
@@ -498,18 +515,25 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
                         const SwanIRInst *in=&bb->instructions[i];
                         if(!in->result||!swan_ir_licm_opcode(in->op)||
                            (in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I8&&in->type!=SWAN_IR_I16&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64))continue;
-                        bool invariant=!swan_ir_value_defined_in_loop(fn,in->a,loop);
-                        if(in->op!=SWAN_IR_SELECT)invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop);
-                        else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,loop)&&!swan_ir_value_defined_in_loop(fn,in->c,loop);
+                        bool invariant=!swan_ir_value_defined_in_loop(fn,in->a,definition_blocks,loop);
+                        if(in->op!=SWAN_IR_SELECT)
+                            invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,definition_blocks,loop);
+                        else
+                            invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in->b,definition_blocks,loop)&&
+                                !swan_ir_value_defined_in_loop(fn,in->c,definition_blocks,loop);
                         if(invariant)move_count++;
                     }
                 }
                 if(!move_count)break;
                 SwanIRBlock *pre=&fn->blocks[preheader];
-                if(!swan_ir_reserve((void**)&pre->instructions,&pre->instruction_capacity,
+                if(move_count>SIZE_MAX-pre->instruction_count||
+                   !swan_ir_reserve((void**)&pre->instructions,&pre->instruction_capacity,
                                     pre->instruction_count+move_count,sizeof(*pre->instructions))){
-                    free(loop);free(queue);if(error&&cap)snprintf(error,cap,"out of memory hoisting loop-invariant IR");return false;
+                    free(loop);free(queue);free(definition_blocks);free(next_definition_blocks);
+                    if(error&&cap)snprintf(error,cap,"out of memory hoisting loop-invariant IR");
+                    return false;
                 }
+                memcpy(next_definition_blocks,definition_blocks,value_count*sizeof(*definition_blocks));
                 size_t moved=0;
                 for(size_t b=0;b<n;b++)if(loop[b]){
                     SwanIRBlock *bb=&fn->blocks[b];size_t out=0;
@@ -517,19 +541,33 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
                         SwanIRInst in=bb->instructions[i];
                         bool invariant=in.result&&swan_ir_licm_opcode(in.op)&&
                             (in.type==SWAN_IR_I1||in.type==SWAN_IR_I8||in.type==SWAN_IR_I16||in.type==SWAN_IR_I32||in.type==SWAN_IR_I64)&&
-                            !swan_ir_value_defined_in_loop(fn,in.a,loop);
-                        if(in.op==SWAN_IR_SELECT)invariant=invariant&&
-                            !swan_ir_value_defined_in_loop(fn,in.b,loop)&&!swan_ir_value_defined_in_loop(fn,in.c,loop);
-                        else invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in.b,loop);
-                        if(invariant){pre->instructions[pre->instruction_count++]=in;moved++;}
-                        else bb->instructions[out++]=in;
+                            !swan_ir_value_defined_in_loop(fn,in.a,definition_blocks,loop);
+                        if(in.op==SWAN_IR_SELECT)
+                            invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in.b,definition_blocks,loop)&&
+                                !swan_ir_value_defined_in_loop(fn,in.c,definition_blocks,loop);
+                        else
+                            invariant=invariant&&!swan_ir_value_defined_in_loop(fn,in.b,definition_blocks,loop);
+                        if(invariant){
+                            pre->instructions[pre->instruction_count++]=in;
+                            next_definition_blocks[in.result]=(uint32_t)preheader;
+                            moved++;
+                        }else{
+                            bb->instructions[out++]=in;
+                        }
                     }
                     bb->instruction_count=out;
                 }
-                if(!moved)break;
+                if(moved!=move_count){
+                    free(loop);free(queue);free(definition_blocks);free(next_definition_blocks);
+                    if(error&&cap)snprintf(error,cap,"LICM candidate count changed during a hoist");
+                    return false;
+                }
+                uint32_t *swap=definition_blocks;
+                definition_blocks=next_definition_blocks;
+                next_definition_blocks=swap;
             }
         }
-        free(loop);free(queue);
+        free(loop);free(queue);free(definition_blocks);free(next_definition_blocks);
     }
     return swan_ir_verify_pass_result(module,error,cap);
 }
