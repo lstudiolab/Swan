@@ -902,8 +902,8 @@ static inline void ownership_initialize_handles(Text *o,Locals *l){
  for(size_t i=0;i<l->count;i++){
   Local *v=&l->items[i];
   if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
-  if(v->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
-  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",v->slot*8);
+  if(v->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",v->slot*8);
  }
 }
 /* Cleanup is idempotent: clear each handle after releasing it. Returns and
@@ -913,17 +913,17 @@ static inline void emit_samc_cleanup(Text *o,Locals *l){
   Local *v=&l->items[i];
   if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
   int skip=o->next_label++;
-  if(v->reg>=0)text_add(o,"    test %s, %s\\n    je .Lswan_drop_skip_%d\\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
-  else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\\n    je .Lswan_drop_skip_%d\\n",v->slot*8,skip);
+  if(v->reg>=0)text_add(o,"    test %s, %s\n    je .Lswan_drop_skip_%d\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
+  else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\n    je .Lswan_drop_skip_%d\n",v->slot*8,skip);
   cg_save_volatile(o,l);
-  if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));
-  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);
-  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");
+  if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));
+  else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);
+  if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");
   cg_call(o,"free@PLT");
   cg_restore_volatile(o,l);
-  if(v->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
-  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",v->slot*8);
-  text_add(o,".Lswan_drop_skip_%d:\\n",skip);
+  if(v->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",v->slot*8);
+  text_add(o,".Lswan_drop_skip_%d:\n",skip);
  }
 }
 static inline bool ownership_expr_mentions(Expr *e,const char *name){
@@ -948,17 +948,17 @@ static inline bool ownership_block_mentions(Stmt **body,size_t start,size_t coun
 static inline void ownership_cleanup_local(Text *o,Locals *l,Local *v){
  if(!v||!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)return;
  int skip=o->next_label++;
- if(v->reg>=0)text_add(o,"    test %s, %s\\n    je .Lswan_drop_skip_%d\\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
- else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\\n    je .Lswan_drop_skip_%d\\n",v->slot*8,skip);
+ if(v->reg>=0)text_add(o,"    test %s, %s\n    je .Lswan_drop_skip_%d\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
+ else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\n    je .Lswan_drop_skip_%d\n",v->slot*8,skip);
  cg_save_volatile(o,l);
- if(v->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(v->reg));
- else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);
- if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");
+ if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));
+ else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);
+ if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");
  cg_call(o,"free@PLT");
  cg_restore_volatile(o,l);
- if(v->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
- else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",v->slot*8);
- text_add(o,".Lswan_drop_skip_%d:\\n",skip);
+ if(v->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
+ else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",v->slot*8);
+ text_add(o,".Lswan_drop_skip_%d:\n",skip);
 }
 static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,SwanError *err){
  bool top_level=o->block_depth++==0;
