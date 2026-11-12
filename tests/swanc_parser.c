@@ -67,10 +67,10 @@ static int arithmetic_precedence(void) {
 static int left_associativity(void) {
     uint32_t nodes[128 * 5] = {0}, state[5] = {0};
     int root = parse("10 - 3 - 2", nodes, state);
-    if (root != 5 || nodes[3 * 5 + 1] != 1 ||
-        nodes[3 * 5 + 2] != 1 || nodes[3 * 5 + 3] != 2 ||
-        nodes[4 * 5 + 1] != 3 || nodes[4 * 5 + 2] != 4 ||
-        nodes[4 * 5 + 3] != 3) {
+    if (root != 5 || nodes[2 * 5] != 4 || nodes[2 * 5 + 1] != 1 ||
+        nodes[2 * 5 + 2] != 1 || nodes[2 * 5 + 3] != 2 ||
+        nodes[4 * 5] != 4 || nodes[4 * 5 + 1] != 3 ||
+        nodes[4 * 5 + 2] != 3 || nodes[4 * 5 + 3] != 4) {
         fprintf(stderr, "subtraction was not parsed left-associatively\n");
         return 3;
     }
