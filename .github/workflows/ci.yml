@@ -43,5 +43,7 @@ jobs:
         run: sh tests/swanc-ownership.sh
       - name: Verify Compiler 2 control-flow graph verifier
         run: sh tests/swanc-cfg.sh
+      - name: Verify Compiler 2 exact language keywords
+        run: sh tests/swanc-keywords.sh
       - name: Verify compiler version
         run: ./build/swan --version
