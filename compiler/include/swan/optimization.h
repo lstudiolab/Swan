@@ -141,7 +141,7 @@ static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
             else if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->a;
             else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_AND)replacement=in->b;
             else if(cz&&((uint64_t)z&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_all_ones=true;
-            else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_one=true;
+            else if(ca&&((uint64_t)a&all_ones)==all_ones&&in->op==SWAN_IR_OR)make_all_ones=true;
             else if(in->op==SWAN_IR_ICMP_EQ&&in->a==in->b)make_one=true;
             else if(in->op==SWAN_IR_ICMP_NE&&in->a==in->b)make_zero=true;
             else if(in->op==SWAN_IR_ICMP_SLT&&in->a==in->b)make_zero=true;
@@ -149,7 +149,7 @@ static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
             else if(in->op==SWAN_IR_ICMP_SLE&&in->a==in->b)make_one=true;
             else if(in->op==SWAN_IR_ICMP_SGE&&in->a==in->b)make_one=true;
             if(replacement){swan_ir_replace_uses(fn,in->result,replacement);changed=true;}
-            else if(make_zero||make_one){
+            else if(make_zero||make_one||make_all_ones){
                 in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=make_all_ones?swan_ir_signed_value(all_ones,bits):(make_one?1:0);changed=true;
             }
         }
