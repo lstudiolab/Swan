@@ -3,6 +3,16 @@
 #include "swan/ir.h"
 
 /* Target-independent, semantics-preserving scalar IR optimizations. */
+/* Debug builds validate every pass boundary. Release builds retain entry
+ * and exit verification while avoiding repeated full-module verifier walks. */
+static inline bool swan_ir_verify_pass_result(const SwanIRModule *module,char *error,size_t cap){
+#if !defined(NDEBUG) || defined(SWAN_IR_VERIFY_EACH_PASS)
+    return swan_ir_verify(module,error,cap);
+#else
+    (void)module;(void)error;(void)cap;
+    return true;
+#endif
+}
 static inline bool swan_ir_constant(const SwanIRFunction *fn, uint32_t id,
                                     int64_t *value) {
     if (!id || id <= fn->parameter_count) return false;
@@ -403,7 +413,7 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
         }
         free(loop);free(queue);
     }
-    return swan_ir_verify(module,error,cap);
+    return swan_ir_verify_pass_result(module,error,cap);
 }
 typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COPY_PROPAGATION, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_LOOP_INVARIANT, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
 typedef struct { SwanIRPassKind kind; const char *name; } SwanIRPass;
@@ -431,16 +441,16 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                     }
         return swan_ir_verify(module,error,cap);
     }
-    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify(module,error,cap);}
-    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify(module,error,cap);}
-    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){(void)swan_ir_copy_propagation(module);return swan_ir_verify(module,error,cap);}
-    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify(module,error,cap);}
+    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){(void)swan_ir_copy_propagation(module);return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
     if(pass==SWAN_IR_PASS_DEAD_CODE){
         bool changed=false;
         if(!swan_ir_dead_code_eliminate(module,&changed)){if(error&&cap)snprintf(error,cap,"out of memory during dead-code elimination");return false;}
         (void)changed;
-        return swan_ir_verify(module,error,cap);
+        return swan_ir_verify_pass_result(module,error,cap);
     }
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
 }
