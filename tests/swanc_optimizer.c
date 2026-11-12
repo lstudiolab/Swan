@@ -40,7 +40,7 @@ static int workload(void){
     return 0;
 }
 static int constant_fold_overflow(void){
-    uint32_t ir[14*8]={0},ws[3*15+2]={0};
+    uint32_t ir[16*8]={0},ws[3*17+2]={0};
     put(ir,0,22,8,1,0,0,0,0);
     put(ir,1,0,4,2,0,0,0,UINT32_MAX);
     put(ir,2,0,4,3,0,0,0,1);
@@ -49,34 +49,34 @@ static int constant_fold_overflow(void){
     put(ir,5,2,4,6,5,3,0,0);
     put(ir,6,0,4,7,0,0,0,2);
     put(ir,7,3,4,8,2,7,0,0);
-    put(ir,8,24,0,0,1,4,0,0);
-    put(ir,9,24,0,0,1,6,0,0);
-    put(ir,10,24,0,0,1,8,0,0);
-    put(ir,11,0,4,9,0,0,0,UINT32_MAX-1u);
-    put(ir,12,1,4,10,9,3,0,0);
-    put(ir,13,24,0,0,1,10,0,0);
-    uint32_t original[14*8];memcpy(original,ir,sizeof(ir));
-    int64_t status=swan_fn_swanc_ir_verify(ir,14,0,ws);
-    if(status){fprintf(stderr,"verify status=%lld diag=%u\n",(long long)status,ws[0]);return 40;}
-    status=swan_fn_swanc_ir_constant_fold(ir,14,ws,15);
-    if(status){fprintf(stderr,"fold status=%lld\n",(long long)status);return 41;}
-    status=swan_fn_swanc_ir_dead_code_eliminate(ir,14,ws,15);
-    if(status){fprintf(stderr,"dce status=%lld\n",(long long)status);return 42;}
-    status=swan_fn_swanc_ir_verify(ir,14,0,ws);
-    if(status){fprintf(stderr,"final verify status=%lld diag=%u\n",(long long)status,ws[0]);return 43;}
+    put(ir,8,3,4,9,2,3,0,0);
+    put(ir,9,24,0,0,1,4,0,0);
+    put(ir,10,24,0,0,1,6,0,0);
+    put(ir,11,24,0,0,1,8,0,0);
+    put(ir,12,24,0,0,1,9,0,0);
+    put(ir,13,0,4,10,0,0,0,UINT32_MAX-1u);
+    put(ir,14,1,4,11,10,3,0,0);
+    put(ir,15,24,0,0,1,11,0,0);
+    uint32_t original[16*8];memcpy(original,ir,sizeof(ir));
+    int64_t status=swan_fn_swanc_ir_verify(ir,16,0,ws);
+    if(status){fprintf(stderr,"verify status=%lld diag=%u\\n",(long long)status,ws[0]);return 40;}
+    status=swan_fn_swanc_ir_constant_fold(ir,16,ws,17);
+    if(status){fprintf(stderr,"fold status=%lld\\n",(long long)status);return 41;}
+    status=swan_fn_swanc_ir_dead_code_eliminate(ir,16,ws,17);
+    if(status){fprintf(stderr,"dce status=%lld\\n",(long long)status);return 42;}
+    status=swan_fn_swanc_ir_verify(ir,16,0,ws);
+    if(status){fprintf(stderr,"final verify status=%lld diag=%u\\n",(long long)status,ws[0]);return 43;}
     if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3){
-        fprintf(stderr,"overflowing i32 operation was folded\n");
-        return 44;
+        fprintf(stderr,"overflowing i32 operation was folded\\n");return 44;
     }
-    if(ir[12*8]!=0||ir[12*8+6]!=UINT32_MAX){
-        fprintf(stderr,"valid UINT32_MAX addition was not folded\n");
-        return 45;
+    if(ir[8*8]!=0||ir[8*8+6]!=UINT32_MAX||ir[14*8]!=0||ir[14*8+6]!=UINT32_MAX){
+        fprintf(stderr,"safe maximum-valued constant expression was not folded\\n");return 45;
     }
     memcpy(ir,original,sizeof(ir));memset(ws,0,sizeof(ws));
-    status=swan_fn_swanc_ir_optimize(ir,14,ws,15);
-    if(status){fprintf(stderr,"overflow optimizer pipeline failed: diagnostic=%u at=%u\n",ws[0],ws[1]);return 46;}
-    if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3||ir[12*8]!=0||ir[12*8+6]!=UINT32_MAX){
-        fprintf(stderr,"overflow optimizer pipeline changed an unsafe result\n");return 47;
+    status=swan_fn_swanc_ir_optimize(ir,16,ws,17);
+    if(status){fprintf(stderr,"overflow optimizer pipeline failed: diagnostic=%u at=%u\\n",ws[0],ws[1]);return 46;}
+    if(ir[3*8]!=1||ir[5*8]!=2||ir[7*8]!=3||ir[8*8]!=0||ir[8*8+6]!=UINT32_MAX||ir[14*8]!=0||ir[14*8+6]!=UINT32_MAX){
+        fprintf(stderr,"overflow optimizer pipeline changed an unsafe result\\n");return 47;
     }
     return 0;
 }
