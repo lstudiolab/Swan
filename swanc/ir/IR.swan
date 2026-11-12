@@ -72,7 +72,8 @@ fn swanc_ir_defined_before(instructions: u32_array, instruction_index: int, valu
     return false
 
 out
-fn swanc_ir_operand_type(workspace: u32_array, capacity: int, parameter_count: int, value_id: int, next_result: int) -> int:
+fn swanc_ir_operand_type(workspace: u32_array, capacity: int, value_id: int, next_result: int) -> int:
+    let parameter_count = workspace[2]
     if value_id < 1 or value_id >= next_result:
         return -1
     if value_id <= parameter_count:
@@ -91,6 +92,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
         workspace[1] = 0
         return -1
     let capacity = instruction_count + 1
+    workspace[2] = parameter_count
     var slot = 0
     while slot < instruction_count:
         workspace[capacity + slot + 2] = 0
@@ -130,16 +132,11 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                     workspace[0] = 10
                     workspace[1] = index
                     return -10
-                let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
-                let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                let type_a = swanc_ir_operand_type(workspace, capacity, a, expected_result)
+                let type_b = swanc_ir_operand_type(workspace, capacity, b, expected_result)
                 if type_a < 0 or type_b < 0:
                     workspace[0] = 13
                     workspace[1] = index
-                    workspace[2] = a
-                    workspace[3] = b
-                    workspace[4] = expected_result
-                    workspace[5] = type_a
-                    workspace[6] = type_b
                     return -13
                 if (type_a != 0 and type_a != type_id) or (type_b != 0 and type_b != type_id):
                     workspace[0] = 14
@@ -151,8 +148,8 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                         workspace[0] = 10
                         workspace[1] = index
                         return -10
-                    let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
-                    let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                    let type_a = swanc_ir_operand_type(workspace, capacity, a, expected_result)
+                    let type_b = swanc_ir_operand_type(workspace, capacity, b, expected_result)
                     if type_a < 0 or type_b < 0:
                         workspace[0] = 13
                         workspace[1] = index
@@ -171,9 +168,9 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                             workspace[0] = 9
                             workspace[1] = index
                             return -9
-                        let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
-                        let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
-                        let type_c = swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result)
+                        let type_a = swanc_ir_operand_type(workspace, capacity, a, expected_result)
+                        let type_b = swanc_ir_operand_type(workspace, capacity, b, expected_result)
+                        let type_c = swanc_ir_operand_type(workspace, capacity, c, expected_result)
                         if type_a < 0 or type_b < 0 or type_c < 0:
                             workspace[0] = 13
                             workspace[1] = index
@@ -188,11 +185,11 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                 workspace[0] = 15
                                 workspace[1] = index
                                 return -15
-                            let type_a = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
-                            let type_b = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                            let type_a = swanc_ir_operand_type(workspace, capacity, a, expected_result)
+                            let type_b = swanc_ir_operand_type(workspace, capacity, b, expected_result)
                             var type_c = 0
                             if c != 0:
-                                type_c = swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result)
+                                type_c = swanc_ir_operand_type(workspace, capacity, c, expected_result)
                             if type_a < 0 or type_b < 0 or type_c < 0:
                                 workspace[0] = 13
                                 workspace[1] = index
@@ -213,7 +210,7 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                         workspace[0] = 7
                                         workspace[1] = index
                                         return -7
-                                    let pointer_type = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
+                                    let pointer_type = swanc_ir_operand_type(workspace, capacity, a, expected_result)
                                     if pointer_type < 0:
                                         workspace[0] = 13
                                         workspace[1] = index
@@ -228,8 +225,8 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                             workspace[0] = 8
                                             workspace[1] = index
                                             return -8
-                                        let pointer_type = swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result)
-                                        let value_type = swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result)
+                                        let pointer_type = swanc_ir_operand_type(workspace, capacity, a, expected_result)
+                                        let value_type = swanc_ir_operand_type(workspace, capacity, b, expected_result)
                                         if pointer_type < 0 or value_type < 0:
                                             workspace[0] = 13
                                             workspace[1] = index
@@ -244,15 +241,15 @@ fn swanc_ir_verify(instructions: u32_array, instruction_count: int, parameter_co
                                                 workspace[0] = 16
                                                 workspace[1] = index
                                                 return -16
-                                            if a != 0 and swanc_ir_operand_type(workspace, capacity, parameter_count, a, expected_result) < 0:
+                                            if a != 0 and swanc_ir_operand_type(workspace, capacity, a, expected_result) < 0:
                                                 workspace[0] = 13
                                                 workspace[1] = index
                                                 return -13
-                                            if b != 0 and swanc_ir_operand_type(workspace, capacity, parameter_count, b, expected_result) < 0:
+                                            if b != 0 and swanc_ir_operand_type(workspace, capacity, b, expected_result) < 0:
                                                 workspace[0] = 13
                                                 workspace[1] = index
                                                 return -13
-                                            if c != 0 and swanc_ir_operand_type(workspace, capacity, parameter_count, c, expected_result) < 0:
+                                            if c != 0 and swanc_ir_operand_type(workspace, capacity, c, expected_result) < 0:
                                                 workspace[0] = 13
                                                 workspace[1] = index
                                                 return -13
