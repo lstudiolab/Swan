@@ -156,7 +156,7 @@ static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn){
                 if(in->b==in->c){swan_ir_replace_uses(fn,in->result,in->b);changed=true;}
                 continue;
             }
-            int64_t a=0,z=0;bool ca=swan_ir_constant_lookup(fn,in->a,&a,known,values),cz=swan_ir_constant(fn,in->b,&z);
+            int64_t a=0,z=0;bool ca=swan_ir_constant_lookup(fn,in->a,&a,known,values),cz=swan_ir_constant_lookup(fn,in->b,&z,known,values);
             uint32_t replacement=0;bool make_zero=false,make_one=false,make_all_ones=false;
             unsigned bits=swan_ir_integer_bits(in->type);
             uint64_t all_ones=swan_ir_width_mask(bits);
@@ -507,7 +507,8 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
         (void)changed;
         return swan_ir_verify_pass_result(module,error,cap);
     }
-    if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");return false;
+    if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");
+    return false;
 }
 static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t cap) {
     if(!swan_ir_verify(module,error,cap))return false;
