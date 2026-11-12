@@ -54,7 +54,7 @@ static inline void swan_profile_print(void){
  fprintf(stderr,"  %-30s %0.9f s\n","Total wall time",(double)elapsed/1e9);
 }
 #define SWAN_VERSION "0.8.0"
-#define SWAN_MEMORY_MODEL "Automatic ownership with borrow checking"
+#define SWAN_MEMORY_MODEL "Automatic cleanup; borrow checking incomplete"
 #define SWAN_MAX_TOKENS 131072
 #define SWAN_MAX_NODES 32768
 #define SWAN_MAX_TEXT 512
