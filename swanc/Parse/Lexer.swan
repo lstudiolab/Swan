@@ -72,104 +72,79 @@ fn swanc_utf8_width(source: u32_array, index: int, length: int) -> int:
 
 out
 fn swanc_keyword(source: u32_array, start: int, length: int) -> int:
-    # TokenKind values are aligned with compiler/include/swan/core.h.
-    # This is intentionally a hardcoded decision tree, not a registry.
-    if length == 2:
-        if source[start] == 102 and source[start + 1] == 110:
-            return 8
-        if source[start] == 105 and source[start + 1] == 102:
-            return 15
-        if source[start] == 105 and source[start + 1] == 110:
-            return 56
-        if source[start] == 97 and source[start + 1] == 115:
-            return 61
-    if length == 3:
-        if source[start] == 108 and source[start + 1] == 101 and source[start + 2] == 116:
-            return 11
-        if source[start] == 118 and source[start + 1] == 97 and source[start + 2] == 114:
-            return 12
-        if source[start] == 102 and source[start + 1] == 111 and source[start + 2] == 114:
-            return 55
-        if source[start] == 110 and source[start + 1] == 105 and source[start + 2] == 108:
-            return 23
-        if source[start] == 111 and source[start + 1] == 117 and source[start + 2] == 116:
-            return 50
-        if source[start] == 115 and source[start + 1] == 101 and source[start + 2] == 116:
-            return 78
-    if length == 4:
-        if source[start] == 102 and source[start + 1] == 117 and source[start + 2] == 110 and source[start + 3] == 99:
-            return 8
-        if source[start] == 101 and source[start + 1] == 108 and source[start + 2] == 115 and source[start + 3] == 101:
-            return 16
-        if source[start] == 101 and source[start + 1] == 110 and source[start + 2] == 117 and source[start + 3] == 109:
-            return 53
-        if source[start] == 116 and source[start + 1] == 121 and source[start + 2] == 112 and source[start + 3] == 101:
-            return 54
-        if source[start] == 108 and source[start + 1] == 111 and source[start + 2] == 111 and source[start + 3] == 112:
-            return 57
-        if source[start] == 102 and source[start + 1] == 114 and source[start + 2] == 111 and source[start + 3] == 109:
-            return 60
-        if source[start] == 115 and source[start + 1] == 101 and source[start + 2] == 108 and source[start + 3] == 102:
-            return 63
-        if source[start] == 116 and source[start + 1] == 114 and source[start + 2] == 117 and source[start + 3] == 101:
-            return 21
-        if source[start] == 112 and source[start + 1] == 97 and source[start + 2] == 115 and source[start + 3] == 115:
-            return 20
-        if source[start] == 110 and source[start + 1] == 117 and source[start + 2] == 108 and source[start + 3] == 108:
-            return 23
-        if source[start] == 98 and source[start + 1] == 111 and source[start + 2] == 111 and source[start + 3] == 108:
-            return 79
-        if source[start] == 108 and source[start + 1] == 97 and source[start + 2] == 122 and source[start + 3] == 121:
-            return 64
-        if source[start] == 99 and source[start + 1] == 97 and source[start + 2] == 115 and source[start + 3] == 101:
-            return 80
-    if length == 5:
-        if source[start] == 119 and source[start + 1] == 104 and source[start + 2] == 105 and source[start + 3] == 108 and source[start + 4] == 101:
-            return 17
-        if source[start] == 109 and source[start + 1] == 97 and source[start + 2] == 116 and source[start + 3] == 99 and source[start + 4] == 104:
-            return 58
-        if source[start] == 103 and source[start + 1] == 117 and source[start + 2] == 97 and source[start + 3] == 114 and source[start + 4] == 100:
-            return 59
-        if source[start] == 98 and source[start + 1] == 114 and source[start + 2] == 101 and source[start + 3] == 97 and source[start + 4] == 107:
-            return 18
-        if source[start] == 102 and source[start + 1] == 97 and source[start + 2] == 108 and source[start + 3] == 115 and source[start + 4] == 101:
-            return 22
-        if source[start] == 115 and source[start + 1] == 116 and source[start + 2] == 111 and source[start + 3] == 114 and source[start + 4] == 101:
-            return 70
-        if source[start] == 99 and source[start + 1] == 111 and source[start + 2] == 110 and source[start + 3] == 115 and source[start + 4] == 116:
-            return 13
-        if source[start] == 98 and source[start + 1] == 108 and source[start + 2] == 111 and source[start + 3] == 99 and source[start + 4] == 107:
-            return 77
-        if source[start] == 100 and source[start + 1] == 101 and source[start + 2] == 102 and source[start + 3] == 101 and source[start + 4] == 114:
-            return 81
-        if source[start] == 97 and source[start + 1] == 115 and source[start + 2] == 121 and source[start + 3] == 110 and source[start + 4] == 99:
-            return 76
-    if length == 6:
-        if source[start] == 109 and source[start + 1] == 97 and source[start + 2] == 110 and source[start + 3] == 117 and source[start + 4] == 97 and source[start + 5] == 108:
-            return 82
-        if source[start] == 105 and source[start + 1] == 109 and source[start + 2] == 112 and source[start + 3] == 111 and source[start + 4] == 114 and source[start + 5] == 116:
-            return 9
-        if source[start] == 101 and source[start + 1] == 120 and source[start + 2] == 112 and source[start + 3] == 111 and source[start + 4] == 114 and source[start + 5] == 116:
-            return 62
-        if source[start] == 114 and source[start + 1] == 101 and source[start + 2] == 116 and source[start + 3] == 117 and source[start + 4] == 114 and source[start + 5] == 110:
-            return 14
-        if source[start] == 115 and source[start + 1] == 116 and source[start + 2] == 114 and source[start + 3] == 117 and source[start + 4] == 99 and source[start + 5] == 116:
-            return 52
-        if source[start] == 116 and source[start + 1] == 104 and source[start + 2] == 114 and source[start + 3] == 101 and source[start + 4] == 97 and source[start + 5] == 100:
-            return 75
-    if length == 7:
-        if source[start] == 118 and source[start + 1] == 97 and source[start + 2] == 114 and source[start + 3] == 105 and source[start + 4] == 97 and source[start + 5] == 110 and source[start + 6] == 116:
-            return 73
-    if length == 8:
-        if source[start] == 101 and source[start + 1] == 120 and source[start + 2] == 116 and source[start + 3] == 101 and source[start + 4] == 114 and source[start + 5] == 110 and source[start + 6] == 97 and source[start + 7] == 108:
-            return 10
-        if source[start] == 99 and source[start + 1] == 111 and source[start + 2] == 110 and source[start + 3] == 116 and source[start + 4] == 105 and source[start + 5] == 110 and source[start + 6] == 117 and source[start + 7] == 101:
-            return 19
-        if source[start] == 112 and source[start + 1] == 114 and source[start + 2] == 111 and source[start + 3] == 116 and source[start + 4] == 111 and source[start + 5] == 99 and source[start + 6] == 111 and source[start + 7] == 108:
-            return 74
-    if length == 9:
-        if source[start] == 110 and source[start + 1] == 97 and source[start + 2] == 109 and source[start + 3] == 101 and source[start + 4] == 115 and source[start + 5] == 112 and source[start + 6] == 97 and source[start + 7] == 99 and source[start + 8] == 101:
-            return 72
+    # Exact 36-word Swan reserved set. Every other spelling is an identifier.
+    if length == 4 and source[start + 0] == 102 and source[start + 1] == 117 and source[start + 2] == 110 and source[start + 3] == 99:
+        return 8
+    if length == 6 and source[start + 0] == 115 and source[start + 1] == 116 and source[start + 2] == 114 and source[start + 3] == 117 and source[start + 4] == 99 and source[start + 5] == 116:
+        return 52
+    if length == 6 and source[start + 0] == 105 and source[start + 1] == 109 and source[start + 2] == 112 and source[start + 3] == 111 and source[start + 4] == 114 and source[start + 5] == 116:
+        return 9
+    if length == 6 and source[start + 0] == 101 and source[start + 1] == 120 and source[start + 2] == 112 and source[start + 3] == 111 and source[start + 4] == 114 and source[start + 5] == 116:
+        return 62
+    if length == 4 and source[start + 0] == 101 and source[start + 1] == 110 and source[start + 2] == 117 and source[start + 3] == 109:
+        return 53
+    if length == 3 and source[start + 0] == 108 and source[start + 1] == 101 and source[start + 2] == 116:
+        return 11
+    if length == 3 and source[start + 0] == 118 and source[start + 1] == 97 and source[start + 2] == 114:
+        return 12
+    if length == 5 and source[start + 0] == 99 and source[start + 1] == 111 and source[start + 2] == 110 and source[start + 3] == 115 and source[start + 4] == 116:
+        return 13
+    if length == 2 and source[start + 0] == 105 and source[start + 1] == 102:
+        return 15
+    if length == 4 and source[start + 0] == 101 and source[start + 1] == 108 and source[start + 2] == 115 and source[start + 3] == 101:
+        return 16
+    if length == 5 and source[start + 0] == 119 and source[start + 1] == 104 and source[start + 2] == 105 and source[start + 3] == 108 and source[start + 4] == 101:
+        return 17
+    if length == 4 and source[start + 0] == 108 and source[start + 1] == 111 and source[start + 2] == 111 and source[start + 3] == 112:
+        return 57
+    if length == 4 and source[start + 0] == 116 and source[start + 1] == 114 and source[start + 2] == 117 and source[start + 3] == 101:
+        return 21
+    if length == 5 and source[start + 0] == 102 and source[start + 1] == 97 and source[start + 2] == 108 and source[start + 3] == 115 and source[start + 4] == 101:
+        return 22
+    if length == 5 and source[start + 0] == 103 and source[start + 1] == 117 and source[start + 2] == 97 and source[start + 3] == 114 and source[start + 4] == 100:
+        return 59
+    if length == 5 and source[start + 0] == 100 and source[start + 1] == 101 and source[start + 2] == 102 and source[start + 3] == 101 and source[start + 4] == 114:
+        return 81
+    if length == 6 and source[start + 0] == 114 and source[start + 1] == 101 and source[start + 2] == 116 and source[start + 3] == 117 and source[start + 4] == 114 and source[start + 5] == 110:
+        return 14
+    if length == 5 and source[start + 0] == 98 and source[start + 1] == 114 and source[start + 2] == 101 and source[start + 3] == 97 and source[start + 4] == 107:
+        return 18
+    if length == 8 and source[start + 0] == 99 and source[start + 1] == 111 and source[start + 2] == 110 and source[start + 3] == 116 and source[start + 4] == 105 and source[start + 5] == 110 and source[start + 6] == 117 and source[start + 7] == 101:
+        return 19
+    if length == 5 and source[start + 0] == 98 and source[start + 1] == 108 and source[start + 2] == 111 and source[start + 3] == 99 and source[start + 4] == 107:
+        return 77
+    if length == 2 and source[start + 0] == 97 and source[start + 1] == 115:
+        return 61
+    if length == 4 and source[start + 0] == 98 and source[start + 1] == 111 and source[start + 2] == 111 and source[start + 3] == 108:
+        return 79
+    if length == 4 and source[start + 0] == 102 and source[start + 1] == 114 and source[start + 2] == 111 and source[start + 3] == 109:
+        return 60
+    if length == 4 and source[start + 0] == 117 and source[start + 1] == 112 and source[start + 2] == 116 and source[start + 3] == 111:
+        return 55
+    if length == 6 and source[start + 0] == 105 and source[start + 1] == 110 and source[start + 2] == 108 and source[start + 3] == 105 and source[start + 4] == 110 and source[start + 5] == 101:
+        return 64
+    if length == 6 and source[start + 0] == 115 and source[start + 1] == 116 and source[start + 2] == 97 and source[start + 3] == 116 and source[start + 4] == 105 and source[start + 5] == 99:
+        return 70
+    if length == 7 and source[start + 0] == 112 and source[start + 1] == 114 and source[start + 2] == 105 and source[start + 3] == 118 and source[start + 4] == 97 and source[start + 5] == 116 and source[start + 6] == 101:
+        return 72
+    if length == 6 and source[start + 0] == 112 and source[start + 1] == 117 and source[start + 2] == 98 and source[start + 3] == 108 and source[start + 4] == 105 and source[start + 5] == 99:
+        return 73
+    if length == 5 and source[start + 0] == 109 and source[start + 1] == 97 and source[start + 2] == 116 and source[start + 3] == 99 and source[start + 4] == 104:
+        return 58
+    if length == 3 and source[start + 0] == 109 and source[start + 1] == 111 and source[start + 2] == 100:
+        return 74
+    if length == 2 and source[start + 0] == 105 and source[start + 1] == 110:
+        return 56
+    if length == 3 and source[start + 0] == 105 and source[start + 1] == 110 and source[start + 2] == 116:
+        return 54
+    if length == 4 and source[start + 0] == 105 and source[start + 1] == 110 and source[start + 2] == 105 and source[start + 3] == 116:
+        return 75
+    if length == 6 and source[start + 0] == 100 and source[start + 1] == 101 and source[start + 2] == 105 and source[start + 3] == 110 and source[start + 4] == 105 and source[start + 5] == 116:
+        return 76
+    if length == 4 and source[start + 0] == 115 and source[start + 1] == 101 and source[start + 2] == 108 and source[start + 3] == 102:
+        return 63
+    if length == 4 and source[start + 0] == 112 and source[start + 1] == 97 and source[start + 2] == 115 and source[start + 3] == 115:
+        return 20
     return 1
 
 out
