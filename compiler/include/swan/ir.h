@@ -166,11 +166,11 @@ static inline bool swan_ir_integer_type(SwanIRType t) {
  return t>=SWAN_IR_I1&&t<=SWAN_IR_I64;
 }
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
- if(!m||(m->function_count&&!m->functions))return swan_ir_fail(error,cap,"invalid module storage",NULL,0,0);
+ if(!m||m->function_count>m->function_capacity||(m->function_count&&!m->functions))return swan_ir_fail(error,cap,"invalid module storage",NULL,0,0);
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
   if(fn->name)for(size_t prior=0;prior<f;prior++)if(m->functions[prior].name&&!strcmp(m->functions[prior].name,fn->name))return swan_ir_fail(error,cap,"duplicate function name",fn->name,0,0);
-  if(!fn->name||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT32_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
+  if(!fn->name||!fn->name[0]||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT32_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
   if(fn->parameter_count>UINT32_MAX-1u||(fn->parameter_count&&!fn->parameter_types)||fn->block_count>fn->block_capacity||(fn->block_count&&!fn->blocks))return swan_ir_fail(error,cap,"invalid function storage or parameter table",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
