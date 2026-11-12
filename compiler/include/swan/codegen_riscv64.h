@@ -41,7 +41,8 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
       for(size_t k=0;k<in->incoming_count&&k<8;k++)text_add(o,"    addi t1, s0, -%zu\n    ld a%zu, %d(t1)\n",frame,k,swan_rv_offset(in->incoming[k].value));
       text_add(o,"    call %s\n",in->symbol);
       if(outgoing)text_add(o,"    addi sp, sp, %zu\n",outgoing);
-      if(in->type!=SWAN_IR_VOID)text_add(o,"    sd a0, %d(sp)\n",d);break;}
+      if(in->type!=SWAN_IR_VOID)text_add(o,"    sd a0, %d(sp)\n",d);
+      break;}
      case SWAN_IR_SELECT:text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    ld t2, %d(sp)\n    beqz t0, .Lsw_sel%zu_%zu_%zu\n    sd t1, %d(sp)\n    j .Lsw_sel_end%zu_%zu_%zu\n.Lsw_sel%zu_%zu_%zu:\n    sd t2, %d(sp)\n.Lsw_sel_end%zu_%zu_%zu:\n",a,z,swan_rv_offset(in->c),f,b,i,d,f,b,i,f,b,i,d,f,b,i);break;
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
       text_add(o,"    ld t0, %d(sp)\n    ld t1, %d(sp)\n    %s t2, t0, t1\n    sd t2, %d(sp)\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":in->op==SWAN_IR_XOR?"xor":in->op==SWAN_IR_SHL?"sll":in->op==SWAN_IR_LSHR?"srl":"sra",d);break;
