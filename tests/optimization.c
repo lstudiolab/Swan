@@ -147,7 +147,9 @@ int main(void){
  assert(swan_ir_terminate(lh,(SwanIRTerm){SWAN_IR_COND_BR,loop_condition,2,3}));
  SwanIRInst invariant={0};invariant.op=SWAN_IR_MUL;invariant.type=SWAN_IR_I64;invariant.a=1;invariant.b=three;
  uint32_t loop_product=swan_ir_add_inst(lf,lb,invariant);assert(loop_product);
- SwanIRInst accum={0};accum.op=SWAN_IR_ADD;accum.type=SWAN_IR_I64;accum.a=sv;accum.b=loop_product;
+ SwanIRInst invariant_sum={0};invariant_sum.op=SWAN_IR_ADD;invariant_sum.type=SWAN_IR_I64;invariant_sum.a=loop_product;invariant_sum.b=three;
+ uint32_t invariant_sum_id=swan_ir_add_inst(lf,lb,invariant_sum);assert(invariant_sum_id);
+ SwanIRInst accum={0};accum.op=SWAN_IR_ADD;accum.type=SWAN_IR_I64;accum.a=sv;accum.b=invariant_sum_id;
  uint32_t accumulated=swan_ir_add_inst(lf,lb,accum);assert(accumulated);
  SwanIRInst lone={0};lone.op=SWAN_IR_CONST;lone.type=SWAN_IR_I64;lone.immediate=1;
  uint32_t increment=swan_ir_add_inst(lf,lb,lone);assert(increment);
@@ -165,9 +167,16 @@ int main(void){
  uint32_t invoked=swan_ir_add_inst(lm,lme,invoke);assert(invoked);
  assert(swan_ir_terminate(lme,(SwanIRTerm){SWAN_IR_RET,invoked,0,0}));
  assert(swan_ir_optimize(&licm,error,sizeof(error)));assert(swan_ir_verify(&licm,error,sizeof(error)));
- bool hoisted=false;for(size_t i=0;i<lf->blocks[0].instruction_count;i++)hoisted|=lf->blocks[0].instructions[i].op==SWAN_IR_MUL;
- bool remains=false;for(size_t i=0;i<lf->blocks[2].instruction_count;i++)remains|=lf->blocks[2].instructions[i].op==SWAN_IR_MUL;
- assert(hoisted&&!remains);
+ bool hoisted_product=false,hoisted_sum=false,remains_product=false,remains_sum=false;
+ for(size_t i=0;i<lf->blocks[0].instruction_count;i++){
+  hoisted_product|=lf->blocks[0].instructions[i].result==loop_product;
+  hoisted_sum|=lf->blocks[0].instructions[i].result==invariant_sum_id;
+ }
+ for(size_t i=0;i<lf->blocks[2].instruction_count;i++){
+  remains_product|=lf->blocks[2].instructions[i].result==loop_product;
+  remains_sum|=lf->blocks[2].instructions[i].result==invariant_sum_id;
+ }
+ assert(hoisted_product&&hoisted_sum&&!remains_product&&!remains_sum);
  swan_ir_destroy(&licm);
 
  check_transitive_copy_propagation();
