@@ -47,7 +47,7 @@ int main(void){
  SwanIRInst unused={0};unused.op=SWAN_IR_CONST;unused.type=SWAN_IR_I64;unused.immediate=999;assert(swan_ir_add_inst(f,b,unused));
  SwanIRInst sum={0};sum.op=SWAN_IR_ADD;sum.type=SWAN_IR_I64;sum.a=av;sum.b=xv;uint32_t result=swan_ir_add_inst(f,b,sum);
  assert(swan_ir_terminate(b,(SwanIRTerm){SWAN_IR_RET,result,0,0}));
- char error[256]={0};int64_t folded=0;assert(swan_ir_optimize(&m,error,sizeof(error)));
+ char error[256]={0};assert(swan_ir_optimize(&m,error,sizeof(error)));
  assert(b->instruction_count==1);
  assert(b->instructions[0].op==SWAN_IR_CONST&&b->instructions[0].immediate==42);
  assert(swan_ir_verify(&m,error,sizeof(error)));swan_ir_destroy(&m);
