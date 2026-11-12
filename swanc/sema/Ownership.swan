@@ -144,7 +144,7 @@ fn swanc_ownership_analyze(events: u32_array, event_count: int, symbol_count: in
                                             workspace[base] = 3
                                         else
                                             return swanc_ownership_fail(workspace, 2, event_index, symbol, location)
-    event_index = event_index + 1
+        event_index = event_index + 1
 
     var symbol_index = 0
     while symbol_index < symbol_count
