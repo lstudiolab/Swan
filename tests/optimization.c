@@ -20,6 +20,25 @@ static void check_or_all_ones(SwanIRType type,bool constant_left){
  }
  assert(found);swan_ir_destroy(&module);
 }
+static void check_constant_chain(size_t length){
+ SwanIRModule module={0};
+ SwanIRFunction *fn=swan_ir_add_function(&module,"constant_chain",SWAN_IR_I64,NULL,0);assert(fn);
+ SwanIRBlock *entry=swan_ir_add_block(fn,"entry");assert(entry);
+ SwanIRInst one={0};one.op=SWAN_IR_CONST;one.type=SWAN_IR_I64;one.immediate=1;
+ uint32_t one_id=swan_ir_add_inst(fn,entry,one);assert(one_id);
+ uint32_t value=one_id;
+ for(size_t i=0;i<length;i++){
+  SwanIRInst add={0};add.op=SWAN_IR_ADD;add.type=SWAN_IR_I64;add.a=value;add.b=one_id;
+  value=swan_ir_add_inst(fn,entry,add);assert(value);
+ }
+ assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,value,0,0}));
+ char error[256]={0};assert(swan_ir_optimize(&module,error,sizeof(error)));
+ assert(swan_ir_verify(&module,error,sizeof(error)));
+ assert(entry->instruction_count==1);
+ assert(entry->instructions[0].op==SWAN_IR_CONST);
+ assert(entry->instructions[0].immediate==(int64_t)(length+1));
+ swan_ir_destroy(&module);
+}
 int main(void){
  SwanIRModule m={0};SwanIRFunction *f=swan_ir_add_function(&m,"main",SWAN_IR_I64,NULL,0);assert(f);
  SwanIRBlock *b=swan_ir_add_block(f,"entry");assert(b);
@@ -130,6 +149,7 @@ int main(void){
  assert(hoisted&&!remains);
  swan_ir_destroy(&licm);
 
+ check_constant_chain(512);
  check_or_all_ones(SWAN_IR_I8,false);check_or_all_ones(SWAN_IR_I8,true);
  check_or_all_ones(SWAN_IR_I16,false);check_or_all_ones(SWAN_IR_I16,true);
  check_or_all_ones(SWAN_IR_I32,false);check_or_all_ones(SWAN_IR_I32,true);
