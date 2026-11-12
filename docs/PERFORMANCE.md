@@ -35,7 +35,7 @@ The typed-IR optimizer currently performs:
 - CSE after loop hoisting.
 - Worklist-based dead-code elimination.
 
-DCE builds value liveness from observable roots and propagates dependencies through SSA definitions. It avoids repeatedly scanning all instructions until no change. Potentially trapping division/remainder and memory operations are not treated as removable pure instructions. IR verification checks transformations.
+DCE builds value liveness from observable roots and propagates dependencies through SSA definitions. It avoids repeatedly scanning all instructions until no change. Potentially trapping division/remainder and memory operations are not treated as removable pure instructions. SSA value types are cached by value ID, making type queries constant-time instead of repeatedly walking every block. The optimizer always verifies IR at pipeline entry and exit; debug builds additionally verify every pass boundary, while release builds avoid those repeated whole-module verification walks.
 
 The SVM compile core runs the optimizer for every target using typed IR. The x86-64 AST compatibility backend retains its own constant folding, inlining, register-local, and loop/array optimizations; it does not automatically receive every typed-IR pass.
 
