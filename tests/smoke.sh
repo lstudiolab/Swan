@@ -391,7 +391,7 @@ printf 'PASS: full 20M x 20M binary-search workload compiles\n'
 
 # Compile and execute Compiler 2's Swan-authored lexer through Compiler 1.
 # The temporary main is a test harness; production Lexer.swan remains a module.
-cat "$ROOT/swanc/lexer/Lexer.swan" > "$TMP/swanc-lexer-test.swan"
+cat "$ROOT/swanc/Parse/Lexer.swan" > "$TMP/swanc-lexer-test.swan"
 cat >> "$TMP/swanc-lexer-test.swan" <<'SWAN'
 fn main() -> int:
     let word = array_unchecked(2)
