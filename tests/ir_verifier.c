@@ -34,8 +34,9 @@ static int valid_scalar_and_call(void){
     SwanIRBlock *entry=swan_ir_add_block(main_fn,"entry");
     if(!entry)return 12;
     SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_I32;
-    call.symbol="identity";call.incoming=(SwanIRIncoming[]){{1,0}};
-    call.incoming_count=1;
+    call.symbol="identity";call.incoming=malloc(sizeof(*call.incoming));
+    if(!call.incoming)return 14;
+    call.incoming[0]=(SwanIRIncoming){1,0};call.incoming_count=1;
     uint32_t result=swan_ir_add_inst(main_fn,entry,call);
     if(!result||!swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}))return 13;
     int status=expect_valid(&m,"valid scalar call");
@@ -66,7 +67,9 @@ static int rejects_late_phi(void){
     if(!swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_BR,0,1,0}))return 31;
     c.immediate=9;uint32_t ordinary=swan_ir_add_inst(f,merge,c);
     SwanIRInst phi={0};phi.op=SWAN_IR_PHI;phi.type=SWAN_IR_I32;
-    phi.incoming=(SwanIRIncoming[]){{incoming,0}};phi.incoming_count=1;
+    phi.incoming=malloc(sizeof(*phi.incoming));
+    if(!phi.incoming)return 33;
+    phi.incoming[0]=(SwanIRIncoming){incoming,0};phi.incoming_count=1;
     uint32_t result=swan_ir_add_inst(f,merge,phi);
     if(!ordinary||!result||!swan_ir_terminate(merge,(SwanIRTerm){SWAN_IR_RET,result,0,0}))return 32;
     int status=expect_invalid(&m,"late phi","phi instructions must precede");
