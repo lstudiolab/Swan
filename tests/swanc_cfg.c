@@ -12,7 +12,7 @@ static void block(uint32_t *g, uint32_t id, uint32_t term, uint32_t a,
 static int reject(uint32_t *g, int n, uint32_t code, const char *name) {
     uint32_t w[64] = {0};
     int64_t r = swan_fn_swanc_cfg_verify(g, n, w, 64);
-    if (r == 0 || w[0] != code) {
+    fprintf(stderr, "reject-%s-result-%lld-%u\\n", name, (long long)r, w[0]);\n    if (r == 0 || w[0] != code) {
         fprintf(stderr, "%s: status=%lld diagnostic=%u expected=%u\n",
                 name, (long long)r, w[0], code);
         return 1;
