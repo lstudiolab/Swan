@@ -135,14 +135,21 @@ static inline bool swan_ir_common_subexpression_eliminate(SwanIRModule *m){
     }
     return changed;
 }
-static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn){
+static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn,bool *changed_out,char *error,size_t cap){
     bool changed=false;
     size_t count=fn->next_value;
-    if(count>SIZE_MAX/sizeof(int64_t)||count>SIZE_MAX/sizeof(SwanIRInst*))return false;
+    if(count>SIZE_MAX/sizeof(int64_t)||count>SIZE_MAX/sizeof(SwanIRInst*)){
+        if(error&&cap)snprintf(error,cap,"algebraic analysis size overflow");
+        return false;
+    }
     unsigned char *known=calloc(count,sizeof(*known));
     int64_t *values=calloc(count,sizeof(*values));
     SwanIRInst **definitions=calloc(count,sizeof(*definitions));
-    if(!known||!values||!definitions){free(known);free(values);free(definitions);return false;}
+    if(!known||!values||!definitions){
+        free(known);free(values);free(definitions);
+        if(error&&cap)snprintf(error,cap,"out of memory during algebraic analysis");
+        return false;
+    }
     for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
         SwanIRInst *in=&fn->blocks[b].instructions[i];
         if(in->result&&in->result<count)definitions[in->result]=in;
@@ -190,13 +197,18 @@ static inline bool swan_ir_algebraic_simplify_function(SwanIRFunction *fn){
         }
     }
     free(known);free(values);free(definitions);
-    return changed;
+    if(changed_out)*changed_out=changed;
+    return true;
 }
-static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
+static inline bool swan_ir_algebraic_simplify(SwanIRModule *m,bool *changed_out,char *error,size_t cap){
     bool changed=false;
-    for(size_t f=0;f<m->function_count;f++)
-        changed=swan_ir_algebraic_simplify_function(&m->functions[f])||changed;
-    return changed;
+    for(size_t f=0;f<m->function_count;f++){
+        bool function_changed=false;
+        if(!swan_ir_algebraic_simplify_function(&m->functions[f],&function_changed,error,cap))return false;
+        changed=function_changed||changed;
+    }
+    if(changed_out)*changed_out=changed;
+    return true;
 }
 static inline size_t swan_ir_use_count(const SwanIRFunction *fn,uint32_t value){
     size_t uses=0;
@@ -497,7 +509,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
         return swan_ir_verify_pass_result(module,error,cap);
     }
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_ALGEBRAIC){(void)swan_ir_algebraic_simplify(module);return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_ALGEBRAIC){bool changed=false;if(!swan_ir_algebraic_simplify(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_COPY_PROPAGATION){(void)swan_ir_copy_propagation(module);return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){(void)swan_ir_common_subexpression_eliminate(module);return swan_ir_verify_pass_result(module,error,cap);}
     if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
