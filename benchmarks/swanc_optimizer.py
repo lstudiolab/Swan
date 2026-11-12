@@ -15,7 +15,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-INSTRUCTIONS_PER_RUN = 384 * 128
+INSTRUCTIONS_PER_RUN = 515 * 128
 FOLDS_PER_RUN = 128 * 128
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 
@@ -24,6 +24,8 @@ def make_source(destination: pathlib.Path) -> pathlib.Path:
     parts = [
         ROOT / "swanc/ir/IR.swan",
         ROOT / "swanc/optimization/ConstantFold.swan",
+        ROOT / "swanc/optimization/UseCountAnalysis.swan",
+        ROOT / "swanc/optimization/DeadCodeElimination.swan",
         ROOT / "swanc/optimization/Optimization.swan",
     ]
     source = "\n".join(p.read_text(encoding="utf-8") for p in parts)
@@ -87,9 +89,10 @@ def main() -> None:
         "host": platform.platform(),
         "machine": platform.machine(),
         "compiler_generation": "Compiler 1 bootstrapping Swan-authored Compiler 2 optimizer",
-        "scope": "linear IR verification plus i32 constant folding; not full swanc",
+        "scope": "linear IR verification, i32 constant folding, use-count analysis, and conservative DCE; not full swanc",
         "ir_instructions_per_run": INSTRUCTIONS_PER_RUN,
         "constant_folds_per_run": FOLDS_PER_RUN,
+        "dead_instructions_removed_per_run": 1 * 128,
         "repeats": args.repeats,
         "module_compile_and_link_seconds": build_seconds,
         "runtime_samples_seconds": samples,
