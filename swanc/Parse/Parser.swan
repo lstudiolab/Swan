@@ -34,11 +34,9 @@ fn swanc_parse_primary(source: u32_array, tokens: u32_array, nodes: u32_array, s
         var i = 0
         while i < length:
             let digit = source[start + i] - 48
-            if digit < 0 or digit > 9 or value > 6553:
+            if digit < 0 or digit > 9 or value > 429496729 or (value == 429496729 and digit > 5):
                 return -2
             value = value * 10 + digit
-            if value > 65535:
-                return -2
             i = i + 1
         state[0] = position + 1
         let node_count = state[1]
