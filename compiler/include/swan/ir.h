@@ -40,7 +40,7 @@ typedef struct {
 typedef struct {
  const char *name; SwanIRType return_type; SwanIRType *parameter_types;
  size_t parameter_count; bool external; SwanIRBlock *blocks; size_t block_count, block_capacity;
- uint32_t next_value;
+ uint32_t next_value; SwanIRType *value_types; size_t value_type_capacity;
 } SwanIRFunction;
 typedef struct { SwanIRFunction *functions; size_t function_count, function_capacity; char **owned_strings; size_t owned_string_count, owned_string_capacity; } SwanIRModule;
 
@@ -72,7 +72,7 @@ static inline void swan_ir_destroy(SwanIRModule *m) {
    for(size_t i=0;i<bb->instruction_count;i++)free(bb->instructions[i].incoming);
    free(bb->instructions);
   }
-  free(fn->blocks);free(fn->parameter_types);
+  free(fn->blocks);free(fn->parameter_types);free(fn->value_types);
  }
  free(m->functions);for(size_t i=0;i<m->owned_string_count;i++)free(m->owned_strings[i]);free(m->owned_strings);memset(m,0,sizeof(*m));
 }
@@ -80,6 +80,9 @@ static inline SwanIRFunction *swan_ir_add_function(SwanIRModule *m,const char *n
  if(!m||!name||!name[0]||!swan_ir_type_valid(ret)||(count&&!params)||count>=(size_t)(INT32_MAX/8)||count>SIZE_MAX/sizeof(*params)||m->function_count==SIZE_MAX||!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
  SwanIRFunction *f=&m->functions[m->function_count++];memset(f,0,sizeof(*f));f->name=name;f->return_type=ret;
  if(count){f->parameter_types=malloc(count*sizeof(*params));if(!f->parameter_types){m->function_count--;return NULL;}memcpy(f->parameter_types,params,count*sizeof(*params));}
+ f->value_type_capacity=count+1;f->value_types=calloc(f->value_type_capacity,sizeof(*f->value_types));
+ if(!f->value_types){free(f->parameter_types);m->function_count--;return NULL;}
+ for(size_t i=0;i<count;i++)f->value_types[i+1]=params[i];
  f->parameter_count=count;f->next_value=(uint32_t)count+1;return f;
 }
 static inline SwanIRBlock *swan_ir_add_block(SwanIRFunction *f,const char *name) {
@@ -88,7 +91,11 @@ static inline SwanIRBlock *swan_ir_add_block(SwanIRFunction *f,const char *name)
 }
 static inline uint32_t swan_ir_add_inst(SwanIRFunction *f,SwanIRBlock *b,SwanIRInst inst) {
  if(!f||!b||b->terminated||(inst.incoming_count&&!inst.incoming)||b->instruction_count==SIZE_MAX||!swan_ir_reserve((void**)&b->instructions,&b->instruction_capacity,b->instruction_count+1,sizeof(*b->instructions)))return 0;
- if(inst.type==SWAN_IR_VOID)inst.result=0;else{if(!swan_ir_value_type(inst.type)||f->next_value==0||f->next_value>=(uint32_t)(INT32_MAX/8))return 0;inst.result=f->next_value++;}
+ if(inst.type==SWAN_IR_VOID)inst.result=0;else{
+  if(!swan_ir_value_type(inst.type)||f->next_value==0||f->next_value>=(uint32_t)(INT32_MAX/8)||
+     !swan_ir_reserve((void**)&f->value_types,&f->value_type_capacity,(size_t)f->next_value+1,sizeof(*f->value_types)))return 0;
+  inst.result=f->next_value++;f->value_types[inst.result]=inst.type;
+ }
  b->instructions[b->instruction_count++]=inst;return inst.result;
 }
 static inline bool swan_ir_terminate(SwanIRBlock *b,SwanIRTerm term) {
@@ -102,7 +109,8 @@ static inline bool swan_ir_fail(char *error,size_t cap,const char *message,const
  return false;
 }
 static inline SwanIRType swan_ir_value_type_of(const SwanIRFunction *f,uint32_t id) {
- if(!id)return SWAN_IR_VOID;
+ if(!f||!id)return SWAN_IR_VOID;
+ if(f->value_types&&id<f->value_type_capacity)return f->value_types[id];
  if(id<=f->parameter_count)return f->parameter_types[id-1];
  for(size_t b=0;b<f->block_count;b++)for(size_t i=0;i<f->blocks[b].instruction_count;i++)
   if(f->blocks[b].instructions[i].result==id)return f->blocks[b].instructions[i].type;
