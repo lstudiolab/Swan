@@ -20,6 +20,28 @@ static void check_or_all_ones(SwanIRType type,bool constant_left){
  }
  assert(found);swan_ir_destroy(&module);
 }
+static void check_unreachable_block_cleanup(void){
+ SwanIRModule module={0};SwanIRType params[]={SWAN_IR_I64};
+ SwanIRFunction *callee=swan_ir_add_function(&module,"dead_helper",SWAN_IR_I64,params,1);assert(callee);
+ callee->external=true;
+ SwanIRFunction *fn=swan_ir_add_function(&module,"dead_cleanup",SWAN_IR_I64,params,1);assert(fn);
+ SwanIRBlock *entry=swan_ir_add_block(fn,"entry"),*live=swan_ir_add_block(fn,"live");
+ SwanIRBlock *dead=swan_ir_add_block(fn,"dead"),*dead_tail=swan_ir_add_block(fn,"dead_tail");
+ assert(entry&&live&&dead&&dead_tail);
+ assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_BR,0,1,0}));
+ assert(swan_ir_terminate(live,(SwanIRTerm){SWAN_IR_RET,1,0,0}));
+ SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_I64;call.symbol="dead_helper";
+ call.incoming=calloc(1,sizeof(*call.incoming));assert(call.incoming);call.incoming_count=1;
+ call.incoming[0]=(SwanIRIncoming){1,0};
+ assert(swan_ir_add_inst(fn,dead,call));
+ assert(swan_ir_terminate(dead,(SwanIRTerm){SWAN_IR_BR,0,3,0}));
+ assert(swan_ir_terminate(dead_tail,(SwanIRTerm){SWAN_IR_RET,1,0,0}));
+ char error[256]={0};assert(swan_ir_verify(&module,error,sizeof(error)));
+ assert(swan_ir_optimize(&module,error,sizeof(error)));
+ assert(swan_ir_verify(&module,error,sizeof(error)));
+ assert(fn->block_count==2&&fn->blocks[0].terminator.target==1);
+ swan_ir_destroy(&module);
+}
 static void check_constant_chain(size_t length){
  SwanIRModule module={0};
  SwanIRFunction *fn=swan_ir_add_function(&module,"constant_chain",SWAN_IR_I64,NULL,0);assert(fn);
@@ -203,6 +225,7 @@ int main(void){
  swan_ir_destroy(&licm);
 
  check_trapping_operand_is_preserved();
+ check_unreachable_block_cleanup();
  check_transitive_copy_propagation();
  check_constant_chain(512);
  check_or_all_ones(SWAN_IR_I8,false);check_or_all_ones(SWAN_IR_I8,true);
