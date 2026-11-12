@@ -5,7 +5,9 @@
 
 typedef struct { unsigned char *data; size_t length,capacity; } SwanWasmBuffer;
 static inline bool swan_wasm_reserve(SwanWasmBuffer *b,size_t n){
- if(n>SIZE_MAX-b->length)return false;size_t need=b->length+n;if(need<=b->capacity)return true;
+ if(!b||n>SIZE_MAX-b->length)return false;
+ size_t need=b->length+n;
+ if(need<=b->capacity)return true;
  size_t cap=b->capacity?b->capacity:128;while(cap<need){if(cap>SIZE_MAX/2)return false;cap*=2;}
  void *p=realloc(b->data,cap);if(!p)return false;b->data=p;b->capacity=cap;return true;
 }
@@ -28,7 +30,6 @@ static inline bool swan_wasm_emit_edge(SwanWasmBuffer *b,const SwanIRFunction *f
 }
 static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRFunction *fn,const SwanIRInst *in,bool memory64,size_t *alloca_index,uint32_t base_local){
  bool i32=in->type==SWAN_IR_I1||in->type==SWAN_IR_I8||in->type==SWAN_IR_I16||in->type==SWAN_IR_I32;
- bool ptr64=memory64;
  if(in->op==SWAN_IR_PHI)return true;
  if(in->op==SWAN_IR_CONST)return swan_wasm_const(b,!i32&&!(in->type==SWAN_IR_PTR&&!memory64),in->immediate)&&swan_wasm_set(b,in->result);
  if(in->op==SWAN_IR_ALLOCA){uint64_t off=16u+(*alloca_index)++*8u;uint8_t add=memory64?0x7c:0x6a;return swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,base_local)&&swan_wasm_const(b,memory64,(int64_t)off)&&swan_wasm_byte(b,add)&&swan_wasm_set(b,in->result);}
@@ -36,7 +37,8 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
  if(in->op==SWAN_IR_STORE){SwanIRType t=swan_ir_value_type_of(fn,in->b);uint8_t op=t==SWAN_IR_I8?0x3a:t==SWAN_IR_I16?0x3b:t==SWAN_IR_I32||t==SWAN_IR_I1?0x36:0x37;uint32_t align=t==SWAN_IR_I8?0:t==SWAN_IR_I16?1:t==SWAN_IR_I32||t==SWAN_IR_I1?2:3;return swan_wasm_get(b,in->a)&&swan_wasm_get(b,in->b)&&swan_wasm_byte(b,op)&&swan_wasm_u32(b,align)&&(memory64?swan_wasm_u64(b,0):swan_wasm_u32(b,0));}
  if(in->op==SWAN_IR_CALL){size_t index=m->function_count;for(size_t i=0;i<m->function_count;i++)if(in->symbol&&!strcmp(m->functions[i].name,in->symbol)){index=i;break;}if(index==m->function_count)return false;
   for(size_t i=0;i<in->incoming_count;i++)if(!swan_wasm_get(b,in->incoming[i].value))return false;
-  if(!swan_wasm_byte(b,0x10)||!swan_wasm_u32(b,(uint32_t)index))return false;return in->type==SWAN_IR_VOID||swan_wasm_set(b,in->result);
+  if(!swan_wasm_byte(b,0x10)||!swan_wasm_u32(b,(uint32_t)index))return false;
+  return in->type==SWAN_IR_VOID||swan_wasm_set(b,in->result);
  }
  if(in->op==SWAN_IR_SELECT)return swan_wasm_get(b,in->b)&&swan_wasm_get(b,in->c)&&swan_wasm_get(b,in->a)&&swan_wasm_byte(b,0x1b)&&swan_wasm_set(b,in->result);
  if(!swan_wasm_get(b,in->a)||!swan_wasm_get(b,in->b))return false;
