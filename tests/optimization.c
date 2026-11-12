@@ -39,6 +39,24 @@ static void check_constant_chain(size_t length){
  assert(entry->instructions[0].immediate==(int64_t)(length+1));
  swan_ir_destroy(&module);
 }
+static void check_transitive_copy_propagation(void){
+ SwanIRModule module={0};SwanIRType params[]={SWAN_IR_I1,SWAN_IR_I64};
+ SwanIRFunction *fn=swan_ir_add_function(&module,"copy_chain",SWAN_IR_I64,params,2);assert(fn);
+ SwanIRBlock *entry=swan_ir_add_block(fn,"entry");assert(entry);
+ SwanIRInst first={0};first.op=SWAN_IR_SELECT;first.type=SWAN_IR_I64;first.a=1;first.b=2;first.c=2;
+ uint32_t first_copy=swan_ir_add_inst(fn,entry,first);assert(first_copy==3);
+ SwanIRInst second=first;second.b=first_copy;second.c=first_copy;
+ uint32_t second_copy=swan_ir_add_inst(fn,entry,second);assert(second_copy==4);
+ SwanIRInst add={0};add.op=SWAN_IR_ADD;add.type=SWAN_IR_I64;add.a=second_copy;add.b=first_copy;
+ uint32_t result=swan_ir_add_inst(fn,entry,add);assert(result==5);
+ assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}));
+ char error[256]={0};assert(swan_ir_optimize(&module,error,sizeof(error)));
+ assert(swan_ir_verify(&module,error,sizeof(error)));
+ assert(entry->instruction_count==1);
+ assert(entry->instructions[0].op==SWAN_IR_ADD);
+ assert(entry->instructions[0].a==2&&entry->instructions[0].b==2);
+ swan_ir_destroy(&module);
+}
 int main(void){
  SwanIRModule m={0};SwanIRFunction *f=swan_ir_add_function(&m,"main",SWAN_IR_I64,NULL,0);assert(f);
  SwanIRBlock *b=swan_ir_add_block(f,"entry");assert(b);
@@ -149,6 +167,7 @@ int main(void){
  assert(hoisted&&!remains);
  swan_ir_destroy(&licm);
 
+ check_transitive_copy_propagation();
  check_constant_chain(512);
  check_or_all_ones(SWAN_IR_I8,false);check_or_all_ones(SWAN_IR_I8,true);
  check_or_all_ones(SWAN_IR_I16,false);check_or_all_ones(SWAN_IR_I16,true);
