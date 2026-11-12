@@ -920,9 +920,9 @@ static inline void emit_samc_cleanup(Text *o,Locals *l){
   else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",v->slot*8);
   if(!v->array_unchecked)text_add(o,"    sub rdi, 8\\n");
   cg_call(o,"free@PLT");
+  cg_restore_volatile(o,l);
   if(v->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
   else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",v->slot*8);
-  cg_restore_volatile(o,l);
   text_add(o,".Lswan_drop_skip_%d:\\n",skip);
  }
 }
