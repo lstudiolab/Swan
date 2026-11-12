@@ -55,6 +55,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"enum",4))return T_ENUM;
   if(!memcmp(s,"loop",4))return T_LOOP;
   if(!memcmp(s,"from",4))return T_FROM;
+  if(!memcmp(s,"upto",4))return T_UPTO;
   if(!memcmp(s,"self",4))return T_SELF;
   if(!memcmp(s,"true",4))return T_TRUE;
   if(!memcmp(s,"pass",4))return T_PASS;
@@ -70,8 +71,6 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"const",5))return T_CONST;
   if(!memcmp(s,"block",5))return T_BLOCK;
   if(!memcmp(s,"defer",5))return T_DEFER;
-  if(!memcmp(s,"upto",4))return T_UPTO;
-  if(!memcmp(s,"inline",6))return T_INLINE;
   break;
  case 6:
   if(!memcmp(s,"import",6))return T_IMPORT;
@@ -79,13 +78,13 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"return",6))return T_RETURN;
   if(!memcmp(s,"struct",6))return T_STRUCT;
   if(!memcmp(s,"public",6))return T_PUBLIC;
+  if(!memcmp(s,"inline",6))return T_INLINE;
   if(!memcmp(s,"static",6))return T_STATIC;
   if(!memcmp(s,"private",7))return T_PRIVATE;
   if(!memcmp(s,"deinit",6))return T_DEINIT;
   break;
  case 7:
   if(!memcmp(s,"private",7))return T_PRIVATE;
-  if(!memcmp(s,"continue",8))return T_CONTINUE;
   break;
  case 8:
   if(!memcmp(s,"continue",8))return T_CONTINUE;
