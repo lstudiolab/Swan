@@ -33,17 +33,26 @@ static inline int64_t swan_ir_signed_value(uint64_t value,unsigned bits){
     uint64_t sign=UINT64_C(1)<<(bits-1);value&=swan_ir_width_mask(bits);
     return (int64_t)((value^sign)-sign);
 }
-static inline bool swan_ir_fold_instruction(SwanIRFunction *fn,SwanIRInst *in){
+static inline bool swan_ir_constant_lookup(const SwanIRFunction *fn,uint32_t id,
+        int64_t *value,const unsigned char *known,const int64_t *values){
+    if(known&&values){
+        if(!id||id>=fn->next_value||!known[id])return false;
+        *value=values[id];return true;
+    }
+    return swan_ir_constant(fn,id,value);
+}
+static inline bool swan_ir_fold_instruction_using(SwanIRFunction *fn,SwanIRInst *in,
+        const unsigned char *known,const int64_t *values){
     if(in->op==SWAN_IR_SELECT){
         int64_t condition,yes,no;
-        if(swan_ir_constant(fn,in->a,&condition)&&swan_ir_constant(fn,in->b,&yes)&&swan_ir_constant(fn,in->c,&no)){
+        if(swan_ir_constant_lookup(fn,in->a,&condition,known,values)&&swan_ir_constant_lookup(fn,in->b,&yes,known,values)&&swan_ir_constant_lookup(fn,in->c,&no,known,values)){
             in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=condition?yes:no;return true;
         }
         return false;
     }
     if(in->op==SWAN_IR_CONST||in->op==SWAN_IR_PHI||in->op==SWAN_IR_CALL||
        in->op==SWAN_IR_ALLOCA||in->op==SWAN_IR_LOAD||in->op==SWAN_IR_STORE||in->op==SWAN_IR_SELECT)return false;
-    int64_t a,b;if(!swan_ir_constant(fn,in->a,&a)||!swan_ir_constant(fn,in->b,&b))return false;
+    int64_t a,b;if(!swan_ir_constant_lookup(fn,in->a,&a,known,values)||!swan_ir_constant_lookup(fn,in->b,&b,known,values))return false;
     unsigned bits=swan_ir_integer_bits(swan_ir_value_type_of(fn,in->a));
     uint64_t mask=swan_ir_width_mask(bits),ua=(uint64_t)a&mask,ub=(uint64_t)b&mask;
     int64_t sa=swan_ir_signed_value(ua,bits),sb=swan_ir_signed_value(ub,bits),value=0;bool fold=true;
@@ -68,6 +77,9 @@ static inline bool swan_ir_fold_instruction(SwanIRFunction *fn,SwanIRInst *in){
     }
     if(!fold)return false;
     in->op=SWAN_IR_CONST;in->a=in->b=in->c=0;in->immediate=value;return true;
+}
+static inline bool swan_ir_fold_instruction(SwanIRFunction *fn,SwanIRInst *in){
+    return swan_ir_fold_instruction_using(fn,in,NULL,NULL);
 }
 static inline void swan_ir_replace_uses(SwanIRFunction *fn,uint32_t from,uint32_t to){
     for(size_t b=0;b<fn->block_count;b++){
@@ -134,7 +146,7 @@ static inline bool swan_ir_algebraic_simplify(SwanIRModule *m){
                 if(in->b==in->c){swan_ir_replace_uses(fn,in->result,in->b);changed=true;}
                 continue;
             }
-            int64_t a=0,z=0;bool ca=swan_ir_constant(fn,in->a,&a),cz=swan_ir_constant(fn,in->b,&z);
+            int64_t a=0,z=0;bool ca=swan_ir_constant_lookup(fn,in->a,&a,known,values),cz=swan_ir_constant(fn,in->b,&z);
             uint32_t replacement=0;bool make_zero=false,make_one=false,make_all_ones=false;
             unsigned bits=swan_ir_integer_bits(in->type);
             uint64_t all_ones=swan_ir_width_mask(bits);
@@ -429,16 +441,39 @@ static const SwanIRPass swan_ir_default_passes[]={
 };
 static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,char *error,size_t cap){
     if(pass==SWAN_IR_PASS_CONSTANT_FOLD){
-        for(size_t f=0;f<module->function_count;f++)
-            for(size_t b=0;b<module->functions[f].block_count;b++)
-                for(size_t i=0;i<module->functions[f].blocks[b].instruction_count;i++)
-                    {
-                        SwanIRInst *in=&module->functions[f].blocks[b].instructions[i];
-                        if(in->op==SWAN_IR_CONST&&in->type!=SWAN_IR_PTR){
-                            unsigned bits=swan_ir_integer_bits(in->type);
-                            in->immediate=swan_ir_signed_value((uint64_t)in->immediate&swan_ir_width_mask(bits),bits);
-                        }else (void)swan_ir_fold_instruction(&module->functions[f],in);
-                    }
+        for(size_t f=0;f<module->function_count;f++){
+            SwanIRFunction *fn=&module->functions[f];
+            size_t count=fn->next_value;
+            if(count>SIZE_MAX/sizeof(int64_t)||count>SIZE_MAX/sizeof(SwanIRInst*)) {
+                if(error&&cap)snprintf(error,cap,"constant-fold analysis size overflow");
+                return false;
+            }
+            unsigned char *known=calloc(count,sizeof(*known));
+            int64_t *values=calloc(count,sizeof(*values));
+            SwanIRInst **definitions=calloc(count,sizeof(*definitions));
+            if(!known||!values||!definitions){
+                free(known);free(values);free(definitions);
+                if(error&&cap)snprintf(error,cap,"out of memory during constant-fold analysis");
+                return false;
+            }
+            for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+                SwanIRInst *in=&fn->blocks[b].instructions[i];
+                if(in->result&&in->result<count)definitions[in->result]=in;
+                if(in->op==SWAN_IR_CONST&&in->type!=SWAN_IR_PTR){
+                    unsigned bits=swan_ir_integer_bits(in->type);
+                    in->immediate=swan_ir_signed_value((uint64_t)in->immediate&swan_ir_width_mask(bits),bits);
+                }
+            }
+            for(uint32_t id=(uint32_t)fn->parameter_count+1;id<fn->next_value;id++){
+                SwanIRInst *in=definitions[id];
+                if(!in)continue;
+                if(in->op==SWAN_IR_CONST){known[id]=1;values[id]=in->immediate;continue;}
+                if(swan_ir_fold_instruction_using(fn,in,known,values)){
+                    known[id]=1;values[id]=in->immediate;
+                }
+            }
+            free(known);free(values);free(definitions);
+        }
         return swan_ir_verify_pass_result(module,error,cap);
     }
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
