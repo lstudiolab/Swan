@@ -12,8 +12,8 @@ static int valid(void){
  uint32_t e[12*4]={0},w[16]={0};
  ev(e,0,DECLARE,0,10);ev(e,1,READ,0,11);ev(e,2,BORROW_SHARED,0,12);
  ev(e,3,READ,0,13);ev(e,4,BORROW_SHARED,0,14);ev(e,5,END_SHARED,0,15);
- ev(e,6,END_SHARED,0,16);ev(e,7,BORROW_MUT,0,17);ev(e,8,WRITE,0,18);
- ev(e,9,END_MUT,0,19);ev(e,10,MOVE,0,20);ev(e,11,DECLARE,1,21);
+ ev(e,6,END_SHARED,0,16);ev(e,7,BORROW_MUT,0,17);ev(e,8,END_MUT,0,18);
+ ev(e,9,WRITE,0,19);ev(e,10,MOVE,0,20);ev(e,11,DECLARE,1,21);
  if(swan_fn_swanc_ownership_analyze(e,12,3,w,16)!=0){fprintf(stderr,"valid flow rejected: %u at %u\n",w[0],w[1]);return 1;}
  if(w[4]!=2||w[8]!=1||w[12]!=0)return 2;
  return 0;
