@@ -2,6 +2,10 @@
 
 This document records the implementation boundary visible in the current source tree. It distinguishes language syntax, semantic checking, lowering, and target support; those are separate milestones.
 
+## Language keyword contract
+
+The lexer contract is exactly 36 reserved words: `func`, `struct`, `import`, `export`, `enum`, `let`, `var`, `const`, `if`, `else`, `while`, `loop`, `true`, `false`, `guard`, `defer`, `return`, `break`, `continue`, `block`, `as`, `bool`, `from`, `upto`, `inline`, `static`, `private`, `public`, `match`, `mod`, `in`, `int`, `init`, `deinit`, `self`, and `pass`. Other spellings remain identifiers; contextual compatibility syntax does not reserve a spelling.
+
 ## Confirmed architecture
 
 - C11 host compiler with `main.c` as its only compiled C translation unit.
