@@ -6,12 +6,12 @@ mkdir -p "$ROOT/build"
 
 # Bootstrap the C11 host without linking the not-yet-built Swan SIL object.
 "$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -DSWAN_SIL_BOOTSTRAP \
-    -I"$ROOT/compiler/include" "$ROOT/main.c" -o "$ROOT/build/swan-bootstrap"
+    -I"$ROOT/compiler/include" "$ROOT/compiler/tools/swanc/main.c" -o "$ROOT/build/swan-bootstrap"
 
 # Compile the SIL passes from Swan source as one native object.
 {
     for stage in silgen silverify sildemand silpass siloptimization; do
-        sed '/^[[:space:]]*import[[:space:]]/d' "$ROOT/compiler/sil/$stage.swan"
+        sed '/^[[:space:]]*import[[:space:]]/d' "$ROOT/compiler/lib/SIL/Runtime/$stage.swan"
         printf '\n'
     done
 } > "$ROOT/build/sil_runtime.swan"
@@ -36,7 +36,7 @@ sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_sil_build_stub\2/g' "
 
 # Link the Swan-generated SIL implementation into the production compiler.
 "$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic \
-    -I"$ROOT/compiler/include" "$ROOT/main.c" "$ROOT/build/sil_runtime.o" \
+    -I"$ROOT/compiler/include" "$ROOT/compiler/tools/swanc/main.c" "$ROOT/build/sil_runtime.o" \
     -o "$ROOT/build/swanc"
 ln -sf swanc "$ROOT/build/swan"
 printf 'Built swanc compiler: %s\n' "$ROOT/build/swanc"

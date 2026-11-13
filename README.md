@@ -303,3 +303,29 @@ The same works with explicit source lists:
 Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. Imported Swan modules are bundled by default; `--lazy-imports` intentionally opts out of the single-file model. The single-assembly guarantee applies to Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
 
 The C header importer currently supports the documented scalar C ABI subset. Pointer and aggregate layouts, callbacks, variadic functions, and broader platform ABI support require additional implementation; they are not implied by accepting a C source file.
+
+
+## Compiler source layout
+
+The compiler is organized by subsystem, following the broad source-tree organization used by production compilers such as Swift:
+
+```text
+compiler/
+  include/swan/       Stable compatibility include paths
+  lib/
+    AST/              Abstract syntax tree and declarations
+    Basic/            Core utilities, target model, linker support
+    CodeGen/          Shared code generation and target backends
+      Targets/
+    Driver/            Compilation pipeline and orchestration
+    IR/                Typed SVM IR, IR generation, optimization
+    Parse/             UTF-8 lexer and parser
+    SIL/               Swan Intermediate Language bridge and runtime passes
+      Runtime/
+    Sema/              Name/type checking and C header import
+    Serialization/     Assembly output
+  tools/
+    swanc/             Production compiler command-line driver
+```
+
+Implementation headers live under `compiler/lib`. The small headers in `compiler/include/swan` forward to those implementations, preserving stable include paths for embedders and tests. The root `main.c` remains as a compatibility entry point.
