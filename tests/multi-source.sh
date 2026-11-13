@@ -29,8 +29,8 @@ C
 "$TMP/project-app"
 
 "$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/project.asm"
-grep -q 'swan_answer' "$TMP/project.s"
-grep -q 'c_answer' "$TMP/project.s"
-grep -q 'main' "$TMP/project.s"
+grep -q 'swan_answer' "$TMP/project.asm"
+grep -q 'c_answer' "$TMP/project.asm"
+grep -q 'main' "$TMP/project.asm"
 
 printf 'PASS: directory-wide Swan compilation and C sources bundled into one assembly file\n'
