@@ -1,19 +1,55 @@
 #define _POSIX_C_SOURCE 200809L
 #include "swan/compiler.h"
 
-/* The executable entry point owns command-line orchestration. The headers
- * provide independently testable compiler stages and shared utilities. */
+/* The executable entry point owns command-line orchestration. */
+static bool swan_has_suffix(const char *path,const char *suffix){
+ size_t a=strlen(path),b=strlen(suffix);return a>=b&&!strcmp(path+a-b,suffix);
+}
+static char *swan_read_sources(const char *const *paths,size_t count){
+ char *combined=NULL;size_t used=0;
+ for(size_t i=0;i<count;i++){
+  char *part=swan_read_file(paths[i]);if(!part){free(combined);return NULL;}
+  size_t n=strlen(part);if(n>SIZE_MAX-used-2){free(part);free(combined);errno=EOVERFLOW;return NULL;}
+  char *next=realloc(combined,used+n+2);if(!next){free(part);free(combined);return NULL;}
+  combined=next;memcpy(combined+used,part,n);used+=n;combined[used++]='\n';combined[used]=0;free(part);
+ }
+ if(!combined){combined=calloc(1,1);}return combined;
+}
+static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_t count){
+ for(size_t i=0;i<count;i++){
+  char temp[]="/tmp/swanc-c-XXXXXX";int fd=mkstemp(temp);if(fd<0)return false;close(fd);unlink(temp);
+  char *args[]={"cc","-S","-o",temp,(char*)sources[i],NULL};
+  int result=swan_exec(args,true);if(result!=0){unlink(temp);return false;}
+  FILE *input=fopen(temp,"rb");if(!input){unlink(temp);return false;}
+  char buffer[16384];size_t n;bool ok=true;
+  while((n=fread(buffer,1,sizeof(buffer),input))>0)if(fwrite(buffer,1,n,output)!=n){ok=false;break;}
+  if(ferror(input))ok=false;if(fclose(input)!=0)ok=false;unlink(temp);if(!ok)return false;
+  if(fputc('\n',output)==EOF)return false;
+ }
+ return true;
+}
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swan [build|run] <file.swan> [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
- if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swan [build|run] <file.swan> [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
- const char *input=argv[index++],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
+ if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
+ const char *swan_inputs[128],*c_inputs[120];size_t swan_input_count=0,c_input_count=0;
+ while(index<argc&&(swan_has_suffix(argv[index],".swan")||swan_has_suffix(argv[index],".c"))){
+  if(swan_has_suffix(argv[index],".swan")){
+   if(swan_input_count>=128){fprintf(stderr,"swanc: too many Swan source files\\n");return 2;}
+   swan_inputs[swan_input_count++]=argv[index++];
+  }else{
+   if(c_input_count>=120){fprintf(stderr,"swanc: too many C source files\\n");return 2;}
+   c_inputs[c_input_count++]=argv[index++];
+  }
+ }
+ if(!swan_input_count){fprintf(stderr,"swanc: expected at least one .swan source file\\n");return 2;}
+ const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  bool emit_asm=false,emit_llvm=false;const char *link_args[120];size_t link_arg_count=0;
  const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
@@ -59,8 +95,11 @@ static int swan_run(int argc,char **argv){
  if(emit_asm)mode=SWAN_EMIT;else if(emit_llvm)mode=SWAN_EMIT_LLVM;
  swan_profile_reset();
  uint64_t stage=swan_profile_start();
- char *source=swan_read_file(input);
+ char *source=swan_read_sources(swan_inputs,swan_input_count);
  swan_profile_end(SWAN_PROFILE_READ,stage);if(!source){perror(input);return 1;}
+ if(c_input_count&&target->architecture!=SWAN_ARCH_X86_64){
+  fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\\n");free(source);return 2;
+ }
  SwanError err={0};TokenStream ts;
  stage=swan_profile_start();
  if(!swan_lex(source,&ts,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);free(source);return 1;}
@@ -215,7 +254,9 @@ static int swan_run(int argc,char **argv){
  if(mode==SWAN_EMIT){
   const char *dest=output?output:"a.s";FILE *of=fopen(dest,"wb");
   if(!of){perror(dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
-  stage=swan_profile_start();bool ok=swan_emit_assembly(of,&assembly);if(fclose(of)!=0)ok=false;swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
+  stage=swan_profile_start();bool ok=swan_emit_assembly(of,&assembly);
+  if(ok&&c_input_count)ok=swan_append_c_assembly(of,c_inputs,c_input_count);
+  if(fclose(of)!=0)ok=false;swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
   if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
   if(runtime_source[0])unlink(runtime_source);
   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 0;
@@ -225,6 +266,7 @@ static int swan_run(int argc,char **argv){
  FILE *af=fdopen(fd,"wb");
  if(!af){close(fd);unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  stage=swan_profile_start();bool written=swan_emit_assembly(af,&assembly);
+ if(written&&c_input_count)written=swan_append_c_assembly(af,c_inputs,c_input_count);
  if(fclose(af)!=0)written=false;
  swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
  if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
