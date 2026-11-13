@@ -280,7 +280,7 @@ project/
 
 ```sh
 # One directory -> one program -> one combined assembly file
-./build/swanc build project --emit-asm -o build/project.s
+./build/swanc build project --emit-asm -o build/project.asm
 
 # Or compile and link that combined assembly into one executable
 ./build/swanc build project -o build/project
