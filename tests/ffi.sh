@@ -33,6 +33,8 @@ fn sil_identity(value: i64) -> i64:
 fn main() -> i32:
     swan_c_noop(7)
     swan_c_add(sil_identity(19), 23)
+    if swan_c_identity(42) != 42:
+        return 3
     return swan_c_double(21)
 SWAN
 "$SWAN" build "$TMP/ffi.swan" --link "$TMP/c_library.o" -o "$TMP/ffi"
