@@ -14,15 +14,15 @@ SWAN
 cat > "$TMP/project/02_main.swan" <<SWAN
 import C "$TMP/project/c_api.h"
 fn main() -> int:
-    return swan_answer() + c_answer() - 84
+    return swan_answer() + c_answer(42) - 84
 out
 SWAN
 
 cat > "$TMP/project/c_api.h" <<'C'
-int c_answer(void);
+int c_answer(int value);
 C
 cat > "$TMP/project/native.c" <<'C'
-int c_answer(void) { return 42; }
+int c_answer(int value) { return value; }
 C
 
 "$ROOT/build/swanc" build "$TMP/project" -o "$TMP/project-app"
