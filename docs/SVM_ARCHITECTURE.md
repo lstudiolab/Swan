@@ -74,6 +74,12 @@ The architecture is target-independent. x86-64 is one backend, not the default i
 
 Each target has its own instruction selector, register model, calling convention, data layout, and object format. Shared IR does not mean shared machine instructions or shared ABI assumptions.
 
+## Native x86-64 machine-code lowering
+
+For source programs accepted by the typed-IR frontend, the x86-64 SVM backend emits verified LLVM IR and invokes Clang at `-O3 -march=native`. LLVM performs target instruction selection, register allocation, machine scheduling, and assembly emission. The driver then assembles and links that native assembly. This is ahead-of-time compilation: the generated program contains no SVM interpreter or IR dispatch loop.
+
+The AST compatibility backend remains for implemented source constructs not yet represented in typed IR. It also emits native x86-64 assembly; it is not an interpreter, but it does not receive LLVM's full machine-level optimization pipeline. The supported IR subset should expand so more programs use the optimizing native path. LLVM/Clang is therefore required for the optimized typed-IR x86-64 path; missing Clang produces a diagnostic rather than an interpreter fallback.
+
 ## Performance requirements
 
 1. No interpreter dispatch loop in compiled execution.
