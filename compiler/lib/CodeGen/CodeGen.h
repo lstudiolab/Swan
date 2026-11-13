@@ -100,10 +100,15 @@ static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
     Text text={0};
     bool ok=false;
     if(target->architecture==SWAN_ARCH_X86_64){
-        /* Prefer the optimizing LLVM machine backend for the typed-IR subset.
-           This performs instruction selection, register allocation, scheduling,
-           and target-specific optimization before emitting native assembly. */
-        if(program->import_count==0){
+        /* External C ABI declarations retain Swan's ABI-compatible assembly
+           path until the LLVM bridge's symbol and call lowering is fully parity-tested. */
+        bool has_external=false;
+        for(size_t i=0;i<program->count;i++)
+            if(program->functions[i]&&program->functions[i]->external){has_external=true;break;}
+        /* Prefer the optimizing LLVM machine backend for closed typed-IR
+           programs. LLVM performs instruction selection, register allocation,
+           scheduling, and target-specific optimization before assembly output. */
+        if(program->import_count==0&&!has_external){
             SwanIRModule module={0};Text llvm={0};
             bool prepared=swan_svm_prepare_ir(program,&module,error,detail,sizeof(detail));
             uint64_t codegen_stage=swan_profile_start();
