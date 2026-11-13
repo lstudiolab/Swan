@@ -100,6 +100,24 @@ static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
     Text text={0};
     bool ok=false;
     if(target->architecture==SWAN_ARCH_X86_64){
+        /* Prefer the optimizing LLVM machine backend for the typed-IR subset.
+           This performs instruction selection, register allocation, scheduling,
+           and target-specific optimization before emitting native assembly. */
+        if(program->import_count==0){
+            SwanIRModule module={0};Text llvm={0};
+            bool prepared=swan_svm_prepare_ir(program,&module,error,detail,sizeof(detail));
+            bool emitted=prepared&&swan_codegen_llvm_ir(&module,&llvm,target->triple,detail,sizeof(detail));
+            swan_ir_destroy(&module);
+            if(emitted){
+                output->kind=SWAN_SVM_OUTPUT_LLVM_IR;
+                output->data=llvm.data;output->length=llvm.len;
+                return true;
+            }
+            free(llvm.data);
+            if(error)memset(error,0,sizeof(*error));
+        }
+        /* Keep the native compatibility backend for currently supported AST
+           features not yet expressible in typed IR (arrays, logging, imports). */
         ok=swan_codegen(program,&text,target,error);
         output->kind=SWAN_SVM_OUTPUT_ASSEMBLY;
     }else{
