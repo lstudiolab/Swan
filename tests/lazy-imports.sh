@@ -11,7 +11,7 @@ lazy import foundation
 fn main():
     return 0
 SWAN
-"$SWAN" build --lazy-imports "$TMP/unused.swan" -o "$TMP/unused"
+"$SWAN" build "$TMP/unused.swan" --lazy-imports -o "$TMP/unused"
 test ! -d "$TMP/unused.modules"
 "$TMP/unused"
 
@@ -21,7 +21,7 @@ fn main():
     echo_int(abs_int(-9))
     return 0
 SWAN
-"$SWAN" build --lazy-imports "$TMP/used.swan" -o "$TMP/used"
+"$SWAN" build "$TMP/used.swan" --lazy-imports -o "$TMP/used"
 test -f "$TMP/used.modules/foundation.so"
 nm -D --defined-only "$TMP/used.modules/foundation.so" | grep -q 'swan_fn_abs_int'
 if nm -D --defined-only "$TMP/used.modules/foundation.so" | grep -q 'swan_fn_cube_int'; then
@@ -40,7 +40,7 @@ fn main():
     out
     return 0
 SWAN
-"$SWAN" build --lazy-imports "$TMP/branch.swan" -o "$TMP/branch"
+"$SWAN" build "$TMP/branch.swan" --lazy-imports -o "$TMP/branch"
 test -f "$TMP/branch.modules/foundation.so"
 mv "$TMP/branch.modules/foundation.so" "$TMP/foundation.saved"
 "$TMP/branch"
@@ -54,7 +54,7 @@ fn main():
     out
     return 0
 SWAN
-"$SWAN" build --lazy-imports "$TMP/branch-used.swan" -o "$TMP/branch-used"
+"$SWAN" build "$TMP/branch-used.swan" --lazy-imports -o "$TMP/branch-used"
 "$TMP/branch-used" > "$TMP/branch-used.out"
 grep -q 'Foundation standard library ready' "$TMP/branch-used.out"
 
