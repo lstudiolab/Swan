@@ -1,6 +1,6 @@
 # Swan
 
-Swan is a compiled programming language with a Swan-owned frontend, typed intermediate representation, optimizer, and machine-code backends. The compiler does not transpile Swan source to C. Its host compiler is C11; a deliberately small, Swan-authored SIL optimizer is compiled into the final compiler during bootstrap.
+Swan is a compiled programming language. Its production compiler, `swanc`, is implemented in C11 and owns the lexer, parser, semantic analysis, typed IR, optimizer, SVM pipeline, and native/cross-target backends. Swan source is compiled ahead of execution; it is not interpreted.
 
 Licensed under Apache-2.0.
 
@@ -63,29 +63,29 @@ Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available
 
 ```sh
 sh build.sh
-./build/swan run examples/hello.swan
+./build/swanc run examples/hello.swan
 ```
 
 Build an executable:
 
 ```sh
-./build/swan build examples/hello.swan -o hello
+./build/swanc build examples/hello.swan -o hello
 ./hello
 ```
 
 Emit x86-64 assembly:
 
 ```sh
-./build/swan examples/hello.swan --emit-asm -o hello.s
+./build/swanc examples/hello.swan --emit-asm -o hello.s
 ```
 
 Inspect supported target names:
 
 ```sh
-./build/swan --list-targets
+./build/swanc --list-targets
 ```
 
-The build uses a temporary C11 bootstrap executable to compile the Swan-authored SIL stage sources into assembly, assembles that output, and links the resulting object into the final compiler. The final executable is `build/swan`.
+The build uses a temporary C11 bootstrap executable to compile the Swan-authored SIL stage sources into assembly, assembles that output, and links the resulting object into the final compiler. The production executable is `build/swanc`; `build/swan` remains as a compatibility alias.
 
 ## Swan syntax
 
@@ -264,3 +264,34 @@ The script builds the compiler, checks header isolation and C11 compilation, run
 ## Documentation policy
 
 The parser keyword registry is not a feature checklist. A feature is described as implemented only when its parsing, semantic rules, lowering, backend support, and tests establish that status. Target claims always state their supported subset. Performance claims require reproducible benchmark data.
+
+## Whole-project compilation
+
+Pass a source directory to compile every top-level `.swan` file in that directory as one program. Swan declarations are parsed into one shared program, then analyzed, optimized, and code-generated together. Top-level `.c` files in the same directory are compiled to native assembly and appended to the same output assembly file.
+
+```text
+project/
+  main.swan
+  math.swan
+  physics.swan
+  native.c
+  native.h
+```
+
+```sh
+# One directory -> one program -> one combined assembly file
+./build/swanc build project --emit-asm -o build/project.s
+
+# Or compile and link that combined assembly into one executable
+./build/swanc build project -o build/project
+```
+
+The same works with explicit source lists:
+
+```sh
+./build/swanc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
+```
+
+Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. The single-assembly guarantee applies to the Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
+
+The C header importer currently supports the documented scalar C ABI subset. Pointer and aggregate layouts, callbacks, variadic functions, and broader platform ABI support require additional implementation; they are not implied by accepting a C source file.
