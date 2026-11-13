@@ -281,7 +281,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  Stmt *callee_fn=o->program?cg_find_function(o->program,name):NULL;
  int target_module=callee_fn&&callee_fn->imported?callee_fn->module_index:-1;
  bool external_call=callee_fn&&callee_fn->external;
- if(o->program&&(target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
+ if(o->program&&(o->program->bundle_imports||target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
   Stmt *fn=cg_find_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
    const char *parameter=fn->params[0];Expr *body=fn->body[0]->value;
@@ -297,7 +297,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
  char symbol[SWAN_MAX_TEXT+32];
  if(external_call)snprintf(symbol,sizeof(symbol),"%s",name);
- else if(target_module>=0&&o->program&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);
+ else if(target_module>=0&&o->program&&!o->program->bundle_imports&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);
  else if(!strcmp(name,"main"))strcpy(symbol,"main");
  else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
@@ -1074,7 +1074,8 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
   if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
-  if(p->codegen_module_index<0&&fn->imported)continue;
+  if(p->codegen_module_index<0&&fn->imported&&!p->bundle_imports)continue;
+  if(p->bundle_imports&&fn->imported&&!p->function_reachable[i])continue;
   if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
   Locals l={0};o->stack_depth=0;
   l.caller_saved=!statements_have_call(fn->body,fn->body_count);
@@ -1093,7 +1094,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){size_t index=a-1;Local *v=local_find(&l,fn->params[index]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);}}
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
  }
- for(size_t i=0;i<p->count;i++){
+ for(size_t i=0;i<p->count&&!p->bundle_imports;i++){
   Stmt *fn=p->functions[i];
   if(!fn->imported||!p->function_reachable[i]||fn->module_index==p->codegen_module_index)continue;
   const char *module=p->module_names[fn->module_index];
