@@ -296,7 +296,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
  char symbol[SWAN_MAX_TEXT+32];
- if(external_call)snprintf(symbol,sizeof(symbol),"%s",name);
+ if(external_call||(callee_fn&&callee_fn->exported))snprintf(symbol,sizeof(symbol),"%s",name);
  else if(target_module>=0&&o->program&&!o->program->bundle_imports&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);
  else if(!strcmp(name,"main"))strcpy(symbol,"main");
  else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
@@ -1086,7 +1086,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
    }
   }
   collect_locals(fn->body,fn->body_count,&l);samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
-  char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
+  char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
   ownership_initialize_handles(o,&l);
