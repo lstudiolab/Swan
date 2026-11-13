@@ -86,7 +86,8 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
         "    while i < 2000000:",
         "        total = total + (i % 97)",
         "        i = i + 1",
-        "    log total",
+        "    if total != 95998839:",
+        "        return 1",
         "    return 0",
     ])
     return result
@@ -128,10 +129,6 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     if source.stem == "runtime-loop":
         if executed.returncode != 0:
             raise RuntimeError(f"runtime-loop: expected exit code 0, got {executed.returncode}")
-        if executed.stdout.strip() != "95998839":
-            raise RuntimeError(
-                f"runtime-loop checksum mismatch: expected 95998839, got {executed.stdout.strip()!r}"
-            )
     return values
 
 
