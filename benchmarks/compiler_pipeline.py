@@ -119,6 +119,8 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     if not output.is_file() or output.stat().st_size == 0:
         raise RuntimeError(f"{source.name}: compiler produced no executable")
     values = parse_profile(proc.stderr)
+    if source.stem == "runtime-loop" and values.get("AST fallback code generation", 0.0) > 0.0:
+        raise RuntimeError("runtime-loop must exercise the optimized typed-IR native backend")
     values["Benchmark process wall time"] = elapsed
     run_start = time.perf_counter()
     executed = subprocess.run([str(output)], cwd=ROOT, text=True, capture_output=True,
