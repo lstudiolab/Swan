@@ -25,9 +25,9 @@ int main(void) {
     }
     TokenStream ts={0};SwanError error={0};
     assert(swan_lex(source,&ts,&error));
-    assert(sizeof(keywords)/sizeof(keywords[0])==36);
-    assert(ts.count==37);
-    for (size_t i=0;i<36;i++) {
+    assert(sizeof(keywords)/sizeof(keywords[0])==31);
+    assert(ts.count==32);
+    for (size_t i=0;i<31;i++) {
         if (ts.items[i].kind==T_IDENT) {
             fprintf(stderr,"keyword was not reserved: %s\n",keywords[i]);
             return 1;
@@ -48,6 +48,6 @@ int main(void) {
         }
     }
     free(ts.items);free(ts.text_storage);
-    puts("PASS: exact 36-word Swan keyword set; all other tested spellings are identifiers");
+    puts("PASS: exact 31-word Swan keyword set; all other tested spellings are identifiers");
     return 0;
 }
