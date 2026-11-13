@@ -29,16 +29,6 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
   case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(v->manual_checked){if(v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}swan_error(err,&e->token,"manual allocation handles may only be indexed or released with free");return false;}return true;}
   case E_CALL:{
    const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or dotted function path");return false;}
-   if(!strcmp(callee,"free")){
-    size_t index;
-    if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME||!swan_symbol_find(symbols,e->args[0]->token.text,&index)){
-     swan_error(err,&e->token,"free expects exactly one manual variable");return false;
-    }
-    SwanSymbol *owned=&symbols->items[index];
-    if(!owned->manual_memory){swan_error(err,&e->token,"free only accepts a variable declared with 'manual var'");return false;}
-    if(owned->manual_checked&&owned->manual_freed){swan_error(err,&e->args[0]->token,"double free of manual variable '%s'",owned->name);return false;}
-    owned->manual_freed=true;return true;
-   }
    if(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked")){
     if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return false;}
     return swan_check_expr(p,e->args[0],symbols,err);
@@ -107,9 +97,6 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     break;
    case S_EXPR:
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
-    break;
-   case S_FREE:
-    if(!s->value||!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_IF:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
