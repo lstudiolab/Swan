@@ -82,7 +82,7 @@ The AST compatibility backend remains for implemented source constructs not yet 
 
 ## Single-file portable distribution
 
-The `--target portable` alias emits one WebAssembly 32-bit module (`.wasm`) from the complete Swan compilation unit. WebAssembly is architecture-neutral and OS-neutral at the module level; a compatible WebAssembly runtime is required on each host. This is the portable single-file distribution format and does not interpret Swan source or SVM IR. Native executables remain target-OS/ABI-specific. The native x86-64 backend uses a generic x86-64 ISA baseline rather than `-march=native`, so it does not accidentally emit instructions that only exist on the build machine's CPU.
+The `--target portable` alias emits one WebAssembly 32-bit module (`.wasm`) from the complete Swan compilation unit. Its current backend supports the typed-IR subset (integer/boolean scalars, direct calls, control flow, locals and supported memory operations); floating-point lowering, C translation units, standard-library I/O and lazy imports are not yet portable. Unsupported constructs must fail compilation rather than produce a misleading artifact. WebAssembly is architecture-neutral and OS-neutral at the module level; a compatible WebAssembly runtime is required on each host. This is the portable single-file distribution format and does not interpret Swan source or SVM IR. Native executables remain target-OS/ABI-specific. The native x86-64 backend uses a generic x86-64 ISA baseline rather than `-march=native`, so it does not accidentally emit instructions that only exist on the build machine's CPU.
 
 ## Performance requirements
 
