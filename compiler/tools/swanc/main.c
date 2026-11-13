@@ -59,6 +59,28 @@ static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_
  }
  return true;
 }
+static bool swan_llvm_ir_to_assembly(const char *ir,size_t length,Text *assembly,SwanError *error){
+ char ir_path[]="/tmp/swanc-ir-XXXXXX",asm_path[]="/tmp/swanc-asm-XXXXXX";
+ int ir_fd=mkstemp(ir_path);if(ir_fd<0)return false;
+ size_t written=0;bool ok=true;
+ while(written<length){
+  ssize_t n=write(ir_fd,ir+written,length-written);
+  if(n<0){if(errno==EINTR)continue;ok=false;break;}
+  if(n==0){ok=false;break;}
+  written+=(size_t)n;
+ }
+ if(close(ir_fd)!=0)ok=false;
+ if(!ok){unlink(ir_path);return false;}
+ int asm_fd=mkstemp(asm_path);if(asm_fd<0){unlink(ir_path);return false;}
+ if(close(asm_fd)!=0){unlink(ir_path);unlink(asm_path);return false;}
+ char *args[]={"clang","-O3","-march=native","-S","-x","ir",ir_path,"-o",asm_path,NULL};
+ int result=swan_exec(args,true);unlink(ir_path);
+ if(result!=0){unlink(asm_path);if(error)swan_error(error,NULL,"LLVM native backend failed; install Clang with LLVM IR support");return false;}
+ char *data=swan_read_file(asm_path);unlink(asm_path);
+ if(!data){if(error)swan_error(error,NULL,"cannot read optimized native assembly");return false;}
+ assembly->data=data;assembly->len=strlen(data);
+ return true;
+}
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
@@ -288,7 +310,12 @@ static int swan_run(int argc,char **argv){
  if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"swan: output path is too long\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  SwanSVMOutput compiled={0};
  if(!swan_svm_codegen(&p,target,&compiled,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(compiled.data);return 1;}
- Text assembly={.data=compiled.data,.len=compiled.length};
+ Text assembly={0};
+ if(compiled.kind==SWAN_SVM_OUTPUT_LLVM_IR){
+  bool lowered=swan_llvm_ir_to_assembly(compiled.data,compiled.length,&assembly,&err);
+  free(compiled.data);compiled.data=NULL;
+  if(!lowered){fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"native LLVM code generation failed");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
+ }else assembly=(Text){.data=compiled.data,.len=compiled.length};
  if(has_lazy&&!swan_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"swan: %s\n",err.message);swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  char runtime_source[64]={0};if(has_lazy&&!swan_write_lazy_runtime(runtime_source)){fprintf(stderr,"swan: cannot create lazy import runtime support\n");swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  if(mode==SWAN_EMIT){
