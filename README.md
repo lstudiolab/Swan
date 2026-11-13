@@ -145,7 +145,9 @@ Object emission is not proof of execution or complete ABI integration on the des
 ./build/swanc build app.swan --target aarch64 -o app-aarch64.o
 
 # Swan-owned WebAssembly module
-./build/swanc build app.swan --target wasm32 -o app.wasm\n# One portable module (alias for wasm32)\n./build/swanc build app.swan --target portable -o app.wasm
+./build/swanc build app.swan --target wasm32 -o app.wasm
+# One portable module (alias for wasm32)
+./build/swanc build app.swan --target portable -o app.wasm
 
 # Explicit LLVM portability path
 ./build/swanc build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
