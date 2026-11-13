@@ -16,7 +16,8 @@ static inline int precedence(TokenKind k){switch(k){case T_ASSIGN:return 1;case 
 static inline Expr *expression(Parser *p,int min);
 static inline Expr *prefix(Parser *p){
  Token t=take(p);Expr *e=NULL;
- if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE||t.kind==T_NONE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
+ if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
+ else if(t.kind==T_NONE){swan_error(p->err,&t,"null literals are reserved but not yet supported by the current runtime");p->failed=true;return NULL;}
  else if(t.kind==T_MINUS||t.kind==T_NOT||(t.kind==T_IDENT&&!strcmp(t.text,"not"))){if(t.kind==T_IDENT)t.kind=T_NOT;e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
  else if(t.kind==T_IDENT||t.kind==T_FREE||t.kind==T_SELF){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
@@ -39,9 +40,8 @@ static inline int precedence_token(Token *t){if(t->kind==T_IDENT){if(!strcmp(t->
 static inline Expr *expression(Parser *p,int min){Expr *left=prefix(p);while(left&&!p->failed){int prec=precedence_token(pk(p));if(prec<min)break;Token op=take(p);if(op.kind==T_IDENT){if(!strcmp(op.text,"or"))op.kind=T_OR;else if(!strcmp(op.text,"and"))op.kind=T_AND;}Expr *right=expression(p,op.kind==T_ASSIGN?prec:prec+1);Expr *e=new_expr(p,E_BINARY,op);if(!e)return left;e->left=left;e->right=right;e->contains_call=(left&&left->contains_call)||(right&&right->contains_call);left=e;}return left;}
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
 static inline Stmt *statement(Parser *p){
- Token t=*pk(p);Stmt *s=NULL;bool manual=eat(p,T_MANUAL);bool legacy_store=false;if(!manual){legacy_store=eat(p,T_STORE);manual=legacy_store;}if(manual)t=*pk(p);
- if(manual&&!is(p,T_VAR)&&!(legacy_store&&is(p,T_LET))){swan_error(p->err,pk(p),"manual must modify a mutable var declaration");p->failed=true;return NULL;}
- if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR||manual;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=manual;s->manual_checked=manual&&!legacy_store;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
+ Token t=*pk(p);Stmt *s=NULL;
+ if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=false;s->manual_checked=false;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
  bool print_intrinsic=eat(p,T_PRINT);if(print_intrinsic||(is(p,T_IDENT)&&(!strcmp(pk(p)->text,"print")||!strcmp(pk(p)->text,"log")))){if(!print_intrinsic){take(p);if(eat(p,T_GT)&&!need(p,T_GT,"expected second '>' in log output operator"))return NULL;}s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(is(p,T_IDENT)&&!strcmp(pk(p)->text,"echo")&&p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_BANG){take(p);take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(eat(p,T_RETURN)){s=new_stmt(p,S_RETURN,t);if(s&&!is(p,T_NEWLINE)&&!is(p,T_DEDENT)&&!is(p,T_EOF))s->value=expression(p,1);return s;}
@@ -49,17 +49,6 @@ static inline Stmt *statement(Parser *p){
  if(eat(p,T_CONTINUE))return new_stmt(p,S_CONTINUE,t);
  if(eat(p,T_PASS))return new_stmt(p,S_PASS,t);
  if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=swan_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){swan_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
- if(is(p,T_IDENT)&&!strcmp(pk(p)->text,"free")){
-  take(p);Expr *callee=new_expr(p,E_NAME,t);
-  if(!need(p,T_LP,"expected '(' after free"))return NULL;
-  Expr *argument=expression(p,1);
-  if(!need(p,T_RP,"expected ')' after free argument"))return NULL;
-  Expr *call=new_expr(p,E_CALL,t);if(!call)return NULL;
-  call->left=callee;call->args=swan_arena_alloc(p->program,sizeof(*call->args));
-  if(!call->args){swan_error(p->err,&t,"out of memory parsing free");p->failed=true;return NULL;}
-  call->args[0]=argument;call->argc=1;call->contains_call=true;
-  s=new_stmt(p,S_FREE,t);if(s)s->value=call;return s;
- }
  s=new_stmt(p,S_EXPR,t);if(s)s->value=expression(p,1);return s;
 }
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
