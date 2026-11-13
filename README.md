@@ -180,7 +180,7 @@ The strict manual form is limited to direct array allocations with a single loca
 
 ## Imports and Foundation
 
-The standard-library loader resolves and checks imported Swan modules. The Foundation source module is located at `stdlib/foundation.swan`. Runtime-lazy imported functions are built into per-module shared libraries for functions reachable from `main`; cached resolver stubs load a module on its first executed call. Keep the generated `.modules/` directory beside the executable.
+The standard-library loader resolves and checks imported Swan modules. The Foundation source module is located at `stdlib/foundation.swan`. Imported Swan modules are bundled into the program's single assembly output by default, with unreachable imported functions omitted. Use `--lazy-imports` to opt into the alternative per-module shared-library model; its cached resolver stubs load a module on its first executed call, and the generated `.modules/` directory must remain beside the executable.
 
 ```swan
 import foundation
@@ -292,6 +292,6 @@ The same works with explicit source lists:
 ./build/swanc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
 ```
 
-Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. The single-assembly guarantee applies to the Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
+Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. Imported Swan modules are bundled by default; `--lazy-imports` intentionally opts out of the single-file model. The single-assembly guarantee applies to Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
 
 The C header importer currently supports the documented scalar C ABI subset. Pointer and aggregate layouts, callbacks, variadic functions, and broader platform ABI support require additional implementation; they are not implied by accepting a C source file.
