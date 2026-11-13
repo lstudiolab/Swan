@@ -55,6 +55,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"loop",4))return T_LOOP;
   if(!memcmp(s,"from",4))return T_FROM;
   if(!memcmp(s,"self",4))return T_SELF;
+  if(!memcmp(s,"upto",4))return T_UPTO;
   if(!memcmp(s,"true",4))return T_TRUE;
   if(!memcmp(s,"pass",4))return T_PASS;
   if(!memcmp(s,"init",4))return T_INIT;
