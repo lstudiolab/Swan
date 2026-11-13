@@ -34,12 +34,14 @@ static char *swan_read_sources(const char *const *paths,size_t count){
 static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_t count){
  for(size_t i=0;i<count;i++){
   char temp[]="/tmp/swanc-c-XXXXXX";int fd=mkstemp(temp);if(fd<0)return false;close(fd);unlink(temp);
-  char *args[]={"cc","-S","-o",temp,(char*)sources[i],NULL};
+  char *args[]={"cc","-S","-masm=intel","-o",temp,(char*)sources[i],NULL};
   int result=swan_exec(args,true);if(result!=0){unlink(temp);return false;}
   FILE *input=fopen(temp,"rb");if(!input){unlink(temp);return false;}
   char buffer[16384];size_t n;bool ok=true;
   while((n=fread(buffer,1,sizeof(buffer),input))>0)if(fwrite(buffer,1,n,output)!=n){ok=false;break;}
-  if(ferror(input))ok=false;if(fclose(input)!=0)ok=false;unlink(temp);if(!ok)return false;
+  if(ferror(input))ok=false;
+  if(fclose(input)!=0)ok=false;
+  unlink(temp);if(!ok)return false;
   if(fputc('\n',output)==EOF)return false;
  }
  return true;
@@ -280,7 +282,8 @@ static int swan_run(int argc,char **argv){
   if(!of){perror(dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
   stage=swan_profile_start();bool ok=swan_emit_assembly(of,&assembly);
   if(ok&&c_input_count)ok=swan_append_c_assembly(of,c_inputs,c_input_count);
-  if(fclose(of)!=0)ok=false;swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
+  if(fclose(of)!=0)ok=false;
+  swan_profile_end(SWAN_PROFILE_ASM_WRITE,stage);
   if(!ok){fprintf(stderr,"swan: failed to write assembly output '%s'\n",dest);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
   if(runtime_source[0])unlink(runtime_source);
   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 0;
