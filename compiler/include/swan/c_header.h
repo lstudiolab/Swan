@@ -4,8 +4,8 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-/* The first C-header importer deliberately accepts only scalar ABI types
- * that the current x86-64 backend can pass without layout conversion. */
+/* The C-header importer accepts scalar ABI types and opaque machine-word
+ * pointers that the current x86-64 System V backend can pass directly. */
 typedef struct {
     char name[SWAN_MAX_TEXT];
     const char *return_type;
