@@ -77,12 +77,13 @@ static int swan_run(int argc,char **argv){
  if(!swan_input_count){fprintf(stderr,"swanc: source directory contains no .swan files\n");return 2;}
  const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
- bool emit_asm=false,emit_llvm=false;const char *link_args[120];size_t link_arg_count=0;
+ bool emit_asm=false,emit_llvm=false,lazy_imports=false;const char *link_args[120];size_t link_arg_count=0;
  const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
  SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--emit-llvm"))emit_llvm=true;
+  else if(!strcmp(argv[i],"--lazy-imports"))lazy_imports=true;
   else if(!strcmp(argv[i],"--target-triple")&&i+1<argc){
    const char *triple=argv[++i];size_t n=strlen(triple);
    if(!n||n>=256){fprintf(stderr,"swan: target triple must be 1-255 characters\n");return 2;}
@@ -130,7 +131,7 @@ static int swan_run(int argc,char **argv){
  stage=swan_profile_start();
  if(!swan_lex(source,&ts,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);free(source);return 1;}
  swan_profile_end(SWAN_PROFILE_LEX,stage);
- Program p={0};p.codegen_module_index=-1;
+ Program p={0};p.codegen_module_index=-1;p.bundle_imports=!lazy_imports;
  stage=swan_profile_start();
  if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  swan_profile_end(SWAN_PROFILE_PARSE,stage);
