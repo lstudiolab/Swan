@@ -97,7 +97,7 @@
         },
         {
           "name": "meta.variable.declaration.swan",
-          "match": "\\\\b(let|var|const)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(let|var|const)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
               "name": "storage.modifier.swan"
