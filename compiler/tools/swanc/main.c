@@ -319,7 +319,7 @@ static int swan_run(int argc,char **argv){
   Text native={0};
   if(!swan_codegen(&p,&native,target,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(native.data);return 1;}
   compiled.kind=SWAN_SVM_OUTPUT_ASSEMBLY;compiled.data=native.data;compiled.length=native.len;
- }else if(!swan_svm_codegen(&p,target,&compiled,&err)){fprintf(stderr,"swan:%u:%u: %s\\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(compiled.data);return 1;}
+ }else if(!swan_svm_codegen(&p,target,&compiled,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(compiled.data);return 1;}
  Text assembly={0};
  if(compiled.kind==SWAN_SVM_OUTPUT_LLVM_IR){
   bool lowered=swan_llvm_ir_to_assembly(compiled.data,compiled.length,&assembly,&err);
