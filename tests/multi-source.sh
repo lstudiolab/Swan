@@ -28,7 +28,7 @@ C
 "$ROOT/build/swanc" build "$TMP/project" -o "$TMP/project-app"
 "$TMP/project-app"
 
-"$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/project.s"
+"$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/project.asm"
 grep -q 'swan_answer' "$TMP/project.s"
 grep -q 'c_answer' "$TMP/project.s"
 grep -q 'main' "$TMP/project.s"
