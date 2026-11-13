@@ -67,7 +67,7 @@ The x86-64 compatibility backend now initializes eligible heap-array handles to 
 
 For non-escaping local arrays, a conservative AST liveness walk emits release after the final top-level statement that can reference the array. Branches and loops are treated as one enclosing statement, so a value used inside either construct remains live until that construct completes. Small fixed-size non-escaping arrays continue to use stack-frame storage and do not require a heap free.
 
-This is an incremental lifetime optimization, not the completed Rust-style ownership system. Escaping arrays are deliberately excluded from this release pass until ownership transfer and borrow checking are represented explicitly. The legacy manual/store syntax and SAMC identifiers remain and are scheduled for removal in the ownership-model migration. The typed-IR backends do not yet share the AST array ownership implementation.
+This is an incremental lifetime optimization, not the completed Rust-style ownership system. Escaping arrays are deliberately excluded from this release pass until ownership transfer and borrow checking are represented explicitly. The legacy manual allocation modifier and source-level free intrinsic have been removed from the C11 parser and semantic checker. The typed-IR backends do not yet share the AST array ownership implementation; general ownership transfer, borrowing, destructor execution, and exception unwinding remain incomplete.
 
 ## Profiling and measurement
 
