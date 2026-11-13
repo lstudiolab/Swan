@@ -77,7 +77,7 @@
       "patterns": [
         {
           "name": "constant.language.swan",
-          "match": "\\b(true|false|null|nil)\\b"
+          "match": "\\b(true|false|null)\\b"
         }
       ]
     },
@@ -85,7 +85,7 @@
       "patterns": [
         {
           "name": "meta.function.declaration.swan",
-          "match": "\\\\b(func|thread|async)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(func)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
               "name": "storage.type.function.swan"
@@ -109,15 +109,15 @@
         },
         {
           "name": "storage.type.function.swan",
-          "match": "\\b(func|thread|async)\\b"
+          "match": "\\b(func)\\b"
         },
         {
           "name": "storage.modifier.swan",
-          "match": "\\b(let|var|const|external|lazy)\\b"
+          "match": "\\b(let|var|const)\\b"
         },
         {
           "name": "keyword.other.swan",
-          "match": "\\b(import|namespace|export|from|as|self|set)\\b"
+          "match": "\\b(from|as|self)\\b"
         }
       ]
     },
@@ -125,7 +125,7 @@
       "patterns": [
         {
           "name": "keyword.control.swan",
-          "match": "\\b(if|else|while|for|in|loop|block|guard|defer|match|case|return|break|continue|pass)\\b"
+          "match": "\\b(if|else|while|loop|block|guard|match|return|break|continue|pass|throw|throws|rethrow|catch)\\b"
         }
       ]
     },
@@ -133,7 +133,7 @@
       "patterns": [
         {
           "name": "meta.type.declaration.swan",
-          "match": "\\\\b(struct|enum|type|variant|protocol)\\\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "match": "\\b(struct|enum|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
               "name": "storage.type.swan"
@@ -145,7 +145,7 @@
         },
         {
           "name": "storage.type.swan",
-          "match": "\\b(bool|struct|enum|type|variant|protocol)\\b"
+          "match": "\\b(struct|enum|type)\\b"
         }
       ]
     },
