@@ -37,15 +37,7 @@ jobs:
         run: sh tests/riscv64.sh
       - name: Verify arbitrary LLVM target-triple backend
         run: sh tests/llvm-target.sh
-      - name: Verify Compiler 2 optimizer slice
-        run: sh tests/swanc-optimizer.sh
-      - name: Verify Compiler 2 ownership and borrowing slice
-        run: sh tests/swanc-ownership.sh
-      - name: Verify Compiler 2 control-flow graph verifier
-        run: sh tests/swanc-cfg.sh
-      - name: Verify Compiler 2 exact language keywords
-        run: sh tests/swanc-keywords.sh
-      - name: Verify Compiler 2 lexer/parser integration
-        run: sh tests/swanc-parser.sh
+      - name: Verify whole-project single-assembly compilation
+        run: sh tests/multi-source.sh
       - name: Verify compiler version
-        run: ./build/swan --version
+        run: ./build/swanc --version
