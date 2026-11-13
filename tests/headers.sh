@@ -3,8 +3,9 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CC=${CC:-cc}
 COUNT=$(find "$ROOT/compiler" -type f -name '*.c' | wc -l | tr -d ' ')
-if [ "$COUNT" -ne 0 ] || [ ! -f "$ROOT/main.c" ]; then
-    echo "FAIL: expected exactly one C translation unit named main.c" >&2
+DRIVER="$ROOT/compiler/tools/swanc/main.c"
+if [ "$COUNT" -ne 1 ] || [ ! -f "$DRIVER" ] || [ ! -f "$ROOT/main.c" ]; then
+    echo "FAIL: expected one compiler translation unit at compiler/tools/swanc/main.c and the root compatibility entry point" >&2
     exit 1
 fi
 CPP_FILES=$(find "$ROOT" -type f | grep -E '\.(cpp|cc|cxx|hpp)$' || true)
