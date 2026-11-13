@@ -33,9 +33,11 @@ printf 'RUN: execute mixed Swan/C executable\n'
 
 printf 'RUN: emit mixed Swan/C assembly\n'
 "$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/project.asm"
-grep -q 'swan_answer' "$TMP/project.asm"
-grep -q 'c_answer' "$TMP/project.asm"
-grep -q 'main' "$TMP/project.asm"
+printf 'ASSEMBLY SYMBOLS:\\n'
+grep -E 'swan_answer|c_answer|main' "$TMP/project.asm" | head -30
+grep -q 'swan_answer' "$TMP/project.asm" || { echo 'FAIL: Swan export missing from combined assembly' >&2; exit 1; }
+grep -q 'c_answer' "$TMP/project.asm" || { echo 'FAIL: C symbol missing from combined assembly' >&2; exit 1; }
+grep -q 'main' "$TMP/project.asm" || { echo 'FAIL: entry point missing from combined assembly' >&2; exit 1; }
 
 # The same single-artifact promise applies to the portable target: multiple
 # Swan source files become one executable WebAssembly module.
