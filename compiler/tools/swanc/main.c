@@ -87,7 +87,7 @@ static bool swan_llvm_ir_to_assembly(const char *ir,size_t length,Text *assembly
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--lazy-imports] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target|portable> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--lazy-imports] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
@@ -236,6 +236,7 @@ static int swan_run(int argc,char **argv){
   free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(target->architecture==SWAN_ARCH_WASM32||target->architecture==SWAN_ARCH_WASM64){
+  if(c_input_count){fprintf(stderr,"swan: portable WebAssembly output currently accepts Swan sources only; C translation units require the native x86-64 linker path\\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM32 output is a WebAssembly module; run it with a WebAssembly runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   if(has_lazy){fprintf(stderr,"swan: WASM32 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
   SwanSVMOutput compiled={0};
