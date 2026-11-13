@@ -211,7 +211,7 @@ cc -std=c11 -O2 -c library.c -o library.o
 ./build/swan build app.swan --link library.o -o app
 ```
 
-The initial importer supports up to 16 scalar integer/bool parameters and scalar integer/bool or void returns. Pointers, structs, unions, callbacks, variadic functions, floating-point ABI classification, C++ mangling, and non-System-V platform calling conventions are outside the supported importer/ABI subset. Clang must be installed for sources using `import C`. Linker inputs are currently accepted only by the native x86-64 executable path.
+The importer supports up to 16 scalar integer/bool parameters and scalar integer/bool or void returns. Opaque pointer parameters and returns are passed as machine-word `i64` values on x86-64 System V; Swan cannot yet dereference those imported pointers or describe pointee layouts. Structs/unions passed by value, callback invocation, variadic functions, floating-point ABI classification, C++ mangling, and non-System-V platform calling conventions remain unsupported. Clang must be installed for sources using `import C`. Linker inputs are currently accepted only by the native x86-64 executable path.
 
 ## Swan-authored SIL
 
