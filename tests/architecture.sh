@@ -38,6 +38,13 @@ SWAN
 grep -q "stp x29, x30" "$TMP/aarch64.s"
 "$SWAN" "$TMP/scalar.swan" --target riscv64 --emit-asm -o "$TMP/riscv64.s"
 grep -q "addi sp, sp" "$TMP/riscv64.s"
+# A single portable artifact must be a valid WebAssembly module, independent
+# of the build host's CPU architecture and operating system.
+"$SWAN" build "$TMP/scalar.swan" --target portable -o "$TMP/scalar-portable.wasm"
+test -s "$TMP/scalar-portable.wasm"
+test "$(od -An -tx1 -N4 "$TMP/scalar-portable.wasm" | tr -d ' \\n')" = "0061736d"
+printf 'PASS: one-file portable WebAssembly module\\n'
+
 # The native typed-IR path must lower to optimized machine assembly,
 # then execute as a normal native program (never an SVM instruction interpreter).
 cat > "$TMP/native-ir-runtime.swan" <<'SWAN'
