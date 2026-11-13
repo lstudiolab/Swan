@@ -38,7 +38,8 @@ sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_sil_build_stub\2/g' "
 "$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic \
     -I"$ROOT/compiler/include" "$ROOT/main.c" "$ROOT/build/sil_runtime.o" \
     -o "$ROOT/build/swanc"
-printf 'Built Swan compiler: %s\n' "$ROOT/build/swan"
+ln -sf swanc "$ROOT/build/swan"
+printf 'Built swanc compiler: %s\n' "$ROOT/build/swanc"
 printf 'Frontend and orchestration: C11 host\n'
 printf 'SIL generation, verification, demand and optimization: Swan source\n'
 printf 'Typed IR, IR optimization and target backends: Swan-owned\n'
