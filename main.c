@@ -1,9 +1,25 @@
 #define _POSIX_C_SOURCE 200809L
 #include "swan/compiler.h"
+#include <glob.h>
 
 /* The executable entry point owns command-line orchestration. */
 static bool swan_has_suffix(const char *path,const char *suffix){
  size_t a=strlen(path),b=strlen(suffix);return a>=b&&!strcmp(path+a-b,suffix);
+}
+static bool swan_collect_directory(const char *directory,const char **swan,size_t *sn,
+                                   const char **c,size_t *cn){
+ char pattern[4096];glob_t matches={0};int n=snprintf(pattern,sizeof(pattern),"%s/*.swan",directory);
+ if(n<0||(size_t)n>=sizeof(pattern))return false;
+ int result=glob(pattern,0,NULL,&matches);
+ if(result!=0&&result!=GLOB_NOMATCH){globfree(&matches);return false;}
+ for(size_t i=0;i<matches.gl_pathc;i++){if(*sn>=128){globfree(&matches);return false;}swan[(*sn)++]=strdup(matches.gl_pathv[i]);}
+ globfree(&matches);memset(&matches,0,sizeof(matches));
+ n=snprintf(pattern,sizeof(pattern),"%s/*.c",directory);
+ if(n<0||(size_t)n>=sizeof(pattern))return false;
+ result=glob(pattern,0,NULL,&matches);
+ if(result!=0&&result!=GLOB_NOMATCH){globfree(&matches);return false;}
+ for(size_t i=0;i<matches.gl_pathc;i++){if(*cn>=120){globfree(&matches);return false;}c[(*cn)++]=strdup(matches.gl_pathv[i]);}
+ globfree(&matches);return true;
 }
 static char *swan_read_sources(const char *const *paths,size_t count){
  char *combined=NULL;size_t used=0;
@@ -39,6 +55,14 @@ static int swan_run(int argc,char **argv){
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
  const char *swan_inputs[128],*c_inputs[120];size_t swan_input_count=0,c_input_count=0;
+ const char *first=argv[index++];struct stat first_stat;
+ if(stat(first,&first_stat)==0&&S_ISDIR(first_stat.st_mode)){
+  if(!swan_collect_directory(first,swan_inputs,&swan_input_count,c_inputs,&c_input_count)){
+   fprintf(stderr,"swanc: cannot collect sources from '%s'\\n",first);return 2;
+  }
+ }else if(swan_has_suffix(first,".swan"))swan_inputs[swan_input_count++]=first;
+ else if(swan_has_suffix(first,".c"))c_inputs[c_input_count++]=first;
+ else {fprintf(stderr,"swanc: expected a .swan file or source directory\\n");return 2;}
  while(index<argc&&(swan_has_suffix(argv[index],".swan")||swan_has_suffix(argv[index],".c"))){
   if(swan_has_suffix(argv[index],".swan")){
    if(swan_input_count>=128){fprintf(stderr,"swanc: too many Swan source files\\n");return 2;}
@@ -48,7 +72,7 @@ static int swan_run(int argc,char **argv){
    c_inputs[c_input_count++]=argv[index++];
   }
  }
- if(!swan_input_count){fprintf(stderr,"swanc: expected at least one .swan source file\\n");return 2;}
+ if(!swan_input_count){fprintf(stderr,"swanc: source directory contains no .swan files\\n");return 2;}
  const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  bool emit_asm=false,emit_llvm=false;const char *link_args[120];size_t link_arg_count=0;
