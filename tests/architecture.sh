@@ -42,8 +42,8 @@ grep -q "addi sp, sp" "$TMP/riscv64.s"
 # of the build host's CPU architecture and operating system.
 "$SWAN" build "$TMP/scalar.swan" --target portable -o "$TMP/scalar-portable.wasm"
 test -s "$TMP/scalar-portable.wasm"
-test "$(od -An -tx1 -N4 "$TMP/scalar-portable.wasm" | tr -d ' \\n')" = "0061736d"
-printf 'PASS: one-file portable WebAssembly module\\n'
+test "$(od -An -tx1 -N4 "$TMP/scalar-portable.wasm" | tr -d ' \n')" = "0061736d"
+printf 'PASS: one-file portable WebAssembly module\n'
 
 # The native typed-IR path must lower to optimized machine assembly,
 # then execute as a normal native program (never an SVM instruction interpreter).
@@ -66,7 +66,7 @@ if grep -Eiq "swan_vm|interpreter_dispatch|execute_ir" "$TMP/native-ir-runtime.s
     echo "FAIL: generated native assembly contains a VM dispatch symbol" >&2
     exit 1
 fi
-printf 'PASS: optimized LLVM machine code generation and native execution\\n'
+printf 'PASS: optimized LLVM machine code generation and native execution\n'
 
 "$SWAN" --list-targets > "$TMP/targets.txt"
 grep -q "x86_64.*implemented" "$TMP/targets.txt"
