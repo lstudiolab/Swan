@@ -97,6 +97,7 @@ static inline bool swan_module_is_used(Program *p,size_t module){
  return false;
 }
 static inline bool swan_has_lazy_imports(Program *p){
+ if(p->bundle_imports)return false;
  for(size_t i=0;i<p->module_count;i++)if(swan_module_is_used(p,i))return true;
  return false;
 }
