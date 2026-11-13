@@ -38,6 +38,29 @@ SWAN
 grep -q "stp x29, x30" "$TMP/aarch64.s"
 "$SWAN" "$TMP/scalar.swan" --target riscv64 --emit-asm -o "$TMP/riscv64.s"
 grep -q "addi sp, sp" "$TMP/riscv64.s"
+# The native typed-IR path must lower to optimized machine assembly,
+# then execute as a normal native program (never an SVM instruction interpreter).
+cat > "$TMP/native-ir-runtime.swan" <<'SWAN'
+fn sum_to(n: int) -> int:
+    var i = 0
+    var total = 0
+    while i < n:
+        total = total + i
+        i = i + 1
+    return total
+fn main() -> int:
+    return sum_to(100000) - 4999950000
+SWAN
+"$SWAN" build "$TMP/native-ir-runtime.swan" -o "$TMP/native-ir-runtime"
+"$TMP/native-ir-runtime"
+"$SWAN" "$TMP/native-ir-runtime.swan" --emit-asm -o "$TMP/native-ir-runtime.s"
+grep -q "sum_to" "$TMP/native-ir-runtime.s"
+if grep -Eiq "swan_vm|interpreter_dispatch|execute_ir" "$TMP/native-ir-runtime.s"; then
+    echo "FAIL: generated native assembly contains a VM dispatch symbol" >&2
+    exit 1
+fi
+printf 'PASS: optimized LLVM machine code generation and native execution\\n'
+
 "$SWAN" --list-targets > "$TMP/targets.txt"
 grep -q "x86_64.*implemented" "$TMP/targets.txt"
 grep -q "aarch64.*implemented" "$TMP/targets.txt"
