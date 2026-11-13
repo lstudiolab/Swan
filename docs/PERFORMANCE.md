@@ -59,7 +59,7 @@ For arrays, compile-time-known lengths avoid repeated header loads; constant in-
 
 Compiled execution no longer performs IR instruction dispatch. Each selected backend emits target instructions or a target module; runtime performance is determined by generated code, ABI lowering, register allocation, and the target runtime.
 
-The typed-IR native backends currently use conservative value/stack slots and are not yet equivalent to a global liveness-driven register allocator with spill insertion and instruction scheduling.
+The x86-64 typed-IR backend now delegates machine lowering to LLVM/Clang -O3, which performs global liveness analysis, register allocation, spill insertion, instruction selection, and machine scheduling. Swan-owned AArch64, ARMv7, and RISC-V emitters still use conservative value/stack slots and are not yet equivalent to a global liveness-driven register allocator.
 
 ## Ownership lifetime lowering
 

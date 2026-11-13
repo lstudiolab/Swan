@@ -86,7 +86,9 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
         "    while i < 2000000:",
         "        total = total + (i % 97)",
         "        i = i + 1",
-        "    return total",
+        "    if total != 95998839:",
+        "        return 1",
+        "    return 0",
     ])
     return result
 
@@ -117,13 +119,18 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     if not output.is_file() or output.stat().st_size == 0:
         raise RuntimeError(f"{source.name}: compiler produced no executable")
     values = parse_profile(proc.stderr)
+    if source.stem == "runtime-loop" and values.get("AST fallback code generation", 0.0) > 0.0:
+        raise RuntimeError("runtime-loop must exercise the optimized typed-IR native backend")
     values["Benchmark process wall time"] = elapsed
     run_start = time.perf_counter()
-    executed = subprocess.run([str(output)], cwd=ROOT, stdout=subprocess.DEVNULL,
-                              stderr=subprocess.PIPE, check=False)
+    executed = subprocess.run([str(output)], cwd=ROOT, text=True, capture_output=True,
+                              check=False)
     values["Program runtime"] = time.perf_counter() - run_start
     if executed.returncode < 0:
         raise RuntimeError(f"{source.name}: program terminated by signal {-executed.returncode}")
+    if source.stem == "runtime-loop":
+        if executed.returncode != 0:
+            raise RuntimeError(f"runtime-loop: expected exit code 0, got {executed.returncode}")
     return values
 
 

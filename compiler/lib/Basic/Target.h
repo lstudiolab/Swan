@@ -61,6 +61,9 @@ static inline SwanObjectFormat swan_object_format_for_triple(const char *triple)
 
 static inline const SwanTarget *swan_target_find(const char *name) {
     if (!name) return NULL;
+    /* "portable" selects the WebAssembly MVP target: one architecture-neutral
+       module, executable by a compatible WASM runtime on supported hosts. */
+    if (!strcmp(name, "portable") || !strcmp(name, "wasm")) name = "wasm32";
     if (!strcmp(name, "x86-64") || !strcmp(name, "amd64")) name = "x86_64";
     else if (!strcmp(name, "arm64")) name = "aarch64";
     else if (!strcmp(name, "arm")) name = "armv7";

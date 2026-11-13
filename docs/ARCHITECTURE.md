@@ -4,7 +4,7 @@
 
 Swan is a compiled language with a C11 compiler host and a Swan-authored SIL subsystem. `main.c` is the host compiler's only compiled C translation unit; most host compiler components are headers in `compiler/include/swan/`. The SIL builder and passes live as `.swan` files in `compiler/sil/` and are compiled to a native object during the build.
 
-Swan owns source parsing, AST construction, semantic analysis, typed IR, optimization, and its native target code generators. Swan source is not transpiled to C. SVM is the target-independent compiler engine; it is not a target CPU or an interpreter.
+Swan owns source parsing, AST construction, semantic analysis, typed IR, and optimization. Swan source is not transpiled to C. SVM is the target-independent compiler engine; it is not a target CPU or an interpreter. Native x86-64 typed IR is lowered by LLVM/Clang to optimized assembly; AST-only compatibility features use Swan's direct x86-64 emitter.
 
 ## Build and bootstrap
 
@@ -33,13 +33,13 @@ The production executable therefore includes native code generated from Swan-aut
        AST -> x86-64 compatibility codegen for features outside IR
   -> SVM verified typed-IR compilation core
        IR verifier -> target-independent optimizer -> verified optimized IR
-  -> selected target backend (x86-64, AArch64, ARMv7, RISC-V, WASM, LLVM)
+  -> selected target backend (LLVM/Clang optimized x86-64, Swan AArch64/ARMv7/RISC-V/WASM, explicit LLVM triples)
   -> emitter / assembler / linker
 ```
 
 The SIL bridge is an optimization/lowering route for a narrow subset, not a mandatory stage for every function. It first creates a general typed-IR candidate, then substitutes SIL output for eligible functions. Unsupported SIL functions retain general IR lowering.
 
-The x86-64 path retains AST code generation for supported constructs not yet represented in typed IR, particularly arrays, output/logging, and runtime-lazy imports. Other targets consume typed IR and therefore have a narrower source-feature set.
+The x86-64 typed-IR path emits LLVM IR and uses Clang -O3 for native machine lowering, register allocation, and assembly emission. The x86-64 path retains AST code generation for supported constructs not yet represented in typed IR, particularly arrays, output/logging, and runtime-lazy imports. Other native targets consume typed IR and therefore have a narrower source-feature set.
 
 ## Compiler components
 
@@ -56,7 +56,7 @@ The x86-64 path retains AST code generation for supported constructs not yet rep
 | `optimization.h` | Target-independent typed-IR optimization passes |
 | `codegen.h` | Shared SVM compile engine and target dispatcher: lowering, optimization, verification, and backend selection |
 | `codegen_*.h` | Swan-owned target-specific lowering |
-| `codegen_llvm.h` | Optional explicit LLVM IR portability bridge |
+| `codegen_llvm.h` | LLVM IR emission for optimized native x86-64 and explicit portability triples |
 | `emitter.h` | Assembly serialization |
 | `linker.h` | Host assembler/linker process invocation |
 
@@ -78,7 +78,7 @@ The x86-64 compatibility backend supports the currently implemented u32 array fo
 
 | Backend | Object/runtime boundary | Scope |
 |---|---|---|
-| x86-64 | System V Linux | Native executable/assembly; typed scalar IR and broader AST compatibility features |
+| x86-64 | System V Linux | LLVM/Clang -O3 native lowering for typed IR; Swan AST compatibility emitter for arrays, output, and lazy imports |
 | AArch64 | AAPCS64 Linux | Limited scalar IR object/assembly emission |
 | ARMv7 | AAPCS32 Linux, ARM state | Limited i32/i1 IR object/assembly emission |
 | RISC-V64 | Linux integer ABI subset | Limited scalar IR object/assembly emission |

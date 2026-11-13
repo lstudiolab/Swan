@@ -100,6 +100,31 @@ static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
     Text text={0};
     bool ok=false;
     if(target->architecture==SWAN_ARCH_X86_64){
+        /* External C ABI declarations retain Swan's ABI-compatible assembly
+           path until the LLVM bridge's symbol and call lowering is fully parity-tested. */
+        bool has_external=false;
+        for(size_t i=0;i<program->count;i++)
+            if(program->functions[i]&&program->functions[i]->external){has_external=true;break;}
+        /* Prefer the optimizing LLVM machine backend for closed typed-IR
+           programs. LLVM performs instruction selection, register allocation,
+           scheduling, and target-specific optimization before assembly output. */
+        if(program->import_count==0&&!has_external){
+            SwanIRModule module={0};Text llvm={0};
+            bool prepared=swan_svm_prepare_ir(program,&module,error,detail,sizeof(detail));
+            uint64_t codegen_stage=swan_profile_start();
+            bool emitted=prepared&&swan_codegen_llvm_ir(&module,&llvm,target->triple,detail,sizeof(detail));
+            swan_profile_end(SWAN_PROFILE_CODEGEN,codegen_stage);
+            swan_ir_destroy(&module);
+            if(emitted){
+                output->kind=SWAN_SVM_OUTPUT_LLVM_IR;
+                output->data=llvm.data;output->length=llvm.len;
+                return true;
+            }
+            free(llvm.data);
+            if(error)memset(error,0,sizeof(*error));
+        }
+        /* Keep the native compatibility backend for currently supported AST
+           features not yet expressible in typed IR (arrays, logging, imports). */
         ok=swan_codegen(program,&text,target,error);
         output->kind=SWAN_SVM_OUTPUT_ASSEMBLY;
     }else{

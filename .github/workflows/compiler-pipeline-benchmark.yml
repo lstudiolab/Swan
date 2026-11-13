@@ -10,6 +10,15 @@ on:
       - 'main.c'
       - 'build.sh'
       - '.github/workflows/compiler-pipeline-benchmark.yml'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'benchmarks/compiler_pipeline.py'
+      - 'benchmarks/compiler_pipeline.swan'
+      - 'compiler/**'
+      - 'main.c'
+      - 'build.sh'
+      - '.github/workflows/compiler-pipeline-benchmark.yml'
   workflow_dispatch:
 
 permissions:

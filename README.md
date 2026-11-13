@@ -49,9 +49,9 @@ SVM is the target-independent compilation engine, not a CPU target and not an in
 - WebAssembly 32/64
 - additional LLVM-supported target triples through the explicit LLVM bridge
 
-The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target executes the IR through an interpreter loop.
+The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. For the native x86-64 typed-IR subset, Swan emits LLVM IR and invokes Clang with `-O3 -march=x86-64 -mtune=generic` to perform instruction selection, register allocation, machine scheduling, and native assembly emission. The resulting assembly is linked as a normal executable. Source features not yet represented in typed IR retain the direct Swan x86-64 compatibility backend. No target executes the IR through an interpreter loop.
 
-The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
+The `portable` target is a WebAssembly MVP module, not a native executable; run it with a compatible WebAssembly runtime. Its current backend supports the typed-IR subset (integer/boolean scalars, direct calls, control flow, locals and supported memory operations); floating-point lowering, C translation units, standard-library I/O and lazy imports are not yet portable and are rejected or unavailable. It is not a native executable; run it with a compatible WebAssembly runtime. The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
 
 ### Fail-fast behavior
 
@@ -59,7 +59,7 @@ The semantic checker, IR verifier, and code generators validate the constructs t
 
 ## Build and run
 
-Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available through `cc`.
+Requirements: a C11 compiler, POSIX shell, a host assembler/linker available through `cc`, and Clang/LLVM for the optimized x86-64 typed-IR backend. The AST compatibility backend still emits Swan-owned x86-64 assembly for source features outside typed IR.
 
 ```sh
 sh build.sh
@@ -146,6 +146,8 @@ Object emission is not proof of execution or complete ABI integration on the des
 
 # Swan-owned WebAssembly module
 ./build/swanc build app.swan --target wasm32 -o app.wasm
+# One portable module (alias for wasm32)
+./build/swanc build app.swan --target portable -o app.wasm
 
 # Explicit LLVM portability path
 ./build/swanc build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
@@ -294,7 +296,7 @@ The same works with explicit source lists:
 ./build/swancc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
 ```
 
-Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. Imported Swan modules are bundled by default; `--lazy-imports` intentionally opts out of the single-file model. The single-assembly guarantee applies to Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
+Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. Imported Swan modules are bundled by default; `--lazy-imports` intentionally opts out of the single-file model. The single-assembly guarantee applies to Swan and supported C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. For a single architecture-neutral deliverable, use `--target portable` to emit one WebAssembly module; it runs on supported CPU/OS combinations through a compatible WebAssembly runtime (the runtime itself must be installed). Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
 
 The C header importer currently supports the documented scalar C ABI subset. Pointer and aggregate layouts, callbacks, variadic functions, and broader platform ABI support require additional implementation; they are not implied by accepting a C source file.
 

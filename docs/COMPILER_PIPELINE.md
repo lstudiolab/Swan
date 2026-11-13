@@ -2,7 +2,7 @@
 
 ## Overview
 
-Swan's production compiler combines a C11 host frontend/orchestrator, a small Swan-authored SIL subsystem, a general typed-IR pipeline, Swan-owned target backends, and an x86-64 AST compatibility backend.
+Swan's production compiler combines a C11 host frontend/orchestrator, a small Swan-authored SIL subsystem, a general typed-IR pipeline, LLVM/Clang optimized x86-64 machine lowering, Swan-owned cross-target emitters, and an x86-64 AST compatibility backend.
 
 ## Build-time bootstrap
 
@@ -43,7 +43,7 @@ source file
 
 The SIL route is optional per function. The bridge starts with a complete general typed-IR module and substitutes SIL-lowered functions only when the narrow SIL subset accepts them. Unsupported SIL constructs do not force a failure when the general IR path supports them.
 
-The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Cross-target backends use typed IR and do not inherit these AST-only features.
+The x86-64 typed-IR path uses LLVM/Clang at -O3 for machine instruction selection, register allocation, scheduling, and assembly emission. The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Cross-target backends use typed IR and do not inherit these AST-only features.
 
 ## Typed IR optimization
 
@@ -75,9 +75,9 @@ The bridge accepts only straight-line functions with one return expression and s
 - `--target x86_64`: native System V Linux code generation; may use typed IR or AST compatibility lowering.
 - `--target aarch64`, `armv7`, `riscv64`: Swan-owned limited scalar IR backends that emit target objects/assembly.
 - `--target wasm32`, `wasm64`: Swan-owned limited WebAssembly module emitters.
-- `--target-triple <triple>`: explicit LLVM portability bridge. Requires an installed Clang/LLVM target backend and is restricted to Swan typed IR.
+- Native x86-64 typed IR: emitted as LLVM IR and lowered by Clang -O3 -march=x86-64 -mtune=generic to native assembly.\n- `--target-triple <triple>`: explicit LLVM portability bridge. Requires an installed Clang/LLVM target backend and is restricted to Swan typed IR.
 
-SVM is the shared compiler engine, not a target. The legacy IR interpreter and `.swvm` target have been removed. The CLI's target list identifies available generators, not full source-language parity. Each backend has its own supported types, operations, argument limits, and ABI restrictions. See [ARCHITECTURE.md](ARCHITECTURE.md) and the root README for the current summary.
+SVM is the shared compiler engine, not a target. The legacy IR interpreter and `.swvm` target have been removed. The CLI's target list identifies available generators, not full source-language parity. Each backend has its own supported types, operations, argument limits, and ABI restrictions. Normal execution is always ahead-of-time machine-code or WebAssembly module execution; there is no SVM instruction interpreter. `--target portable` emits one architecture-neutral WebAssembly module for compatible runtimes. See [ARCHITECTURE.md](ARCHITECTURE.md) and the root README for the current summary.
 
 ## Failure behavior
 
