@@ -63,26 +63,26 @@ Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available
 
 ```sh
 sh build.sh
-./build/swanc run examples/hello.swan
+./build/swancc run examples/hello.swan
 ```
 
 Build an executable:
 
 ```sh
-./build/swanc build examples/hello.swan -o hello
+./build/swancc build examples/hello.swan -o hello
 ./hello
 ```
 
 Emit x86-64 assembly:
 
 ```sh
-./build/swanc examples/hello.swan --emit-asm -o hello.s
+./build/swancc examples/hello.swan --emit-asm -o hello.s
 ```
 
 Inspect supported target names:
 
 ```sh
-./build/swanc --list-targets
+./build/swancc --list-targets
 ```
 
 The build uses a temporary C11 bootstrap executable to compile the Swan-authored SIL stage sources into assembly, assembles that output, and links the resulting object into the final compiler. The production executable is `build/swanc`; `build/swan` remains as a compatibility alias.
@@ -132,15 +132,15 @@ Object emission is not proof of execution or complete ABI integration on the des
 
 ```sh
 # Swan-owned AArch64 ELF object
-./build/swan build app.swan --target aarch64 -o app-aarch64.o
+./build/swanc build app.swan --target aarch64 -o app-aarch64.o
 
 # Swan-owned WebAssembly module
-./build/swan build app.swan --target wasm32 -o app.wasm
+./build/swanc build app.swan --target wasm32 -o app.wasm
 
 # Explicit LLVM portability path
-./build/swan build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
-./build/swan build app.swan --target-triple x86_64-pc-windows-msvc -o app.obj
-./build/swan build app.swan --target-triple arm64-apple-macosx14.0 --emit-llvm -o app.ll
+./build/swanc build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
+./build/swanc build app.swan --target-triple x86_64-pc-windows-msvc -o app.obj
+./build/swanc build app.swan --target-triple arm64-apple-macosx14.0 --emit-llvm -o app.ll
 ```
 
 The LLVM bridge is opt-in. It lowers verified Swan typed IR to LLVM IR, then uses the installed Clang/LLVM toolchain for assembly or object emission. It is not the default backend and does not make unsupported Swan language features portable. Use `--cpu` and repeatable `--target-feature` options only with `--target-triple`.
@@ -207,9 +207,17 @@ func main() -> int:
 ```
 
 ```sh
-cc -std=c11 -O2 -c library.c -o library.o
-./build/swan build app.swan --link library.o -o app
+./build/swanc build project/ -o app
 ```
+
+Swan can also export a C-callable function. The `export C` marker keeps the source-level function name as its native C ABI symbol:
+
+```swan
+export C func swan_add(left: i64, right: i64) -> i64:
+    return left + right
+```
+
+A C translation unit in the same project directory can declare and call `swan_add`; its generated assembly is bundled with the Swan assembly, so both languages are linked as one native translation unit. Exported and imported functions currently use the x86-64 System V scalar/pointer calling convention.
 
 The importer supports up to 16 scalar integer/bool parameters and scalar integer/bool or void returns. Opaque pointer parameters and returns are passed as machine-word `i64` values on x86-64 System V; Swan cannot yet dereference those imported pointers or describe pointee layouts. Structs/unions passed by value, callback invocation, variadic functions, floating-point ABI classification, C++ mangling, and non-System-V platform calling conventions remain unsupported. Clang must be installed for sources using `import C`. Linker inputs are currently accepted only by the native x86-64 executable path.
 
@@ -224,9 +232,9 @@ The bridge first constructs a complete typed-IR candidate, then replaces eligibl
 Compiler-stage profiling:
 
 ```sh
-./build/swan --profile examples/hello.swan
+./build/swanc --profile examples/hello.swan
 # or
-./build/swan run examples/hello.swan --profile
+./build/swanc run examples/hello.swan --profile
 ```
 
 The report measures source reading, lexing, parsing, imports, semantic analysis, reachability, IR generation, IR optimization, code generation, assembly output, linking, and execution where applicable.
@@ -280,16 +288,16 @@ project/
 
 ```sh
 # One directory -> one program -> one combined assembly file
-./build/swanc build project --emit-asm -o build/project.asm
+./build/swancc build project --emit-asm -o build/project.asm
 
 # Or compile and link that combined assembly into one executable
-./build/swanc build project -o build/project
+./build/swancc build project -o build/project
 ```
 
 The same works with explicit source lists:
 
 ```sh
-./build/swanc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
+./build/swancc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
 ```
 
 Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. Imported Swan modules are bundled by default; `--lazy-imports` intentionally opts out of the single-file model. The single-assembly guarantee applies to Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
