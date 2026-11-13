@@ -316,7 +316,7 @@ static int swan_run(int argc,char **argv){
   /* Keep mixed Swan/C translation units on the shared assembler syntax path;
      appended C assembly currently uses Intel syntax from the host driver. */
   Text native={0};
-  if(!swan_codegen(&p,&native,target,&err)){fprintf(stderr,"swan:%u:%u: %s\\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(native.data);return 1;}
+  if(!swan_codegen(&p,&native,target,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(native.data);return 1;}
   compiled.kind=SWAN_SVM_OUTPUT_ASSEMBLY;compiled.data=native.data;compiled.length=native.len;
  }else if(!swan_svm_codegen(&p,target,&compiled,&err)){fprintf(stderr,"swan:%u:%u: %s\\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(compiled.data);return 1;}
  Text assembly={0};
