@@ -106,7 +106,9 @@ static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
         if(program->import_count==0){
             SwanIRModule module={0};Text llvm={0};
             bool prepared=swan_svm_prepare_ir(program,&module,error,detail,sizeof(detail));
+            uint64_t codegen_stage=swan_profile_start();
             bool emitted=prepared&&swan_codegen_llvm_ir(&module,&llvm,target->triple,detail,sizeof(detail));
+            swan_profile_end(SWAN_PROFILE_CODEGEN,codegen_stage);
             swan_ir_destroy(&module);
             if(emitted){
                 output->kind=SWAN_SVM_OUTPUT_LLVM_IR;
