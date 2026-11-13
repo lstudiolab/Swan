@@ -223,9 +223,9 @@ The importer supports up to 16 scalar integer/bool parameters and scalar integer
 
 ## Swan-authored SIL
 
-The bootstrap SIL sources live in `compiler/sil/`. The current SIL is a small scalar SSA builder/optimizer, not the full Swan language IR and not a replacement for the general IR generator. It supports parameter, constant, add/subtract/multiply, equality, signed-less-than, copy, and return records in a five-u32-word instruction format. Its current builder is bounded to 256 value IDs and 256 instructions, with packed non-negative immediates up to 16 bits.
+The bootstrap SIL sources live in `compiler/lib/SIL/Runtime/`, with the C-to-SIL bridge in `compiler/lib/SIL/SILBridge.h`. The current SIL is a small scalar SSA builder/optimizer, not the full Swan language IR and not a replacement for the general IR generator. It supports parameter, constant, add/subtract/multiply, equality, signed-less-than, copy, and return records in a five-u32-word instruction format. Its current builder is bounded to 256 value IDs and 256 instructions, with packed non-negative immediates up to 16 bits.
 
-The bridge first constructs a complete typed-IR candidate, then replaces eligible straight-line, single-return scalar functions with SIL-lowered functions. Functions outside that subset keep the general typed-IR lowering. Both routes enter the same typed-IR verification, optimization, and backend stages. SIL control flow, general calls, variables, memory operations, loops, and imports are not yet lowered by the SIL builder.
+The bridge first constructs a complete typed-IR candidate, then replaces eligible straight-line, single-return scalar functions with SIL-lowered functions. Functions outside that subset keep the general typed-IR lowering. Both routes enter the same typed-IR verification, optimization, and backend stages. This lets a project mix SIL-lowered Swan functions with ordinary IR-lowered code and imported C declarations; C calls remain represented in typed IR and preserve their external ABI symbols. SIL itself does not yet encode general calls, control flow, local variables, memory operations, or loops. The bridge is therefore a staged lowering path, not yet a complete replacement for AST-to-IR lowering.
 
 ## Profiling and benchmarks
 
@@ -262,8 +262,9 @@ The script builds the compiler, checks header isolation and C11 compilation, run
 ## Repository map
 
 - `main.c` — CLI orchestration and compiler entry point.
-- `compiler/include/swan/` — lexer, parser, AST, semantic analysis, IR, optimizer, code generators, emitter, linker, and support headers.
-- `compiler/sil/` — Swan-authored SIL builder and passes used during bootstrap.
+- `compiler/include/swan/` — stable compatibility/public headers.
+- `compiler/lib/` — compiler implementation, organized by subsystem (AST, Basic, CodeGen, Driver, IR, Parse, SIL, Sema, Serialization).
+- `compiler/lib/SIL/Runtime/` — Swan-authored SIL builder, verifier, and optimization passes.
 - `stdlib/` — source-level standard library.
 - `tests/` — compiler, runtime, ABI, regression, and target tests.
 - `benchmarks/` — compiler and runtime measurement programs.
