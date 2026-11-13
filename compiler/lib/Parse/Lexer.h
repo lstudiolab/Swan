@@ -35,31 +35,28 @@ static inline bool swan_ascii_digit(unsigned char c){return c>='0'&&c<='9';}
 static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)||c=='_'||c>=0x80;}
 static inline bool swan_ident_continue(unsigned char c){return swan_ident_start(c)||swan_ascii_digit(c);}
 static inline TokenKind swan_keyword(const char *s,size_t n) {
- /* The only reserved words in Swan. Keep this list exact and case-sensitive.
-  * Words not listed here remain ordinary identifiers. */
+ /* Canonical Swan reserved-word set. Contextual spellings such as import/export
+  * are recognized by the parser where needed, but remain valid identifiers. */
  switch(n) {
  case 2:
   if(!memcmp(s,"if",2))return T_IF;
-  if(!memcmp(s,"in",2))return T_IN;
   if(!memcmp(s,"as",2))return T_AS;
   break;
  case 3:
   if(!memcmp(s,"let",3))return T_LET;
   if(!memcmp(s,"var",3))return T_VAR;
-  if(!memcmp(s,"int",3))return T_INT;
-  if(!memcmp(s,"mod",3))return T_MOD;
   break;
  case 4:
   if(!memcmp(s,"func",4))return T_FN;
   if(!memcmp(s,"else",4))return T_ELSE;
+  if(!memcmp(s,"null",4))return T_NONE;
+  if(!memcmp(s,"type",4))return T_TYPE;
   if(!memcmp(s,"enum",4))return T_ENUM;
   if(!memcmp(s,"loop",4))return T_LOOP;
   if(!memcmp(s,"from",4))return T_FROM;
-  if(!memcmp(s,"upto",4))return T_UPTO;
   if(!memcmp(s,"self",4))return T_SELF;
   if(!memcmp(s,"true",4))return T_TRUE;
   if(!memcmp(s,"pass",4))return T_PASS;
-  if(!memcmp(s,"bool",4))return T_BOOL_TYPE;
   if(!memcmp(s,"init",4))return T_INIT;
   break;
  case 5:
@@ -70,20 +67,17 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"false",5))return T_FALSE;
   if(!memcmp(s,"const",5))return T_CONST;
   if(!memcmp(s,"block",5))return T_BLOCK;
-  if(!memcmp(s,"defer",5))return T_DEFER;
+  if(!memcmp(s,"throw",5))return T_THROW;
+  if(!memcmp(s,"catch",5))return T_CATCH;
   break;
  case 6:
-  if(!memcmp(s,"import",6))return T_IMPORT;
-  if(!memcmp(s,"export",6))return T_EXPORT;
-  if(!memcmp(s,"return",6))return T_RETURN;
   if(!memcmp(s,"struct",6))return T_STRUCT;
-  if(!memcmp(s,"public",6))return T_PUBLIC;
-  if(!memcmp(s,"inline",6))return T_INLINE;
-  if(!memcmp(s,"static",6))return T_STATIC;
+  if(!memcmp(s,"return",6))return T_RETURN;
   if(!memcmp(s,"deinit",6))return T_DEINIT;
+  if(!memcmp(s,"throws",6))return T_THROWS;
   break;
  case 7:
-  if(!memcmp(s,"private",7))return T_PRIVATE;
+  if(!memcmp(s,"rethrow",7))return T_RETHROW;
   break;
  case 8:
   if(!memcmp(s,"continue",8))return T_CONTINUE;
