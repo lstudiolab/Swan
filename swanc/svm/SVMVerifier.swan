@@ -1,3 +1,0 @@
-# SVM Verifier
-# Validate instruction operands, register definitions, CFG edges, call
-# conventions, memory operations, and legal SVM type/opcode combinations.

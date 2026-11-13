@@ -1,3 +1,0 @@
-# AST Source Locations
-# Own source spans, byte offsets, line/column mapping, and source-file identity.
-# Every AST node must retain a stable source span for diagnostics and debug info.

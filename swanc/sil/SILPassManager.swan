@@ -1,3 +1,0 @@
-# SIL Pass Manager
-# Register and schedule verified SIL transformations. Track required and
-# invalidated analyses; verify after each transforming pass.

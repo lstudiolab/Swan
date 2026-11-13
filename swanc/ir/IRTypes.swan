@@ -1,3 +1,0 @@
-# Swan IR Types
-# Define low-level scalar, vector, pointer, aggregate, and function types,
-# including target-independent type legality rules.

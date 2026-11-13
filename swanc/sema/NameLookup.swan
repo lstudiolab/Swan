@@ -1,3 +1,0 @@
-# Name Lookup
-# Resolve identifiers, qualified names, members, imports, and overload sets.
-# Preserve candidate sets so diagnostics can explain ambiguity.

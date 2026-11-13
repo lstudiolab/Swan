@@ -1,3 +1,0 @@
-# Type Inference
-# Solve permitted inference constraints and report unsatisfied or ambiguous
-# constraints. Never infer through an invalid or unresolved expression.

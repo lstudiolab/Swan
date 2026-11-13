@@ -1,3 +1,0 @@
-# Assembly Emitter
-# Emit target assembly, labels, sections, directives, and relocations from
-# selected machine instructions.

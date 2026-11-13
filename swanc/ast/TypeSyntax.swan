@@ -1,4 +1,0 @@
-# AST Type Syntax
-# Own parsed type expressions: named, qualified, generic, tuple, function,
-# optional, pointer/reference, array, and inferred type syntax.
-# This is syntax only; canonical semantic types belong to Sema.

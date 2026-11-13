@@ -1,3 +1,0 @@
-# Target Data Layout
-# Define pointer widths, scalar sizes, alignments, endianness, and aggregate
-# layout for each supported target.

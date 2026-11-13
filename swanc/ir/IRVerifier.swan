@@ -1,3 +1,0 @@
-# Swan IR Verifier
-# Validate SSA definitions, dominance, types, block edges, terminators,
-# memory effects, and legal instruction forms.

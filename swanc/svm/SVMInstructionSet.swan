@@ -1,3 +1,0 @@
-# SVM Instruction Set
-# Define stable target-independent SVM opcodes and their exact semantics.
-# No CPU-specific opcode or register name may appear in this layer.

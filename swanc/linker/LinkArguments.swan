@@ -1,3 +1,0 @@
-# Link Argument Construction
-# Build an argument vector from objects, libraries, search paths, runtime
-# inputs, and target ABI settings. Never concatenate shell command strings.

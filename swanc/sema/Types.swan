@@ -1,3 +1,0 @@
-# Canonical Semantic Types
-# Own canonical type identities, type equality, substitution, and type layout
-# queries. Parsed TypeSyntax nodes are not semantic types.

@@ -1,3 +1,0 @@
-# SIL Demand Analysis
-# Compute demanded values and effect-aware liveness. Preserve traps, writes,
-# calls with effects, synchronization, and ownership/lifetime operations.

@@ -1,3 +1,0 @@
-# Target Instruction Legalizer
-# Legalize unsupported SVM operations into target-supported operation
-# sequences. Fail when no semantics-preserving legalization exists.

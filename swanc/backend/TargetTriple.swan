@@ -1,3 +1,0 @@
-# Target Triple
-# Parse and validate architecture-vendor-system-environment target identity.
-# Unknown or unsupported triples must produce explicit diagnostics.
