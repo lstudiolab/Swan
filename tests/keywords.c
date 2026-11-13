@@ -7,17 +7,16 @@
 
 int main(void) {
     static const char *const keywords[] = {
-        "func","struct","import","export","enum","let","var","const",
-        "if","else","while","loop","true","false","guard","defer",
-        "return","break","continue","block","as","bool","from","upto",
-        "inline","static","private","public","match","mod","in","int",
-        "init","deinit","self","pass"
+        "func","struct","let","var","null","if","else","const","type","match",
+        "guard","block","while","loop","true","false","break","continue","return",
+        "as","from","self","pass","upto","init","deinit","enum","throw","throws",
+        "rethrow","catch"
     };
     static const char *const identifiers[] = {
-        "fn","out","store","manual","for","type","null","nil","none",
-        "namespace","variant","protocol","thread","async","external",
-        "lazy","case","set","print","free","throw","rethrow","borrow",
-        "and","or","not","extern"
+        "import","export","fn","out","store","manual","for","nil","none","namespace",
+        "variant","protocol","thread","async","external","lazy","case","set","print",
+        "free","borrow","and","or","not","extern","defer","bool","inline","static",
+        "private","public","mod","in","int"
     };
     char source[2048] = {0};
     for (size_t i=0;i<sizeof(keywords)/sizeof(keywords[0]);i++) {
