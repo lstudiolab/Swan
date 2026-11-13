@@ -89,7 +89,17 @@ The build uses a temporary C11 bootstrap executable to compile the Swan-authored
 
 ## Swan syntax
 
-Swan source uses indentation-based blocks introduced by a colon. Braces are not block delimiters. `func` is the canonical function keyword; `fn` remains a compatibility alias. Semicolons are optional statement separators.
+Swan source uses indentation-based blocks introduced by a colon. Braces are not block delimiters. `func` is the canonical function keyword; `fn` remains a contextual compatibility spelling, not a reserved word. Semicolons are optional statement separators.
+
+The exact reserved-keyword set is:
+
+```text
+func struct let var null if else const type match guard block while loop
+true false break continue return as from self pass upto init deinit enum
+throw throws rethrow catch
+```
+
+This is a 31-word, case-sensitive set. `import` and `export` are contextual file-scope spellings; they are not reserved words. Other removed spellings (including `free`, `manual`, `defer`, `bool`, and `int`) are identifiers.
 
 ```swan
 func main() -> int:
@@ -155,28 +165,11 @@ The x86-64 compatibility backend supports zero-initialized `u32` arrays:
 
 Small fixed-size arrays that do not escape can use a native stack-frame fast path. Other allocations follow the backend's allocation path. This optimization is a backend implementation detail; it does not change the array indexing contract.
 
-### SAMC and explicit manual ownership
+### Automatic lifetime cleanup
 
-SAMC (Swan Automatic Memory Cleanup) tracks eligible local array allocations at compile time and emits cleanup without runtime reference counting.
+Swan has no source-level `free` keyword or manual-allocation modifier. The compiler emits cleanup for eligible local arrays when their last use has passed, with guarded cleanup on function exit and early returns. Small fixed-size, non-escaping arrays can use native stack-frame storage.
 
-```swan
-func main() -> int:
-    let values = array(128)
-    values[0] = 42
-    return 0
-```
-
-Use `manual var` when an eligible allocation must be released explicitly:
-
-```swan
-func main() -> int:
-    manual var values = array(128)
-    values[0] = 42
-    free(values)
-    return 0
-```
-
-The strict manual form is limited to direct array allocations with a single local owner. `free(values)` is parsed as a dedicated release statement, not as an ordinary user-function call. The checker rejects leaks at scope exit, double-free, use-after-free, aliasing/copying, passing or returning the owner, and incompatible ownership states across branches or loops. Ownership transfer, borrowing, destructors, and manually owned general heap objects are not implemented. Legacy `store` syntax remains accepted for compatibility and does not enable the new strict ownership checks.
+This is currently a limited x86-64 AST-backend lifetime optimization, not a complete ownership runtime. General ownership transfer, borrowing, aggregate and heap-object lifetimes, `deinit` execution, and exception unwinding are not implemented across the compiler. The `null`, `throw`, `throws`, `rethrow`, and `catch` words are reserved, but their complete runtime semantics are not yet implemented. In particular, do not rely on exception paths to release arbitrary owned values until exception lowering and cleanup are implemented and tested.
 
 ## Imports and Foundation
 
