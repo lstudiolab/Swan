@@ -73,7 +73,7 @@ static bool swan_llvm_ir_to_assembly(const char *ir,size_t length,Text *assembly
  if(!ok){unlink(ir_path);return false;}
  int asm_fd=mkstemp(asm_path);if(asm_fd<0){unlink(ir_path);return false;}
  if(close(asm_fd)!=0){unlink(ir_path);unlink(asm_path);return false;}
- char *args[]={"clang","-O3","-march=native","-S","-x","ir",ir_path,"-o",asm_path,NULL};
+ char *args[]={"clang","--target=x86_64-unknown-linux-gnu","-O3","-march=native","-fno-addrsig","-S","-x","ir",ir_path,"-o",asm_path,NULL};
  uint64_t stage=swan_profile_start();
  int result=swan_exec(args,true);
  swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
