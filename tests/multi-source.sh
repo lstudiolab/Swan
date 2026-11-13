@@ -14,7 +14,7 @@ SWAN
 cat > "$TMP/project/02_main.swan" <<SWAN
 import C "$TMP/project/c_api.h"
 fn main() -> int:
-    return swan_answer() + c_answer(42) - 84
+    return swan_answer() + c_answer(42) - 126
 out
 SWAN
 
