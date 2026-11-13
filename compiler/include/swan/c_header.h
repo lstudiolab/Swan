@@ -19,6 +19,8 @@ static inline const char *swan_c_header_scalar_type(const char *type) {
     while (*type == ' ' || *type == '\t') type++;
     if (!strncmp(type,"const ",6)) type += 6;
     if (!strncmp(type,"volatile ",9)) type += 9;
+    /* On the supported x86-64 System V path, pointers use integer registers. */
+    if (strchr(type,'*')) return "i64";
     if (!strcmp(type,"void")) return "void";
     if (!strcmp(type,"_Bool") || !strcmp(type,"bool")) return "bool";
     if (!strcmp(type,"int") || !strcmp(type,"signed int") || !strcmp(type,"int32_t")) return "i32";
