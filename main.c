@@ -12,13 +12,13 @@ static bool swan_collect_directory(const char *directory,const char **swan,size_
  if(n<0||(size_t)n>=sizeof(pattern))return false;
  int result=glob(pattern,0,NULL,&matches);
  if(result!=0&&result!=GLOB_NOMATCH){globfree(&matches);return false;}
- for(size_t i=0;i<matches.gl_pathc;i++){if(*sn>=128){globfree(&matches);return false;}swan[(*sn)++]=strdup(matches.gl_pathv[i]);}
+ for(size_t i=0;i<matches.gl_pathc;i++){if(*sn>=128){globfree(&matches);return false;}char *path=strdup(matches.gl_pathv[i]);if(!path){globfree(&matches);return false;}swan[(*sn)++]=path;}
  globfree(&matches);memset(&matches,0,sizeof(matches));
  n=snprintf(pattern,sizeof(pattern),"%s/*.c",directory);
  if(n<0||(size_t)n>=sizeof(pattern))return false;
  result=glob(pattern,0,NULL,&matches);
  if(result!=0&&result!=GLOB_NOMATCH){globfree(&matches);return false;}
- for(size_t i=0;i<matches.gl_pathc;i++){if(*cn>=120){globfree(&matches);return false;}c[(*cn)++]=strdup(matches.gl_pathv[i]);}
+ for(size_t i=0;i<matches.gl_pathc;i++){if(*cn>=120){globfree(&matches);return false;}char *path=strdup(matches.gl_pathv[i]);if(!path){globfree(&matches);return false;}c[(*cn)++]=path;}
  globfree(&matches);return true;
 }
 static char *swan_read_sources(const char *const *paths,size_t count){
@@ -49,7 +49,7 @@ static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--lazy-imports] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
