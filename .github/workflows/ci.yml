@@ -23,6 +23,8 @@ jobs:
         run: sh tests/optimization.sh
       - name: Verify .swan to optimized typed-IR integration
         run: sh tests/irgen.sh
+      - name: Verify Swan-authored SIL pipeline and C interoperability
+        run: sh tests/sil.sh
       - name: Verify IR control-flow lowering
         run: sh tests/irgen-control.sh
       - name: Verify WASM32 binary emission
