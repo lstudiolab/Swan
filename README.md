@@ -51,7 +51,7 @@ SVM is the target-independent compilation engine, not a CPU target and not an in
 
 The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. For the native x86-64 typed-IR subset, Swan emits LLVM IR and invokes Clang with `-O3 -march=x86-64 -mtune=generic` to perform instruction selection, register allocation, machine scheduling, and native assembly emission. The resulting assembly is linked as a normal executable. Source features not yet represented in typed IR retain the direct Swan x86-64 compatibility backend. No target executes the IR through an interpreter loop.
 
-The `portable` target is a WebAssembly MVP module, not a native executable; run it with a compatible WebAssembly runtime. The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
+The `portable` target is a WebAssembly MVP module, not a native executable; run it with a compatible WebAssembly runtime. Its current backend supports the typed-IR subset (integer/boolean scalars, direct calls, control flow, locals and supported memory operations); floating-point lowering, C translation units, standard-library I/O and lazy imports are not yet portable and are rejected or unavailable. It is not a native executable; run it with a compatible WebAssembly runtime. The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
 
 ### Fail-fast behavior
 
