@@ -3,7 +3,13 @@ name: Swan SIL Pipeline
 on:
   push:
     paths:
-      - 'compiler/sil/**'
+      - 'compiler/lib/SIL/**'
+      - 'compiler/lib/CodeGen/CodeGen.h'
+      - 'compiler/lib/IR/IRGen.h'
+      - 'compiler/lib/IR/IR.h'
+      - 'build.sh'
+      - 'test.sh'
+      - '.github/workflows/ci.yml'
       - 'tests/sil*'
       - '.github/workflows/sil-pipeline.yml'
       - 'main.c'
