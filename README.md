@@ -59,7 +59,7 @@ The semantic checker, IR verifier, and code generators validate the constructs t
 
 ## Build and run
 
-Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available through `cc`.
+Requirements: a C11 compiler, POSIX shell, a host assembler/linker available through `cc`, and Clang/LLVM for the optimized x86-64 typed-IR backend. The AST compatibility backend still emits Swan-owned x86-64 assembly for source features outside typed IR.
 
 ```sh
 sh build.sh
