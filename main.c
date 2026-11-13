@@ -58,21 +58,21 @@ static int swan_run(int argc,char **argv){
  const char *first=argv[index++];struct stat first_stat;
  if(stat(first,&first_stat)==0&&S_ISDIR(first_stat.st_mode)){
   if(!swan_collect_directory(first,swan_inputs,&swan_input_count,c_inputs,&c_input_count)){
-   fprintf(stderr,"swanc: cannot collect sources from '%s'\\n",first);return 2;
+   fprintf(stderr,"swanc: cannot collect sources from '%s'\n",first);return 2;
   }
  }else if(swan_has_suffix(first,".swan"))swan_inputs[swan_input_count++]=first;
  else if(swan_has_suffix(first,".c"))c_inputs[c_input_count++]=first;
- else {fprintf(stderr,"swanc: expected a .swan file or source directory\\n");return 2;}
+ else {fprintf(stderr,"swanc: expected a .swan file or source directory\n");return 2;}
  while(index<argc&&(swan_has_suffix(argv[index],".swan")||swan_has_suffix(argv[index],".c"))){
   if(swan_has_suffix(argv[index],".swan")){
-   if(swan_input_count>=128){fprintf(stderr,"swanc: too many Swan source files\\n");return 2;}
+   if(swan_input_count>=128){fprintf(stderr,"swanc: too many Swan source files\n");return 2;}
    swan_inputs[swan_input_count++]=argv[index++];
   }else{
-   if(c_input_count>=120){fprintf(stderr,"swanc: too many C source files\\n");return 2;}
+   if(c_input_count>=120){fprintf(stderr,"swanc: too many C source files\n");return 2;}
    c_inputs[c_input_count++]=argv[index++];
   }
  }
- if(!swan_input_count){fprintf(stderr,"swanc: source directory contains no .swan files\\n");return 2;}
+ if(!swan_input_count){fprintf(stderr,"swanc: source directory contains no .swan files\n");return 2;}
  const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  bool emit_asm=false,emit_llvm=false;const char *link_args[120];size_t link_arg_count=0;
@@ -122,7 +122,7 @@ static int swan_run(int argc,char **argv){
  char *source=swan_read_sources(swan_inputs,swan_input_count);
  swan_profile_end(SWAN_PROFILE_READ,stage);if(!source){perror(input);return 1;}
  if(c_input_count&&target->architecture!=SWAN_ARCH_X86_64){
-  fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\\n");free(source);return 2;
+  fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\n");free(source);return 2;
  }
  SwanError err={0};TokenStream ts;
  stage=swan_profile_start();
