@@ -6,7 +6,7 @@ rm -rf "$TMP"
 mkdir -p "$TMP/project"
 
 cat > "$TMP/project/01_math.swan" <<'SWAN'
-fn swan_answer() -> int:
+export C func swan_answer() -> int:
     return 42
 out
 SWAN
@@ -22,7 +22,7 @@ cat > "$TMP/project/c_api.h" <<'C'
 int c_answer(int value);
 C
 cat > "$TMP/project/native.c" <<'C'
-int c_answer(int value) { return value; }
+int swan_answer(void);\nint c_answer(int value) { return value + swan_answer(); }
 C
 
 "$ROOT/build/swanc" build "$TMP/project" -o "$TMP/project-app"
