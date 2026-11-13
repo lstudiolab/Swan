@@ -11,6 +11,7 @@ cat > "$TMP/c_api.h" <<'H'
 int64_t swan_c_add(int64_t left, int64_t right);
 void swan_c_noop(int64_t value);
 int32_t swan_c_double(int32_t value);
+void *swan_c_identity(void *value);
 H
 
 cat > "$TMP/c_library.c" <<'C'
@@ -20,6 +21,7 @@ int64_t swan_c_add(int64_t left, int64_t right) {
 }
 void swan_c_noop(int64_t value) { (void)value; }
 int32_t swan_c_double(int32_t value) { return value * 2; }
+void *swan_c_identity(void *value) { return value; }
 C
 "$CC" -std=c11 -O2 -c "$TMP/c_library.c" -o "$TMP/c_library.o"
 
@@ -43,7 +45,7 @@ if [ "$status" -ne 42 ]; then
     objdump -d "$TMP/ffi" | tail -100 >&2 || true
     exit 1
 fi
-printf 'PASS: C header import, void/i64/i32 calls, and native object linking\n'
+printf 'PASS: C header import, scalar/pointer ABI calls, and native object linking\n'
 
 "$SWAN" "$TMP/ffi.swan" --emit-asm -o "$TMP/ffi.s"
 grep -q '^.extern swan_c_add$' "$TMP/ffi.s"
