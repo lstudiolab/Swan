@@ -74,7 +74,10 @@ static bool swan_llvm_ir_to_assembly(const char *ir,size_t length,Text *assembly
  int asm_fd=mkstemp(asm_path);if(asm_fd<0){unlink(ir_path);return false;}
  if(close(asm_fd)!=0){unlink(ir_path);unlink(asm_path);return false;}
  char *args[]={"clang","-O3","-march=native","-S","-x","ir",ir_path,"-o",asm_path,NULL};
- int result=swan_exec(args,true);unlink(ir_path);
+ uint64_t stage=swan_profile_start();
+ int result=swan_exec(args,true);
+ swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+ unlink(ir_path);
  if(result!=0){unlink(asm_path);if(error)swan_error(error,NULL,"LLVM native backend failed; install Clang with LLVM IR support");return false;}
  char *data=swan_read_file(asm_path);unlink(asm_path);
  if(!data){if(error)swan_error(error,NULL,"cannot read optimized native assembly");return false;}
