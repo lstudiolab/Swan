@@ -26,15 +26,15 @@ int swan_answer(void);
 int c_answer(int value) { return value + swan_answer(); }
 C
 
-printf 'RUN: compile mixed Swan/C executable\\n'
+printf 'RUN: compile mixed Swan/C executable\n'
 "$ROOT/build/swanc" build "$TMP/project" -o "$TMP/project-app"
-printf 'RUN: execute mixed Swan/C executable\\n'
+printf 'RUN: execute mixed Swan/C executable\n'
 "$TMP/project-app"
 
-printf 'RUN: emit mixed Swan/C assembly\\n'
+printf 'RUN: emit mixed Swan/C assembly\n'
 "$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/project.asm"
 grep -q 'swan_answer' "$TMP/project.asm"
 grep -q 'c_answer' "$TMP/project.asm"
 grep -q 'main' "$TMP/project.asm"
 
-printf 'PASS: directory-wide Swan compilation and C sources bundled into one assembly file\\n'
+printf 'PASS: directory-wide Swan compilation and C sources bundled into one assembly file\n'
