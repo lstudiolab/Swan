@@ -22,14 +22,27 @@ static bool swan_collect_directory(const char *directory,const char **swan,size_
  globfree(&matches);return true;
 }
 static char *swan_read_sources(const char *const *paths,size_t count){
- char *combined=NULL;size_t used=0;
+ char *combined=NULL;size_t used=0,capacity=0;
  for(size_t i=0;i<count;i++){
   char *part=swan_read_file(paths[i]);if(!part){free(combined);return NULL;}
-  size_t n=strlen(part);if(n>SIZE_MAX-used-2){free(part);free(combined);errno=EOVERFLOW;return NULL;}
-  char *next=realloc(combined,used+n+2);if(!next){free(part);free(combined);return NULL;}
-  combined=next;memcpy(combined+used,part,n);used+=n;combined[used++]='\n';combined[used]=0;free(part);
+  size_t n=strlen(part);
+  if(n>SIZE_MAX-used-2){free(part);free(combined);errno=EOVERFLOW;return NULL;}
+  size_t need=used+n+2;
+  if(need>capacity){
+   size_t next_capacity=capacity?capacity:4096;
+   while(next_capacity<need){
+    if(next_capacity>SIZE_MAX/2){next_capacity=need;break;}
+    next_capacity*=2;
+   }
+   char *next=realloc(combined,next_capacity);
+   if(!next){free(part);free(combined);return NULL;}
+   combined=next;capacity=next_capacity;
+  }
+  memcpy(combined+used,part,n);used+=n;combined[used++]='\n';combined[used]=0;
+  free(part);
  }
- if(!combined){combined=calloc(1,1);}return combined;
+ if(!combined)combined=calloc(1,1);
+ return combined;
 }
 static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_t count){
  for(size_t i=0;i<count;i++){
