@@ -72,7 +72,12 @@ typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacit
 typedef struct { char message[1024]; unsigned line,col; } SwanError;
 typedef struct { char message[256]; unsigned line,col; } SwanWarning;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
- va_list ap; va_start(ap,fmt); vsnprintf(e->message,sizeof(e->message),fmt,ap); va_end(ap);
- e->line=t?t->line:0; e->col=t?t->col:0;
+ if(!e)return;
+ va_list ap;
+ va_start(ap,fmt);
+ vsnprintf(e->message,sizeof(e->message),fmt,ap);
+ va_end(ap);
+ e->line=t?t->line:0;
+ e->col=t?t->col:0;
 }
 #endif
