@@ -29,13 +29,13 @@ fn main() {
         sift_down(&mut values, 0, end - 1);
     }
 
-    let mut checksum = 0u64;
+    let mut checksum = 0u32;
     for i in 0..COUNT {
         if i > 0 && values[i - 1] > values[i] {
             eprintln!("SORT_FAILED");
             std::process::exit(3);
         }
-        checksum += values[i] as u64;
+        checksum = checksum.wrapping_add(values[i]);
     }
     println!("{checksum}");
 }
