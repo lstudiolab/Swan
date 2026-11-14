@@ -60,7 +60,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
     const SwanIRInst *in=&bb->instructions[i];int d=swan_armv7_offset(in->result),a=swan_armv7_offset(in->a),z=swan_armv7_offset(in->b);
     switch(in->op){
      case SWAN_IR_PHI:break;
-     case SWAN_IR_CONST:text_add(o,"    ldr r0, =%d\n    str r0, [sp, #%d]\n",(int32_t)in->immediate,d);break;
+     case SWAN_IR_CONST:{uint32_t bits=(uint32_t)(int32_t)in->immediate;text_add(o,"    movw r0, #%u\n    movt r0, #%u\n    str r0, [sp, #%d]\n",bits&0xffffu,bits>>16,d);break;}
      case SWAN_IR_ALLOCA:{size_t off=value_bytes+ai++*4u;text_add(o,"    movw r0, #%zu\n    add r0, sp, r0\n    str r0, [sp, #%d]\n",off,d);break;}
      case SWAN_IR_LOAD:text_add(o,"    ldr r0, [sp, #%d]\n    ldr r1, [r0]\n    str r1, [sp, #%d]\n",a,d);break;
      case SWAN_IR_STORE:text_add(o,"    ldr r0, [sp, #%d]\n    ldr r1, [sp, #%d]\n    str r1, [r0]\n",a,z);break;
