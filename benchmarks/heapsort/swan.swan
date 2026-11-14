@@ -66,4 +66,3 @@ func main() -> int:
     log checksum
     return 0
 
-out
