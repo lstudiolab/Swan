@@ -9,7 +9,6 @@ func array_sum(values: u32_array, length: int) -> int:
         total = total + values[index]
         index = index + 1
     return total
-out
 
 func array_min(values: u32_array, length: int) -> int:
     if length <= 0:
@@ -21,7 +20,6 @@ func array_min(values: u32_array, length: int) -> int:
             result = values[index]
         index = index + 1
     return result
-out
 
 func array_max(values: u32_array, length: int) -> int:
     if length <= 0:
@@ -33,7 +31,6 @@ func array_max(values: u32_array, length: int) -> int:
             result = values[index]
         index = index + 1
     return result
-out
 
 func array_contains(values: u32_array, length: int, target: int) -> bool:
     var index = 0
@@ -42,7 +39,6 @@ func array_contains(values: u32_array, length: int, target: int) -> bool:
             return true
         index = index + 1
     return false
-out
 
 func array_index_of(values: u32_array, length: int, target: int) -> int:
     var index = 0
@@ -51,7 +47,6 @@ func array_index_of(values: u32_array, length: int, target: int) -> int:
             return index
         index = index + 1
     return 0 - 1
-out
 
 func array_count(values: u32_array, length: int, target: int) -> int:
     var total = 0
@@ -61,13 +56,11 @@ func array_count(values: u32_array, length: int, target: int) -> int:
             total = total + 1
         index = index + 1
     return total
-out
 
 func array_average(values: u32_array, length: int) -> int:
     if length <= 0:
         return 0
     return array_sum(values, length) / length
-out
 
 func array_is_sorted(values: u32_array, length: int) -> bool:
     if length < 2:
@@ -78,7 +71,6 @@ func array_is_sorted(values: u32_array, length: int) -> bool:
             return false
         index = index + 1
     return true
-out
 
 func array_fill(values: u32_array, length: int, value: int) -> int:
     var index = 0
@@ -86,7 +78,6 @@ func array_fill(values: u32_array, length: int, value: int) -> int:
         values[index] = value
         index = index + 1
     return length
-out
 
 func array_copy(source: u32_array, destination: u32_array, length: int) -> int:
     var index = 0
@@ -94,7 +85,6 @@ func array_copy(source: u32_array, destination: u32_array, length: int) -> int:
         destination[index] = source[index]
         index = index + 1
     return length
-out
 
 func array_reverse(values: u32_array, length: int) -> int:
     var left = 0
@@ -106,11 +96,9 @@ func array_reverse(values: u32_array, length: int) -> int:
         left = left + 1
         right = right - 1
     return length
-out
 
 func array_linear_search(values: u32_array, length: int, target: int) -> int:
     return array_index_of(values, length, target)
-out
 
 func array_binary_search(values: u32_array, length: int, target: int) -> int:
     var low = 0
@@ -124,7 +112,6 @@ func array_binary_search(values: u32_array, length: int, target: int) -> int:
         else:
             high = middle - 1
     return 0 - 1
-out
 
 func array_bubble_sort(values: u32_array, length: int) -> int:
     var end = length
@@ -142,7 +129,6 @@ func array_bubble_sort(values: u32_array, length: int) -> int:
             return length
         end = end - 1
     return length
-out
 
 func array_selection_sort(values: u32_array, length: int) -> int:
     var start = 0
@@ -159,7 +145,6 @@ func array_selection_sort(values: u32_array, length: int) -> int:
             values[smallest] = temporary
         start = start + 1
     return length
-out
 
 func array_insertion_sort(values: u32_array, length: int) -> int:
     var index = 1
@@ -174,4 +159,3 @@ func array_insertion_sort(values: u32_array, length: int) -> int:
         values[position] = current
         index = index + 1
     return length
-out
