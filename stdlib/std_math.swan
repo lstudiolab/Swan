@@ -1,0 +1,146 @@
+# Swan standard math
+# Every public function is called through the std: namespace.
+# Import with: import std_math
+# These algorithms use Swan integer operations only.
+
+func gcd(left: int, right: int) -> int:
+    var a = left
+    var b = right
+    if a < 0:
+        a = 0 - a
+    if b < 0:
+        b = 0 - b
+    while b != 0:
+        let remainder = a % b
+        a = b
+        b = remainder
+    return a
+out
+
+func lcm(left: int, right: int) -> int:
+    if left == 0 or right == 0:
+        return 0
+    let divisor = gcd(left, right)
+    let value = (left / divisor) * right
+    if value < 0:
+        return 0 - value
+    return value
+out
+
+func euclidean_mod(value: int, modulus: int) -> int:
+    if modulus <= 0:
+        return 0
+    var remainder = value % modulus
+    if remainder < 0:
+        remainder = remainder + modulus
+    return remainder
+out
+
+func floor_div(left: int, right: int) -> int:
+    if right == 0:
+        return 0
+    let quotient = left / right
+    let remainder = left % right
+    if remainder != 0 and ((left < 0 and right > 0) or (left > 0 and right < 0)):
+        return quotient - 1
+    return quotient
+out
+
+func ceil_div(left: int, right: int) -> int:
+    if right == 0:
+        return 0
+    let quotient = left / right
+    let remainder = left % right
+    if remainder != 0 and ((left < 0 and right < 0) or (left > 0 and right > 0)):
+        return quotient + 1
+    return quotient
+out
+
+func integer_sqrt(value: int) -> int:
+    if value < 0:
+        return 0
+    if value < 2:
+        return value
+    var low = 1
+    var high = value / 2 + 1
+    var answer = 1
+    while low <= high:
+        let middle = low + (high - low) / 2
+        if middle <= value / middle:
+            answer = middle
+            low = middle + 1
+        else:
+            high = middle - 1
+    return answer
+out
+
+func is_prime(value: int) -> bool:
+    if value < 2:
+        return false
+    if value == 2:
+        return true
+    if value % 2 == 0:
+        return false
+    var divisor = 3
+    while divisor <= value / divisor:
+        if value % divisor == 0:
+            return false
+        divisor = divisor + 2
+    return true
+out
+
+func is_composite(value: int) -> bool:
+    if value < 4:
+        return false
+    return not is_prime(value)
+out
+
+func triangular(value: int) -> int:
+    if value < 1:
+        return 0
+    if value % 2 == 0:
+        return (value / 2) * (value + 1)
+    return value * ((value + 1) / 2)
+out
+
+func distance_int(left: int, right: int) -> int:
+    if left >= right:
+        return left - right
+    return right - left
+out
+
+func is_power_of_two(value: int) -> bool:
+    if value < 1:
+        return false
+    var remaining = value
+    while remaining % 2 == 0:
+        remaining = remaining / 2
+    return remaining == 1
+out
+
+func next_power_of_two(value: int) -> int:
+    if value <= 1:
+        return 1
+    var result = 1
+    while result < value:
+        result = result * 2
+    return result
+out
+
+func fibonacci(value: int) -> int:
+    if value < 0:
+        return 0
+    if value == 0:
+        return 0
+    if value == 1:
+        return 1
+    var previous = 0
+    var current = 1
+    var index = 2
+    while index <= value:
+        let next = previous + current
+        previous = current
+        current = next
+        index = index + 1
+    return current
+out
