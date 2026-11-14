@@ -17,6 +17,8 @@ jobs:
         run: sh test.sh
       - name: Verify production x86-64 IR backend
         run: sh tests/x86-ir.sh
+      - name: Verify shared keyword semantics across native and WASM targets
+        run: sh tests/keyword-targets.sh
       - name: Verify typed SSA IR
         run: sh tests/ir.sh
       - name: Verify IR optimization passes
