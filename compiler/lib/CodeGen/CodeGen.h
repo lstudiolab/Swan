@@ -48,25 +48,80 @@ static inline bool swan_svm_prepare_ir(Program *program,SwanIRModule *module,
     return true;
 }
 
-/* Prefer verified SIL -> target-independent IR for its supported source subset.
-   Keep the established AST backend as a compatibility path for frontend
-   features not yet represented in IR (arrays, logging and lazy imports). */
+/* The AST backend is a deliberate compatibility path, not a recovery path.
+   Select it only when the source contains a construct that is known to require
+   it. An IR/SIL/verifier/optimizer failure must remain a hard compilation error. */
+static inline bool swan_expr_requires_ast_compatibility(const Expr *expression){
+    if(!expression)return false;
+    if(expression->kind==E_INDEX)return true;
+    if(expression->kind==E_CALL&&expression->left&&expression->left->kind==E_NAME){
+        const char *name=expression->left->token.text;
+        if(name&&(!strcmp(name,"array")||!strcmp(name,"array_u32")||
+                  !strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked")))
+            return true;
+    }
+    if(swan_expr_requires_ast_compatibility(expression->left)||
+       swan_expr_requires_ast_compatibility(expression->right))return true;
+    for(size_t i=0;i<expression->argc;i++)
+        if(swan_expr_requires_ast_compatibility(expression->args[i]))return true;
+    return false;
+}
+static inline bool swan_block_requires_ast_compatibility(Stmt **body,size_t count){
+    for(size_t i=0;i<count;i++){
+        const Stmt *statement=body[i];
+        if(!statement)continue;
+        if(statement->kind==S_LOG||
+           swan_expr_requires_ast_compatibility(statement->value)||
+           swan_expr_requires_ast_compatibility(statement->condition)||
+           swan_block_requires_ast_compatibility(statement->body,statement->body_count)||
+           swan_block_requires_ast_compatibility(statement->alternate,statement->alt_count))
+            return true;
+    }
+    return false;
+}
+static inline bool swan_program_requires_ast_compatibility(const Program *program){
+    if(!program||program->import_count)return true;
+    for(size_t i=0;i<program->count;i++)
+        if(swan_block_requires_ast_compatibility(program->functions[i]->body,
+                                                 program->functions[i]->body_count))
+            return true;
+    return false;
+}
 static inline bool swan_codegen(Program *program, Text *output,
                                 const SwanTarget *target, SwanError *error) {
     if (!target || target->architecture != SWAN_ARCH_X86_64) {
         swan_error(error, NULL, "requested code-generation backend is not implemented");
         return false;
     }
-    if(program->import_count==0){
-        SwanIRModule module={0};Text ir_output={0};SwanError ir_error={0};char detail[256]={0};
-        bool optimized=swan_svm_prepare_ir(program,&module,&ir_error,detail,sizeof(detail));
-        uint64_t stage=swan_profile_start();bool emitted=optimized&&swan_codegen_x86_64_ir(&module,&ir_output,detail,sizeof(detail));swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
+    if(!swan_program_requires_ast_compatibility(program)){
+        SwanIRModule module={0};
+        Text ir_output={0};
+        SwanError ir_error={0};
+        char detail[256]={0};
+        bool prepared=swan_svm_prepare_ir(program,&module,&ir_error,detail,sizeof(detail));
+        if(!prepared){
+            if(error)*error=ir_error;
+            if(error&&!error->message[0])
+                swan_error(error,NULL,"%s",detail[0]?detail:"Swan IR preparation failed");
+            swan_ir_destroy(&module);
+            return false;
+        }
+        uint64_t stage=swan_profile_start();
+        bool emitted=swan_codegen_x86_64_ir(&module,&ir_output,detail,sizeof(detail));
+        swan_profile_end(SWAN_PROFILE_CODEGEN,stage);
         swan_ir_destroy(&module);
-        if(emitted){*output=ir_output;return true;}
-        free(ir_output.data);
+        if(!emitted){
+            free(ir_output.data);
+            if(error)swan_error(error,NULL,"%s",detail[0]?detail:"x86-64 IR code generation failed");
+            return false;
+        }
+        *output=ir_output;
+        return true;
     }
-    if(error)memset(error,0,sizeof(*error));
-    uint64_t stage=swan_profile_start();bool generated=swan_codegen_x86_64(program, output, error);swan_profile_end(SWAN_PROFILE_AST_CODEGEN,stage);return generated;
+    uint64_t stage=swan_profile_start();
+    bool generated=swan_codegen_x86_64(program,output,error);
+    swan_profile_end(SWAN_PROFILE_AST_CODEGEN,stage);
+    return generated;
 }
 
 typedef enum {
