@@ -432,7 +432,15 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
      if(in->result>=fn->next_value)return swan_ir_fail(error,cap,"SSA value ID exceeds function register range",fn->name,b,i);
      if(in->result<=fn->parameter_count)return swan_ir_fail(error,cap,"instruction redefines a parameter",fn->name,b,i);
     }
-    if(in->op==SWAN_IR_CONST){if(!swan_ir_value_type(in->type))return swan_ir_fail(error,cap,"constant cannot have void type",fn->name,b,i);}
+    if(in->op==SWAN_IR_CONST){
+     if(!swan_ir_value_type(in->type))
+      return swan_ir_fail(error,cap,"constant cannot have void type",fn->name,b,i);
+     if((in->type==SWAN_IR_I1&&(in->immediate<0||in->immediate>1))||
+        (in->type==SWAN_IR_I8&&(in->immediate<INT8_MIN||in->immediate>INT8_MAX))||
+        (in->type==SWAN_IR_I16&&(in->immediate<INT16_MIN||in->immediate>INT16_MAX))||
+        (in->type==SWAN_IR_I32&&(in->immediate<INT32_MIN||in->immediate>INT32_MAX)))
+      return swan_ir_fail(error,cap,"integer constant is outside its declared type range",fn->name,b,i);
+    }
     else if(in->op==SWAN_IR_PHI){
      if(!in->incoming_count||!in->incoming)return swan_ir_fail(error,cap,"phi has no incoming edges",fn->name,b,i);
      for(size_t k=0;k<in->incoming_count;k++){
