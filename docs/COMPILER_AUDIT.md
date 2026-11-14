@@ -24,7 +24,7 @@ The typed-IR verifier rejects malformed function/block storage, invalid operatio
 
 ## Source lowering
 
-The general typed-IR generator currently covers the implemented scalar/control-flow subset: integer and boolean expressions, direct calls, locals, assignment, if/else, while, break/continue, and short-circuit AND/OR.
+The general typed-IR generator currently covers the implemented scalar/control-flow subset: integer and boolean expressions, direct calls, locals, assignment, if/else, while, unconditional `loop:`, break/continue, pass, and short-circuit AND/OR. `loop:` lowers to the same verified CFG form as `while` and is exercised across every registered native/WASM backend.
 
 The Swan-authored SIL bridge is narrower. It accepts straight-line functions with one return expression, scalar parameters/literals, addition, subtraction, multiplication, equality, and signed-less-than. It uses a five-u32-word instruction record and currently limits the builder to 256 value IDs and 256 instructions; packed immediates are non-negative and limited to 16 bits. Functions outside this subset retain the general typed-IR path.
 
@@ -59,7 +59,7 @@ SVM is the target-independent compiler engine, not a runtime target. The old IR 
 - Floating-point source execution is not complete even though IR types and some portability emission paths represent float types.
 - Arrays, slices, strings/output, and runtime-lazy imports are not yet generally represented in typed IR.
 - Closures, full pointer/reference semantics, borrowing, ownership transfer, destructors, exception unwinding, and general heap objects are not implemented. Automatic last-use cleanup currently covers only eligible local arrays in the x86-64 AST compatibility backend; it is not yet a general ownership system.
-- The frontend keyword registry contains syntax vocabulary beyond the implemented language subset. A recognized keyword does not imply complete parsing, semantic analysis, lowering, or runtime behavior.
+- The frontend keyword registry contains syntax vocabulary beyond the implemented language subset. A recognized keyword does not imply complete parsing, semantic analysis, lowering, or runtime behavior. `loop:` is implemented as an unconditional loop through shared SVM control flow; the remaining unsupported reserved words stay explicit diagnostics, not silent no-ops.
 - Full cross-target runtime linking and OS/platform runtime integration are incomplete.
 - The IR machine-code backends are not yet equivalent to a globally register-allocated, scheduled optimizing backend.
 
