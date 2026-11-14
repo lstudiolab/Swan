@@ -11,6 +11,12 @@ func explode() -> bool:
 func double(x: int) -> int:
     return x * 2
 
+func i32_positive() -> i32:
+    return 123456789
+
+func i32_negative() -> i32:
+    return -2147483648
+
 func recurse(n: int) -> int:
     var value = n
     if n <= 0:

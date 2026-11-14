@@ -107,6 +107,11 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
   default:return false;
  }return swan_wasm_byte(b,op)&&swan_wasm_set(b,in->result);
 }
+static inline bool swan_wasm_emit_inst_checked(SwanWasmBuffer *buffer,const SwanIRModule *module,const SwanIRFunction *function,const SwanIRInst *instruction,bool memory64,size_t *alloca_index,uint32_t base_local,char *error,size_t cap,size_t block_index,size_t instruction_index){
+ if(swan_wasm_emit_inst(buffer,module,function,instruction,memory64,alloca_index,base_local))return true;
+ if(error&&cap)snprintf(error,cap,"WebAssembly lowering failed in function '%s', block %zu, instruction %zu (opcode %d, type %d, immediate %lld)",function->name,block_index,instruction_index,(int)instruction->op,(int)instruction->type,(long long)instruction->immediate);
+ return false;
+}
 static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer *out,char *error,size_t cap,bool memory64){
  if(error&&cap)error[0]=0;
  if(!m||!out){if(error&&cap)snprintf(error,cap,"WebAssembly code generation requires a module and output buffer");return false;}
@@ -179,7 +184,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
    for(size_t b=0;b<fn->block_count&&ok;b++){
     ok=swan_wasm_byte(&body,0x0b);
     const SwanIRBlock *bb=&fn->blocks[b];
-    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local);
+    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst_checked(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local,error,cap,0,i);
     const SwanIRTerm *t=&bb->terminator;
     if(!ok)break;
     if(t->kind==SWAN_IR_RET){if(t->value)ok=swan_wasm_get(&body,t->value);if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);ok=ok&&swan_wasm_byte(&body,0x0f);}
@@ -198,7 +203,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
     if(error&&cap)snprintf(error,cap,"WebAssembly backend does not yet support single-block branch terminators");
     ok=false;
    }
-   for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local);
+   for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst_checked(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local,error,cap,b,i);
    if(ok&&bb->terminator.value)ok=swan_wasm_get(&body,bb->terminator.value);
    if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);
    if(ok)ok=swan_wasm_byte(&body,bb->terminator.kind==SWAN_IR_UNREACHABLE?0x00:0x0f);
@@ -210,7 +215,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
  SwanWasmBuffer *sections[]={&type,&func,&memory,&globals,&exports,&code};uint8_t ids[]={1,3,5,6,7,10};
  for(size_t i=0;ok&&i<6;i++)if(sections[i]->length)ok=swan_wasm_byte(&module,ids[i])&&swan_wasm_u32(&module,(uint32_t)sections[i]->length)&&swan_wasm_bytes(&module,sections[i]->data,sections[i]->length);
  free(type.data);free(func.data);free(exports.data);free(memory.data);free(globals.data);free(code.data);
- if(!ok){free(module.data);if(error&&cap)snprintf(error,cap,"WebAssembly code generation failed or encountered unsupported IR");return false;}
+ if(!ok){free(module.data);if(error&&cap&&!error[0])snprintf(error,cap,"WebAssembly code generation failed while emitting module sections or control flow");return false;}
  *out=module;return true;
 }
 static inline bool swan_codegen_wasm32(const SwanIRModule *m,SwanWasmBuffer *out,char *error,size_t cap){return swan_codegen_wasm_target(m,out,error,cap,false);}
