@@ -25,4 +25,3 @@ fn main() -> int:
     echo!("SIL_PIPELINE_PASSED")
     return 0
 
-out
