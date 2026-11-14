@@ -6,9 +6,7 @@ func main() -> int:
 
     var i = 0
     while i < count
-        state = state ^ ((state * 8192) & 4294967295)
-        state = state ^ (state // 131072)
-        state = state ^ ((state * 32) & 4294967295)
+        state = (state * 1664525 + 1013904223) % 4294967296
         values[i] = state
         i = i + 1
 
@@ -61,7 +59,7 @@ func main() -> int:
             if values[i - 1] > values[i]
                 log "SORT_FAILED"
                 return 2
-        checksum = checksum + values[i]
+        checksum = checksum + (values[i] as i64)
         i = i + 1
 
     log checksum
