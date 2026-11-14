@@ -31,24 +31,24 @@ func main() -> int:
 
     var end = count - 1
     while end > 0
-        let temporary = values[0]
+        let extract_temp = values[0]
         values[0] = values[end]
-        values[end] = temporary
+        values[end] = extract_temp
         end = end - 1
 
-        var root = 0
-        while root * 2 + 1 <= end
-            let left = root * 2 + 1
-            var largest = left
-            let right = left + 1
-            if right <= end
-                if values[right] > values[left]
-                    largest = right
-            if values[root] < values[largest]
-                let swap_value = values[root]
-                values[root] = values[largest]
-                values[largest] = swap_value
-                root = largest
+        var extract_root = 0
+        while extract_root * 2 + 1 <= end
+            let extract_left = extract_root * 2 + 1
+            var extract_largest = extract_left
+            let extract_right = extract_left + 1
+            if extract_right <= end
+                if values[extract_right] > values[extract_left]
+                    extract_largest = extract_right
+            if values[extract_root] < values[extract_largest]
+                let extract_swap = values[extract_root]
+                values[extract_root] = values[extract_largest]
+                values[extract_largest] = extract_swap
+                extract_root = extract_largest
             else
                 break
 
