@@ -13,9 +13,9 @@ func unused_helper() -> int:
 func main() -> int:
     var value = 1
     value = value
-    print 4 / 0
+    log 4 / 0
     if true:
-        print value
+        log value
     return 0
 SWAN
 
@@ -36,7 +36,7 @@ printf 'PASS: --warnings-as-errors stops before code generation\n'
 
 cat > "$TMP/error.swan" <<'SWAN'
 func main() -> int:
-    print missing_symbol
+    log missing_symbol
     return 0
 SWAN
 if "$SWAN" "$TMP/error.swan" --emit-asm -o "$TMP/error.s" 2>"$TMP/error.err"; then
