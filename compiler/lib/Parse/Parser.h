@@ -51,6 +51,7 @@ static inline Stmt *statement_impl(Parser *p){
  if(eat(p,T_BREAK))return new_stmt(p,S_BREAK,t);
  if(eat(p,T_CONTINUE))return new_stmt(p,S_CONTINUE,t);
  if(eat(p,T_PASS))return new_stmt(p,S_PASS,t);
+ if(eat(p,T_LOOP)){s=new_stmt(p,S_WHILE,t);Token truth=t;truth.kind=T_TRUE;truth.text="true";s->condition=new_expr(p,E_BOOL,truth);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;return s;}
  if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=swan_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){swan_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
  s=new_stmt(p,S_EXPR,t);if(s)s->value=expression(p,1);return s;
 }
