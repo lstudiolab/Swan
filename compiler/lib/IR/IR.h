@@ -198,64 +198,124 @@ static inline bool swan_ir_integer_type(SwanIRType t) {
  return t>=SWAN_IR_I1&&t<=SWAN_IR_I64;
 }
 typedef struct {
- uint32_t value;
- uint32_t block;
- uint32_t instruction;
+    uint32_t value;
+    uint32_t block;
+    uint32_t instruction;
 } SwanIRDefinition;
 
-static inline int swan_ir_compare_definitions(const void *lhs,const void *rhs) {
- const SwanIRDefinition *left=lhs;
- const SwanIRDefinition *right=rhs;
- if(left->value!=right->value)return (left->value>right->value)-(left->value<right->value);
- if(left->block!=right->block)return (left->block>right->block)-(left->block<right->block);
- return (left->instruction>right->instruction)-(left->instruction<right->instruction);
+static inline int swan_ir_compare_definitions(const void *lhs, const void *rhs)
+{
+    const SwanIRDefinition *left = lhs;
+    const SwanIRDefinition *right = rhs;
+
+    if (left->value != right->value) {
+        return (left->value > right->value) - (left->value < right->value);
+    }
+
+    if (left->block != right->block) {
+        return (left->block > right->block) - (left->block < right->block);
+    }
+
+    return (left->instruction > right->instruction) -
+           (left->instruction < right->instruction);
 }
 
-/* Validate SSA definition uniqueness in O(I log I), rather than repeatedly
+/*
+ * Validate SSA definition uniqueness in O(I log I), rather than repeatedly
  * rescanning all preceding instructions for every definition. The compact
- * sorted index preserves the exact location of a malformed redefinition. */
+ * sorted index preserves the exact location of a malformed redefinition.
+ */
 static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
-                                                      char *error,size_t cap) {
- size_t definition_count=0;
- for(size_t b=0;b<fn->block_count;b++){
-  const SwanIRBlock *block=&fn->blocks[b];
-  if(block->instruction_count>block->instruction_capacity||
-     (block->instruction_count&&!block->instructions))
-   return swan_ir_fail(error,cap,"invalid block instruction storage",fn->name,b,0);
-  if(block->instruction_count>SIZE_MAX-definition_count)
-   return swan_ir_fail(error,cap,"SSA definition count overflow",fn->name,b,0);
-  for(size_t i=0;i<block->instruction_count;i++)
-   if(block->instructions[i].result)definition_count++;
- }
- if(definition_count>SIZE_MAX/sizeof(SwanIRDefinition))
-  return swan_ir_fail(error,cap,"SSA definition table size overflow",fn->name,0,0);
- SwanIRDefinition *definitions=definition_count
-  ?malloc(definition_count*sizeof(*definitions)):NULL;
- if(definition_count&&!definitions)
-  return swan_ir_fail(error,cap,"out of memory validating SSA definitions",fn->name,0,0);
- size_t next=0;
- for(size_t b=0;b<fn->block_count;b++)
-  for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
-   uint32_t result=fn->blocks[b].instructions[i].result;
-   if(!result)continue;
-   if(b>UINT32_MAX||i>UINT32_MAX){
+                                                      char *error,
+                                                      size_t capacity)
+{
+    size_t definition_count = 0;
+
+    for (size_t block_index = 0; block_index < fn->block_count; ++block_index) {
+        const SwanIRBlock *block = &fn->blocks[block_index];
+
+        if (block->instruction_count > block->instruction_capacity ||
+            (block->instruction_count != 0 && block->instructions == NULL)) {
+            return swan_ir_fail(error, capacity,
+                                "invalid block instruction storage",
+                                fn->name, block_index, 0);
+        }
+
+        if (block->instruction_count > SIZE_MAX - definition_count) {
+            return swan_ir_fail(error, capacity,
+                                "SSA definition count overflow",
+                                fn->name, block_index, 0);
+        }
+
+        for (size_t instruction_index = 0;
+             instruction_index < block->instruction_count;
+             ++instruction_index) {
+            if (block->instructions[instruction_index].result != 0) {
+                ++definition_count;
+            }
+        }
+    }
+
+    if (definition_count > SIZE_MAX / sizeof(SwanIRDefinition)) {
+        return swan_ir_fail(error, capacity,
+                            "SSA definition table size overflow",
+                            fn->name, 0, 0);
+    }
+
+    SwanIRDefinition *definitions = NULL;
+    if (definition_count != 0) {
+        definitions = malloc(definition_count * sizeof(*definitions));
+        if (definitions == NULL) {
+            return swan_ir_fail(error, capacity,
+                                "out of memory validating SSA definitions",
+                                fn->name, 0, 0);
+        }
+    }
+
+    size_t next_definition = 0;
+    for (size_t block_index = 0; block_index < fn->block_count; ++block_index) {
+        const SwanIRBlock *block = &fn->blocks[block_index];
+
+        for (size_t instruction_index = 0;
+             instruction_index < block->instruction_count;
+             ++instruction_index) {
+            uint32_t result = block->instructions[instruction_index].result;
+            if (result == 0) {
+                continue;
+            }
+
+            if (block_index > UINT32_MAX || instruction_index > UINT32_MAX) {
+                free(definitions);
+                return swan_ir_fail(error, capacity,
+                                    "SSA definition location exceeds IR index range",
+                                    fn->name, block_index, instruction_index);
+            }
+
+            definitions[next_definition++] = (SwanIRDefinition) {
+                .value = result,
+                .block = (uint32_t)block_index,
+                .instruction = (uint32_t)instruction_index
+            };
+        }
+    }
+
+    if (definition_count > 1) {
+        qsort(definitions, definition_count, sizeof(*definitions),
+              swan_ir_compare_definitions);
+    }
+
+    for (size_t index = 1; index < definition_count; ++index) {
+        if (definitions[index - 1].value == definitions[index].value) {
+            SwanIRDefinition duplicate = definitions[index];
+            free(definitions);
+
+            return swan_ir_fail(error, capacity, "duplicate SSA value ID",
+                                fn->name, duplicate.block, duplicate.instruction);
+        }
+    }
+
     free(definitions);
-    return swan_ir_fail(error,cap,"SSA definition location exceeds IR index range",fn->name,b,i);
-   }
-   definitions[next++]=(SwanIRDefinition){result,(uint32_t)b,(uint32_t)i};
-  }
- if(definition_count>1)
-  qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_definitions);
- for(size_t i=1;i<definition_count;i++){
-  if(definitions[i-1].value==definitions[i].value){
-   SwanIRDefinition duplicate=definitions[i];
-   free(definitions);
-   return swan_ir_fail(error,cap,"duplicate SSA value ID",fn->name,
-                       duplicate.block,duplicate.instruction);
-  }
- }
- free(definitions);
- return true;
+    return true;
 }
 
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
