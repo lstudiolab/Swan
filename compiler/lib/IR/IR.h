@@ -197,15 +197,23 @@ static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t
 static inline bool swan_ir_integer_type(SwanIRType t) {
  return t>=SWAN_IR_I1&&t<=SWAN_IR_I64;
 }
-static inline int swan_ir_compare_value_ids(const void *lhs,const void *rhs) {
- uint32_t left=*(const uint32_t *)lhs;
- uint32_t right=*(const uint32_t *)rhs;
- return (left>right)-(left<right);
+typedef struct {
+ uint32_t value;
+ uint32_t block;
+ uint32_t instruction;
+} SwanIRDefinition;
+
+static inline int swan_ir_compare_definitions(const void *lhs,const void *rhs) {
+ const SwanIRDefinition *left=lhs;
+ const SwanIRDefinition *right=rhs;
+ if(left->value!=right->value)return (left->value>right->value)-(left->value<right->value);
+ if(left->block!=right->block)return (left->block>right->block)-(left->block<right->block);
+ return (left->instruction>right->instruction)-(left->instruction<right->instruction);
 }
 
 /* Validate SSA definition uniqueness in O(I log I), rather than repeatedly
- * rescanning all preceding instructions for every definition. Sorting a
- * compact ID list also avoids allocating a bitmap sized by the highest ID. */
+ * rescanning all preceding instructions for every definition. The compact
+ * sorted index preserves the exact location of a malformed redefinition. */
 static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
                                                       char *error,size_t cap) {
  size_t definition_count=0;
@@ -219,9 +227,9 @@ static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
   for(size_t i=0;i<block->instruction_count;i++)
    if(block->instructions[i].result)definition_count++;
  }
- if(definition_count>SIZE_MAX/sizeof(uint32_t))
+ if(definition_count>SIZE_MAX/sizeof(SwanIRDefinition))
   return swan_ir_fail(error,cap,"SSA definition table size overflow",fn->name,0,0);
- uint32_t *definitions=definition_count
+ SwanIRDefinition *definitions=definition_count
   ?malloc(definition_count*sizeof(*definitions)):NULL;
  if(definition_count&&!definitions)
   return swan_ir_fail(error,cap,"out of memory validating SSA definitions",fn->name,0,0);
@@ -229,14 +237,16 @@ static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
  for(size_t b=0;b<fn->block_count;b++)
   for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    uint32_t result=fn->blocks[b].instructions[i].result;
-   if(result)definitions[next++]=result;
+   if(result)definitions[next++]=(SwanIRDefinition){result,(uint32_t)b,(uint32_t)i};
   }
  if(definition_count>1)
-  qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_value_ids);
+  qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_definitions);
  for(size_t i=1;i<definition_count;i++){
-  if(definitions[i-1]==definitions[i]){
+  if(definitions[i-1].value==definitions[i].value){
+   SwanIRDefinition duplicate=definitions[i];
    free(definitions);
-   return swan_ir_fail(error,cap,"duplicate SSA value ID",fn->name,0,0);
+   return swan_ir_fail(error,cap,"duplicate SSA value ID",fn->name,
+                       duplicate.block,duplicate.instruction);
   }
  }
  free(definitions);
