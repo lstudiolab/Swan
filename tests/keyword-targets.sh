@@ -9,12 +9,21 @@ cat > "$TMP/loop.swan" <<'SWAN'
 func value() -> int:
     return 4
 
+func enabled() -> bool:
+    return true
+
+func disabled() -> bool:
+    return false
+
+func before(value: int, limit: int) -> bool:
+    return value < limit and not (value == limit) or value < 0
+
 func main() -> int:
     const limit = value()
     var count = 0
     loop:
         count = count + 1
-        if count < limit:
+        if enabled() and not disabled() and before(count, limit):
             continue
         else:
             pass
