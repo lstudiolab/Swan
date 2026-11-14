@@ -19,7 +19,7 @@ mkdir -p "$ROOT/build"
 # Keep every pass reachable from the temporary main, then rename that entry
 # point so the generated object does not collide with the C host's main.
 cat >> "$ROOT/build/sil_runtime.swan" <<'SWAN'
-fn main() -> int:
+func main() -> int:
     let state = array_unchecked(1280)
     let workspace = array_unchecked(1024)
     var count = sil_emit_param(state, 0, 1 * 1048576 + 2 * 65536)
@@ -27,7 +27,6 @@ fn main() -> int:
     count = sil_emit_binary(state, count, 34 * 16777216 + 3 * 65536 + 1 * 256 + 2)
     count = sil_emit_return(state, count, 3)
     return sil_optimize(state, count, workspace)
-out
 SWAN
 "$ROOT/build/swan-bootstrap" build "$ROOT/build/sil_runtime.swan" \
     --emit-asm -o "$ROOT/build/sil_runtime.s"
