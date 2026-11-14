@@ -9,12 +9,10 @@ defer {
     values.deallocate()
 }
 
-var state: UInt32 = 305_419_896
+var state: UInt64 = 305_419_896
 for i in 0..<count {
-    state ^= state << 13
-    state ^= state >> 17
-    state ^= state << 5
-    values[i] = state
+    state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296
+    values[i] = UInt32(state)
 }
 
 @inline(__always)
