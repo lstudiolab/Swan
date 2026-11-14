@@ -215,7 +215,7 @@ func main() -> int:
 
 ### External declarations
 
-An external declaration describes a function implemented outside the Swan source. The parser accepts the contextual `external` spelling or the reserved `extern` token before a function declaration. External declarations have no Swan body.
+An external declaration describes a function implemented outside the Swan source. The parser accepts the contextual `external` spelling before a function declaration. External declarations have no Swan body.
 
 C header imports are the documented route for supported C interoperability; see [Section 14](#14-c-interoperability).
 
@@ -622,7 +622,7 @@ These spellings are recognized in specific parser contexts and remain available 
 | `export` | File-scope exported function marker |
 | `C` | C import/export marker |
 | `external` | External function declaration marker |
-| `extern` | External function declaration token |
+
 | `lazy` | Modifier before an import |
 | `out` | Legacy block terminator accepted after a dedent |
 | `log` | Built-in output statement spelling |
