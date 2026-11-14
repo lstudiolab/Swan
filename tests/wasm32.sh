@@ -17,6 +17,12 @@ func i32_positive() -> i32:
 func i32_negative() -> i32:
     return -2147483648
 
+func i32_positive() -> i32:
+    return 123456789
+
+func i32_negative() -> i32:
+    return -2147483648
+
 func recurse(n: int) -> int:
     var value = n
     if n <= 0:
@@ -40,7 +46,9 @@ func main() -> int:
         return 1
     out
     if true or explode():
-        return total + recurse(4)
+        if i32_positive() == 123456789:
+        if i32_negative() == -2147483648:
+            return total + recurse(4)
     out
     return 0
 

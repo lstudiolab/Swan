@@ -87,8 +87,8 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
                  operand_type==SWAN_IR_I16||operand_type==SWAN_IR_I32;
   int64_t minimum=integer32?INT32_MIN:INT64_MIN;
   if(!swan_wasm_get(b,in->a)||
-     !swan_wasm_const(b,integer32,minimum)||!swan_wasm_byte(b,integer32?0x46:0x51)||
-     !swan_wasm_get(b,in->b)||!swan_wasm_const(b,integer32,-1)||
+     !swan_wasm_const(b,!integer32,minimum)||!swan_wasm_byte(b,integer32?0x46:0x51)||
+     !swan_wasm_get(b,in->b)||!swan_wasm_const(b,!integer32,-1)||
      !swan_wasm_byte(b,integer32?0x46:0x51)||
      !swan_wasm_byte(b,integer32?0x71:0x83)||
      !swan_wasm_byte(b,0x04)||!swan_wasm_byte(b,0x40)||
