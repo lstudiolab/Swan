@@ -100,7 +100,7 @@ out
 SWAN
 "$SWAN" build "$TMP/initialized-on-all-branches.swan" -o "$TMP/initialized-on-all-branches"
 test "$("$TMP/initialized-on-all-branches")" = "21"
-printf 'PASS: definite initialization merges assignments from both branches\\n'
+printf 'PASS: definite initialization merges assignments from both branches\n'
 
 cat > "$TMP/boolean-abi.swan" <<'SWAN'
 fn identity(value: bool) -> bool:
@@ -118,7 +118,7 @@ SWAN
 "$SWAN" build "$TMP/boolean-abi.swan" -o "$TMP/boolean-abi"
 expected=$(printf '0\n21')
 test "$("$TMP/boolean-abi")" = "$expected"
-printf 'PASS: x86-64 AST backend normalizes boolean parameters and return values\\n'
+printf 'PASS: x86-64 AST backend normalizes boolean parameters and return values\n'
 
 mkdir -p "$TMP/stdlib"
 cat > "$TMP/stdlib/helper.swan" <<'SWAN'
@@ -141,7 +141,7 @@ if [ "$import_status" -ne 21 ]; then
     echo "FAIL: imported module returned '$import_status', expected 21" >&2
     exit 1
 fi
-printf 'PASS: imported module tokens remain valid through parsing and code generation\\n'
+printf 'PASS: imported module tokens remain valid through parsing and code generation\n'
 
 cat > "$TMP/unknown-function.swan" <<'SWAN'
 fn main():
@@ -307,7 +307,7 @@ out
 SWAN
 "$SWAN" build "$TMP/array-conditional-drop.swan" -o "$TMP/array-conditional-drop"
 "$TMP/array-conditional-drop"
-printf 'PASS: cleanup safely skips arrays whose declaration branch did not execute\\n'
+printf 'PASS: cleanup safely skips arrays whose declaration branch did not execute\n'
 
 cat > "$TMP/array-last-use.swan" <<'SWAN'
 fn main():
@@ -344,7 +344,7 @@ out
 SWAN
 "$SWAN" build "$TMP/array-early-return.swan" -o "$TMP/array-early-return"
 "$TMP/array-early-return"
-printf 'PASS: early-return cleanup is safe and idempotent\\n'
+printf 'PASS: early-return cleanup is safe and idempotent\n'
 
 cat > "$TMP/samc-escape.swan" <<'SWAN'
 fn consume(value):
