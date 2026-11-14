@@ -21,7 +21,6 @@ func recurse(n: int) -> int:
     var value = n
     if n <= 0:
         return value
-    out
     else:
         return value + recurse(n - 1)
 
@@ -33,15 +32,11 @@ func main() -> int:
         count = count + 1
         if count == 3:
             continue
-        out
         total = total + double(count)
-    out
     if false and explode():
         return 1
-    out
     if true or explode():
         return total + recurse(4)
-    out
     return 0
 
 SWAN
