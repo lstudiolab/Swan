@@ -67,7 +67,16 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
     const SwanIRInst *in=&bb->instructions[i];int dst=swan_a64_value_offset(in->result),a=swan_a64_value_offset(in->a),z=swan_a64_value_offset(in->b);
     switch(in->op){
      case SWAN_IR_PHI:break;
-     case SWAN_IR_CONST:text_add(o,"    ldr x9, =%lld\n    str x9, [sp, #%d]\n",(long long)in->immediate,dst);break;
+     case SWAN_IR_CONST:{
+      uint64_t bits=(uint64_t)in->immediate;
+      text_add(o,"    movz x9, #%u\n",(unsigned)(bits&0xffffu));
+      for(unsigned shift=16;shift<64;shift+=16){
+       unsigned chunk=(unsigned)((bits>>shift)&0xffffu);
+       if(chunk)text_add(o,"    movk x9, #%u, lsl #%u\n",chunk,shift);
+      }
+      text_add(o,"    str x9, [sp, #%d]\n",dst);
+      break;
+     }
      case SWAN_IR_ALLOCA:{size_t off=value_bytes+ai++*8u;text_add(o,"    add x9, sp, #%zu\n    str x9, [sp, #%d]\n",off,dst);break;}
      case SWAN_IR_LOAD:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [x9]\n    str x10, [sp, #%d]\n",a,dst);break;
      case SWAN_IR_STORE:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    str x10, [x9]\n",a,z);break;
