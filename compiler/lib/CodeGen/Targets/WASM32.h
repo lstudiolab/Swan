@@ -28,12 +28,44 @@ static inline uint8_t swan_wasm_type_for(SwanIRType t,bool memory64){return t==S
 static inline bool swan_wasm_get(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x20)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_set(SwanWasmBuffer *b,uint32_t id){return id&&swan_wasm_byte(b,0x21)&&swan_wasm_u32(b,id-1);}
 static inline bool swan_wasm_const(SwanWasmBuffer *b,bool i64,int64_t v){return swan_wasm_byte(b,i64?0x42:0x41)&&swan_wasm_s64(b,v);}
-static inline bool swan_wasm_emit_edge(SwanWasmBuffer *b,const SwanIRFunction *fn,size_t from,size_t to){
- const SwanIRBlock *dest=&fn->blocks[to];
- for(size_t i=0;i<dest->instruction_count;i++){const SwanIRInst *phi=&dest->instructions[i];if(phi->op!=SWAN_IR_PHI)continue;
-  bool found=false;for(size_t k=0;k<phi->incoming_count;k++)if(phi->incoming[k].block==from){if(!swan_wasm_get(b,phi->incoming[k].value)||!swan_wasm_set(b,phi->result))return false;found=true;break;}
+static inline uint32_t swan_wasm_phi_local_index(const SwanIRFunction *fn,
+        size_t target,size_t instruction_index,uint32_t first_local){
+ uint32_t ordinal=0;
+ for(size_t block=0;block<target;block++)
+  for(size_t i=0;i<fn->blocks[block].instruction_count;i++)
+   ordinal+=fn->blocks[block].instructions[i].op==SWAN_IR_PHI;
+ for(size_t i=0;i<instruction_index;i++)
+  ordinal+=fn->blocks[target].instructions[i].op==SWAN_IR_PHI;
+ return first_local+ordinal;
+}
+static inline bool swan_wasm_emit_edge(SwanWasmBuffer *buffer,
+        const SwanIRFunction *function,size_t from,size_t to,
+        uint32_t phi_local_base){
+ const SwanIRBlock *destination=&function->blocks[to];
+ /* Stage every source before writing any phi destination. */
+ for(size_t i=0;i<destination->instruction_count;i++){
+  const SwanIRInst *phi=&destination->instructions[i];
+  if(phi->op!=SWAN_IR_PHI)continue;
+  bool found=false;
+  for(size_t incoming=0;incoming<phi->incoming_count;incoming++){
+   if(phi->incoming[incoming].block!=from)continue;
+   uint32_t scratch=swan_wasm_phi_local_index(function,to,i,phi_local_base);
+   if(!swan_wasm_get(buffer,phi->incoming[incoming].value)||
+      !swan_wasm_byte(buffer,0x21)||!swan_wasm_u32(buffer,scratch))return false;
+   found=true;
+   break;
+  }
   if(!found)return false;
- }return true;
+ }
+ /* Commit the staged values after all source locals have been preserved. */
+ for(size_t i=0;i<destination->instruction_count;i++){
+  const SwanIRInst *phi=&destination->instructions[i];
+  if(phi->op!=SWAN_IR_PHI)continue;
+  uint32_t scratch=swan_wasm_phi_local_index(function,to,i,phi_local_base);
+  if(!swan_wasm_byte(buffer,0x20)||!swan_wasm_u32(buffer,scratch)||
+     !swan_wasm_set(buffer,phi->result))return false;
+ }
+ return true;
 }
 static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,const SwanIRFunction *fn,const SwanIRInst *in,bool memory64,size_t *alloca_index,uint32_t base_local){
  bool i32=in->type==SWAN_IR_I1||in->type==SWAN_IR_I8||in->type==SWAN_IR_I16||in->type==SWAN_IR_I32;
@@ -62,10 +94,15 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
  }return swan_wasm_byte(b,op)&&swan_wasm_set(b,in->result);
 }
 static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer *out,char *error,size_t cap,bool memory64){
+ if(error&&cap)error[0]=0;
+ if(!m||!out){if(error&&cap)snprintf(error,cap,"WebAssembly code generation requires a module and output buffer");return false;}
+ memset(out,0,sizeof(*out));
  if(!swan_ir_verify(m,error,cap))return false;
  size_t main_index=m->function_count,alloca_total=0;
  for(size_t f=0;f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];if(!strcmp(fn->name,"main"))main_index=f;
+  const SwanIRFunction *fn=&m->functions[f];
+  if(fn->external){if(error&&cap)snprintf(error,cap,"WebAssembly backend does not yet support external function imports");return false;}
+  if(!strcmp(fn->name,"main"))main_index=f;
   if(fn->parameter_count>32){if(error&&cap)snprintf(error,cap,"WebAssembly backend supports at most 32 parameters");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];if(in->op==SWAN_IR_ALLOCA)alloca_total++;
@@ -94,14 +131,27 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
  for(size_t f=0;ok&&f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];SwanWasmBuffer body={0};
   uint32_t value_locals=fn->next_value-(uint32_t)fn->parameter_count-1;
-  size_t fn_allocas=0;for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)fn_allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
+  size_t fn_allocas=0,phi_count=0;
+  for(size_t b=0;b<fn->block_count;b++)
+   for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+    fn_allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
+    phi_count+=fn->blocks[b].instructions[i].op==SWAN_IR_PHI;
+   }
   uint32_t base_local=(uint32_t)fn->next_value-1,pc=base_local+(fn_allocas?1u:0u);
-  ok=swan_wasm_u32(&body,value_locals+(fn_allocas?1u:0u)+(fn->block_count>1?1u:0u));
+  uint32_t phi_local_base=pc+(fn->block_count>1?1u:0u);
+  ok=swan_wasm_u32(&body,value_locals+(fn_allocas?1u:0u)+(fn->block_count>1?1u:0u)+(uint32_t)phi_count);
   for(uint32_t id=(uint32_t)fn->parameter_count+1;ok&&id<fn->next_value;id++){
    SwanIRType t=swan_ir_value_type_of(fn,id);if(t==SWAN_IR_VOID)t=SWAN_IR_I64;ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type_for(t,memory64));
   }
   if(ok&&fn_allocas)ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type_for(SWAN_IR_PTR,memory64));
   if(ok&&fn->block_count>1)ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,0x7f)&&swan_wasm_const(&body,false,0)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc);
+  for(size_t b=0;ok&&b<fn->block_count;b++)
+   for(size_t i=0;ok&&i<fn->blocks[b].instruction_count;i++){
+    const SwanIRInst *phi=&fn->blocks[b].instructions[i];
+    if(phi->op==SWAN_IR_PHI)
+     ok=swan_wasm_u32(&body,1)&&
+        swan_wasm_byte(&body,swan_wasm_type_for(phi->type,memory64));
+   }
   size_t alloc_index=0;
   if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x23)&&swan_wasm_u32(&body,0)&&swan_wasm_byte(&body,0x22)&&swan_wasm_u32(&body,base_local)&&swan_wasm_const(&body,memory64,(int64_t)(fn_allocas*8u+16u))&&swan_wasm_byte(&body,memory64?0x7c:0x6a)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);
   if(ok&&fn->block_count>1){
@@ -120,16 +170,20 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
     if(!ok)break;
     if(t->kind==SWAN_IR_RET){if(t->value)ok=swan_wasm_get(&body,t->value);if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);ok=ok&&swan_wasm_byte(&body,0x0f);}
     else if(t->kind==SWAN_IR_UNREACHABLE)ok=swan_wasm_byte(&body,0x00);
-    else if(t->kind==SWAN_IR_BR){ok=swan_wasm_emit_edge(&body,fn,b,t->target)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));}
+    else if(t->kind==SWAN_IR_BR){ok=swan_wasm_emit_edge(&body,fn,b,t->target,phi_local_base)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));}
     else if(t->kind==SWAN_IR_COND_BR){
      ok=swan_wasm_get(&body,t->value)&&swan_wasm_byte(&body,0x04)&&swan_wasm_byte(&body,0x40);
      if(ok)ok=swan_wasm_emit_edge(&body,fn,b,t->target)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc);
-     if(ok)ok=swan_wasm_byte(&body,0x05)&&swan_wasm_emit_edge(&body,fn,b,t->alternate)&&swan_wasm_const(&body,false,(int64_t)t->alternate)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));
+     if(ok)ok=swan_wasm_byte(&body,0x05)&&swan_wasm_emit_edge(&body,fn,b,t->alternate,phi_local_base)&&swan_wasm_const(&body,false,(int64_t)t->alternate)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));
     }else ok=false;
    }
    if(ok)ok=swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x00)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x00);
   }else if(ok){
    const SwanIRBlock *bb=&fn->blocks[0];
+   if(bb->terminator.kind!=SWAN_IR_RET&&bb->terminator.kind!=SWAN_IR_UNREACHABLE){
+    if(error&&cap)snprintf(error,cap,"WebAssembly backend does not yet support single-block branch terminators");
+    ok=false;
+   }
    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local);
    if(ok&&bb->terminator.value)ok=swan_wasm_get(&body,bb->terminator.value);
    if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);
