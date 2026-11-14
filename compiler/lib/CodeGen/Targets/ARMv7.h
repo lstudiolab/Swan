@@ -4,11 +4,13 @@
 #include "swan/ir.h"
 static inline int swan_armv7_offset(uint32_t id){return (int)(id*4u);}
 static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *error,size_t cap){
+ if(error&&cap)error[0]=0;
+ if(!m||!o){if(error&&cap)snprintf(error,cap,"ARMv7 code generation requires a module and output buffer");return false;}
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
   if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I32&&fn->return_type!=SWAN_IR_I1){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32/i1 and void returns");return false;}
-  for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I32){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32 parameters only");return false;}
+  for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I32&&fn->parameter_types[p]!=SWAN_IR_I1){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32 parameters only");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
    if(in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_PTR&&in->type!=SWAN_IR_VOID){if(error&&cap)snprintf(error,cap,"ARMv7 backend supports i32/i1 scalar values only");return false;}
@@ -16,12 +18,38 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
   }
  }
  for(size_t f=0;f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];size_t allocas=0;
-  for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
-  size_t value_bytes=((size_t)fn->next_value+1)*4u,frame=(value_bytes+allocas*4u+7u)&~(size_t)7u;if(frame<8)frame=8;
+  const SwanIRFunction *fn=&m->functions[f];size_t allocas=0,phi_slots=0;
+  for(size_t b=0;b<fn->block_count;b++){
+   size_t block_phi_count=0;
+   for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+    const SwanIRInst *instruction=&fn->blocks[b].instructions[i];
+    allocas+=instruction->op==SWAN_IR_ALLOCA;
+    block_phi_count+=instruction->op==SWAN_IR_PHI;
+   }
+   if(block_phi_count>phi_slots)phi_slots=block_phi_count;
+  }
+  size_t value_bytes=((size_t)fn->next_value+1)*4u;
+  if(allocas>(SIZE_MAX-value_bytes)/4u||
+     phi_slots>(SIZE_MAX-value_bytes-allocas*4u)/4u||
+     value_bytes+allocas*4u+phi_slots*4u>SIZE_MAX-7u){
+   if(error&&cap)snprintf(error,cap,"ARMv7 stack frame size overflow");
+   return false;
+  }
+  size_t frame=(value_bytes+allocas*4u+phi_slots*4u+7u)&~(size_t)7u;
+  if(frame<8)frame=8;
+  if(frame>4095){if(error&&cap)snprintf(error,cap,"ARMv7 stack frame exceeds its immediate-offset limit");return false;}
   text_add(o,".syntax unified\n.arm\n.text\n.align 2\n.global %s\n.type %s, %%function\n%s:\n    push {r4, lr}\n    sub sp, sp, #%zu\n",fn->name,fn->name,fn->name,frame);
-  for(size_t p=0;p<fn->parameter_count&&p<4;p++)text_add(o,"    str r%zu, [sp, #%d]\n",p,swan_armv7_offset((uint32_t)p+1));
-  for(size_t p=4;p<fn->parameter_count;p++)text_add(o,"    ldr r0, [sp, #%zu]\n    str r0, [sp, #%d]\n",frame+8u+(p-4u)*4u,swan_armv7_offset((uint32_t)p+1));
+  for(size_t p=0;p<fn->parameter_count&&p<4;p++){
+   if(fn->parameter_types[p]==SWAN_IR_I1)
+    text_add(o,"    and r12, r%zu, #1\n    str r12, [sp, #%d]\n",p,swan_armv7_offset((uint32_t)p+1));
+   else text_add(o,"    str r%zu, [sp, #%d]\n",p,swan_armv7_offset((uint32_t)p+1));
+  }
+  for(size_t p=4;p<fn->parameter_count;p++){
+   size_t source_offset=frame+8u+(p-4u)*4u;
+   if(fn->parameter_types[p]==SWAN_IR_I1)
+    text_add(o,"    ldrb r0, [sp, #%zu]\n    str r0, [sp, #%d]\n",source_offset,swan_armv7_offset((uint32_t)p+1));
+   else text_add(o,"    ldr r0, [sp, #%zu]\n    str r0, [sp, #%d]\n",source_offset,swan_armv7_offset((uint32_t)p+1));
+  }
   size_t ai=0;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];text_add(o,".Lsw_f%zu_b%zu:\n",f,b);
@@ -39,6 +67,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
       for(size_t k=4;k<in->incoming_count;k++)text_add(o,"    ldr r12, [sp, #%zu]\n    str r12, [sp, #%zu]\n",outgoing+(size_t)swan_armv7_offset(in->incoming[k].value),(k-4u)*4u);
       for(size_t k=0;k<in->incoming_count&&k<4;k++)text_add(o,"    ldr r%zu, [sp, #%zu]\n",k,outgoing+(size_t)swan_armv7_offset(in->incoming[k].value));
       text_add(o,"    bl %s\n",in->symbol);
+      if(in->type==SWAN_IR_I1)text_add(o,"    and r0, r0, #1\n");
       if(outgoing)text_add(o,"    add sp, sp, #%zu\n",outgoing);
       if(in->type!=SWAN_IR_VOID)text_add(o,"    str r0, [sp, #%d]\n",d);
       break;}
@@ -71,8 +100,29 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
    const SwanIRTerm *t=&fn->blocks[b].terminator;size_t targets[2],n=0;
    if(t->kind==SWAN_IR_BR)targets[n++]=t->target;else if(t->kind==SWAN_IR_COND_BR){targets[n++]=t->target;if(t->alternate!=t->target)targets[n++]=t->alternate;}
    for(size_t k=0;k<n;k++){size_t target=targets[k];text_add(o,".Lsw_e%zu_%zu_%zu:\n",f,b,target);const SwanIRBlock *dest=&fn->blocks[target];
-    for(size_t i=0;i<dest->instruction_count;i++){const SwanIRInst *phi=&dest->instructions[i];if(phi->op!=SWAN_IR_PHI)continue;
-     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){text_add(o,"    ldr r0, [sp, #%d]\n    str r0, [sp, #%d]\n",swan_armv7_offset(phi->incoming[q].value),swan_armv7_offset(phi->result));break;}
+    size_t phi_index=0;
+    for(size_t i=0;i<dest->instruction_count;i++){
+     const SwanIRInst *phi=&dest->instructions[i];
+     if(phi->op!=SWAN_IR_PHI)continue;
+     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
+      size_t scratch=value_bytes+allocas*4u+(phi_index+1u)*4u;
+      text_add(o,"    ldr r0, [sp, #%d]\n    str r0, [sp, #%zu]\n",
+               swan_armv7_offset(phi->incoming[q].value),scratch);
+      break;
+     }
+     phi_index++;
+    }
+    phi_index=0;
+    for(size_t i=0;i<dest->instruction_count;i++){
+     const SwanIRInst *phi=&dest->instructions[i];
+     if(phi->op!=SWAN_IR_PHI)continue;
+     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
+      size_t scratch=value_bytes+allocas*4u+(phi_index+1u)*4u;
+      text_add(o,"    ldr r0, [sp, #%zu]\n    str r0, [sp, #%d]\n",
+               scratch,swan_armv7_offset(phi->result));
+      break;
+     }
+     phi_index++;
     }text_add(o,"    b .Lsw_f%zu_b%zu\n",f,target);
    }
   }
