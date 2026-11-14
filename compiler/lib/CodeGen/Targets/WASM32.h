@@ -90,7 +90,7 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
      !swan_wasm_const(b,!integer32,minimum)||!swan_wasm_byte(b,integer32?0x46:0x51)||
      !swan_wasm_get(b,in->b)||!swan_wasm_const(b,!integer32,-1)||
      !swan_wasm_byte(b,integer32?0x46:0x51)||
-     !swan_wasm_byte(b,integer32?0x71:0x83)||
+     !swan_wasm_byte(b,0x71)||
      !swan_wasm_byte(b,0x04)||!swan_wasm_byte(b,0x40)||
      !swan_wasm_byte(b,0x00)||!swan_wasm_byte(b,0x0b))return false;
  }
