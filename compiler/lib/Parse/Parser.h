@@ -33,6 +33,7 @@ static inline Expr *prefix(Parser *p){
   }
   else if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){call->args=swan_arena_alloc(p->program,16*sizeof(*call->args));if(!call->args){swan_error(p->err,&call->token,"out of memory allocating call arguments");p->failed=true;return e;}do{if(call->argc>=16){swan_error(p->err,pk(p),"too many call arguments");p->failed=true;break;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
   else if(eat(p,T_DOT)){Token member=take(p);if(!member.text||member.kind==T_EOF||member.kind==T_NEWLINE||member.kind==T_DOT){swan_error(p->err,&member,"expected a member name after '.'");p->failed=true;break;}Expr *field=new_expr(p,E_NAME,member);Expr *access=new_expr(p,E_MEMBER,e->token);if(access){access->left=e;access->right=field;access->contains_call=e->contains_call;}e=access;}
+  else if(e->kind==E_NAME&&e->token.text&&!strcmp(e->token.text,"std")&&is(p,T_COLON)&&p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_IDENT){take(p);Token member=take(p);Expr *field=new_expr(p,E_NAME,member);Expr *access=new_expr(p,E_MEMBER,e->token);if(access){access->left=e;access->right=field;access->contains_call=e->contains_call;}e=access;}
   else break;
  }
  return e;
@@ -45,6 +46,8 @@ static inline Stmt *statement(Parser *p);
 static inline Stmt *statement_impl(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
  if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=false;s->manual_checked=false;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
+ bool std_print=is(p,T_IDENT)&&pk(p)->text&&!strcmp(pk(p)->text,"std")&&p->ts->pos+3<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_COLON&&p->ts->items[p->ts->pos+2].kind==T_IDENT&&!strcmp(p->ts->items[p->ts->pos+2].text,"print");
+ if(std_print){take(p);take(p);take(p);if(!need(p,T_GT,"expected '>>' after std:print")||!need(p,T_GT,"expected second '>' after std:print"))return NULL;s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  bool print_intrinsic=eat(p,T_PRINT);if(print_intrinsic||(is(p,T_IDENT)&&(!strcmp(pk(p)->text,"print")||!strcmp(pk(p)->text,"log")))){if(!print_intrinsic){take(p);if(eat(p,T_GT)&&!need(p,T_GT,"expected second '>' in log output operator"))return NULL;}s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(is(p,T_IDENT)&&!strcmp(pk(p)->text,"echo")&&p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_BANG){take(p);take(p);s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
  if(eat(p,T_RETURN)){s=new_stmt(p,S_RETURN,t);if(s&&!is(p,T_NEWLINE)&&!is(p,T_DEDENT)&&!is(p,T_EOF))s->value=expression(p,1);return s;}
