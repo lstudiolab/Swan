@@ -292,8 +292,29 @@ static inline SwanSILResult swan_sil_try_irgen_program(Program *program,
         destination->block_count = lowered->block_count;
         destination->block_capacity = lowered->block_capacity;
         destination->next_value = lowered->next_value;
+
+        /* The block array owns SSA metadata and block back-pointers too.
+           Transfer all of it as one unit; retaining the typed-IR cache here
+           would make the verifier and optimizer observe stale value types. */
+        free(destination->value_types);
+        free(destination->value_locations);
+        destination->value_types = lowered->value_types;
+        destination->value_type_capacity = lowered->value_type_capacity;
+        destination->value_locations = lowered->value_locations;
+        destination->value_location_capacity = lowered->value_location_capacity;
+
+        for (size_t block_index = 0; block_index < destination->block_count;
+             ++block_index) {
+            destination->blocks[block_index].owner = destination;
+            destination->blocks[block_index].index = (uint32_t)block_index;
+        }
+
         lowered->blocks = NULL;
         lowered->block_count = lowered->block_capacity = 0;
+        lowered->value_types = NULL;
+        lowered->value_type_capacity = 0;
+        lowered->value_locations = NULL;
+        lowered->value_location_capacity = 0;
         swan_ir_destroy(&sil_function);
     }
 
