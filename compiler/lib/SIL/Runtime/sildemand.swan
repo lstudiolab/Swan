@@ -3,6 +3,11 @@
 fn sil_demand(state: u32_array, count: int, workspace: u32_array) -> int:
     if count < 1 or count > 256
         return -1
+    # Clear liveness and keep flags when a caller reuses its workspace.
+    var clear = 0
+    while clear < 512
+        workspace[clear] = 0
+        clear = clear + 1
     var scan = 0
     var kept = 0
     while scan < count
