@@ -123,6 +123,8 @@ func next_power_of_two(value: int) -> int:
         return 1
     var result = 1
     while result < value:
+        if result > value / 2:
+            return 0
         result = result * 2
     return result
 out
