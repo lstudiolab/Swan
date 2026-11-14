@@ -42,12 +42,12 @@ for end in stride(from: count - 1, through: 1, by: -1) {
     siftDown(values, 0, end - 1)
 }
 
-var checksum: UInt64 = 0
+var checksum: UInt32 = 0
 for i in 0..<count {
     if i > 0 && values[i - 1] > values[i] {
         fputs("SORT_FAILED\n", stderr)
         exit(3)
     }
-    checksum += UInt64(values[i])
+    checksum = checksum &+ values[i]
 }
 print(checksum)
