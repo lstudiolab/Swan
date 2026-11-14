@@ -120,6 +120,29 @@ expected=$(printf '0\n21')
 test "$("$TMP/boolean-abi")" = "$expected"
 printf 'PASS: x86-64 AST backend normalizes boolean parameters and return values\\n'
 
+mkdir -p "$TMP/stdlib"
+cat > "$TMP/stdlib/helper.swan" <<'SWAN'
+fn helper_value() -> int:
+    return 21
+out
+SWAN
+cat > "$TMP/imported-module.swan" <<'SWAN'
+import helper
+fn main() -> int:
+    return helper_value()
+out
+SWAN
+"$SWAN" build "$TMP/imported-module.swan" --stdlib "$TMP/stdlib" -o "$TMP/imported-module"
+set +e
+"$TMP/imported-module"
+import_status=$?
+set -e
+if [ "$import_status" -ne 21 ]; then
+    echo "FAIL: imported module returned '$import_status', expected 21" >&2
+    exit 1
+fi
+printf 'PASS: imported module tokens remain valid through parsing and code generation\\n'
+
 cat > "$TMP/unknown-function.swan" <<'SWAN'
 fn main():
     missing_function()
