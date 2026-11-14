@@ -101,7 +101,7 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
       int id=o->next_label++;
       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    cbz x10, .Lsw_a64_divzero_%d\n",a,z,id);
       if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM)
-       text_add(o,"    ldr x11, =0x8000000000000000\n    cmp x9, x11\n    b.ne .Lsw_a64_divsafe_%d\n    cmn x10, #1\n    b.eq .Lsw_a64_divzero_%d\n.Lsw_a64_divsafe_%d:\n",id,id,id);
+       text_add(o,"    movz x11, #0\n    movk x11, #32768, lsl #48\n    cmp x9, x11\n    b.ne .Lsw_a64_divsafe_%d\n    cmn x10, #1\n    b.eq .Lsw_a64_divzero_%d\n.Lsw_a64_divsafe_%d:\n",id,id,id);
       text_add(o,"    %s x11, x9, x10\n",in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM?"sdiv":"udiv");
       if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)text_add(o,"    msub x11, x11, x10, x9\n");
       text_add(o,"    str x11, [sp, #%d]\n    b .Lsw_a64_divdone_%d\n.Lsw_a64_divzero_%d:\n    brk #0\n.Lsw_a64_divdone_%d:\n",dst,id,id,id);break;
