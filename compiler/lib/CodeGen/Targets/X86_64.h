@@ -1070,6 +1070,13 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
  o->block_depth--;
 }
 static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
+ SwanError local_error={0};
+ if(!err)err=&local_error;
+ else memset(err,0,sizeof(*err));
+ if(!p||!o){
+  swan_error(err,NULL,"x86-64 code generation requires a program and output buffer");
+  return false;
+ }
  text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
