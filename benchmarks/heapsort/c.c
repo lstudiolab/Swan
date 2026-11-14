@@ -24,12 +24,10 @@ int main(void) {
     uint32_t *values = (uint32_t *)calloc(COUNT, sizeof(uint32_t));
     if (!values) { perror("calloc"); return 2; }
 
-    uint32_t state = UINT32_C(305419896);
+    uint64_t state = UINT64_C(305419896);
     for (size_t i = 0; i < COUNT; ++i) {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        values[i] = state;
+        state = (state * UINT64_C(1664525) + UINT64_C(1013904223)) % UINT64_C(4294967296);
+        values[i] = (uint32_t)state;
     }
 
     for (size_t start = COUNT / 2; start > 0; --start)
