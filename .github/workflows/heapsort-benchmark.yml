@@ -46,10 +46,10 @@ jobs:
         with:
           repository: lstudiolab/goose
           ref: master
-          path: ../goose
+          path: goose
 
       - name: Build Goose compiler
-        working-directory: ../goose
+        working-directory: goose
         run: |
           cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -G Ninja
           cmake --build build --config Release --parallel 2
@@ -64,7 +64,7 @@ jobs:
       - name: Run benchmark
         env:
           SWAN: ${{ github.workspace }}/build/swanc
-          GOOSE: ${{ github.workspace }}/../goose/build/goose
+          GOOSE: ${{ github.workspace }}/goose/build/goose
         run: python3 benchmarks/heapsort_benchmark.py
 
       - name: Upload benchmark report
