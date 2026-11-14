@@ -41,6 +41,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
    return false;
   }
   size_t frame=(value_bytes+allocas*8u+phi_slots*8u+15u)&~(size_t)15u;
+  if(frame>INT32_MAX){if(error&&cap)snprintf(error,cap,"x86-64 IR stack frame exceeds the signed displacement limit");return false;}
   text_add(o,".intel_syntax noprefix\n.text\n.globl %s\n.type %s, @function\n%s:\n    push rbp\n    mov rbp, rsp\n    sub rsp, %zu\n",fn->name,fn->name,fn->name,frame);
   static const char *arg_bytes[]={"dil","sil","dl","cl","r8b","r9b"};
   for(size_t p=0;p<fn->parameter_count&&p<6;p++){
