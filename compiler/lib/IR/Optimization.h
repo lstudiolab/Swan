@@ -29,6 +29,10 @@ static inline unsigned swan_ir_integer_bits(SwanIRType t){
 }
 static inline uint64_t swan_ir_width_mask(unsigned bits){return bits>=64?UINT64_MAX:(UINT64_C(1)<<bits)-1;}
 static inline int64_t swan_ir_signed_value(uint64_t value,unsigned bits){
+    /* i1 is a boolean domain (0 or 1), not a signed one-bit integer (-1 or 0).
+       Keeping true canonical prevents constant folding from emitting invalid
+       i1 constants that the verifier correctly rejects. */
+    if(bits==1)return (int64_t)(value&UINT64_C(1));
     if(bits>=64)return (int64_t)value;
     uint64_t sign=UINT64_C(1)<<(bits-1);value&=swan_ir_width_mask(bits);
     return (int64_t)((value^sign)-sign);

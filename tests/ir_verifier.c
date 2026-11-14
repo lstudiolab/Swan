@@ -226,6 +226,39 @@ static int rejects_duplicate_ssa_definitions(void){
 }
 
 
+static int optimizer_preserves_boolean_constants(void){
+    SwanIRModule module={0};
+    SwanIRFunction *function=swan_ir_add_function(&module,"main",SWAN_IR_I1,NULL,0);
+    SwanIRBlock *entry=function?swan_ir_add_block(function,"entry"):NULL;
+    if(!entry){swan_ir_destroy(&module);return 95;}
+
+    SwanIRInst truth={0};
+    truth.op=SWAN_IR_CONST;
+    truth.type=SWAN_IR_I1;
+    truth.immediate=1;
+    uint32_t value=swan_ir_add_inst(function,entry,truth);
+    if(!value||!swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,value,0,0})){
+        swan_ir_destroy(&module);
+        return 96;
+    }
+
+    char error[256]={0};
+    if(!swan_ir_optimize(&module,error,sizeof(error))){
+        fprintf(stderr,"boolean constant folding rejected true: %s\\n",error);
+        swan_ir_destroy(&module);
+        return 97;
+    }
+    if(swan_ir_value_type_of(function,value)!=SWAN_IR_I1||
+       function->blocks[0].instructions[0].op!=SWAN_IR_CONST||
+       function->blocks[0].instructions[0].immediate!=1){
+        fprintf(stderr,"boolean constant folding did not preserve canonical true\\n");
+        swan_ir_destroy(&module);
+        return 98;
+    }
+    swan_ir_destroy(&module);
+    return 0;
+}
+
 static int optimizer_repairs_compacted_block_metadata(void){
     SwanIRModule module={0};
     SwanIRFunction *function=swan_ir_add_function(&module,"main",SWAN_IR_I32,NULL,0);
@@ -328,6 +361,7 @@ int main(void){
     status=rejects_bad_terminator();if(status)return status;
     status=accepts_stale_ssa_location_cache();if(status)return status;
     status=rejects_duplicate_ssa_definitions();if(status)return status;
+    status=optimizer_preserves_boolean_constants();if(status)return status;
     status=optimizer_repairs_compacted_block_metadata();if(status)return status;
     status=repairs_block_owners_after_function_array_growth();if(status)return status;
     puts("Swan typed IR verifier passed: valid calls and SSA accepted; duplicate definitions, invalid types, PHI placement, operand arity, pointer constants, and terminators rejected.");
