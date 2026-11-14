@@ -198,6 +198,22 @@ func main() -> int:
 
 Set `SWAN_STDLIB` or pass `--stdlib <directory>` to select a standard-library directory.
 
+## Standard library
+
+Import the standard library explicitly and use the `std:` namespace for every public operation:
+
+```swan
+import std
+
+func main() -> int:
+    std:print >> "Hello from Swan"
+    std:print >> std:abs(-42)
+    std:print >> std:max(10, 20)
+    return 0
+```
+
+`std:print >> expression` is Swan's namespaced output intrinsic. Other `std:name(...)` calls resolve to functions in `stdlib/std.swan`. The initial integer-focused API includes `abs`, `min`, `max`, `clamp`, `sign`, `square`, `cube`, `power`, `factorial`, `sum_to`, `is_even`, `is_odd`, `in_range`, and `average`. See [the language guide](docs/LANGUAGE_GUIDE.md#121-the-std-namespace) for behavior and current limitations.
+
 ## C header interoperability
 
 The native C header importer uses Clang's C AST dump to read supported declarations. Imported functions become external declarations in Swan's AST and typed IR; the native x86-64 System V backend emits real C ABI calls.
