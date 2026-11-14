@@ -3,6 +3,12 @@
 fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int:
     if count < 1 or count > 256
         return -1
+    # Clear caller-owned analysis state so repeated invocations cannot reuse
+    # constants from a previous function or compilation.
+    var clear = 512
+    while clear < 1024
+        workspace[clear] = 0
+        clear = clear + 1
     var index = 0
     while index < count
         let base = index * 5
