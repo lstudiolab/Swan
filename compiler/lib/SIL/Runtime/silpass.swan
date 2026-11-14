@@ -85,4 +85,3 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
     return count
 
 
-out
