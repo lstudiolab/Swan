@@ -1,7 +1,7 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { const char *name; bool mutable_value,initialized,manual_memory,manual_checked,manual_freed; int previous; } SwanSymbol;
+typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed; int previous; } SwanSymbol;
 typedef struct { SwanSymbol *items; size_t count; int buckets[2048]; } SwanSymbols;
 static inline unsigned swan_name_hash(const char *s){
  uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;
@@ -14,13 +14,27 @@ static inline Stmt *swan_find_function(Program *p,const char *name){
 static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *index){
  unsigned b=swan_name_hash(name)&2047u;for(int n=s->buckets[b];n;n=s->items[n-1].previous){if(!strcmp(s->items[n-1].name,name)){if(index)*index=(size_t)(n-1);return true;}}return false;
 }
-static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool manual,bool checked){
+static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array,bool manual,bool checked){
  if(s->count>=1024)return false;
  unsigned b=swan_name_hash(name)&2047u;size_t i=s->count++;
- SwanSymbol *v=&s->items[i];v->name=name;v->mutable_value=mut;v->initialized=initialized;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->previous=s->buckets[b];s->buckets[b]=(int)i+1;return true;
+ SwanSymbol *v=&s->items[i];v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->previous=s->buckets[b];s->buckets[b]=(int)i+1;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){
  while(s->count>mark){size_t i=--s->count;unsigned b=swan_name_hash(s->items[i].name)&2047u;s->buckets[b]=s->items[i].previous;}
+}
+static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
+ if(!expression)return false;
+ if(expression->kind==E_CALL){
+  const char *callee=swan_expr_terminal_name(expression->left);
+  return callee&&(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||
+      !strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked"));
+ }
+ if(expression->kind==E_NAME){
+  size_t index;
+  return swan_symbol_find(symbols,expression->token.text,&index)&&
+         symbols->items[index].is_array;
+ }
+ return false;
 }
 static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanError *err){
  if(!e)return true;
@@ -47,7 +61,10 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    if(!e->left||e->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->token.text,NULL)){
     swan_error(err,&e->token,"array indexing requires a declared array variable");return false;
    }
-   {size_t base_index;if(swan_symbol_find(symbols,e->left->token.text,&base_index)&&!symbols->items[base_index].initialized){swan_error(err,&e->left->token,"use of uninitialized array '%s'",e->left->token.text);return false;}}
+   {size_t base_index;if(swan_symbol_find(symbols,e->left->token.text,&base_index)){
+    if(!symbols->items[base_index].is_array){swan_error(err,&e->left->token,"value '%s' is not an array",e->left->token.text);return false;}
+    if(!symbols->items[base_index].initialized){swan_error(err,&e->left->token,"use of uninitialized array '%s'",e->left->token.text);return false;}
+   }}
    {size_t base_index;if(swan_symbol_find(symbols,e->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->token,"use of manually freed variable '%s'",e->left->token.text);return false;}}
    return swan_check_expr(p,e->right,symbols,err);
   case E_UNARY:return swan_check_expr(p,e->left,symbols,err);
@@ -58,7 +75,10 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
      if(!e->left->left||e->left->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->left->token.text,NULL)){
       swan_error(err,&e->token,"array assignment requires a declared array variable");return false;
      }
-     {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)&&!symbols->items[base_index].initialized){swan_error(err,&e->left->left->token,"use of uninitialized array '%s'",e->left->left->token.text);return false;}}
+     {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)){
+      if(!symbols->items[base_index].is_array){swan_error(err,&e->left->left->token,"value '%s' is not an array",e->left->left->token.text);return false;}
+      if(!symbols->items[base_index].initialized){swan_error(err,&e->left->left->token,"use of uninitialized array '%s'",e->left->left->token.text);return false;}
+     }}
      {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->left->token,"use of manually freed variable '%s'",e->left->left->token.text);return false;}}
      return swan_check_expr(p,e->left->right,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
     }
@@ -67,6 +87,13 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(symbols->items[index].manual_checked){swan_error(err,&e->left->token,"manual variables cannot be reassigned or moved");return false;}
     if(!symbols->items[index].mutable_value){swan_error(err,&e->left->token,"cannot assign to immutable value '%s'",e->left->token.text);return false;}
     if(!swan_check_expr(p,e->right,symbols,err))return false;
+    bool right_is_array=swan_expr_is_array(e->right,symbols);
+    if(symbols->items[index].initialized&&
+       symbols->items[index].is_array!=right_is_array){
+     swan_error(err,&e->token,"assignment changes the value between array and scalar types");
+     return false;
+    }
+    symbols->items[index].is_array=right_is_array;
     symbols->items[index].initialized=true;
     return true;
    }
@@ -87,7 +114,9 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_checked){swan_error(err,&s->value->token,"manual ownership cannot be copied or aliased");return false;}}
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
-    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,s->manual_memory,s->manual_checked)){swan_error(err,&s->token,"too many local variables");return false;}
+    bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||
+                  swan_expr_is_array(s->value,symbols);
+    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked)){swan_error(err,&s->token,"too many local variables");return false;}
     break;
    }
    case S_LOG:
@@ -311,7 +340,8 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
   size_t local_name_count=0;
   for(size_t a=0;a<fn->param_count;a++){
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
-   if(!swan_symbol_add(&symbols,fn->params[a],false,true,false,false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
+   bool is_array=fn->param_types&&fn->param_types[a]&&!strcmp(fn->param_types[a],"u32_array");
+   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
    local_names[local_name_count++]=fn->params[a];
   }
   if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,
