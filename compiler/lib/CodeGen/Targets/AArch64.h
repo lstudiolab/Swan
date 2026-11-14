@@ -26,6 +26,7 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
  }
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
+  if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
   size_t allocas=0,phi_slots=0;
   for(size_t b=0;b<fn->block_count;b++){
    size_t block_phi_count=0;
