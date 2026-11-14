@@ -18,7 +18,6 @@ fn sil_emit_param(state: u32_array, count: int, packed: int) -> int:
     state[base + 4] = parameter
     return count + 1
 
-out
 fn sil_emit_const(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
@@ -33,7 +32,6 @@ fn sil_emit_const(state: u32_array, count: int, packed: int) -> int:
     state[base + 4] = value
     return count + 1
 
-out
 fn sil_emit_binary(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
@@ -49,7 +47,6 @@ fn sil_emit_binary(state: u32_array, count: int, packed: int) -> int:
     state[base + 4] = 0
     return count + 1
 
-out
 fn sil_emit_return(state: u32_array, count: int, value: int) -> int:
     if count < 0 or count >= 256
         return -1
@@ -62,4 +59,3 @@ fn sil_emit_return(state: u32_array, count: int, value: int) -> int:
     return count + 1
 
 
-out
