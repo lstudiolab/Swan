@@ -9,10 +9,8 @@ TRIPLE=$("$CLANG" -dumpmachine)
 cat > "$TMP/main.swan" <<'SWAN'
 func twice(value: int) -> int:
     return value * 2
-out
 func main() -> int:
     return twice(21)
-out
 SWAN
 "$BIN" build "$TMP/main.swan" --target-triple "$TRIPLE" -o "$TMP/main.o"
 test -s "$TMP/main.o"
