@@ -12,7 +12,7 @@ int main(void) {
         "    return 1 - 2\n"
         "func wide() -> int:\n"
         "    return 50000 * 50000\n"
-        "out\n";
+        ;
     SwanError error = {0};
     TokenStream tokens;
     if (!swan_lex(source, &tokens, &error)) {
