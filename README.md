@@ -51,6 +51,12 @@ SVM is the target-independent compilation engine, not a CPU target and not an in
 
 The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target executes the IR through an interpreter loop.
 
+### Automatic host and cross-target selection
+
+By default, `swanc` detects the compiler host and selects the matching registered Linux target (x86-64, AArch64, ARMv7, or RISC-V64). The host is only the default output target; it does not constrain cross-compilation. Override it with `--target <name>` or `--target-triple <triple>`. The aliases `host`, `native`, and `auto` select the detected host target explicitly. WebAssembly remains an explicit target because it is not a native host executable target.
+
+The currently implemented built-in native-host detection is Linux-only. On unsupported build hosts, Swan fails with a diagnostic rather than silently generating x86-64 output. The built-in non-x86 backends currently emit target objects/modules for their supported subsets; full destination-runtime linking and executable packaging are still in progress.
+
 The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
 
 ### Fail-fast behavior
