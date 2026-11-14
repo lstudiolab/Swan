@@ -68,8 +68,9 @@ int main(int argc,char **argv){
     increment.a=iteration;
     increment.b=one;
     uint32_t next_iteration=swan_ir_add_inst(function,body,increment);
-    if(!next_iteration||
-       !swan_ir_terminate(body,(SwanIRTerm){SWAN_IR_BR,0,1,0}))return 7;
+    if(!next_iteration)return 7;
+    header->instructions[0].incoming[1].value=next_iteration;
+    if(!swan_ir_terminate(body,(SwanIRTerm){SWAN_IR_BR,0,1,0}))return 7;
 
     uint32_t ten=add_constant(function,exit_block,SWAN_IR_I64,10);
     SwanIRInst multiply={0};
