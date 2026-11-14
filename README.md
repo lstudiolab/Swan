@@ -8,6 +8,10 @@ Licensed under Apache-2.0.
 
 The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/ENGINEERING_STYLE.md](docs/ENGINEERING_STYLE.md). It defines Swan as an AOT compiler with a Swan-owned SIL/SVM pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
 
+## Language guide
+
+The programmer-facing syntax, coding conventions, complete reserved-keyword list, operator precedence, standard library, and current feature boundaries are documented in [docs/LANGUAGE_GUIDE.md](docs/LANGUAGE_GUIDE.md).
+
 ## Current compiler
 
 The compiler has two cooperating source-lowering paths:
