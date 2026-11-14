@@ -245,6 +245,7 @@ static inline SwanSILResult swan_sil_try_irgen_program(Program *program,
     SwanIRModule candidate = {0};
     SwanError lowering_error = {0};
     if (!swan_irgen_program(program, &candidate, &lowering_error)) {
+        swan_ir_destroy(&candidate);
         if (error) *error = lowering_error;
         return SWAN_SIL_FAILED;
     }
