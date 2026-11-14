@@ -81,7 +81,15 @@ static inline void swan_ir_destroy(SwanIRModule *m) {
 static inline SwanIRFunction *swan_ir_add_function(SwanIRModule *m,const char *name,SwanIRType ret,const SwanIRType *params,size_t count) {
  if(!m||!name||!name[0]||!swan_ir_type_valid(ret)||(count&&!params)||count>=(size_t)(INT32_MAX/8)||count>SIZE_MAX/sizeof(*params)||m->function_count==SIZE_MAX)return NULL;
  for(size_t i=0;i<count;i++)if(!swan_ir_value_type(params[i]))return NULL;
+ SwanIRFunction *previous_functions=m->functions;
  if(!swan_ir_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
+ if(m->functions!=previous_functions){
+  for(size_t function_index=0;function_index<m->function_count;function_index++){
+   SwanIRFunction *existing=&m->functions[function_index];
+   for(size_t block_index=0;block_index<existing->block_count;block_index++)
+    existing->blocks[block_index].owner=existing;
+  }
+ }
  SwanIRFunction *f=&m->functions[m->function_count++];memset(f,0,sizeof(*f));f->name=name;f->return_type=ret;
  if(count){f->parameter_types=malloc(count*sizeof(*params));if(!f->parameter_types){m->function_count--;return NULL;}memcpy(f->parameter_types,params,count*sizeof(*params));}
  f->value_type_capacity=count+1;f->value_types=calloc(f->value_type_capacity,sizeof(*f->value_types));
