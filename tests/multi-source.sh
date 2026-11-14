@@ -19,7 +19,8 @@ out
 SWAN
 
 cat > "$TMP/project/c_api.h" <<'C'
-long c_answer(int64_t value);
+#include <stdint.h>
+int64_t c_answer(int64_t value);
 C
 cat > "$TMP/project/native.c" <<'C'
 #include <stdint.h>
