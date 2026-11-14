@@ -4,6 +4,10 @@ Swan is a compiled programming language. Its production compiler, `swanc`, is im
 
 Licensed under Apache-2.0.
 
+## Compiler system contract
+
+The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). It defines Swan as an AOT compiler with a Swan-owned SIL/SVM pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
+
 ## Current compiler
 
 The compiler has two cooperating source-lowering paths:
