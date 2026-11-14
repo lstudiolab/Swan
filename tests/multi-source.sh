@@ -19,11 +19,11 @@ out
 SWAN
 
 cat > "$TMP/project/c_api.h" <<'C'
-int c_answer(int value);
+int64_t c_answer(int64_t value);
 C
 cat > "$TMP/project/native.c" <<'C'
-int swan_answer(void);
-int c_answer(int value) { return value + swan_answer(); }
+int64_t swan_answer(void);
+int64_t c_answer(int64_t value) { return value + swan_answer(); }
 C
 
 "$ROOT/build/swanc" build "$TMP/project" -o "$TMP/project-app"
