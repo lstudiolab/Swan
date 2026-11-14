@@ -452,9 +452,21 @@ func square(value: int) -> int:
 
 A bare `return` is also accepted by the parser.
 
-### 9.4 Loop forms not yet specified
+### 9.4 Infinite loops
 
-The words `loop` and `upto` are reserved, but the current parser does not implement their loop syntax. Use `while` for loops.
+`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared SVM control flow and is supported by the x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
+
+```swan
+func count_to(limit: int) -> int:
+    var count = 0
+    loop:
+        if count >= limit:
+            break
+        count = count + 1
+    return count
+```
+
+`upto` remains reserved; its range-loop grammar and inclusive/exclusive boundary semantics are not yet specified.
 
 ---
 
@@ -592,7 +604,7 @@ The table below describes their intended role and current implementation status.
 | `guard` | Guard-style conditional validation | Reserved; not implemented |
 | `block` | Explicit block construct | Reserved; not implemented as a separate construct |
 | `while` | Condition-controlled loop | Implemented |
-| `loop` | Loop construct | Reserved; use `while` |
+| `loop` | Unconditional loop | Implemented as `loop:`; uses shared control-flow IR |
 | `true` | Boolean true literal | Implemented |
 | `false` | Boolean false literal | Implemented |
 | `break` | Exit nearest loop | Implemented |
@@ -769,7 +781,7 @@ Do not write production code that depends on these reserved-but-unimplemented fe
 - Null values and general nullable types.
 - Initializers and deinitializers.
 - Exception handling with `throw`, `throws`, `rethrow`, and `catch`.
-- Guard statements and dedicated `loop`/`upto` constructs.
+- Guard statements and the dedicated `upto` range-loop construct.
 - General ownership/borrowing semantics.
 
 A language feature is complete only when the lexer, parser, semantic analysis, IR lowering, verifier, relevant backend(s), diagnostics, and tests agree. Until then, the compiler must diagnose unsupported use rather than silently changing its meaning.
