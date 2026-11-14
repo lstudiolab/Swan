@@ -111,7 +111,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch=value_bytes+allocas*4u+(phi_index+1u)*4u;
+      size_t scratch=value_bytes+allocas*4u+phi_index*4u;
       text_add(o,"    ldr r0, [sp, #%d]\n    str r0, [sp, #%zu]\n",
                swan_armv7_offset(phi->incoming[q].value),scratch);
       break;
@@ -123,7 +123,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch=value_bytes+allocas*4u+(phi_index+1u)*4u;
+      size_t scratch=value_bytes+allocas*4u+phi_index*4u;
       text_add(o,"    ldr r0, [sp, #%zu]\n    str r0, [sp, #%d]\n",
                scratch,swan_armv7_offset(phi->result));
       break;
