@@ -28,6 +28,9 @@ static inline void *swan_arena_alloc(Program *p,size_t size){
  return result;
 }
 static inline void swan_program_destroy(Program *p){
- SwanArenaChunk *c=p->arena;while(c){SwanArenaChunk *next=c->next;free(c);c=next;}p->arena=NULL;
+ if(!p)return;
+ SwanArenaChunk *chunk=p->arena;
+ while(chunk){SwanArenaChunk *next=chunk->next;free(chunk);chunk=next;}
+ p->arena=NULL;
 }
 #endif
