@@ -231,7 +231,8 @@ static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
    uint32_t result=fn->blocks[b].instructions[i].result;
    if(result)definitions[next++]=result;
   }
- qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_value_ids);
+ if(definition_count>1)
+  qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_value_ids);
  for(size_t i=1;i<definition_count;i++){
   if(definitions[i-1]==definitions[i]){
    free(definitions);
