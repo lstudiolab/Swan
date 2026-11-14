@@ -47,6 +47,15 @@ out
 SWAN
 expect_rejected unknown-name
 
+cat > "$TMP/index-scalar.swan" <<'SWAN'
+fn main():
+    let value = 7
+    log value[0]
+    return 0
+out
+SWAN
+expect_rejected index-scalar
+
 cat > "$TMP/uninitialized-variable.swan" <<'SWAN'
 fn main():
     var value: int
