@@ -237,7 +237,12 @@ static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
  for(size_t b=0;b<fn->block_count;b++)
   for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    uint32_t result=fn->blocks[b].instructions[i].result;
-   if(result)definitions[next++]=(SwanIRDefinition){result,(uint32_t)b,(uint32_t)i};
+   if(!result)continue;
+   if(b>UINT32_MAX||i>UINT32_MAX){
+    free(definitions);
+    return swan_ir_fail(error,cap,"SSA definition location exceeds IR index range",fn->name,b,i);
+   }
+   definitions[next++]=(SwanIRDefinition){result,(uint32_t)b,(uint32_t)i};
   }
  if(definition_count>1)
   qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_definitions);
