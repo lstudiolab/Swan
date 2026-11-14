@@ -4,6 +4,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swanc"
 TMP="$ROOT/build/diagnostics"
 mkdir -p "$TMP"
+rm -f "$TMP/warnings-as-errors.s" "$TMP/error.s"
 
 cat > "$TMP/warnings.swan" <<'SWAN'
 func unused_helper() -> int:
