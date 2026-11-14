@@ -61,7 +61,7 @@ The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter hav
 
 The semantic checker, IR verifier, and code generators validate the constructs they receive. Unknown or unsupported nodes are diagnosed instead of silently becoming empty statements or zero-valued code. This does not mean every parser keyword is implemented: the editor vocabulary and token registry are broader than the currently supported semantic and backend subset.
 
-Compilation is phase-gated: a failed read, lex, parse, import, semantic, IR verification, optimization, code-generation, assembly, or link step returns a non-zero status and prevents later phases from running. The compiler also emits non-fatal semantic warnings for suspicious constructs such as self-assignment, constant conditions, potentially non-terminating constant-true loops, and source functions unreachable from `main`. Use `--warnings-as-errors` to stop before code generation whenever any warning is reported. Warnings are conservative bug indicators, not proof that the program is incorrect.
+Compilation is phase-gated: a failed read, lex, parse, import, semantic, IR verification, optimization, code-generation, assembly, or link step returns a non-zero status and prevents later phases from running. The compiler also emits non-fatal semantic warnings for suspicious constructs such as self-assignment, literal division by zero, constant conditions, potentially non-terminating constant-true loops, and source functions unreachable from `main`. Use `--warnings-as-errors` to stop before code generation whenever any warning is reported. Warnings are conservative bug indicators, not proof that the program is incorrect.
 
 ## Build and run
 
