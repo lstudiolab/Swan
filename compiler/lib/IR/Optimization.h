@@ -442,7 +442,10 @@ static inline bool swan_ir_cfg_simplify(SwanIRModule *module,bool *changed,char 
             }
             free(fn->blocks);fn->blocks=blocks;fn->block_count=fn->block_capacity=live;
             for(size_t b=0;b<live;b++){
-                SwanIRBlock *bb=&fn->blocks[b];SwanIRTerm *t=&bb->terminator;
+                SwanIRBlock *bb=&fn->blocks[b];
+                bb->owner=fn;
+                bb->index=(uint32_t)b;
+                SwanIRTerm *t=&bb->terminator;
                 if(t->kind==SWAN_IR_BR)t->target=(uint32_t)map[t->target];
                 else if(t->kind==SWAN_IR_COND_BR){t->target=(uint32_t)map[t->target];t->alternate=(uint32_t)map[t->alternate];}
                 for(size_t i=0;i<bb->instruction_count;i++){
@@ -726,6 +729,19 @@ static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t ca
     if(!swan_ir_run_pass(module,SWAN_IR_PASS_CONSTANT_FOLD,error,cap)||
        !swan_ir_run_pass(module,SWAN_IR_PASS_CFG_SIMPLIFY,error,cap)||
        !swan_ir_run_pass(module,SWAN_IR_PASS_DEAD_CODE,error,cap))return false;
+    for(size_t function_index=0;function_index<module->function_count;function_index++){
+        SwanIRFunction *function=&module->functions[function_index];
+        if(function->value_locations&&!swan_ir_rebuild_value_locations(function)){
+            if(error&&cap)snprintf(error,cap,
+                "failed to rebuild SSA value locations for function '%s'",
+                function->name?function->name:"<unnamed>");
+            return false;
+        }
+        for(size_t block_index=0;block_index<function->block_count;block_index++){
+            function->blocks[block_index].owner=function;
+            function->blocks[block_index].index=(uint32_t)block_index;
+        }
+    }
     return swan_ir_verify(module,error,cap);
 }
 #endif
