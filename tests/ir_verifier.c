@@ -153,6 +153,30 @@ static int builder_guards(void){
     swan_ir_destroy(&m);
     return 0;
 }
+static int rejects_duplicate_ssa_definitions(void){
+    SwanIRModule m={0};
+    SwanIRFunction *function=swan_ir_add_function(&m,"main",SWAN_IR_I32,NULL,0);
+    SwanIRBlock *entry=function?swan_ir_add_block(function,"entry"):NULL;
+    if(!entry)return 80;
+
+    SwanIRInst constant={0};
+    constant.op=SWAN_IR_CONST;
+    constant.type=SWAN_IR_I32;
+    constant.immediate=1;
+    uint32_t first=swan_ir_add_inst(function,entry,constant);
+    constant.immediate=2;
+    uint32_t second=swan_ir_add_inst(function,entry,constant);
+    if(!first||!second)return 81;
+
+    /* Simulate malformed IR produced by a broken transformation pass. */
+    entry->instructions[1].result=first;
+    if(!swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,first,0,0}))return 82;
+
+    int status=expect_invalid(&m,"duplicate SSA definitions","duplicate SSA value ID");
+    swan_ir_destroy(&m);
+    return status;
+}
+
 int main(void){
     int status=builder_guards();if(status)return status;
     status=valid_scalar_and_call();if(status)return status;
@@ -162,6 +186,7 @@ int main(void){
     status=rejects_unused_load_operand();if(status)return status;
     status=rejects_pointer_constant();if(status)return status;
     status=rejects_bad_terminator();if(status)return status;
-    puts("Swan typed IR verifier passed: valid calls and SSA accepted; invalid types, PHI placement, operand arity, pointer constants, and terminators rejected.");
+    status=rejects_duplicate_ssa_definitions();if(status)return status;
+    puts("Swan typed IR verifier passed: valid calls and SSA accepted; duplicate definitions, invalid types, PHI placement, operand arity, pointer constants, and terminators rejected.");
     return 0;
 }
