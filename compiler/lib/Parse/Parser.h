@@ -80,8 +80,6 @@ static inline bool block_impl(Parser *p,Stmt ***out,size_t *count,size_t *capaci
  }
  if(p->failed)return false;
  if(!need(p,T_DEDENT,"expected dedent to close block"))return false;
- /* Legacy block terminators are contextual identifiers, not keywords. */
- if(is(p,T_IDENT)&&pk(p)->text&&!strcmp(pk(p)->text,"out"))take(p);
  return true;
 }
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing blocks");p->failed=true;return false;}p->recursion_depth++;bool result=block_impl(p,out,count,capacity);p->recursion_depth--;return result;}
