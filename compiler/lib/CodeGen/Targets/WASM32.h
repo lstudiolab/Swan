@@ -184,7 +184,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
    for(size_t b=0;b<fn->block_count&&ok;b++){
     ok=swan_wasm_byte(&body,0x0b);
     const SwanIRBlock *bb=&fn->blocks[b];
-    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst_checked(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local,error,cap,0,i);
+    for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst_checked(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local,error,cap,b,i);
     const SwanIRTerm *t=&bb->terminator;
     if(!ok)break;
     if(t->kind==SWAN_IR_RET){if(t->value)ok=swan_wasm_get(&body,t->value);if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);ok=ok&&swan_wasm_byte(&body,0x0f);}
@@ -203,7 +203,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
     if(error&&cap)snprintf(error,cap,"WebAssembly backend does not yet support single-block branch terminators");
     ok=false;
    }
-   for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst_checked(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local,error,cap,b,i);
+   for(size_t i=0;i<bb->instruction_count&&ok;i++)ok=swan_wasm_emit_inst_checked(&body,m,fn,&bb->instructions[i],memory64,&alloc_index,base_local,error,cap,0,i);
    if(ok&&bb->terminator.value)ok=swan_wasm_get(&body,bb->terminator.value);
    if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x20)&&swan_wasm_u32(&body,base_local)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);
    if(ok)ok=swan_wasm_byte(&body,bb->terminator.kind==SWAN_IR_UNREACHABLE?0x00:0x0f);

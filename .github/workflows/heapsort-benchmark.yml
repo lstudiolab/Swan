@@ -7,7 +7,6 @@ on:
     paths:
       - "benchmarks/heapsort/**"
       - "benchmarks/heapsort_benchmark.py"
-      - "compiler/lib/CodeGen/Targets/WASM32.h"
       - ".github/workflows/heapsort-benchmark.yml"
 
 permissions:
@@ -15,7 +14,7 @@ permissions:
 
 concurrency:
   group: heapsort-1b-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   benchmark:
