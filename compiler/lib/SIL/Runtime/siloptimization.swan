@@ -29,4 +29,3 @@ fn sil_optimize(state: u32_array, count: int, workspace: u32_array) -> int:
     return write
 
 
-out
