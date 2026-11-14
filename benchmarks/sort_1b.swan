@@ -69,4 +69,3 @@ fn main():
     log sorted
     return 0
 
-out
