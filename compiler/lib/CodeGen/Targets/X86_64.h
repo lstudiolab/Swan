@@ -1086,11 +1086,11 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
+  if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
   if(fn->param_count>6){
    swan_error(err,&fn->token,"x86-64 AST backend supports at most six function parameters");
    return false;
   }
-  if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
   if(p->codegen_module_index<0&&fn->imported&&!p->bundle_imports)continue;
   if(p->bundle_imports&&fn->imported&&!p->function_reachable[i])continue;
   if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
