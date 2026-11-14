@@ -14,11 +14,11 @@ fn sift_down(values: &mut [u32], mut root: usize, end: usize) {
 }
 
 fn main() {
-    let mut values = Vec::<u32>::with_capacity(COUNT);
+    let mut values = vec![0u32; COUNT];
     let mut state = 305_419_896u64;
-    for _ in 0..COUNT {
+    for i in 0..COUNT {
         state = (state * 1_664_525 + 1_013_904_223) % 4_294_967_296;
-        values.push(state as u32);
+        values[i] = state as u32;
     }
 
     for start in (0..COUNT / 2).rev() {
