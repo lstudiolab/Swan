@@ -58,6 +58,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
      if(!e->left->left||e->left->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->left->token.text,NULL)){
       swan_error(err,&e->token,"array assignment requires a declared array variable");return false;
      }
+     {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)&&!symbols->items[base_index].initialized){swan_error(err,&e->left->left->token,"use of uninitialized array '%s'",e->left->left->token.text);return false;}}
      {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->left->token,"use of manually freed variable '%s'",e->left->left->token.text);return false;}}
      return swan_check_expr(p,e->left->right,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
     }
