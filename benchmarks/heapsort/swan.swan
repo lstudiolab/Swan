@@ -59,7 +59,8 @@ func main() -> int:
             if values[i - 1] > values[i]
                 log "SORT_FAILED"
                 return 2
-        checksum = checksum + (values[i] as i64)
+        let current = values[i] as i64
+        checksum = checksum + current
         i = i + 1
 
     log checksum
