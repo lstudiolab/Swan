@@ -4,6 +4,8 @@ Status: normative architecture and implementation contract.
 
 This document defines the intended production compiler. Code, tests, command-line behavior, and future backend work must converge on this contract. Existing compatibility paths are transitional implementation details; they do not redefine the architecture.
 
+Implementation conventions for C11 ownership, naming, formatting, diagnostics, header boundaries, and review are specified in [ENGINEERING_STYLE.md](ENGINEERING_STYLE.md). The system contract defines what the compiler must do; the engineering guide defines how its implementation should be structured and reviewed.
+
 ## 1. Non-negotiable execution model
 
 Swan is an ahead-of-time (AOT), native-code compiler.
