@@ -111,7 +111,7 @@ def main() -> int:
                 "sequence": "state = (state * 1664525 + 1013904223) % 4294967296",
                 "same_sequence_in_all_implementations": True,
             },
-            "verification": "monotonic nondecreasing order plus u64 sum checksum",
+            "verification": "monotonic nondecreasing order plus wrapping u32 sum checksum",
             "measurement_rounds": ROUNDS,
             "measurement_order": [],
             "runner": {
