@@ -163,6 +163,14 @@ static inline void swan_warning_expr(Program *program,Expr *expression){
   swan_warning_add(program,&expression->token,
       "self-assignment to '%s' has no effect",expression->left->token.text);
  }
+ if(expression->kind==E_BINARY&&
+    (expression->token.kind==T_SLASH||expression->token.kind==T_FLOORDIV||
+     expression->token.kind==T_PERCENT)&&
+    expression->right&&expression->right->kind==E_INT&&
+    expression->right->token.text&&!strcmp(expression->right->token.text,"0")){
+  swan_warning_add(program,&expression->token,
+      "division or remainder by the literal zero will fail at runtime");
+ }
  swan_warning_expr(program,expression->left);
  swan_warning_expr(program,expression->right);
  for(size_t i=0;i<expression->argc;i++)swan_warning_expr(program,expression->args[i]);
