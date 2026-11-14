@@ -14,13 +14,11 @@ func main() -> int:
     var count = 0
     loop:
         count = count + 1
-        if true and not false:
-            if count < limit:
-                continue
-            else:
-                break
+        if count < limit:
+            continue
         else:
             pass
+            break
     return count
 SWAN
 
