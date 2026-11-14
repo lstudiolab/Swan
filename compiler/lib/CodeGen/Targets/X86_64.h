@@ -1098,7 +1098,24 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
   ownership_initialize_handles(o,&l);
   const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
-  for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){size_t index=a-1;Local *v=local_find(&l,fn->params[index]);if(v){if(v->reg>=0){const char *dst=cg_reg_name(v->reg);if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);}else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);}}
+  const char *byte_regs[]={"dil","sil","dl","cl","r8b","r9b"};
+  for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){
+   size_t index=a-1;
+   Local *v=local_find(&l,fn->params[index]);
+   if(v){
+    bool boolean_parameter=fn->param_types&&fn->param_types[index]&&
+        (!strcmp(fn->param_types[index],"bool")||!strcmp(fn->param_types[index],"i1"));
+    if(boolean_parameter){
+     if(v->reg>=0)
+      text_add(o,"    movzx %s, %s\n",cg_reg_name(v->reg),byte_regs[index]);
+     else
+      text_add(o,"    movzx rax, %s\n    mov QWORD PTR [rbp - %d], rax\n",byte_regs[index],v->slot*8);
+    }else if(v->reg>=0){
+     const char *dst=cg_reg_name(v->reg);
+     if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);
+    }else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);
+   }
+  }
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
  }
  for(size_t i=0;i<p->count&&!p->bundle_imports;i++){
