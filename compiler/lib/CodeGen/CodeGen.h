@@ -55,7 +55,8 @@ static inline bool swan_svm_prepare_ir(Program *program,SwanIRModule *module,
    it. An IR/SIL/verifier/optimizer failure must remain a hard compilation error. */
 static inline bool swan_expr_requires_ast_compatibility(const Expr *expression){
     if(!expression)return false;
-    if(expression->kind==E_INDEX)return true;
+    if(expression->kind==E_INDEX||expression->kind==E_FLOAT||
+       expression->kind==E_STRING||expression->kind==E_MEMBER)return true;
     if(expression->kind==E_CALL&&expression->left&&expression->left->kind==E_NAME){
         const char *name=expression->left->token.text;
         if(name&&(!strcmp(name,"array")||!strcmp(name,"array_u32")||
@@ -72,7 +73,7 @@ static inline bool swan_block_requires_ast_compatibility(Stmt **body,size_t coun
     for(size_t i=0;i<count;i++){
         const Stmt *statement=body[i];
         if(!statement)continue;
-        if(statement->kind==S_LOG||
+        if(statement->kind==S_LOG||statement->kind==S_FREE||
            swan_expr_requires_ast_compatibility(statement->value)||
            swan_expr_requires_ast_compatibility(statement->condition)||
            swan_block_requires_ast_compatibility(statement->body,statement->body_count)||
@@ -81,12 +82,38 @@ static inline bool swan_block_requires_ast_compatibility(Stmt **body,size_t coun
     }
     return false;
 }
+static inline bool swan_block_exceeds_ir_local_limit(
+    Stmt **body,size_t count,size_t active,size_t *maximum){
+    for(size_t i=0;i<count;i++){
+        const Stmt *statement=body[i];
+        if(!statement)continue;
+        if(statement->kind==S_VARIABLE){
+            if(active==SIZE_MAX)return true;
+            active++;
+            if(active>*maximum)*maximum=active;
+            if(active>256)return true;
+        }
+        if(statement->kind==S_IF||statement->kind==S_WHILE){
+            if(swan_block_exceeds_ir_local_limit(statement->body,
+                    statement->body_count,active,maximum)||
+               swan_block_exceeds_ir_local_limit(statement->alternate,
+                    statement->alt_count,active,maximum))return true;
+        }
+    }
+    return false;
+}
 static inline bool swan_program_requires_ast_compatibility(const Program *program){
     if(!program||program->import_count)return true;
-    for(size_t i=0;i<program->count;i++)
-        if(swan_block_requires_ast_compatibility(program->functions[i]->body,
-                                                 program->functions[i]->body_count))
+    for(size_t i=0;i<program->count;i++){
+        const Stmt *function=program->functions[i];
+        if(!function)continue;
+        size_t maximum_locals=0;
+        if(swan_block_exceeds_ir_local_limit(function->body,
+                function->body_count,0,&maximum_locals)||
+           swan_block_requires_ast_compatibility(function->body,
+                                                  function->body_count))
             return true;
+    }
     return false;
 }
 static inline bool swan_codegen(Program *program, Text *output,
