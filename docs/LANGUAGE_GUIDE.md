@@ -622,6 +622,40 @@ The `std:print` form is a compiler-recognized output statement; it is not a func
 
 The current standard library is integer-focused. Arithmetic overflow follows the active target/backend behavior; these helpers do not yet provide checked-arithmetic guarantees. Importing `std` is explicit. The compiler does not silently inject standard-library declarations into every source file.
 
+### 12.2 The `std_math` module
+
+Import the integer mathematics module separately:
+
+```swan
+import std_math
+
+func main() -> int:
+    std:print >> std:gcd(84, 30)
+    std:print >> std:integer_sqrt(144)
+    std:print >> std:is_prime(97)
+    return 0
+```
+
+The Swan-authored `stdlib/std_math.swan` module currently provides:
+
+| API | Behavior |
+|---|---|
+| `std:gcd(left, right)` | Euclidean greatest common divisor |
+| `std:lcm(left, right)` | Least common multiple; returns 0 if either input is 0 |
+| `std:euclidean_mod(value, modulus)` | Non-negative remainder for positive modulus; returns 0 for non-positive modulus |
+| `std:floor_div(left, right)` | Mathematical floor division; returns 0 for a zero divisor |
+| `std:ceil_div(left, right)` | Mathematical ceiling division; returns 0 for a zero divisor |
+| `std:integer_sqrt(value)` | Floor of the non-negative integer square root; negative input returns 0 |
+| `std:is_prime(value)` | Primality test by trial division |
+| `std:is_composite(value)` | Composite-number test |
+| `std:triangular(value)` | Sum from 1 through a positive input |
+| `std:distance_int(left, right)` | Absolute distance between integer values |
+| `std:is_power_of_two(value)` | Tests for a positive power of two |
+| `std:next_power_of_two(value)` | Next power of two; returns 0 when the result cannot be represented by the current signed integer operations |
+| `std:fibonacci(value)` | Iterative Fibonacci number; negative input returns 0 |
+
+These functions are regular Swan code, not compiler intrinsics. They are compiled with the importing program. Integer overflow in arithmetic functions that do not explicitly guard it follows the active backend's integer behavior.
+
 ## 13. Complete reserved-keyword reference
 
 The lexer defines exactly **31 case-sensitive reserved words**:
