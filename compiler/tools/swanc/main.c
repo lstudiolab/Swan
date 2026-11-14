@@ -46,7 +46,8 @@ static char *swan_read_sources(const char *const *paths,size_t count){
 }
 static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_t count){
  for(size_t i=0;i<count;i++){
-  char temp[]="/tmp/swanc-c-XXXXXX";int fd=mkstemp(temp);if(fd<0)return false;close(fd);unlink(temp);
+  char temp[]="/tmp/swanc-c-XXXXXX";int fd=mkstemp(temp);if(fd<0)return false;
+  if(close(fd)!=0){unlink(temp);return false;}
   char *args[]={"cc","-S","-masm=intel","-o",temp,(char*)sources[i],NULL};
   int result=swan_exec(args,true);if(result!=0){unlink(temp);return false;}
   FILE *input=fopen(temp,"rb");if(!input){unlink(temp);return false;}
