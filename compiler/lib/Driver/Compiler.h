@@ -49,8 +49,10 @@ static inline bool swan_load_imports(Program *p,const char *stdlib_dir,char **so
   if(!source){swan_error(err,NULL,"cannot load standard-library module '%s' from '%s'",name,path);return false;}
   TokenStream module_ts;
   if(!swan_lex(source,&module_ts,err)){free(source);free(module_ts.items);free(module_ts.text_storage);return false;}
-  size_t slot=(*module_count)++;sources[slot]=source;texts[slot]=module_ts.text_storage;free(module_ts.items);
-  if(!swan_parse(&module_ts,p,err)){
+  size_t slot=(*module_count)++;sources[slot]=source;texts[slot]=module_ts.text_storage;
+  bool parsed=swan_parse(&module_ts,p,err);
+  free(module_ts.items);
+  if(!parsed){
    char detail[sizeof(err->message)];snprintf(detail,sizeof(detail),"%s",err->message);
    swan_error(err,NULL,"in module '%s': %s",name,detail);return false;
   }
