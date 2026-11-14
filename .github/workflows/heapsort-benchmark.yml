@@ -7,6 +7,7 @@ on:
     paths:
       - "benchmarks/heapsort/**"
       - "benchmarks/heapsort_benchmark.py"
+      - "compiler/lib/CodeGen/Targets/WASM32.h"
       - ".github/workflows/heapsort-benchmark.yml"
 
 permissions:
