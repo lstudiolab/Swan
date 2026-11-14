@@ -104,6 +104,7 @@ printf 'PASS: definite initialization merges assignments from both branches\\n'
 
 cat > "$TMP/boolean-abi.swan" <<'SWAN'
 fn identity(value: bool) -> bool:
+    log 0
     return value
 out
 fn main() -> int:
@@ -115,7 +116,7 @@ fn main() -> int:
 out
 SWAN
 "$SWAN" build "$TMP/boolean-abi.swan" -o "$TMP/boolean-abi"
-test "$("$TMP/boolean-abi")" = "21"
+test "$("$TMP/boolean-abi")" = "0\n21"
 printf 'PASS: x86-64 AST backend normalizes boolean parameters and return values\\n'
 
 cat > "$TMP/unknown-function.swan" <<'SWAN'
