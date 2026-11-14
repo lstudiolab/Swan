@@ -1,92 +1,92 @@
 # Swan Foundation
 # Dependency-free integer helpers and the echo! output intrinsic.
 
-fn foundation_hello() -> int:
+func foundation_hello() -> int:
     echo!("Foundation standard library ready")
     return 0
 
-fn echo_int(value: int) -> void:
+func echo_int(value: int) -> void:
     log value
 
-fn echo_bool(value: bool) -> void:
+func echo_bool(value: bool) -> void:
     log value
 
-fn abs_int(value: int) -> int:
-    if value < 0
+func abs_int(value: int) -> int:
+    if value < 0:
         return 0 - value
     return value
 
-fn min_int(left: int, right: int) -> int:
-    if left < right
+func min_int(left: int, right: int) -> int:
+    if left < right:
         return left
     return right
 
-fn max_int(left: int, right: int) -> int:
-    if left > right
+func max_int(left: int, right: int) -> int:
+    if left > right:
         return left
     return right
 
-fn clamp_int(value: int, lower: int, upper: int) -> int:
-    if lower > upper
+func clamp_int(value: int, lower: int, upper: int) -> int:
+    if lower > upper:
         return lower
-    if value < lower
+    if value < lower:
         return lower
-    if value > upper
+    if value > upper:
         return upper
     return value
 
-fn sign_int(value: int) -> int:
-    if value < 0
+func sign_int(value: int) -> int:
+    if value < 0:
         return 0 - 1
-    if value > 0
+    if value > 0:
         return 1
     return 0
 
-fn square_int(value: int) -> int:
+func square_int(value: int) -> int:
     return value * value
 
-fn cube_int(value: int) -> int:
+func cube_int(value: int) -> int:
     return value * value * value
 
-fn power_int(base: int, exponent: int) -> int:
+func power_int(base: int, exponent: int) -> int:
     var result: int = 1
     var count: int = 0
-    if exponent < 0
+    if exponent < 0:
         return 0
-    while count < exponent
+    while count < exponent:
         result = result * base
         count = count + 1
     return result
 
-fn factorial_int(value: int) -> int:
+func factorial_int(value: int) -> int:
     var result: int = 1
     var count: int = 2
-    if value < 0
+    if value < 0:
         return 0
-    while count <= value
+    while count <= value:
         result = result * count
         count = count + 1
     return result
 
-fn sum_to_int(value: int) -> int:
+func sum_to_int(value: int) -> int:
     var result: int = 0
     var count: int = 1
-    if value < 1
+    if value < 1:
         return 0
-    while count <= value
+    while count <= value:
         result = result + count
         count = count + 1
     return result
 
-fn is_even(value: int) -> bool:
+func is_even(value: int) -> bool:
     return value % 2 == 0
 
-fn is_odd(value: int) -> bool:
+func is_odd(value: int) -> bool:
     return value % 2 != 0
 
-fn in_range_int(value: int, lower: int, upper: int) -> bool:
+func in_range_int(value: int, lower: int, upper: int) -> bool:
     return value >= lower and value <= upper
 
-fn average_int(left: int, right: int) -> int:
+func average_int(left: int, right: int) -> int:
     return (left + right) / 2
 
