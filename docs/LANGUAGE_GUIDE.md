@@ -656,6 +656,37 @@ The Swan-authored `stdlib/std_math.swan` module currently provides:
 
 These functions are regular Swan code, not compiler intrinsics. They are compiled with the importing program. Integer overflow in arithmetic functions that do not explicitly guard it follows the active backend's integer behavior.
 
+### 12.3 The `std_collections` module
+
+The current collection implementation uses the compiler's `u32_array` representation. Pass the array and its logical length explicitly:
+
+```swan
+import std_collections
+
+func main() -> int:
+    var values = array_u32(4)
+    values[0] = 8
+    values[1] = 3
+    values[2] = 6
+    values[3] = 1
+
+    std:array_insertion_sort(values, 4)
+    std:print >> std:array_sum(values, 4)
+    std:print >> std:array_binary_search(values, 4, 6)
+    return 0
+```
+
+Implemented APIs:
+
+| Category | Functions |
+|---|---|
+| Queries | `array_sum`, `array_min`, `array_max`, `array_contains`, `array_index_of`, `array_count`, `array_average`, `array_is_sorted` |
+| Mutation | `array_fill`, `array_copy`, `array_reverse` |
+| Search | `array_linear_search`, `array_binary_search` |
+| Sorting | `array_bubble_sort`, `array_selection_sort`, `array_insertion_sort` |
+
+The search functions return a zero-based index or -1 when no match exists. Binary search requires the input to be sorted in ascending order. Sorting and mutation functions modify the supplied array in place and return the logical length. This is not yet Swift's generic `Array`, `Dictionary`, `Set`, `Sequence`, or collection-protocol system; those require generic types, broader element support, and richer collection semantics that are not yet implemented.
+
 ## 13. Complete reserved-keyword reference
 
 The lexer defines exactly **31 case-sensitive reserved words**:
