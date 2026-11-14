@@ -4,6 +4,8 @@
 #include "swan/ir.h"
 static inline int swan_x64_slot(uint32_t id){return (int)(id*8u);}
 static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *error,size_t cap){
+ if(error&&cap)error[0]=0;
+ if(!m||!o){if(error&&cap)snprintf(error,cap,"x86-64 IR code generation requires a module and output buffer");return false;}
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
