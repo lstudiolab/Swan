@@ -84,7 +84,7 @@ def main() -> int:
             "Goose": BENCH / "goose.goose",
             "Rust": BENCH / "rust.rs",
             "C": BENCH / "c.c",
-            "C++": BENCH / "cpp.cpp",
+            "C++": BENCH / "cpp.source",
             "Swift": BENCH / "swift.swift",
         }
         compile_commands = {
@@ -95,7 +95,7 @@ def main() -> int:
                      str(sources["Rust"]), "-o", str(binaries["Rust"])],
             "C": ["cc", "-O3", "-march=native", "-DNDEBUG",
                   str(sources["C"]), "-o", str(binaries["C"])],
-            "C++": ["c++", "-O3", "-march=native", "-DNDEBUG", "-std=c++20",
+            "C++": ["c++", "-O3", "-march=native", "-DNDEBUG", "-std=c++20", "-x", "c++",
                     str(sources["C++"]), "-o", str(binaries["C++"])],
             "Swift": ["swiftc", "-O", "-whole-module-optimization",
                       str(sources["Swift"]), "-o", str(binaries["Swift"])],
