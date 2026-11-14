@@ -17,33 +17,18 @@ ${CC:-cc} -x assembler "$TMP/hello.s" -o "$TMP/hello"
 test "$("$TMP/hello")" = "Hello"
 printf 'PASS: indentation-based hello program\n'
 
-# Explicit ':' / 'out' blocks are delimiter-based, not indentation-based.
-cat > "$TMP/explicit-out.swan" <<'SWAN'
-fn main():
+# Blocks are closed only by dedentation; no terminator token is used.
+cat > "$TMP/indentation-block.swan" <<'SWAN'
+func main() -> int:
     let message = 42
     if true:
         print message
-    out
     return 0
-out
 SWAN
-"$SWAN" "$TMP/explicit-out.swan" --emit-asm -o "$TMP/explicit-out.s"
-${CC:-cc} -x assembler "$TMP/explicit-out.s" -o "$TMP/explicit-out"
-test "$("$TMP/explicit-out")" = "42"
-printf 'PASS: explicit colon/out blocks\\n'
-
-
-# Swan's current spelling uses print as a built-in and out as the block closer.
-cat > "$TMP/explicit-out.swan" <<'SWAN'
-fn main():
-    let message = 42
-    print message
-out
-SWAN
-"$SWAN" "$TMP/explicit-out.swan" --emit-asm -o "$TMP/explicit-out.s"
-${CC:-cc} -x assembler "$TMP/explicit-out.s" -o "$TMP/explicit-out"
-test "$("$TMP/explicit-out")" = "42"
-printf 'PASS: print built-in and explicit out block terminator\n'
+"$SWAN" "$TMP/indentation-block.swan" --emit-asm -o "$TMP/indentation-block.s"
+${CC:-cc} -x assembler "$TMP/indentation-block.s" -o "$TMP/indentation-block"
+test "$("$TMP/indentation-block")" = "42"
+printf 'PASS: indentation-only block termination\\n'
 
 # Legacy words are ordinary identifiers, not reserved keywords.
 cat > "$TMP/legacy-identifiers.swan" <<'SWAN'
@@ -57,7 +42,6 @@ fn main():
     let or = 7
     let not = 8
     print log + manualCount + none + extern + funcName
-out
 SWAN
 "$SWAN" "$TMP/legacy-identifiers.swan" --emit-asm -o "$TMP/legacy-identifiers.s"
 ${CC:-cc} -x assembler "$TMP/legacy-identifiers.s" -o "$TMP/legacy-identifiers"
@@ -129,7 +113,6 @@ fn main():
     let manual = 27
     print manual
     return 0
-out
 SWAN
 "$SWAN" "$TMP/manual-identifier.swan" --emit-asm -o "$TMP/manual-identifier.s"
 ${CC:-cc} -x assembler "$TMP/manual-identifier.s" -o "$TMP/manual-identifier"
@@ -141,7 +124,6 @@ cat > "$TMP/manual-modifier.swan" <<'SWAN'
 fn main():
     manual var values = array(4)
     return 0
-out
 SWAN
 if "$SWAN" "$TMP/manual-modifier.swan" --emit-asm -o "$TMP/manual-modifier.s" 2>/dev/null; then
   echo 'FAIL: removed manual modifier was accepted' >&2
