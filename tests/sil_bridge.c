@@ -4,16 +4,13 @@
 
 int main(void) {
     const char *source =
-        "fn add(a: int, b: int) -> int:\n"
+        "func add(a: int, b: int) -> int:\n"
         "    return a + b\n"
-        "out\n"
-        "fn main() -> int:\n"
+        "func main() -> int:\n"
         "    return 2 + 3 * 4\n"
-        "out\n"
-        "fn negative() -> int:\n"
+        "func negative() -> int:\n"
         "    return 1 - 2\n"
-        "out\n"
-        "fn wide() -> int:\n"
+        "func wide() -> int:\n"
         "    return 50000 * 50000\n"
         "out\n";
     SwanError error = {0};
