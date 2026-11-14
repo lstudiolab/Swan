@@ -70,6 +70,7 @@ typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
 typedef struct { char message[1024]; unsigned line,col; } SwanError;
+typedef struct { char message[256]; unsigned line,col; } SwanWarning;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
  va_list ap; va_start(ap,fmt); vsnprintf(e->message,sizeof(e->message),fmt,ap); va_end(ap);
  e->line=t?t->line:0; e->col=t?t->col:0;
