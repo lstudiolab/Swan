@@ -3,81 +3,81 @@
 # Access public functions through the std: namespace.
 # Output is a language intrinsic: std:print >> expression
 
-fn abs(value: int) -> int:
-    if value < 0
+func abs(value: int) -> int:
+    if value < 0:
         return 0 - value
     return value
 
-fn min(left: int, right: int) -> int:
-    if left < right
+func min(left: int, right: int) -> int:
+    if left < right:
         return left
     return right
 
-fn max(left: int, right: int) -> int:
-    if left > right
+func max(left: int, right: int) -> int:
+    if left > right:
         return left
     return right
 
-fn clamp(value: int, lower: int, upper: int) -> int:
-    if lower > upper
+func clamp(value: int, lower: int, upper: int) -> int:
+    if lower > upper:
         return lower
-    if value < lower
+    if value < lower:
         return lower
-    if value > upper
+    if value > upper:
         return upper
     return value
 
-fn sign(value: int) -> int:
-    if value < 0
+func sign(value: int) -> int:
+    if value < 0:
         return 0 - 1
-    if value > 0
+    if value > 0:
         return 1
     return 0
 
-fn square(value: int) -> int:
+func square(value: int) -> int:
     return value * value
 
-fn cube(value: int) -> int:
+func cube(value: int) -> int:
     return value * value * value
 
-fn power(base: int, exponent: int) -> int:
+func power(base: int, exponent: int) -> int:
     var result: int = 1
     var count: int = 0
-    if exponent < 0
+    if exponent < 0:
         return 0
-    while count < exponent
+    while count < exponent:
         result = result * base
         count = count + 1
     return result
 
-fn factorial(value: int) -> int:
+func factorial(value: int) -> int:
     var result: int = 1
     var count: int = 2
-    if value < 0
+    if value < 0:
         return 0
-    while count <= value
+    while count <= value:
         result = result * count
         count = count + 1
     return result
 
-fn sum_to(value: int) -> int:
+func sum_to(value: int) -> int:
     var result: int = 0
     var count: int = 1
-    if value < 1
+    if value < 1:
         return 0
-    while count <= value
+    while count <= value:
         result = result + count
         count = count + 1
     return result
 
-fn is_even(value: int) -> bool:
+func is_even(value: int) -> bool:
     return value % 2 == 0
 
-fn is_odd(value: int) -> bool:
+func is_odd(value: int) -> bool:
     return value % 2 != 0
 
-fn in_range(value: int, lower: int, upper: int) -> bool:
+func in_range(value: int, lower: int, upper: int) -> bool:
     return value >= lower and value <= upper
 
-fn average(left: int, right: int) -> int:
+func average(left: int, right: int) -> int:
     return (left + right) / 2
