@@ -288,10 +288,12 @@ static int repairs_block_owners_after_function_array_growth(void){
     SwanIRFunction *first=swan_ir_add_function(&module,"first",SWAN_IR_VOID,NULL,0);
     if(!first)return 110;
     if(!swan_ir_add_block(first,"entry"))return 111;
-    for(size_t i=0;i<8;i++){
-        char name[32];
-        snprintf(name,sizeof(name),"function_%zu",i);
-        if(!swan_ir_add_function(&module,name,SWAN_IR_VOID,NULL,0)){
+    static const char *function_names[]={
+        "function_0","function_1","function_2","function_3",
+        "function_4","function_5","function_6","function_7"
+    };
+    for(size_t i=0;i<sizeof(function_names)/sizeof(function_names[0]);i++){
+        if(!swan_ir_add_function(&module,function_names[i],SWAN_IR_VOID,NULL,0)){
             swan_ir_destroy(&module);
             return 112;
         }
