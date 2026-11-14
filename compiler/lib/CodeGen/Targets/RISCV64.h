@@ -4,6 +4,8 @@
 #include "swan/ir.h"
 static inline int swan_rv_offset(uint32_t id){return (int)(id*8u);}
 static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *error,size_t cap){
+ if(error&&cap)error[0]=0;
+ if(!m||!o){if(error&&cap)snprintf(error,cap,"RISC-V64 code generation requires a module and output buffer");return false;}
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
@@ -17,12 +19,39 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
   }
  }
  for(size_t f=0;f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];size_t allocas=0;
-  for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
-  size_t value_bytes=((size_t)fn->next_value+1)*8u,frame=(value_bytes+allocas*8u+31u)&~(size_t)15u;if(frame<32)frame=32;
+  const SwanIRFunction *fn=&m->functions[f];size_t allocas=0,phi_slots=0;
+  for(size_t b=0;b<fn->block_count;b++){
+   size_t block_phi_count=0;
+   for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+    const SwanIRInst *instruction=&fn->blocks[b].instructions[i];
+    allocas+=instruction->op==SWAN_IR_ALLOCA;
+    block_phi_count+=instruction->op==SWAN_IR_PHI;
+   }
+   if(block_phi_count>phi_slots)phi_slots=block_phi_count;
+  }
+  size_t value_bytes=((size_t)fn->next_value+1)*8u;
+  if(allocas>(SIZE_MAX-value_bytes)/8u||
+     phi_slots>(SIZE_MAX-value_bytes-allocas*8u)/8u||
+     value_bytes+allocas*8u+phi_slots*8u>SIZE_MAX-31u){
+   if(error&&cap)snprintf(error,cap,"RISC-V64 stack frame size overflow");
+   return false;
+  }
+  size_t frame=(value_bytes+allocas*8u+phi_slots*8u+31u)&~(size_t)15u;
+  if(frame<32)frame=32;
+  if(frame>2048){if(error&&cap)snprintf(error,cap,"RISC-V64 stack frame exceeds its immediate-offset limit");return false;}
   text_add(o,".text\n.p2align 2\n.globl %s\n.type %s, @function\n%s:\n    addi sp, sp, -%zu\n    sd ra, %zu(sp)\n    sd s0, %zu(sp)\n    addi s0, sp, %zu\n",fn->name,fn->name,fn->name,frame,frame-8,frame-16,frame);
-  for(size_t p=0;p<fn->parameter_count&&p<8;p++)text_add(o,"    sd a%zu, %d(sp)\n",p,swan_rv_offset((uint32_t)p+1));
-  for(size_t p=8;p<fn->parameter_count;p++)text_add(o,"    ld t0, %zu(sp)\n    sd t0, %d(sp)\n",frame+(p-8u)*8u,swan_rv_offset((uint32_t)p+1));
+  for(size_t p=0;p<fn->parameter_count&&p<8;p++){
+   if(fn->parameter_types[p]==SWAN_IR_I1)
+    text_add(o,"    andi t0, a%zu, 1\n    sd t0, %d(sp)\n",p,swan_rv_offset((uint32_t)p+1));
+   else text_add(o,"    sd a%zu, %d(sp)\n",p,swan_rv_offset((uint32_t)p+1));
+  }
+  if(fn->parameter_count>8)text_add(o,"    addi t1, sp, %zu\n",frame);
+  for(size_t p=8;p<fn->parameter_count;p++){
+   size_t offset=(p-8u)*8u;
+   if(fn->parameter_types[p]==SWAN_IR_I1)
+    text_add(o,"    lbu t0, %zu(t1)\n    sd t0, %d(sp)\n",offset,swan_rv_offset((uint32_t)p+1));
+   else text_add(o,"    ld t0, %zu(t1)\n    sd t0, %d(sp)\n",offset,swan_rv_offset((uint32_t)p+1));
+  }
   size_t ai=0;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];text_add(o,".Lsw_f%zu_b%zu:\n",f,b);
@@ -40,6 +69,7 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
       for(size_t k=8;k<in->incoming_count;k++)text_add(o,"    addi t1, s0, -%zu\n    ld t0, %d(t1)\n    sd t0, %zu(sp)\n",frame,swan_rv_offset(in->incoming[k].value),(k-8u)*8u);
       for(size_t k=0;k<in->incoming_count&&k<8;k++)text_add(o,"    addi t1, s0, -%zu\n    ld a%zu, %d(t1)\n",frame,k,swan_rv_offset(in->incoming[k].value));
       text_add(o,"    call %s\n",in->symbol);
+      if(in->type==SWAN_IR_I1)text_add(o,"    andi a0, a0, 1\n");
       if(outgoing)text_add(o,"    addi sp, sp, %zu\n",outgoing);
       if(in->type!=SWAN_IR_VOID)text_add(o,"    sd a0, %d(sp)\n",d);
       break;}
@@ -76,8 +106,29 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
    const SwanIRTerm *t=&fn->blocks[b].terminator;size_t targets[2],n=0;
    if(t->kind==SWAN_IR_BR)targets[n++]=t->target;else if(t->kind==SWAN_IR_COND_BR){targets[n++]=t->target;if(t->alternate!=t->target)targets[n++]=t->alternate;}
    for(size_t k=0;k<n;k++){size_t target=targets[k];text_add(o,".Lsw_e%zu_%zu_%zu:\n",f,b,target);const SwanIRBlock *dest=&fn->blocks[target];
-    for(size_t i=0;i<dest->instruction_count;i++){const SwanIRInst *phi=&dest->instructions[i];if(phi->op!=SWAN_IR_PHI)continue;
-     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){text_add(o,"    ld t0, %d(sp)\n    sd t0, %d(sp)\n",swan_rv_offset(phi->incoming[q].value),swan_rv_offset(phi->result));break;}
+    size_t phi_index=0;
+    for(size_t i=0;i<dest->instruction_count;i++){
+     const SwanIRInst *phi=&dest->instructions[i];
+     if(phi->op!=SWAN_IR_PHI)continue;
+     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
+      size_t scratch=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      text_add(o,"    ld t0, %d(sp)\n    sd t0, %zu(sp)\n",
+               swan_rv_offset(phi->incoming[q].value),scratch);
+      break;
+     }
+     phi_index++;
+    }
+    phi_index=0;
+    for(size_t i=0;i<dest->instruction_count;i++){
+     const SwanIRInst *phi=&dest->instructions[i];
+     if(phi->op!=SWAN_IR_PHI)continue;
+     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
+      size_t scratch=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      text_add(o,"    ld t0, %zu(sp)\n    sd t0, %d(sp)\n",
+               scratch,swan_rv_offset(phi->result));
+      break;
+     }
+     phi_index++;
     }text_add(o,"    j .Lsw_f%zu_b%zu\n",f,target);
    }
   }
