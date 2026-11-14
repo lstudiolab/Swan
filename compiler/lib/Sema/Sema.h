@@ -251,6 +251,22 @@ static inline size_t swan_print_warnings(const Program *program){
 }
 
 static inline bool swan_semantic_check(Program *p,SwanError *err){
+ if(err)memset(err,0,sizeof(*err));
+ if(!p){
+  swan_error(err,NULL,"semantic analysis requires a program");
+  return false;
+ }
+ if(p->count>1024){
+  swan_error(err,NULL,"program exceeds the semantic function limit");
+  return false;
+ }
+ for(size_t i=0;i<p->count;i++){
+  if(!p->functions[i]||!p->functions[i]->name||!p->functions[i]->name[0]){
+   swan_error(err,p->functions[i]?&p->functions[i]->token:NULL,
+              "program contains an invalid function declaration");
+   return false;
+  }
+ }
  memset(p->function_buckets,0,sizeof(p->function_buckets));p->function_indexed=true;
  for(size_t i=0;i<p->count;i++){
   unsigned b=swan_name_hash(p->functions[i]->name)&2047u;
