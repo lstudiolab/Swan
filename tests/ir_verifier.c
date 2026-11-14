@@ -153,6 +153,42 @@ static int builder_guards(void){
     swan_ir_destroy(&m);
     return 0;
 }
+static int accepts_stale_ssa_location_cache(void){
+    SwanIRModule module = {0};
+    SwanIRFunction *function =
+        swan_ir_add_function(&module, "main", SWAN_IR_I32, NULL, 0);
+    SwanIRBlock *entry =
+        function ? swan_ir_add_block(function, "entry") : NULL;
+    if (entry == NULL) {
+        return 90;
+    }
+
+    SwanIRInst constant = {0};
+    constant.op = SWAN_IR_CONST;
+    constant.type = SWAN_IR_I32;
+    constant.immediate = 42;
+
+    uint32_t value = swan_ir_add_inst(function, entry, constant);
+    if (value == 0) {
+        swan_ir_destroy(&module);
+        return 91;
+    }
+
+    /* Simulate a transformation that moved the definition without rebuilding
+     * the optional location cache. Verification must use the safe fallback. */
+    function->value_locations[value] =
+        (SwanIRValueLocation) {UINT32_MAX, UINT32_MAX};
+
+    if (!swan_ir_terminate(entry, (SwanIRTerm) {SWAN_IR_RET, value, 0, 0})) {
+        swan_ir_destroy(&module);
+        return 92;
+    }
+
+    int status = expect_valid(&module, "stale SSA location cache");
+    swan_ir_destroy(&module);
+    return status;
+}
+
 static int rejects_duplicate_ssa_definitions(void){
     SwanIRModule m={0};
     SwanIRFunction *function=swan_ir_add_function(&m,"main",SWAN_IR_I32,NULL,0);
@@ -198,6 +234,7 @@ int main(void){
     status=rejects_unused_load_operand();if(status)return status;
     status=rejects_pointer_constant();if(status)return status;
     status=rejects_bad_terminator();if(status)return status;
+    status=accepts_stale_ssa_location_cache();if(status)return status;
     status=rejects_duplicate_ssa_definitions();if(status)return status;
     puts("Swan typed IR verifier passed: valid calls and SSA accepted; duplicate definitions, invalid types, PHI placement, operand arity, pointer constants, and terminators rejected.");
     return 0;
