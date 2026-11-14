@@ -1,4 +1,5 @@
 import Foundation
+import Glibc
 
 let count = 1_000_000_000
 let values = UnsafeMutablePointer<UInt32>.allocate(capacity: count)
