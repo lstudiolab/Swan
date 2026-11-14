@@ -3,13 +3,11 @@ const N = 1000000000;
 
 fn main() {
     var values: u32[>..] = [];
-    var state: u32 = 305419896;
+    var state: u64 = 305419896;
 
     for i in 0..N {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        values.push(state);
+        state = (state * 1664525 + 1013904223) % 4294967296;
+        values.push(state as u32);
     }
 
     var start = N / 2 - 1;
