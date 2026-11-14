@@ -305,14 +305,20 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  if(!nested){
   int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);
   for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov %s, rax\n",regs[i]);}
-  text_add(o,"    call %s\n",symbol);cg_release(o,pad);cg_restore_volatile(o,l);return;
+  text_add(o,"    call %s\n",symbol);
+  if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))
+   text_add(o,"    movzx eax, al\n");
+  cg_release(o,pad);cg_restore_volatile(o,l);return;
  }
  int area=(int)(((e->argc*8+15)/16)*16);
  int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry+area)%16))%16;
  cg_reserve(o,area+pad);
  for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %d], rax\n",pad+(int)i*8);}
  for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
- text_add(o,"    call %s\n",symbol);cg_release(o,area+pad);cg_restore_volatile(o,l);
+ text_add(o,"    call %s\n",symbol);
+ if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))
+  text_add(o,"    movzx eax, al\n");
+ cg_release(o,area+pad);cg_restore_volatile(o,l);
 }
 static inline bool cg_const_value(Expr *e,int64_t *out);
 static inline bool cg_const_value_uncached(Expr *e,int64_t *out){
@@ -1080,6 +1086,10 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
+  if(fn->param_count>6){
+   swan_error(err,&fn->token,"x86-64 AST backend supports at most six function parameters");
+   return false;
+  }
   if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
   if(p->codegen_module_index<0&&fn->imported&&!p->bundle_imports)continue;
   if(p->bundle_imports&&fn->imported&&!p->function_reachable[i])continue;
