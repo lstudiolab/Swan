@@ -1,0 +1,52 @@
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <vector>
+
+static constexpr size_t COUNT = 1000000000ULL;
+
+static void sift_down(uint32_t *values, size_t root, size_t end) {
+    for (;;) {
+        size_t left = root * 2 + 1;
+        if (left > end) return;
+        size_t largest = left;
+        size_t right = left + 1;
+        if (right <= end && values[right] > values[left]) largest = right;
+        if (values[root] >= values[largest]) return;
+        uint32_t temporary = values[root];
+        values[root] = values[largest];
+        values[largest] = temporary;
+        root = largest;
+    }
+}
+
+int main() {
+    std::vector<uint32_t> values(COUNT, 0);
+    uint32_t state = 305419896U;
+    for (size_t i = 0; i < COUNT; ++i) {
+        state ^= state << 13;
+        state ^= state >> 17;
+        state ^= state << 5;
+        values[i] = state;
+    }
+
+    for (size_t start = COUNT / 2; start > 0; --start)
+        sift_down(values.data(), start - 1, COUNT - 1);
+
+    for (size_t end = COUNT - 1; end > 0; --end) {
+        uint32_t temporary = values[0];
+        values[0] = values[end];
+        values[end] = temporary;
+        sift_down(values.data(), 0, end - 1);
+    }
+
+    uint64_t checksum = 0;
+    for (size_t i = 0; i < COUNT; ++i) {
+        if (i && values[i - 1] > values[i]) {
+            std::fputs("SORT_FAILED\n", stderr); return 3;
+        }
+        checksum += values[i];
+    }
+    std::printf("%llu\n", static_cast<unsigned long long>(checksum));
+    return 0;
+}
