@@ -350,6 +350,11 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
   const char *local_names[1024];
   size_t local_name_count=0;
   for(size_t a=0;a<fn->param_count;a++){
+   if(!fn->params[a]||!fn->params[a][0]){
+    swan_error(err,&fn->token,"function '%s' has an invalid parameter name",fn->name);
+    ok=false;
+    break;
+   }
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    bool is_array=fn->param_types&&fn->param_types[a]&&!strcmp(fn->param_types[a],"u32_array");
    if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
