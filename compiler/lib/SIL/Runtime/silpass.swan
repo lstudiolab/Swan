@@ -23,8 +23,16 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
             workspace[768 + destination] = state[base + 4]
         if opcode >= 2 and opcode <= 8
             if workspace[512 + left] == 1 and workspace[512 + right] == 1
-                let a = workspace[768 + left]
-                let b = workspace[768 + right]
+                let raw_a = workspace[768 + left]
+                let raw_b = workspace[768 + right]
+                var a = raw_a
+                var b = raw_b
+                # Folded values are stored as signed 32-bit bit patterns in the
+                # u32 workspace. Sign-extend them before arithmetic/comparison.
+                if a > 2147483647
+                    a = a - 4294967296
+                if b > 2147483647
+                    b = b - 4294967296
                 var folded = 0
                 var can_fold = 1
                 if opcode == 2
@@ -35,16 +43,24 @@ fn sil_fold_constants(state: u32_array, count: int, workspace: u32_array) -> int
                     folded = a * b
                 if opcode == 5 and b == 0
                     can_fold = 0
-                if opcode == 5 and b != 0
+                if opcode == 5 and a == -2147483648 and b == -1
+                    can_fold = 0
+                if opcode == 5 and b != 0 and not (a == -2147483648 and b == -1)
                     folded = a / b
                 if opcode == 6 and b == 0
                     can_fold = 0
-                if opcode == 6 and b != 0
+                if opcode == 6 and a == -2147483648 and b == -1
+                    can_fold = 0
+                if opcode == 6 and b != 0 and not (a == -2147483648 and b == -1)
                     folded = a % b
                 if opcode == 7
                     folded = a == b
                 if opcode == 8
                     folded = a < b
+                # The SIL record stores one 32-bit immediate. Leave wider
+                # results as operations for the typed SVM optimizer to fold.
+                if folded < -2147483648 or folded > 2147483647
+                    can_fold = 0
                 if can_fold == 1
                     state[base] = value_type * 16 + 1
                     state[base + 2] = 0
