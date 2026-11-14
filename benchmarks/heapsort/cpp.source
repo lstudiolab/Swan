@@ -22,12 +22,10 @@ static void sift_down(uint32_t *values, size_t root, size_t end) {
 
 int main() {
     std::vector<uint32_t> values(COUNT, 0);
-    uint32_t state = 305419896U;
+    uint64_t state = 305419896ULL;
     for (size_t i = 0; i < COUNT; ++i) {
-        state ^= state << 13;
-        state ^= state >> 17;
-        state ^= state << 5;
-        values[i] = state;
+        state = (state * 1664525ULL + 1013904223ULL) % 4294967296ULL;
+        values[i] = static_cast<uint32_t>(state);
     }
 
     for (size_t start = COUNT / 2; start > 0; --start)
