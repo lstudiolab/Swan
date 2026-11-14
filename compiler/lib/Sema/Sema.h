@@ -314,6 +314,10 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
   swan_error(err,NULL,"semantic analysis requires a program");
   return false;
  }
+ if(p->count&&!p->functions){
+  swan_error(err,NULL,"program has a function count but no declaration storage");
+  return false;
+ }
  if(p->count>1024){
   swan_error(err,NULL,"program exceeds the semantic function limit");
   return false;
@@ -322,6 +326,13 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
   if(!p->functions[i]||!p->functions[i]->name||!p->functions[i]->name[0]){
    swan_error(err,p->functions[i]?&p->functions[i]->token:NULL,
               "program contains an invalid function declaration");
+   return false;
+  }
+  if(p->functions[i]->param_count>16||
+     (p->functions[i]->param_count&&!p->functions[i]->params)){
+   swan_error(err,&p->functions[i]->token,
+              "function '%s' has invalid parameter storage or exceeds the 16-parameter limit",
+              p->functions[i]->name);
    return false;
   }
  }
