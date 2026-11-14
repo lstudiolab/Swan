@@ -186,7 +186,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
     else if(t->kind==SWAN_IR_BR){ok=swan_wasm_emit_edge(&body,fn,b,t->target,phi_local_base)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));}
     else if(t->kind==SWAN_IR_COND_BR){
      ok=swan_wasm_get(&body,t->value)&&swan_wasm_byte(&body,0x04)&&swan_wasm_byte(&body,0x40);
-     if(ok)ok=swan_wasm_emit_edge(&body,fn,b,t->target)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc);
+     if(ok)ok=swan_wasm_emit_edge(&body,fn,b,t->target,phi_local_base)&&swan_wasm_const(&body,false,(int64_t)t->target)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc);
      if(ok)ok=swan_wasm_byte(&body,0x05)&&swan_wasm_emit_edge(&body,fn,b,t->alternate,phi_local_base)&&swan_wasm_const(&body,false,(int64_t)t->alternate)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc)&&swan_wasm_byte(&body,0x0b)&&swan_wasm_byte(&body,0x0c)&&swan_wasm_u32(&body,(uint32_t)(fn->block_count-b));
     }else ok=false;
    }
