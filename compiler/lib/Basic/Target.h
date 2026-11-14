@@ -59,8 +59,25 @@ static inline SwanObjectFormat swan_object_format_for_triple(const char *triple)
 
 #define SWAN_TARGET_COUNT (sizeof(swan_targets) / sizeof(swan_targets[0]))
 
+/* Resolve the compiler build host independently from the requested output target. */
+static inline const SwanTarget *swan_target_host(void) {
+#if defined(__linux__) && defined(__x86_64__)
+    return &swan_targets[0];
+#elif defined(__linux__) && defined(__aarch64__)
+    return &swan_targets[1];
+#elif defined(__linux__) && defined(__arm__)
+    return &swan_targets[2];
+#elif defined(__linux__) && defined(__riscv) && defined(__riscv_xlen) && __riscv_xlen == 64
+    return &swan_targets[3];
+#else
+    return NULL;
+#endif
+}
+
 static inline const SwanTarget *swan_target_find(const char *name) {
     if (!name) return NULL;
+    if (!strcmp(name, "host") || !strcmp(name, "native") || !strcmp(name, "auto"))
+        return swan_target_host();
     if (!strcmp(name, "x86-64") || !strcmp(name, "amd64")) name = "x86_64";
     else if (!strcmp(name, "arm64")) name = "aarch64";
     else if (!strcmp(name, "arm")) name = "armv7";
