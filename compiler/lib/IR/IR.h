@@ -197,6 +197,51 @@ static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t
 static inline bool swan_ir_integer_type(SwanIRType t) {
  return t>=SWAN_IR_I1&&t<=SWAN_IR_I64;
 }
+static inline int swan_ir_compare_value_ids(const void *lhs,const void *rhs) {
+ uint32_t left=*(const uint32_t *)lhs;
+ uint32_t right=*(const uint32_t *)rhs;
+ return (left>right)-(left<right);
+}
+
+/* Validate SSA definition uniqueness in O(I log I), rather than repeatedly
+ * rescanning all preceding instructions for every definition. Sorting a
+ * compact ID list also avoids allocating a bitmap sized by the highest ID. */
+static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
+                                                      char *error,size_t cap) {
+ size_t definition_count=0;
+ for(size_t b=0;b<fn->block_count;b++){
+  const SwanIRBlock *block=&fn->blocks[b];
+  if(block->instruction_count>block->instruction_capacity||
+     (block->instruction_count&&!block->instructions))
+   return swan_ir_fail(error,cap,"invalid block instruction storage",fn->name,b,0);
+  if(block->instruction_count>SIZE_MAX-definition_count)
+   return swan_ir_fail(error,cap,"SSA definition count overflow",fn->name,b,0);
+  for(size_t i=0;i<block->instruction_count;i++)
+   if(block->instructions[i].result)definition_count++;
+ }
+ if(definition_count>SIZE_MAX/sizeof(uint32_t))
+  return swan_ir_fail(error,cap,"SSA definition table size overflow",fn->name,0,0);
+ uint32_t *definitions=definition_count
+  ?malloc(definition_count*sizeof(*definitions)):NULL;
+ if(definition_count&&!definitions)
+  return swan_ir_fail(error,cap,"out of memory validating SSA definitions",fn->name,0,0);
+ size_t next=0;
+ for(size_t b=0;b<fn->block_count;b++)
+  for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+   uint32_t result=fn->blocks[b].instructions[i].result;
+   if(result)definitions[next++]=result;
+  }
+ qsort(definitions,definition_count,sizeof(*definitions),swan_ir_compare_value_ids);
+ for(size_t i=1;i<definition_count;i++){
+  if(definitions[i-1]==definitions[i]){
+   free(definitions);
+   return swan_ir_fail(error,cap,"duplicate SSA value ID",fn->name,0,0);
+  }
+ }
+ free(definitions);
+ return true;
+}
+
 static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
  if(!m||m->function_count>m->function_capacity||(m->function_count&&!m->functions))return swan_ir_fail(error,cap,"invalid module storage",NULL,0,0);
  for(size_t f=0;f<m->function_count;f++){
@@ -208,6 +253,7 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
   for(size_t p=0;p<fn->parameter_count;p++)if(!swan_ir_value_type(fn->parameter_types[p]))return swan_ir_fail(error,cap,"invalid parameter type",fn->name,0,p);
   if(fn->external){if(fn->block_count)return swan_ir_fail(error,cap,"external function must not contain a body",fn->name,0,0);continue;}
   if(!fn->block_count)return swan_ir_fail(error,cap,"function has no entry block",fn->name,0,0);
+  if(!swan_ir_verify_unique_definitions(fn,error,cap))return false;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];
    if(bb->instruction_count>bb->instruction_capacity||(bb->instruction_count&&!bb->instructions))return swan_ir_fail(error,cap,"invalid block instruction storage",fn->name,b,0);
@@ -221,10 +267,6 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
     if(in->result){
      if(in->result>=fn->next_value)return swan_ir_fail(error,cap,"SSA value ID exceeds function register range",fn->name,b,i);
      if(in->result<=fn->parameter_count)return swan_ir_fail(error,cap,"instruction redefines a parameter",fn->name,b,i);
-     for(size_t db=0;db<=b;db++)for(size_t di=0;di<fn->blocks[db].instruction_count;di++){
-      if(db==b&&di>=i)break;
-      if(fn->blocks[db].instructions[di].result==in->result)return swan_ir_fail(error,cap,"duplicate SSA value ID",fn->name,b,i);
-     }
     }
     if(in->op==SWAN_IR_CONST){if(!swan_ir_value_type(in->type))return swan_ir_fail(error,cap,"constant cannot have void type",fn->name,b,i);}
     else if(in->op==SWAN_IR_PHI){
