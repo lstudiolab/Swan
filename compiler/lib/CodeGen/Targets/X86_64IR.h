@@ -42,8 +42,20 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
   }
   size_t frame=(value_bytes+allocas*8u+phi_slots*8u+15u)&~(size_t)15u;
   text_add(o,".intel_syntax noprefix\n.text\n.globl %s\n.type %s, @function\n%s:\n    push rbp\n    mov rbp, rsp\n    sub rsp, %zu\n",fn->name,fn->name,fn->name,frame);
-  for(size_t p=0;p<fn->parameter_count&&p<6;p++)text_add(o,"    mov QWORD PTR [rbp-%d], %s\n",swan_x64_slot((uint32_t)p+1),args[p]);
-  for(size_t p=6;p<fn->parameter_count;p++)text_add(o,"    mov rax, QWORD PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",16u+(p-6u)*8u,swan_x64_slot((uint32_t)p+1));
+  static const char *arg_bytes[]={"dil","sil","dl","cl","r8b","r9b"};
+  for(size_t p=0;p<fn->parameter_count&&p<6;p++){
+   if(fn->parameter_types[p]==SWAN_IR_I1)
+    text_add(o,"    movzx eax, %s\n    mov QWORD PTR [rbp-%d], rax\n",arg_bytes[p],swan_x64_slot((uint32_t)p+1));
+   else
+    text_add(o,"    mov QWORD PTR [rbp-%d], %s\n",swan_x64_slot((uint32_t)p+1),args[p]);
+  }
+  for(size_t p=6;p<fn->parameter_count;p++){
+   size_t source_offset=16u+(p-6u)*8u;
+   if(fn->parameter_types[p]==SWAN_IR_I1)
+    text_add(o,"    movzx eax, BYTE PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",source_offset,swan_x64_slot((uint32_t)p+1));
+   else
+    text_add(o,"    mov rax, QWORD PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",source_offset,swan_x64_slot((uint32_t)p+1));
+  }
   size_t ai=0;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];text_add(o,".Lsw_f%zu_b%zu:\n",f,b);
