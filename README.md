@@ -6,7 +6,7 @@ Licensed under Apache-2.0.
 
 ## Compiler system contract
 
-The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/ENGINEERING_STYLE.md](docs/ENGINEERING_STYLE.md).. It defines Swan as an AOT compiler with a Swan-owned SIL/SVM pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
+The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/ENGINEERING_STYLE.md](docs/ENGINEERING_STYLE.md). It defines Swan as an AOT compiler with a Swan-owned SIL/SVM pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
 
 ## Current compiler
 
