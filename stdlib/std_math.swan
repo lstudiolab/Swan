@@ -41,8 +41,13 @@ func floor_div(left: int, right: int) -> int:
         return 0
     let quotient = left / right
     let remainder = left % right
-    if remainder != 0 and ((left < 0 and right > 0) or (left > 0 and right < 0)):
-        return quotient - 1
+    if remainder != 0:
+        if left < 0:
+            if right > 0:
+                return quotient - 1
+        if left > 0:
+            if right < 0:
+                return quotient - 1
     return quotient
 out
 
@@ -51,8 +56,13 @@ func ceil_div(left: int, right: int) -> int:
         return 0
     let quotient = left / right
     let remainder = left % right
-    if remainder != 0 and ((left < 0 and right < 0) or (left > 0 and right > 0)):
-        return quotient + 1
+    if remainder != 0:
+        if left < 0:
+            if right < 0:
+                return quotient + 1
+        if left > 0:
+            if right > 0:
+                return quotient + 1
     return quotient
 out
 
@@ -61,17 +71,12 @@ func integer_sqrt(value: int) -> int:
         return 0
     if value < 2:
         return value
-    var low = 1
-    var high = value / 2 + 1
-    var answer = 1
-    while low <= high:
-        let middle = low + (high - low) / 2
-        if middle <= value / middle:
-            answer = middle
-            low = middle + 1
-        else:
-            high = middle - 1
-    return answer
+    var estimate = value
+    loop:
+        let next = (estimate + value / estimate) / 2
+        if next >= estimate:
+            return estimate
+        estimate = next
 out
 
 func is_prime(value: int) -> bool:
@@ -123,8 +128,6 @@ func next_power_of_two(value: int) -> int:
         return 1
     var result = 1
     while result < value:
-        if result > value / 2:
-            return 0
         result = result * 2
     return result
 out
