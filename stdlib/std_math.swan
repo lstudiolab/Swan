@@ -39,31 +39,20 @@ out
 func floor_div(left: int, right: int) -> int:
     if right == 0:
         return 0
-    let quotient = left / right
-    let remainder = left % right
-    if remainder != 0:
-        if left < 0:
-            if right > 0:
-                return quotient - 1
-        if left > 0:
-            if right < 0:
-                return quotient - 1
+    if right < 0:
+        return floor_div(0 - left, 0 - right)
+    var quotient = left / right
+    var remainder = left % right
+    while remainder < 0:
+        remainder = remainder + right
+        quotient = quotient - 1
     return quotient
 out
 
 func ceil_div(left: int, right: int) -> int:
     if right == 0:
         return 0
-    let quotient = left / right
-    let remainder = left % right
-    if remainder != 0:
-        if left < 0:
-            if right < 0:
-                return quotient + 1
-        if left > 0:
-            if right > 0:
-                return quotient + 1
-    return quotient
+    return 0 - floor_div(0 - left, right)
 out
 
 func integer_sqrt(value: int) -> int:
