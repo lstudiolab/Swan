@@ -227,15 +227,27 @@ static inline bool swan_sil_lower_function(const Stmt *fn, SwanIRModule *module)
     return returned;
 }
 
-static inline bool swan_sil_try_irgen_program(Program *program, SwanIRModule *output) {
+typedef enum {
+    SWAN_SIL_NOT_APPLICABLE,
+    SWAN_SIL_LOWERED,
+    SWAN_SIL_FAILED
+} SwanSILResult;
+
+static inline SwanSILResult swan_sil_try_irgen_program(Program *program,
+                                                        SwanIRModule *output,
+                                                        SwanError *error) {
     if (!program || !output || !program->count || program->import_count ||
-        program->count < program->source_function_count || program->count > 1024) return false;
+        program->count < program->source_function_count || program->count > 1024)
+        return SWAN_SIL_NOT_APPLICABLE;
 
     /* Start from the complete typed-IR lowering so calls, including imported C
        symbols, remain in the same module as SIL-lowered functions. */
     SwanIRModule candidate = {0};
     SwanError lowering_error = {0};
-    if (!swan_irgen_program(program, &candidate, &lowering_error)) return false;
+    if (!swan_irgen_program(program, &candidate, &lowering_error)) {
+        if (error) *error = lowering_error;
+        return SWAN_SIL_FAILED;
+    }
 
     for (size_t i = 0; i < program->count; ++i) {
         const Stmt *source = program->functions[i];
@@ -262,7 +274,10 @@ static inline bool swan_sil_try_irgen_program(Program *program, SwanIRModule *ou
         if (!destination) {
             swan_ir_destroy(&sil_function);
             swan_ir_destroy(&candidate);
-            return false;
+            if (error) swan_error(error, &source->token,
+                                  "SIL lowering lost function '%s' from the candidate IR",
+                                  source->name);
+            return SWAN_SIL_FAILED;
         }
 
         SwanIRFunction *lowered = &sil_function.functions[0];
@@ -284,9 +299,11 @@ static inline bool swan_sil_try_irgen_program(Program *program, SwanIRModule *ou
     char verify_error[256] = {0};
     if (!swan_ir_verify(&candidate, verify_error, sizeof(verify_error))) {
         swan_ir_destroy(&candidate);
-        return false;
+        if (error) swan_error(error, NULL,
+                              "SIL produced invalid candidate IR: %s", verify_error);
+        return SWAN_SIL_FAILED;
     }
     *output = candidate;
-    return true;
+    return SWAN_SIL_LOWERED;
 }
 #endif
