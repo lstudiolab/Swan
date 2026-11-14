@@ -40,7 +40,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
   size_t frame=(value_bytes+allocas*4u+phi_slots*4u+7u)&~(size_t)7u;
   if(frame<8)frame=8;
   if(frame>4095){if(error&&cap)snprintf(error,cap,"ARMv7 stack frame exceeds its immediate-offset limit");return false;}
-  text_add(o,".syntax unified\n.arm\n.text\n.align 2\n.global %s\n.type %s, %%function\n%s:\n    push {r4, lr}\n    ldr r12, =%zu\n    sub sp, sp, r12\n",fn->name,fn->name,fn->name,frame);
+  text_add(o,".syntax unified\n.arm\n.text\n.align 2\n.global %s\n.type %s, %%function\n%s:\n    push {r4, lr}\n    movw r12, #%zu\n    sub sp, sp, r12\n",fn->name,fn->name,fn->name,frame);
   for(size_t p=0;p<fn->parameter_count&&p<4;p++){
    if(fn->parameter_types[p]==SWAN_IR_I1)
     text_add(o,"    and r12, r%zu, #1\n    str r12, [sp, #%d]\n",p,swan_armv7_offset((uint32_t)p+1));
@@ -48,7 +48,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
   }
   for(size_t p=4;p<fn->parameter_count;p++){
    size_t source_offset=8u+(p-4u)*4u;
-   text_add(o,"    ldr r12, =%zu\n    add r12, sp, r12\n",frame);
+   text_add(o,"    movw r12, #%zu\n    add r12, sp, r12\n",frame);
    if(fn->parameter_types[p]==SWAN_IR_I1)
     text_add(o,"    ldrb r0, [r12, #%zu]\n    str r0, [sp, #%d]\n",source_offset,swan_armv7_offset((uint32_t)p+1));
    else text_add(o,"    ldr r0, [r12, #%zu]\n    str r0, [sp, #%d]\n",source_offset,swan_armv7_offset((uint32_t)p+1));
@@ -61,7 +61,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
     switch(in->op){
      case SWAN_IR_PHI:break;
      case SWAN_IR_CONST:text_add(o,"    ldr r0, =%d\n    str r0, [sp, #%d]\n",(int32_t)in->immediate,d);break;
-     case SWAN_IR_ALLOCA:{size_t off=value_bytes+ai++*4u;text_add(o,"    ldr r0, =%zu\n    add r0, sp, r0\n    str r0, [sp, #%d]\n",off,d);break;}
+     case SWAN_IR_ALLOCA:{size_t off=value_bytes+ai++*4u;text_add(o,"    movw r0, #%zu\n    add r0, sp, r0\n    str r0, [sp, #%d]\n",off,d);break;}
      case SWAN_IR_LOAD:text_add(o,"    ldr r0, [sp, #%d]\n    ldr r1, [r0]\n    str r1, [sp, #%d]\n",a,d);break;
      case SWAN_IR_STORE:text_add(o,"    ldr r0, [sp, #%d]\n    ldr r1, [sp, #%d]\n    str r1, [r0]\n",a,z);break;
      case SWAN_IR_CALL:{
@@ -99,7 +99,7 @@ static inline bool swan_codegen_armv7_ir(const SwanIRModule *m,Text *o,char *err
     }
    }
    const SwanIRTerm *t=&bb->terminator;
-   if(t->kind==SWAN_IR_RET){if(t->value)text_add(o,"    ldr r0, [sp, #%d]\n",swan_armv7_offset(t->value));else text_add(o,"    mov r0, #0\n");text_add(o,"    ldr r12, =%zu\n    add sp, sp, r12\n    pop {r4, pc}\n",frame);}
+   if(t->kind==SWAN_IR_RET){if(t->value)text_add(o,"    ldr r0, [sp, #%d]\n",swan_armv7_offset(t->value));else text_add(o,"    mov r0, #0\n");text_add(o,"    movw r12, #%zu\n    add sp, sp, r12\n    pop {r4, pc}\n",frame);}
    else if(t->kind==SWAN_IR_BR)text_add(o,"    b .Lsw_e%zu_%zu_%u\n",f,b,t->target);
    else if(t->kind==SWAN_IR_COND_BR)text_add(o,"    ldr r0, [sp, #%d]\n    cmp r0, #0\n    bne .Lsw_e%zu_%zu_%u\n    b .Lsw_e%zu_%zu_%u\n",swan_armv7_offset(t->value),f,b,t->target,f,b,t->alternate);
    else text_add(o,"    udf #0\n");
