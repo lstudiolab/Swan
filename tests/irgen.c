@@ -26,7 +26,7 @@ int main(void) {
         "    if true or explode():\n"
         "        return total\n"
         "    return 0\n"
-        "out\n";
+        ;
     SwanError error={0}; TokenStream tokens={0}; Program program={0};
     assert(swan_lex(source,&tokens,&error));
     assert(swan_parse(&tokens,&program,&error));
