@@ -36,6 +36,17 @@ Source: `stdlib/std_math.swan`
 
 Import `std_math` to use these functions. The module uses only Swan integer expressions, conditions, loops, local bindings, and direct function calls.
 
+### `std_collections` — u32 arrays and sequence algorithms
+
+Source: `stdlib/std_collections.swan`
+
+- Queries: `array_sum`, `array_min`, `array_max`, `array_contains`, `array_index_of`, `array_count`, `array_average`, `array_is_sorted`
+- Mutation: `array_fill`, `array_copy`, `array_reverse`
+- Search: `array_linear_search`, `array_binary_search`
+- Sorting: `array_bubble_sort`, `array_selection_sort`, `array_insertion_sort`
+
+The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length; it does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
+
 ## Compatibility and correctness boundaries
 
 The current language/backend subset is not yet sufficient to implement all Swift and Goose standard-library surfaces in Swan source. The following capabilities must not be advertised as implemented until Swan has the required language/runtime support and end-to-end tests:
