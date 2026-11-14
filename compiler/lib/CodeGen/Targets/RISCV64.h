@@ -111,7 +111,7 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      size_t scratch=value_bytes+allocas*8u+phi_index*8u;
       text_add(o,"    ld t0, %d(sp)\n    sd t0, %zu(sp)\n",
                swan_rv_offset(phi->incoming[q].value),scratch);
       break;
@@ -123,7 +123,7 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      size_t scratch=value_bytes+allocas*8u+phi_index*8u;
       text_add(o,"    ld t0, %zu(sp)\n    sd t0, %d(sp)\n",
                scratch,swan_rv_offset(phi->result));
       break;
