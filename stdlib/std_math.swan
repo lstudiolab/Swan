@@ -15,7 +15,6 @@ func gcd(left: int, right: int) -> int:
         a = b
         b = remainder
     return a
-out
 
 func lcm(left: int, right: int) -> int:
     if left == 0 or right == 0:
@@ -25,7 +24,6 @@ func lcm(left: int, right: int) -> int:
     if value < 0:
         return 0 - value
     return value
-out
 
 func euclidean_mod(value: int, modulus: int) -> int:
     if modulus <= 0:
@@ -34,7 +32,6 @@ func euclidean_mod(value: int, modulus: int) -> int:
     if remainder < 0:
         remainder = remainder + modulus
     return remainder
-out
 
 func floor_div(left: int, right: int) -> int:
     if right == 0:
@@ -47,13 +44,11 @@ func floor_div(left: int, right: int) -> int:
         remainder = remainder + right
         quotient = quotient - 1
     return quotient
-out
 
 func ceil_div(left: int, right: int) -> int:
     if right == 0:
         return 0
     return 0 - floor_div(0 - left, right)
-out
 
 func integer_sqrt(value: int) -> int:
     if value < 0:
@@ -66,7 +61,6 @@ func integer_sqrt(value: int) -> int:
         if next >= estimate:
             return estimate
         estimate = next
-out
 
 func is_prime(value: int) -> bool:
     if value < 2:
@@ -81,13 +75,11 @@ func is_prime(value: int) -> bool:
             return false
         divisor = divisor + 2
     return true
-out
 
 func is_composite(value: int) -> bool:
     if value < 4:
         return false
     return not is_prime(value)
-out
 
 func triangular(value: int) -> int:
     if value < 1:
@@ -95,13 +87,11 @@ func triangular(value: int) -> int:
     if value % 2 == 0:
         return (value / 2) * (value + 1)
     return value * ((value + 1) / 2)
-out
 
 func distance_int(left: int, right: int) -> int:
     if left >= right:
         return left - right
     return right - left
-out
 
 func is_power_of_two(value: int) -> bool:
     if value < 1:
@@ -110,7 +100,6 @@ func is_power_of_two(value: int) -> bool:
     while remaining % 2 == 0:
         remaining = remaining / 2
     return remaining == 1
-out
 
 func next_power_of_two(value: int) -> int:
     if value <= 1:
@@ -119,7 +108,6 @@ func next_power_of_two(value: int) -> int:
     while result < value:
         result = result * 2
     return result
-out
 
 func fibonacci(value: int) -> int:
     if value < 0:
@@ -137,4 +125,3 @@ func fibonacci(value: int) -> int:
         current = next
         index = index + 1
     return current
-out
