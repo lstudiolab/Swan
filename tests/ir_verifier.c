@@ -172,9 +172,21 @@ static int rejects_duplicate_ssa_definitions(void){
     entry->instructions[1].result=first;
     if(!swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,first,0,0}))return 82;
 
-    int status=expect_invalid(&m,"duplicate SSA definitions","duplicate SSA value ID");
+    char error[256] = {0};
+    if (swan_ir_verify(&m, error, sizeof(error))) {
+        fprintf(stderr, "duplicate SSA definitions: malformed IR was accepted\\n");
+        swan_ir_destroy(&m);
+        return 83;
+    }
+    if (!strstr(error, "duplicate SSA value ID") ||
+        !strstr(error, "block 0, instruction 1")) {
+        fprintf(stderr, "duplicate SSA definitions: imprecise diagnostic: %s\\n", error);
+        swan_ir_destroy(&m);
+        return 84;
+    }
+
     swan_ir_destroy(&m);
-    return status;
+    return 0;
 }
 
 int main(void){
