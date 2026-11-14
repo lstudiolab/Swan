@@ -250,6 +250,35 @@ static inline size_t swan_print_warnings(const Program *program){
  return program->warning_count+program->warnings_dropped;
 }
 
+static inline bool swan_validate_local_names(Stmt **body,size_t count,
+        const char **names,size_t *name_count,SwanError *error){
+ for(size_t i=0;i<count;i++){
+  Stmt *statement=body[i];
+  if(!statement)continue;
+  if(statement->kind==S_VARIABLE){
+   for(size_t prior=0;prior<*name_count;prior++){
+    if(!strcmp(names[prior],statement->name)){
+     swan_error(error,&statement->token,
+                "local variable '%s' is redeclared; local shadowing is not supported",
+                statement->name);
+     return false;
+    }
+   }
+   if(*name_count>=1024){
+    swan_error(error,&statement->token,
+               "function exceeds the 1024-local-variable limit");
+    return false;
+   }
+   names[(*name_count)++]=statement->name;
+  }
+  if(!swan_validate_local_names(statement->body,statement->body_count,
+                                names,name_count,error)||
+     !swan_validate_local_names(statement->alternate,statement->alt_count,
+                                names,name_count,error))return false;
+ }
+ return true;
+}
+
 static inline bool swan_semantic_check(Program *p,SwanError *err){
  if(err)memset(err,0,sizeof(*err));
  if(!p){
@@ -278,10 +307,15 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
  bool ok=true;
  for(size_t i=0;i<p->count&&ok;i++){
   Stmt *fn=p->functions[i];if(fn->external)continue;symbols.count=0;memset(symbols.buckets,0,sizeof(symbols.buckets));
+  const char *local_names[1024];
+  size_t local_name_count=0;
   for(size_t a=0;a<fn->param_count;a++){
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    if(!swan_symbol_add(&symbols,fn->params[a],false,true,false,false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
+   local_names[local_name_count++]=fn->params[a];
   }
+  if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,
+                                     local_names,&local_name_count,err);
   if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);
  }
  free(symbols.items);return ok;
