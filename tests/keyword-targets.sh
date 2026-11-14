@@ -31,7 +31,7 @@ func main() -> int:
     return count
 SWAN
 
-"$BIN" build "$TMP/loop.swan" --target x86_64 -o "$TMP/native"
+"$BIN" build "$TMP/loop.swan" --target x86_64 --warnings-as-errors -o "$TMP/native"
 set +e
 "$TMP/native"
 status=$?
