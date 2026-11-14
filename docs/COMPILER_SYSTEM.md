@@ -164,6 +164,8 @@ Each phase has an explicit input, output, invariant, and failure behavior.
 
 A phase must not continue after a failed prerequisite. Errors must carry a source location where one exists, plus the phase and relevant symbol/operation. Internal invariant failures are compiler errors, not user syntax errors.
 
+Warnings are non-fatal by default and must identify suspicious but not provably invalid source constructs. The driver may promote warnings to errors with `--warnings-as-errors`; when promoted, compilation stops before code generation and must not leave a newly generated output artifact. Warning checks must avoid claiming certainty where control-flow or alias information is incomplete.
+
 ## 5. SIL and SVM responsibilities
 
 SIL is a higher-level, source-oriented optimization/lowering IR. It should preserve semantic structure long enough to perform transformations that benefit from source-level types, ownership/lifetime facts, and structured control flow.
