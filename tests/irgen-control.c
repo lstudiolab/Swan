@@ -19,30 +19,26 @@ static void compile_and_verify(const char *source) {
 }
 int main(void) {
     const char *loop=
-        "fn sum(n: int) -> int:\n"
+        "func sum(n: int) -> int:\n"
         "    var total: int = 0\n"
         "    var i: int = 0\n"
         "    while i < n:\n"
         "        total = total + i\n"
         "        i = i + 1\n"
-        "    out\n"
         "    return total\n"
-        "out\n"
-        "fn main() -> int:\n"
+        "func main() -> int:\n"
         "    return sum(10)\n"
-        "out\n";
+        ;
     compile_and_verify(loop);
     const char *branch=
-        "fn main() -> int:\n"
+        "func main() -> int:\n"
         "    var x: int = 7\n"
         "    if x > 3:\n"
         "        x = x * 6\n"
-        "    out\n"
         "    else:\n"
         "        x = 1\n"
-        "    out\n"
         "    return x\n"
-        "out\n";
+        ;
     compile_and_verify(branch);
     puts("PASS: IR lowering handles calls, mutable locals, loops and branches");
     return 0;
