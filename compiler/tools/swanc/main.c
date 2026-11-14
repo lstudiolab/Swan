@@ -116,7 +116,8 @@ static int swan_run(int argc,char **argv){
    target_features[target_feature_count++]=feature;
   }
   else if(!strcmp(argv[i],"--cpu")&&i+1<argc)target_cpu=argv[++i];
-  else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;\n  else if(!strcmp(argv[i],"--warnings-as-errors"))warnings_as_errors=true;
+  else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;
+  else if(!strcmp(argv[i],"--warnings-as-errors"))warnings_as_errors=true;
   else if(!strcmp(argv[i],"--stdlib")&&i+1<argc)stdlib_dir=argv[++i];
   else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
   else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\n");return 2;}link_args[link_arg_count++]=argv[++i];}
