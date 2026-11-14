@@ -140,6 +140,83 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
  }
  return true;
 }
+static inline void swan_warning_add(Program *program,const Token *token,const char *format,...){
+ if(program->warning_count>=sizeof(program->warnings)/sizeof(program->warnings[0])){
+  program->warnings_dropped++;
+  return;
+ }
+ SwanWarning *warning=&program->warnings[program->warning_count++];
+ warning->line=token?token->line:0;
+ warning->col=token?token->col:0;
+ va_list args;
+ va_start(args,format);
+ vsnprintf(warning->message,sizeof(warning->message),format,args);
+ va_end(args);
+}
+static inline void swan_warning_expr(Program *program,Expr *expression){
+ if(!expression)return;
+ if(expression->kind==E_BINARY&&expression->token.kind==T_ASSIGN&&
+    expression->left&&expression->right&&
+    expression->left->kind==E_NAME&&expression->right->kind==E_NAME&&
+    expression->left->token.text&&expression->right->token.text&&
+    !strcmp(expression->left->token.text,expression->right->token.text)){
+  swan_warning_add(program,&expression->token,
+      "self-assignment to '%s' has no effect",expression->left->token.text);
+ }
+ swan_warning_expr(program,expression->left);
+ swan_warning_expr(program,expression->right);
+ for(size_t i=0;i<expression->argc;i++)swan_warning_expr(program,expression->args[i]);
+}
+static inline void swan_warning_block(Program *program,Stmt **body,size_t count){
+ for(size_t i=0;i<count;i++){
+  Stmt *statement=body[i];
+  if(!statement)continue;
+  swan_warning_expr(program,statement->value);
+  swan_warning_expr(program,statement->condition);
+  if((statement->kind==S_IF||statement->kind==S_WHILE)&&
+     statement->condition&&statement->condition->kind==E_BOOL){
+   bool condition=!strcmp(statement->condition->token.text,"true");
+   if(statement->kind==S_IF){
+    swan_warning_add(program,&statement->token,
+      "condition is always %s; one branch is unreachable",condition?"true":"false");
+   }else if(!condition){
+    swan_warning_add(program,&statement->token,
+      "loop condition is always false; loop body will never execute");
+   }else{
+    swan_warning_add(program,&statement->token,
+      "loop condition is always true; verify that the loop can terminate");
+   }
+  }
+  swan_warning_block(program,statement->body,statement->body_count);
+  swan_warning_block(program,statement->alternate,statement->alt_count);
+ }
+}
+static inline void swan_collect_warnings(Program *program){
+ program->warning_count=0;
+ program->warnings_dropped=0;
+ for(size_t i=0;i<program->source_function_count;i++){
+  Stmt *function=program->functions[i];
+  if(!function||function->external)continue;
+  swan_warning_block(program,function->body,function->body_count);
+  if(program->reachability_computed&&!program->function_reachable[i]&&
+     !function->exported&&strcmp(function->name,"main")){
+   swan_warning_add(program,&function->token,
+       "function '%s' is never reached from main",function->name);
+  }
+ }
+}
+static inline size_t swan_print_warnings(const Program *program){
+ for(size_t i=0;i<program->warning_count;i++){
+  const SwanWarning *warning=&program->warnings[i];
+  if(warning->line&&warning->col)
+   fprintf(stderr,"swan:%u:%u: warning: %s\n",warning->line,warning->col,warning->message);
+  else fprintf(stderr,"swan: warning: %s\n",warning->message);
+ }
+ if(program->warnings_dropped)
+  fprintf(stderr,"swan: warning: %zu additional warning(s) suppressed by diagnostic limit\n",program->warnings_dropped);
+ return program->warning_count+program->warnings_dropped;
+}
+
 static inline bool swan_semantic_check(Program *p,SwanError *err){
  memset(p->function_buckets,0,sizeof(p->function_buckets));p->function_indexed=true;
  for(size_t i=0;i<p->count;i++){
