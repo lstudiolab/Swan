@@ -341,6 +341,7 @@ typedef enum {
 static inline SwanSILResult swan_sil_try_irgen_program(Program *program,
                                                         SwanIRModule *output,
                                                         SwanError *error) {
+    if (error) memset(error, 0, sizeof(*error));
     if (!program || !output || !program->count || program->import_count ||
         program->count < program->source_function_count || program->count > 1024)
         return SWAN_SIL_NOT_APPLICABLE;
