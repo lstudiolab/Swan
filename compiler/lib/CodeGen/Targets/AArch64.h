@@ -117,7 +117,7 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      size_t scratch=value_bytes+allocas*8u+phi_index*8u;
       text_add(o,"    ldr x9, [sp, #%d]\n    str x9, [sp, #%zu]\n",
                swan_a64_value_offset(phi->incoming[q].value),scratch);
       break;
@@ -129,7 +129,7 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      size_t scratch=value_bytes+allocas*8u+phi_index*8u;
       text_add(o,"    ldr x9, [sp, #%zu]\n    str x9, [sp, #%d]\n",
                scratch,swan_a64_value_offset(phi->result));
       break;
