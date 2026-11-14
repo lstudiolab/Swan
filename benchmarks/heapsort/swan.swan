@@ -62,6 +62,7 @@ func main() -> int:
         checksum = checksum + values[i]
         i = i + 1
 
+    checksum = checksum % 4294967296
     log checksum
     return 0
 

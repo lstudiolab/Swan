@@ -158,7 +158,9 @@ def main() -> int:
             save_report(report)
             print(f"COMPILED {name}: {wall:.3f}s, {binaries[name].stat().st_size} bytes", flush=True)
 
-        expected_checksum: int | None = None
+        # Independent reference for the LCG32 input and wrapping-u32 checksum.
+        # Do not let the first language under test define the expected result.
+        expected_checksum = 3_942_565_632
         for round_index in range(ROUNDS):
             order = NAMES[round_index:] + NAMES[:round_index]
             report["measurement_order"].append(order)
@@ -167,9 +169,7 @@ def main() -> int:
             for name in order:
                 wall, cpu, peak, output = timed([str(binaries[name])])
                 checksum = checksum_from(output)
-                if expected_checksum is None:
-                    expected_checksum = checksum
-                elif checksum != expected_checksum:
+                if checksum != expected_checksum:
                     raise RuntimeError(
                         f"{name} checksum mismatch: {checksum}; expected {expected_checksum}"
                     )

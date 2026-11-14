@@ -314,10 +314,6 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
   swan_error(err,NULL,"semantic analysis requires a program");
   return false;
  }
- if(p->count&&!p->functions){
-  swan_error(err,NULL,"program has a function count but no declaration storage");
-  return false;
- }
  if(p->count>1024){
   swan_error(err,NULL,"program exceeds the semantic function limit");
   return false;
