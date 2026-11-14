@@ -40,14 +40,14 @@ int main(void) {
         sift_down(values, 0, end - 1);
     }
 
-    uint64_t checksum = 0;
+    uint32_t checksum = 0;
     for (size_t i = 0; i < COUNT; ++i) {
         if (i && values[i - 1] > values[i]) {
             fputs("SORT_FAILED\n", stderr); free(values); return 3;
         }
         checksum += values[i];
     }
-    printf("%" PRIu64 "\n", checksum);
+    printf("%" PRIu32 "\n", checksum);
     free(values);
     return 0;
 }
