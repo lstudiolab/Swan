@@ -80,6 +80,19 @@ static inline bool swan_wasm_emit_inst(SwanWasmBuffer *b,const SwanIRModule *m,c
   return in->type==SWAN_IR_VOID||swan_wasm_set(b,in->result);
  }
  if(in->op==SWAN_IR_SELECT)return swan_wasm_get(b,in->b)&&swan_wasm_get(b,in->c)&&swan_wasm_get(b,in->a)&&swan_wasm_byte(b,0x1b)&&swan_wasm_set(b,in->result);
+ if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM){
+  SwanIRType operand_type=swan_ir_value_type_of(fn,in->a);
+  bool integer32=operand_type==SWAN_IR_I1||operand_type==SWAN_IR_I8||
+                 operand_type==SWAN_IR_I16||operand_type==SWAN_IR_I32;
+  int64_t minimum=integer32?INT32_MIN:INT64_MIN;
+  if(!swan_wasm_get(b,in->a)||
+     !swan_wasm_const(b,integer32,minimum)||!swan_wasm_byte(b,integer32?0x46:0x51)||
+     !swan_wasm_get(b,in->b)||!swan_wasm_const(b,integer32,-1)||
+     !swan_wasm_byte(b,integer32?0x46:0x51)||
+     !swan_wasm_byte(b,integer32?0x71:0x83)||
+     !swan_wasm_byte(b,0x04)||!swan_wasm_byte(b,0x40)||
+     !swan_wasm_byte(b,0x00)||!swan_wasm_byte(b,0x0b))return false;
+ }
  if(!swan_wasm_get(b,in->a)||!swan_wasm_get(b,in->b))return false;
  SwanIRType operand=swan_ir_value_type_of(fn,in->a);i32=operand==SWAN_IR_I1||operand==SWAN_IR_I8||operand==SWAN_IR_I16||operand==SWAN_IR_I32;
  uint8_t op=0;
