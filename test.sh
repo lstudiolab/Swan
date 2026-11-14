@@ -18,6 +18,7 @@ sh "$ROOT/tests/regressions.sh"
 sh "$ROOT/tests/foundation.sh"
 sh "$ROOT/tests/std-library.sh"
 sh "$ROOT/tests/std-math.sh"
+sh "$ROOT/tests/std-collections.sh"
 sh "$ROOT/tests/lazy-imports.sh"
 sh "$ROOT/tests/architecture.sh"
 
