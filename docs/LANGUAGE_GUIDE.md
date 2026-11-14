@@ -651,7 +651,7 @@ The Swan-authored `stdlib/std_math.swan` module currently provides:
 | `std:triangular(value)` | Sum from 1 through a positive input |
 | `std:distance_int(left, right)` | Absolute distance between integer values |
 | `std:is_power_of_two(value)` | Tests for a positive power of two |
-| `std:next_power_of_two(value)` | Next power of two; returns 0 when the result cannot be represented by the current signed integer operations |
+| `std:next_power_of_two(value)` | Next power of two for positive inputs; the caller must ensure the result fits the signed integer range |
 | `std:fibonacci(value)` | Iterative Fibonacci number; negative input returns 0 |
 
 These functions are regular Swan code, not compiler intrinsics. They are compiled with the importing program. Integer overflow in arithmetic functions that do not explicitly guard it follows the active backend's integer behavior.
