@@ -17,12 +17,6 @@ func i32_positive() -> i32:
 func i32_negative() -> i32:
     return -2147483648
 
-func i32_positive() -> i32:
-    return 123456789
-
-func i32_negative() -> i32:
-    return -2147483648
-
 func recurse(n: int) -> int:
     var value = n
     if n <= 0:
@@ -45,10 +39,11 @@ func main() -> int:
     if false and explode():
         return 1
     out
+    if i32_positive() != 123456789 or i32_negative() != -2147483648:
+        return 1
+    out
     if true or explode():
-        if i32_positive() == 123456789:
-        if i32_negative() == -2147483648:
-            return total + recurse(4)
+        return total + recurse(4)
     out
     return 0
 
@@ -56,4 +51,4 @@ SWAN
 "$BIN" build "$TMP/main.swan" --target wasm32 -o "$TMP/main.wasm"
 test -s "$TMP/main.wasm"
 node -e 'const fs=require("fs"); WebAssembly.instantiate(fs.readFileSync(process.argv[1])).then(({instance})=>{if(instance.exports.main()!==76n)process.exit(1);}).catch(e=>{console.error(e);process.exit(1);});' "$TMP/main.wasm"
-printf 'PASS: WASM32 emits and executes loops, branches, mutable locals, recursion, calls and short-circuit PHIs\n'
+printf 'PASS: WASM32 emits and executes loops, branches, mutable locals, recursion, calls, short-circuit PHIs and signed i32 constants\n'
