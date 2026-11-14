@@ -92,7 +92,12 @@ static inline bool swan_program_requires_ast_compatibility(const Program *progra
 static inline bool swan_codegen(Program *program, Text *output,
                                 const SwanTarget *target, SwanError *error) {
     if(error)memset(error,0,sizeof(*error));
-    if (!target || target->architecture != SWAN_ARCH_X86_64) {
+    if(output)memset(output,0,sizeof(*output));
+    if(!program||!output||!target){
+        swan_error(error,NULL,"code generation requires a program, output buffer, and target");
+        return false;
+    }
+    if (target->architecture != SWAN_ARCH_X86_64) {
         swan_error(error, NULL, "requested code-generation backend is not implemented");
         return false;
     }
@@ -149,11 +154,12 @@ static inline void swan_svm_output_destroy(SwanSVMOutput *output) {
    backend. Each backend emits native assembly or its target module format. */
 static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
                                     SwanSVMOutput *output,SwanError *error) {
+    if(error)memset(error,0,sizeof(*error));
+    if(output)memset(output,0,sizeof(*output));
     if(!program||!target||!output){
-        if(error)swan_error(error,NULL,"SVM requires a program, target, and output buffer");
+        swan_error(error,NULL,"SVM requires a program, target, and output buffer");
         return false;
     }
-    memset(output,0,sizeof(*output));
     char detail[256]={0};
     Text text={0};
     bool ok=false;
