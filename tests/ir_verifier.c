@@ -282,6 +282,39 @@ static int optimizer_repairs_compacted_block_metadata(void){
     return status;
 }
 
+
+static int repairs_block_owners_after_function_array_growth(void){
+    SwanIRModule module={0};
+    SwanIRFunction *first=swan_ir_add_function(&module,"first",SWAN_IR_VOID,NULL,0);
+    if(!first)return 110;
+    if(!swan_ir_add_block(first,"entry"))return 111;
+    for(size_t i=0;i<8;i++){
+        char name[32];
+        snprintf(name,sizeof(name),"function_%zu",i);
+        if(!swan_ir_add_function(&module,name,SWAN_IR_VOID,NULL,0)){
+            swan_ir_destroy(&module);
+            return 112;
+        }
+    }
+
+    /* Adding the ninth function grows the module array and moves its entries. */
+    first=&module.functions[0];
+    SwanIRBlock *entry=&first->blocks[0];
+    SwanIRInst constant={0};
+    constant.op=SWAN_IR_CONST;
+    constant.type=SWAN_IR_I32;
+    constant.immediate=7;
+    uint32_t value=swan_ir_add_inst(first,entry,constant);
+    if(!value){
+        fprintf(stderr,"function-array growth left an IR block owner dangling\n");
+        swan_ir_destroy(&module);
+        return 113;
+    }
+
+    swan_ir_destroy(&module);
+    return 0;
+}
+
 int main(void){
     int status=builder_guards();if(status)return status;
     status=valid_scalar_and_call();if(status)return status;
@@ -294,6 +327,7 @@ int main(void){
     status=accepts_stale_ssa_location_cache();if(status)return status;
     status=rejects_duplicate_ssa_definitions();if(status)return status;
     status=optimizer_repairs_compacted_block_metadata();if(status)return status;
+    status=repairs_block_owners_after_function_array_growth();if(status)return status;
     puts("Swan typed IR verifier passed: valid calls and SSA accepted; duplicate definitions, invalid types, PHI placement, operand arity, pointer constants, and terminators rejected.");
     return 0;
 }
