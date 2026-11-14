@@ -155,7 +155,7 @@ static int swan_run(int argc,char **argv){
  char *module_sources[64]={0},*module_texts[64]={0};size_t module_count=0;
  stage=swan_profile_start();
  if(!swan_load_imports(&p,stdlib_dir,module_sources,module_texts,&module_count,&err)){
-  fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
+  fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
  }
  swan_profile_end(SWAN_PROFILE_IMPORTS,stage);
  stage=swan_profile_start();
