@@ -53,8 +53,13 @@ static inline bool swan_load_imports(Program *p,const char *stdlib_dir,char **so
   bool parsed=swan_parse(&module_ts,p,err);
   free(module_ts.items);
   if(!parsed){
-   char detail[sizeof(err->message)];snprintf(detail,sizeof(detail),"%s",err->message);
-   swan_error(err,NULL,"in module '%s': %s",name,detail);return false;
+   char detail[sizeof(err->message)];
+   unsigned line=err?err->line:0,col=err?err->col:0;
+   if(err)snprintf(detail,sizeof(detail),"%s",err->message);
+   else snprintf(detail,sizeof(detail),"module parsing failed");
+   swan_error(err,NULL,"in module '%s': %s",name,detail);
+   if(err){err->line=line;err->col=col;}
+   return false;
   }
   p->module_ends[module]=p->count;
   for(size_t i=p->module_starts[module];i<p->module_ends[module];i++){p->functions[i]->imported=true;p->functions[i]->module_index=(int)module;}
