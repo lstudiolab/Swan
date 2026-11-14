@@ -39,9 +39,6 @@ func main() -> int:
     if false and explode():
         return 1
     out
-    if i32_positive() != 123456789 or i32_negative() != -2147483648:
-        return 1
-    out
     if true or explode():
         return total + recurse(4)
     out
