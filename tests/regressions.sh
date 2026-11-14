@@ -56,6 +56,17 @@ out
 SWAN
 expect_rejected uninitialized-variable
 
+cat > "$TMP/ambiguous-branch-shadowing.swan" <<'SWAN'
+fn main():
+    if true:
+        let value = 1
+    else:
+        let value = 2
+    return 0
+out
+SWAN
+expect_rejected ambiguous-branch-shadowing
+
 cat > "$TMP/initialized-on-all-branches.swan" <<'SWAN'
 fn main():
     var value: int
