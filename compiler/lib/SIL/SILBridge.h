@@ -127,11 +127,24 @@ static inline bool swan_sil_expr(Expr *expr, const Stmt *fn, uint32_t *state,
     *result_type = comparison ? SWAN_IR_I1 : operand_type;
     return true;
 }
-static inline bool swan_sil_lower_function(const Stmt *fn, SwanIRModule *module) {
-    if (!fn || fn->imported || fn->body_count != 1 || fn->body[0]->kind != S_RETURN ||
-        !fn->body[0]->value || fn->param_count > 254 || fn->param_count > 16) return false;
+typedef enum {
+    SWAN_SIL_FUNCTION_NOT_APPLICABLE,
+    SWAN_SIL_FUNCTION_LOWERED,
+    SWAN_SIL_FUNCTION_FAILED
+} SwanSILFunctionResult;
+
+static inline SwanSILFunctionResult swan_sil_lower_function(
+    const Stmt *fn, SwanIRModule *module, SwanError *error) {
+    if (!fn || !module || fn->imported || fn->body_count != 1 ||
+        !fn->body || !fn->body[0] || fn->body[0]->kind != S_RETURN ||
+        !fn->body[0]->value || fn->param_count > 16) {
+        return SWAN_SIL_FUNCTION_NOT_APPLICABLE;
+    }
+
     SwanIRType return_type = swan_sil_decl_type(fn->type);
-    if (return_type == SWAN_IR_VOID) return false;
+    if (return_type == SWAN_IR_VOID) {
+        return SWAN_SIL_FUNCTION_NOT_APPLICABLE;
+    }
 
     SwanIRType parameter_types[16];
     uint32_t state[256 * 5] = {0};
@@ -142,11 +155,19 @@ static inline bool swan_sil_lower_function(const Stmt *fn, SwanIRModule *module)
     for (size_t i = 0; i < fn->param_count; ++i) {
         SwanIRType type = swan_sil_param_type(fn, i);
         int code = swan_sil_type_code(type);
-        if (!code) return false;
+        if (!code) {
+            return SWAN_SIL_FUNCTION_NOT_APPLICABLE;
+        }
+
         parameter_types[i] = type;
-        int64_t packed = (int64_t)(i + 1) * 1048576 + (int64_t)code * 65536 + (int64_t)i;
+        int64_t packed = (int64_t)(i + 1) * 1048576 +
+                         (int64_t)code * 65536 + (int64_t)i;
         int64_t next = swan_fn_sil_emit_param(state, count, packed);
-        if (next != count + 1) return false;
+        if (next != count + 1) {
+            swan_error(error, &fn->token,
+                       "SIL parameter emission violated its instruction-count contract");
+            return SWAN_SIL_FUNCTION_FAILED;
+        }
         count = next;
     }
 
@@ -154,77 +175,162 @@ static inline bool swan_sil_lower_function(const Stmt *fn, SwanIRModule *module)
     SwanIRType expression_type = SWAN_IR_VOID;
     if (!swan_sil_expr(fn->body[0]->value, fn, state, &count, &next_value,
                        return_type, &return_value, &expression_type) ||
-        expression_type != return_type) return false;
+        expression_type != return_type) {
+        return SWAN_SIL_FUNCTION_NOT_APPLICABLE;
+    }
+
     int64_t final_count = swan_fn_sil_emit_return(state, count, return_value);
-    if (final_count != count + 1) return false;
+    if (final_count != count + 1 || final_count > 256) {
+        swan_error(error, &fn->token,
+                   "SIL return emission violated its instruction-count contract");
+        return SWAN_SIL_FUNCTION_FAILED;
+    }
     count = final_count;
 
     int64_t optimized = swan_fn_sil_optimize(state, count, workspace);
-    if (optimized < 2 || optimized > 256) return false;
+    if (optimized < 2 || optimized > 256) {
+        swan_error(error, &fn->token,
+                   "SIL optimizer returned an invalid instruction count");
+        return SWAN_SIL_FUNCTION_FAILED;
+    }
     count = optimized;
 
-    SwanIRFunction *ir_fn = swan_ir_add_function(module, fn->name, return_type,
-                                                  parameter_types, fn->param_count);
-    if (!ir_fn) return false;
+    SwanIRFunction *ir_fn = swan_ir_add_function(
+        module, fn->name, return_type, parameter_types, fn->param_count);
+    if (!ir_fn) {
+        swan_error(error, &fn->token,
+                   "unable to allocate the SIL-lowered function");
+        return SWAN_SIL_FUNCTION_FAILED;
+    }
+
     SwanIRBlock *entry = swan_ir_add_block(ir_fn, "entry");
-    if (!entry) return false;
+    if (!entry) {
+        swan_error(error, &fn->token,
+                   "unable to allocate the SIL entry block");
+        return SWAN_SIL_FUNCTION_FAILED;
+    }
+
     uint32_t values[256] = {0};
-    for (size_t i = 0; i < fn->param_count; ++i) values[i + 1] = (uint32_t)i + 1;
+    for (size_t i = 0; i < fn->param_count; ++i) {
+        values[i + 1] = (uint32_t)i + 1;
+    }
 
     bool returned = false;
     for (int64_t i = 0; i < count; ++i) {
         size_t base = (size_t)i * 5;
+        if (state[base] > INT_MAX) {
+            swan_error(error, &fn->token, "SIL emitted an out-of-range opcode");
+            return SWAN_SIL_FUNCTION_FAILED;
+        }
+
         int encoded = (int)state[base];
         int opcode = encoded % 16;
         int type_code = encoded / 16;
         uint32_t destination = state[base + 1];
         uint32_t left = state[base + 2];
         uint32_t right = state[base + 3];
+
         if (opcode == 11) {
-            if (!destination || destination > fn->param_count) return false;
+            if (!destination || destination > fn->param_count) {
+                swan_error(error, &fn->token,
+                           "SIL emitted an invalid parameter reference");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
             values[destination] = destination;
             continue;
         }
+
         if (opcode == 1) {
-            if (!destination || destination >= 256 || (type_code == 2 && state[base + 4] > INT32_MAX)) return false;
-            SwanIRInst inst = {0};
-            inst.op = SWAN_IR_CONST;
-            inst.type = swan_sil_ir_type(type_code);
-            inst.immediate = (int32_t)state[base + 4];
-            values[destination] = swan_ir_add_inst(ir_fn, entry, inst);
-            if (!values[destination]) return false;
+            if (!destination || destination >= 256 ||
+                swan_sil_ir_type(type_code) == SWAN_IR_VOID ||
+                state[base + 4] > INT32_MAX) {
+                swan_error(error, &fn->token,
+                           "SIL emitted an invalid constant instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
+
+            SwanIRInst instruction = {0};
+            instruction.op = SWAN_IR_CONST;
+            instruction.type = swan_sil_ir_type(type_code);
+            instruction.immediate = (int32_t)state[base + 4];
+            values[destination] = swan_ir_add_inst(ir_fn, entry, instruction);
+            if (!values[destination]) {
+                swan_error(error, &fn->token,
+                           "unable to allocate a SIL constant instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
             continue;
         }
+
         if (opcode >= 2 && opcode <= 4) {
-            if (!destination || destination >= 256 || !values[left] || !values[right]) return false;
-            SwanIRInst inst = {0};
-            inst.op = opcode == 2 ? SWAN_IR_ADD : opcode == 3 ? SWAN_IR_SUB : SWAN_IR_MUL;
-            inst.type = swan_sil_ir_type(type_code);
-            inst.a = values[left];
-            inst.b = values[right];
-            values[destination] = swan_ir_add_inst(ir_fn, entry, inst);
-            if (!values[destination]) return false;
+            if (!destination || destination >= 256 ||
+                left >= 256 || right >= 256 ||
+                !values[left] || !values[right] ||
+                swan_sil_ir_type(type_code) == SWAN_IR_VOID) {
+                swan_error(error, &fn->token,
+                           "SIL emitted an invalid arithmetic instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
+
+            SwanIRInst instruction = {0};
+            instruction.op = opcode == 2 ? SWAN_IR_ADD :
+                             opcode == 3 ? SWAN_IR_SUB : SWAN_IR_MUL;
+            instruction.type = swan_sil_ir_type(type_code);
+            instruction.a = values[left];
+            instruction.b = values[right];
+            values[destination] = swan_ir_add_inst(ir_fn, entry, instruction);
+            if (!values[destination]) {
+                swan_error(error, &fn->token,
+                           "unable to allocate a SIL arithmetic instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
             continue;
         }
+
         if (opcode == 7 || opcode == 8) {
-            if (!destination || destination >= 256 || !values[left] || !values[right]) return false;
-            SwanIRInst inst = {0};
-            inst.op = opcode == 7 ? SWAN_IR_ICMP_EQ : SWAN_IR_ICMP_SLT;
-            inst.type = SWAN_IR_I1;
-            inst.a = values[left];
-            inst.b = values[right];
-            values[destination] = swan_ir_add_inst(ir_fn, entry, inst);
-            if (!values[destination]) return false;
+            if (!destination || destination >= 256 ||
+                left >= 256 || right >= 256 ||
+                !values[left] || !values[right]) {
+                swan_error(error, &fn->token,
+                           "SIL emitted an invalid comparison instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
+
+            SwanIRInst instruction = {0};
+            instruction.op = opcode == 7 ? SWAN_IR_ICMP_EQ : SWAN_IR_ICMP_SLT;
+            instruction.type = SWAN_IR_I1;
+            instruction.a = values[left];
+            instruction.b = values[right];
+            values[destination] = swan_ir_add_inst(ir_fn, entry, instruction);
+            if (!values[destination]) {
+                swan_error(error, &fn->token,
+                           "unable to allocate a SIL comparison instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
             continue;
         }
+
         if (opcode == 10) {
-            if (!values[left] || !swan_ir_terminate(entry, (SwanIRTerm){SWAN_IR_RET, values[left], 0, 0})) return false;
+            if (left >= 256 || !values[left] ||
+                !swan_ir_terminate(entry,
+                    (SwanIRTerm){SWAN_IR_RET, values[left], 0, 0})) {
+                swan_error(error, &fn->token,
+                           "SIL emitted an invalid return instruction");
+                return SWAN_SIL_FUNCTION_FAILED;
+            }
             returned = true;
             continue;
         }
-        return false;
+
+        swan_error(error, &fn->token, "SIL emitted an unsupported opcode");
+        return SWAN_SIL_FUNCTION_FAILED;
     }
-    return returned;
+
+    if (!returned) {
+        swan_error(error, &fn->token, "SIL output has no return instruction");
+        return SWAN_SIL_FUNCTION_FAILED;
+    }
+    return SWAN_SIL_FUNCTION_LOWERED;
 }
 
 typedef enum {
@@ -256,13 +362,21 @@ static inline SwanSILResult swan_sil_try_irgen_program(Program *program,
             !swan_irgen_include_function(program, i)) continue;
 
         SwanIRModule sil_function = {0};
-        if (!swan_sil_lower_function(source, &sil_function)) {
+        SwanSILFunctionResult function_result =
+            swan_sil_lower_function(source, &sil_function, error);
+        if (function_result == SWAN_SIL_FUNCTION_NOT_APPLICABLE) {
             swan_ir_destroy(&sil_function);
             continue;
         }
-        if (sil_function.function_count != 1) {
+        if (function_result == SWAN_SIL_FUNCTION_FAILED ||
+            sil_function.function_count != 1) {
+            if (function_result != SWAN_SIL_FUNCTION_FAILED && error) {
+                swan_error(error, &source->token,
+                           "SIL lowering returned an invalid function count");
+            }
             swan_ir_destroy(&sil_function);
-            continue;
+            swan_ir_destroy(&candidate);
+            return SWAN_SIL_FAILED;
         }
 
         SwanIRFunction *destination = NULL;
