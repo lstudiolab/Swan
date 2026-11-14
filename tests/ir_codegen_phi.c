@@ -105,14 +105,14 @@ int main(int argc,char **argv){
     }
     Text aarch64={0};
     if(!swan_codegen_aarch64_ir(&module,&aarch64,error,sizeof(error))){
-        fprintf(stderr,"AArch64 IR code generation failed: %s\\n",error);
+        fprintf(stderr,"AArch64 IR code generation failed: %s\n",error);
         free(aarch64.data);
         free(assembly.data);
         swan_ir_destroy(&module);
         return 11;
     }
     if(!strstr(aarch64.data,".Lsw_e")||!strstr(aarch64.data,"str x9, [sp, #")){
-        fprintf(stderr,"AArch64 phi edge-copy sequence was not emitted\\n");
+        fprintf(stderr,"AArch64 phi edge-copy sequence was not emitted\n");
         free(aarch64.data);
         free(assembly.data);
         swan_ir_destroy(&module);
@@ -120,7 +120,7 @@ int main(int argc,char **argv){
     }
     Text riscv={0};
     if(!swan_codegen_riscv64_ir(&module,&riscv,error,sizeof(error))){
-        fprintf(stderr,"RISC-V64 IR code generation failed: %s\\n",error);
+        fprintf(stderr,"RISC-V64 IR code generation failed: %s\n",error);
         free(riscv.data);
         free(aarch64.data);
         free(assembly.data);
@@ -128,7 +128,7 @@ int main(int argc,char **argv){
         return 13;
     }
     if(!strstr(riscv.data,".Lsw_e")||!strstr(riscv.data,"sd t0, ")){
-        fprintf(stderr,"RISC-V64 phi edge-copy sequence was not emitted\\n");
+        fprintf(stderr,"RISC-V64 phi edge-copy sequence was not emitted\n");
         free(riscv.data);
         free(aarch64.data);
         free(assembly.data);
