@@ -418,6 +418,8 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
   if(!swan_ir_verify_unique_definitions(fn,error,cap))return false;
   for(size_t b=0;b<fn->block_count;b++){
    const SwanIRBlock *bb=&fn->blocks[b];
+   if(bb->owner!=fn||bb->index!=b)
+    return swan_ir_fail(error,cap,"invalid block ownership or index metadata",fn->name,b,0);
    if(bb->instruction_count>bb->instruction_capacity||(bb->instruction_count&&!bb->instructions))return swan_ir_fail(error,cap,"invalid block instruction storage",fn->name,b,0);
    if(!bb->terminated)return swan_ir_fail(error,cap,"block has no terminator",fn->name,b,bb->instruction_count);
    bool saw_non_phi=false;
