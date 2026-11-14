@@ -75,9 +75,18 @@ static inline size_t swan_function_index(Program *p,Stmt *fn){for(size_t i=0;i<p
 static inline void swan_mark_block(Program *p,Stmt **body,size_t count);
 static inline void swan_mark_expr(Program *p,Expr *e){
  if(!e)return;
- if(e->kind==E_CALL&&e->left&&e->left->kind==E_NAME){
-  Stmt *fn=swan_find_function(p,e->left->token.text);
-  if(fn){size_t i=swan_function_index(p,fn);if(i!=SIZE_MAX&&!p->function_reachable[i]){p->function_reachable[i]=true;swan_mark_block(p,fn->body,fn->body_count);}}
+ if(e->kind==E_CALL){
+  const char *callee=swan_expr_terminal_name(e->left);
+  if(callee){
+   Stmt *fn=swan_find_function(p,callee);
+   if(fn){
+    size_t i=swan_function_index(p,fn);
+    if(i!=SIZE_MAX&&!p->function_reachable[i]){
+     p->function_reachable[i]=true;
+     swan_mark_block(p,fn->body,fn->body_count);
+    }
+   }
+  }
   for(size_t i=0;i<e->argc;i++)swan_mark_expr(p,e->args[i]);
   return;
  }
