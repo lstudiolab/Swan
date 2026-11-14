@@ -20,9 +20,25 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
  }
  static const char *args[]={"rdi","rsi","rdx","rcx","r8","r9"};
  for(size_t f=0;f<m->function_count;f++){
-  const SwanIRFunction *fn=&m->functions[f];if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}size_t allocas=0;
-  for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++)allocas+=fn->blocks[b].instructions[i].op==SWAN_IR_ALLOCA;
-  size_t value_bytes=((size_t)fn->next_value+1)*8u,frame=(value_bytes+allocas*8u+15u)&~(size_t)15u;
+  const SwanIRFunction *fn=&m->functions[f];if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
+  size_t allocas=0,phi_slots=0;
+  for(size_t b=0;b<fn->block_count;b++){
+   size_t block_phi_count=0;
+   for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
+    const SwanIRInst *instruction=&fn->blocks[b].instructions[i];
+    allocas+=instruction->op==SWAN_IR_ALLOCA;
+    block_phi_count+=instruction->op==SWAN_IR_PHI;
+   }
+   if(block_phi_count>phi_slots)phi_slots=block_phi_count;
+  }
+  size_t value_bytes=((size_t)fn->next_value+1)*8u;
+  if(allocas>(SIZE_MAX-value_bytes)/8u||
+     phi_slots>(SIZE_MAX-value_bytes-allocas*8u)/8u||
+     value_bytes+allocas*8u+phi_slots*8u>SIZE_MAX-15u){
+   if(error&&cap)snprintf(error,cap,"x86-64 IR stack frame size overflow");
+   return false;
+  }
+  size_t frame=(value_bytes+allocas*8u+phi_slots*8u+15u)&~(size_t)15u;
   text_add(o,".intel_syntax noprefix\n.text\n.globl %s\n.type %s, @function\n%s:\n    push rbp\n    mov rbp, rsp\n    sub rsp, %zu\n",fn->name,fn->name,fn->name,frame);
   for(size_t p=0;p<fn->parameter_count&&p<6;p++)text_add(o,"    mov QWORD PTR [rbp-%d], %s\n",swan_x64_slot((uint32_t)p+1),args[p]);
   for(size_t p=6;p<fn->parameter_count;p++)text_add(o,"    mov rax, QWORD PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",16u+(p-6u)*8u,swan_x64_slot((uint32_t)p+1));
@@ -71,9 +87,31 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
    const SwanIRTerm *t=&fn->blocks[b].terminator;size_t targets[2],n=0;
    if(t->kind==SWAN_IR_BR)targets[n++]=t->target;else if(t->kind==SWAN_IR_COND_BR){targets[n++]=t->target;if(t->alternate!=t->target)targets[n++]=t->alternate;}
    for(size_t k=0;k<n;k++){size_t target=targets[k];text_add(o,".Lsw_e%zu_%zu_%zu:\n",f,b,target);const SwanIRBlock *dest=&fn->blocks[target];
-    for(size_t i=0;i<dest->instruction_count;i++){const SwanIRInst *phi=&dest->instructions[i];if(phi->op!=SWAN_IR_PHI)continue;
-     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov QWORD PTR [rbp-%d], rax\n",swan_x64_slot(phi->incoming[q].value),swan_x64_slot(phi->result));break;}
-    }text_add(o,"    jmp .Lsw_f%zu_b%zu\n",f,target);
+    size_t phi_index=0;
+    for(size_t i=0;i<dest->instruction_count;i++){
+     const SwanIRInst *phi=&dest->instructions[i];
+     if(phi->op!=SWAN_IR_PHI)continue;
+     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
+      size_t scratch_offset=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov QWORD PTR [rbp-%zu], rax\n",
+               swan_x64_slot(phi->incoming[q].value),scratch_offset);
+      break;
+     }
+     phi_index++;
+    }
+    phi_index=0;
+    for(size_t i=0;i<dest->instruction_count;i++){
+     const SwanIRInst *phi=&dest->instructions[i];
+     if(phi->op!=SWAN_IR_PHI)continue;
+     for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
+      size_t scratch_offset=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      text_add(o,"    mov rax, QWORD PTR [rbp-%zu]\n    mov QWORD PTR [rbp-%d], rax\n",
+               scratch_offset,swan_x64_slot(phi->result));
+      break;
+     }
+     phi_index++;
+    }
+    text_add(o,"    jmp .Lsw_f%zu_b%zu\n",f,target);
    }
   }
   text_add(o,".size %s, .-%s\n",fn->name,fn->name);
