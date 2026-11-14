@@ -8,14 +8,12 @@ mkdir -p "$TMP/project"
 cat > "$TMP/project/01_math.swan" <<'SWAN'
 export C func swan_answer() -> int:
     return 42
-out
 SWAN
 
 cat > "$TMP/project/02_main.swan" <<SWAN
 import C "$TMP/project/c_api.h"
 fn main() -> int:
     return swan_answer() + c_answer(42) - 126
-out
 SWAN
 
 cat > "$TMP/project/c_api.h" <<'C'
