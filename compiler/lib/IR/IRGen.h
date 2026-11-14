@@ -44,9 +44,37 @@ static inline bool swan_irgen_fail(SwanIRGen *g,const Token *token,const char *m
     swan_error(g->error,token,"%s",message);return false;
 }
 static inline uint32_t swan_irgen_emit(SwanIRGen *g,SwanIRInst in) {
-    uint32_t id=swan_ir_add_inst(g->function,swan_irgen_block(g),in);
-    if(!id && in.type!=SWAN_IR_VOID) swan_irgen_fail(g,NULL,"unable to append typed IR instruction");
+    SwanIRBlock *block=swan_irgen_block(g);
+    if(!block){
+        swan_irgen_fail(g,NULL,"cannot emit an instruction without an active IR block");
+        return 0;
+    }
+    size_t previous_count=block->instruction_count;
+    uint32_t id=swan_ir_add_inst(g->function,block,in);
+    if((in.type!=SWAN_IR_VOID&&!id)||
+       (in.type==SWAN_IR_VOID&&block->instruction_count!=previous_count+1)){
+        swan_irgen_fail(g,NULL,"unable to append typed IR instruction");
+        return 0;
+    }
     return id;
+}
+static inline bool swan_irgen_emit_void(SwanIRGen *g,SwanIRInst instruction) {
+    if(instruction.type!=SWAN_IR_VOID){
+        swan_irgen_fail(g,NULL,"void IR emission received a value-producing instruction");
+        return false;
+    }
+    SwanIRBlock *block=swan_irgen_block(g);
+    if(!block){
+        swan_irgen_fail(g,NULL,"cannot emit an instruction without an active IR block");
+        return false;
+    }
+    size_t previous_count=block->instruction_count;
+    (void)swan_ir_add_inst(g->function,block,instruction);
+    if(block->instruction_count!=previous_count+1){
+        swan_irgen_fail(g,NULL,"unable to append void IR instruction");
+        return false;
+    }
+    return true;
 }
 static inline uint32_t swan_irgen_const(SwanIRGen *g,SwanIRType type,int64_t value) {
     SwanIRInst in={0};in.op=SWAN_IR_CONST;in.type=type;in.immediate=value;return swan_irgen_emit(g,in);
@@ -144,7 +172,14 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
             if(swan_ir_value_type_of(g->function,v)!=callee->parameter_types[i]){free(in.incoming);swan_irgen_fail(g,&e->token,"function call argument type mismatch");return 0;}
             in.incoming[i].value=v;
         }
+        if(in.type==SWAN_IR_VOID){
+            if(!swan_irgen_emit_void(g,in)){
+                free(in.incoming);
+            }
+            return 0;
+        }
         uint32_t result=swan_irgen_emit(g,in);
+        if(!result)free(in.incoming);
         return result;
     }
     if(e->kind==E_BINARY) {
@@ -180,7 +215,8 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
             if(!local||!local->memory){swan_irgen_fail(g,&e->token,"assignment target is not mutable");return 0;}
             uint32_t v=swan_irgen_expr_as(g,e->right,local->type);if(!v)return 0;
             SwanIRInst in={0};in.op=SWAN_IR_STORE;in.type=SWAN_IR_VOID;in.a=local->value;in.b=v;
-            swan_irgen_emit(g,in);return v;
+            if(!swan_irgen_emit_void(g,in))return 0;
+            return v;
         }
         int64_t literal_value;SwanIRType expected=swan_irgen_integer_literal(e->left,&literal_value)?swan_irgen_infer_expr_type(g,e->right):swan_irgen_infer_expr_type(g,e->left);
         uint32_t a=swan_irgen_expr_as(g,e->left,expected);if(!a)return 0;
@@ -248,7 +284,7 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
                 if(memory){SwanIRInst alloc={0};alloc.op=SWAN_IR_ALLOCA;alloc.type=SWAN_IR_PTR;value=swan_irgen_emit(g,alloc);}
                 if(s->value){uint32_t init=type==SWAN_IR_VOID?swan_irgen_expr(g,s->value):swan_irgen_expr_as(g,s->value,type);if(!init)return false;
                     if(type==SWAN_IR_VOID)type=swan_ir_value_type_of(g->function,init);
-                    if(memory){SwanIRInst store={0};store.op=SWAN_IR_STORE;store.type=SWAN_IR_VOID;store.a=value;store.b=init;swan_irgen_emit(g,store);}else value=init;
+                    if(memory){SwanIRInst store={0};store.op=SWAN_IR_STORE;store.type=SWAN_IR_VOID;store.a=value;store.b=init;if(!swan_irgen_emit_void(g,store))return false;}else value=init;
                 }else if(!memory)return swan_irgen_fail(g,&s->token,"immutable local requires an initializer");
                 if(type==SWAN_IR_VOID)return swan_irgen_fail(g,&s->token,"unsupported local variable type");
                 g->locals[g->local_count++]=(SwanIRLocal){s->name,value,type,memory};break;
