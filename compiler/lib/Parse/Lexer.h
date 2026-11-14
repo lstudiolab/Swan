@@ -95,6 +95,8 @@ static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,
  if(n){t->text=ts->text_storage+ts->text_used;memcpy(ts->text_storage+ts->text_used,s,n);ts->text_storage[ts->text_used+n]=0;ts->text_used+=n+1;}else t->text="";return true;
 }
 static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
+ if(err)memset(err,0,sizeof(*err));
+ if(!src||!ts){swan_error(err,NULL,"lexer requires source text and an output token stream");return false;}
  memset(ts,0,sizeof(*ts));ts->source=src;ts->length=strlen(src);
  size_t bad=0;
  if(!swan_utf8_valid((const unsigned char*)src,ts->length,&bad)){swan_error(err,NULL,"source is not valid UTF-8 at byte offset %zu",bad);return false;}
