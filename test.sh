@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -eu
+set -eux
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT"
 sh "$ROOT/build.sh"
