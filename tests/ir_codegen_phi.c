@@ -149,9 +149,10 @@ int main(int argc,char **argv){
     FILE *output=fopen(argv[1],"wb");
     bool written=output&&fwrite(assembly.data,1,assembly.len,output)==assembly.len;
     if(output&&fclose(output)!=0)written=false;
+    free(wasm.data);
     free(riscv.data);
     free(aarch64.data);
     free(assembly.data);
     swan_ir_destroy(&module);
-    return written?0:15;
+    return written?0:16;
 }
