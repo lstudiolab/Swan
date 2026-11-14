@@ -179,21 +179,99 @@ static inline bool swan_ir_block_dominates(const SwanIRFunction *f,size_t def_bl
  free(seen);free(queue);
  return !bypass;
 }
-static inline bool swan_ir_verify_use(const SwanIRFunction *f,uint32_t id,size_t use_block,size_t use_inst,char *error,size_t cap) {
- if(!id)return swan_ir_fail(error,cap,"undefined value",f->name,use_block,use_inst);
- if(id<=f->parameter_count)return true;
- for(size_t b=0;b<f->block_count;b++)for(size_t i=0;i<f->blocks[b].instruction_count;i++){
-  const SwanIRInst *def=&f->blocks[b].instructions[i];
-  if(def->result!=id)continue;
-  if(b==use_block){
-   if(i>=use_inst)return swan_ir_fail(error,cap,"value used before its definition",f->name,use_block,use_inst);
-   return true;
-  }
-  if(!swan_ir_block_dominates(f,b,use_block))return swan_ir_fail(error,cap,"definition does not dominate use",f->name,use_block,use_inst);
-  return true;
- }
- return swan_ir_fail(error,cap,"use of undefined value",f->name,use_block,use_inst);
+static inline bool swan_ir_verify_use(const SwanIRFunction *function,
+                                           uint32_t value_id,
+                                           size_t use_block,
+                                           size_t use_instruction,
+                                           char *error,
+                                           size_t capacity)
+{
+    if (value_id == 0) {
+        return swan_ir_fail(error, capacity, "undefined value",
+                            function->name, use_block, use_instruction);
+    }
+
+    if (value_id <= function->parameter_count) {
+        return true;
+    }
+
+    /*
+     * Builders maintain this location index as values are emitted. Use it as
+     * the fast path, but validate the entry before trusting it: optimization
+     * passes may move instructions and leave the index stale until rebuilt.
+     */
+    if (function->value_locations != NULL &&
+        value_id < function->value_location_capacity) {
+        SwanIRValueLocation location = function->value_locations[value_id];
+
+        if (location.block < function->block_count) {
+            const SwanIRBlock *definition_block =
+                &function->blocks[location.block];
+
+            if (location.index < definition_block->instruction_count &&
+                definition_block->instructions[location.index].result == value_id) {
+                if (location.block == use_block) {
+                    if (location.index >= use_instruction) {
+                        return swan_ir_fail(error, capacity,
+                                            "value used before its definition",
+                                            function->name, use_block,
+                                            use_instruction);
+                    }
+
+                    return true;
+                }
+
+                if (!swan_ir_block_dominates(function, location.block, use_block)) {
+                    return swan_ir_fail(error, capacity,
+                                        "definition does not dominate use",
+                                        function->name, use_block,
+                                        use_instruction);
+                }
+
+                return true;
+            }
+        }
+    }
+
+    /* Conservative fallback for IR whose location index is absent or stale. */
+    for (size_t block_index = 0;
+         block_index < function->block_count;
+         ++block_index) {
+        const SwanIRBlock *block = &function->blocks[block_index];
+
+        for (size_t instruction_index = 0;
+             instruction_index < block->instruction_count;
+             ++instruction_index) {
+            if (block->instructions[instruction_index].result != value_id) {
+                continue;
+            }
+
+            if (block_index == use_block) {
+                if (instruction_index >= use_instruction) {
+                    return swan_ir_fail(error, capacity,
+                                        "value used before its definition",
+                                        function->name, use_block,
+                                        use_instruction);
+                }
+
+                return true;
+            }
+
+            if (!swan_ir_block_dominates(function, block_index, use_block)) {
+                return swan_ir_fail(error, capacity,
+                                    "definition does not dominate use",
+                                    function->name, use_block,
+                                    use_instruction);
+            }
+
+            return true;
+        }
+    }
+
+    return swan_ir_fail(error, capacity, "use of undefined value",
+                        function->name, use_block, use_instruction);
 }
+
 static inline bool swan_ir_integer_type(SwanIRType t) {
  return t>=SWAN_IR_I1&&t<=SWAN_IR_I64;
 }
