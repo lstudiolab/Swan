@@ -16,6 +16,7 @@ sh "$ROOT/tests/profile.sh"
 sh "$ROOT/tests/smoke.sh"
 sh "$ROOT/tests/regressions.sh"
 sh "$ROOT/tests/foundation.sh"
+sh "$ROOT/tests/std-library.sh"
 sh "$ROOT/tests/lazy-imports.sh"
 sh "$ROOT/tests/architecture.sh"
 
