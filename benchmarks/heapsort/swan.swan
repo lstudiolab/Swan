@@ -52,15 +52,14 @@ func main() -> int:
             else
                 break
 
-    var checksum = 0
+    var checksum: u32 = 0
     i = 0
     while i < count
         if i > 0
             if values[i - 1] > values[i]
                 log "SORT_FAILED"
                 return 2
-        let current = values[i] as i64
-        checksum = checksum + current
+        checksum = checksum + values[i]
         i = i + 1
 
     log checksum
