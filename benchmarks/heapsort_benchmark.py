@@ -106,9 +106,9 @@ def main() -> int:
             "elements": COUNT,
             "element_type": "u32",
             "input": {
-                "generator": "xorshift32",
+                "generator": "lcg32",
                 "seed_decimal": 305419896,
-                "sequence": "state ^= state << 13; state ^= state >> 17; state ^= state << 5",
+                "sequence": "state = (state * 1664525 + 1013904223) % 4294967296",
                 "same_sequence_in_all_implementations": True,
             },
             "verification": "monotonic nondecreasing order plus u64 sum checksum",
