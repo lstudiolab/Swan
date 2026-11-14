@@ -18,7 +18,6 @@ cat > "$TMP/break-outside-loop.swan" <<'SWAN'
 fn main():
     break
     return 0
-out
 SWAN
 expect_rejected break-outside-loop
 
@@ -26,7 +25,6 @@ cat > "$TMP/continue-outside-loop.swan" <<'SWAN'
 fn main():
     continue
     return 0
-out
 SWAN
 expect_rejected continue-outside-loop
 
@@ -35,7 +33,6 @@ fn main():
     let value = 1
     value = 2
     return 0
-out
 SWAN
 expect_rejected immutable-assignment
 
@@ -43,7 +40,6 @@ cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
     log missing_value
     return 0
-out
 SWAN
 expect_rejected unknown-name
 
@@ -52,7 +48,6 @@ fn main():
     let value = 7
     log value[0]
     return 0
-out
 SWAN
 expect_rejected index-scalar
 
@@ -61,7 +56,6 @@ fn main():
     var value: int
     log value
     return 0
-out
 SWAN
 expect_rejected uninitialized-variable
 
@@ -72,7 +66,6 @@ fn main():
     else:
         let value = 2
     return 0
-out
 SWAN
 expect_rejected ambiguous-branch-shadowing
 
@@ -96,7 +89,6 @@ fn main():
         value = 22
     log value
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/initialized-on-all-branches.swan" -o "$TMP/initialized-on-all-branches"
 test "$("$TMP/initialized-on-all-branches")" = "21"
@@ -106,14 +98,12 @@ cat > "$TMP/boolean-abi.swan" <<'SWAN'
 fn identity(value: bool) -> bool:
     log 0
     return value
-out
 fn main() -> int:
     if identity(true):
         log 21
     else:
         log 0
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/boolean-abi.swan" -o "$TMP/boolean-abi"
 expected=$(printf '0\n21')
@@ -124,13 +114,11 @@ mkdir -p "$TMP/stdlib"
 cat > "$TMP/stdlib/helper.swan" <<'SWAN'
 fn helper_value() -> int:
     return 21
-out
 SWAN
 cat > "$TMP/imported-module.swan" <<'SWAN'
 import helper
 fn main() -> int:
     return helper_value()
-out
 SWAN
 "$SWAN" build "$TMP/imported-module.swan" --stdlib "$TMP/stdlib" -o "$TMP/imported-module"
 set +e
@@ -147,18 +135,15 @@ cat > "$TMP/unknown-function.swan" <<'SWAN'
 fn main():
     missing_function()
     return 0
-out
 SWAN
 expect_rejected unknown-function
 
 cat > "$TMP/call-arity.swan" <<'SWAN'
 fn add(left: int, right: int) -> int:
     return left + right
-out
 fn main():
     log add(1)
     return 0
-out
 SWAN
 expect_rejected call-arity
 
@@ -166,7 +151,6 @@ cat > "$TMP/missing-import.swan" <<'SWAN'
 import module_that_does_not_exist
 fn main():
     return 0
-out
 SWAN
 expect_rejected missing-import
 
@@ -176,11 +160,9 @@ fn choose(flag: bool) -> int:
         return 11
     else
         return 22
-out
 fn main():
     log choose(true)
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/return-both-branches.swan" -o "$TMP/return-both-branches"
 test "$("$TMP/return-both-branches")" = "11"
@@ -193,7 +175,6 @@ fn main():
     if true or (1 / 0 == 0)
         log 2
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/short-circuit.swan" -o "$TMP/short-circuit"
 test "$("$TMP/short-circuit")" = "2"
@@ -212,7 +193,6 @@ fn main():
             break
     log total
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/loop-control.swan" -o "$TMP/loop-control"
 test "$("$TMP/loop-control")" = "16"
@@ -230,7 +210,6 @@ fn main():
     log checked[3]
     log unchecked[3]
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/array-modes.swan" -o "$TMP/array-modes"
 test "$("$TMP/array-modes")" = "4
@@ -246,7 +225,6 @@ fn main():
         value = value + 1
     log total
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/signed-remainder.swan" -o "$TMP/signed-remainder"
 test "$("$TMP/signed-remainder")" = "50000"
@@ -261,7 +239,6 @@ fn main():
         i = i + 1
     log values[3]
     return 0
-out
 SWAN
 "$SWAN" "$TMP/proven-array-fill.swan" --emit-asm -o "$TMP/proven-array-fill.s"
 cc -x assembler "$TMP/proven-array-fill.s" -o "$TMP/proven-array-fill"
@@ -287,7 +264,6 @@ fn main():
     let values = array(8)
     values[0] = 42
     return 0
-out
 SWAN
 "$SWAN" "$TMP/samc-auto.swan" --emit-asm -o "$TMP/samc-auto.s"
 if grep -q 'call calloc@PLT' "$TMP/samc-auto.s" || grep -q 'call free@PLT' "$TMP/samc-auto.s"; then
@@ -303,7 +279,6 @@ fn main():
     if false:
         let values = array(length)
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/array-conditional-drop.swan" -o "$TMP/array-conditional-drop"
 "$TMP/array-conditional-drop"
@@ -317,7 +292,6 @@ fn main():
     log values[0]
     log 7
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/array-last-use.swan" -o "$TMP/array-last-use"
 test "$("$TMP/array-last-use")" = "5
@@ -340,7 +314,6 @@ fn main():
         let values = array(length)
         return 0
     return 0
-out
 SWAN
 "$SWAN" build "$TMP/array-early-return.swan" -o "$TMP/array-early-return"
 "$TMP/array-early-return"
@@ -350,12 +323,10 @@ cat > "$TMP/samc-escape.swan" <<'SWAN'
 fn consume(value):
     log value
     return 0
-out
 fn main():
     let values = array(8)
     consume(values)
     return 0
-out
 SWAN
 "$SWAN" "$TMP/samc-escape.swan" --emit-asm -o "$TMP/samc-escape.s"
 if grep -q 'call free@PLT' "$TMP/samc-escape.s"; then
