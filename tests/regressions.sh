@@ -67,6 +67,17 @@ out
 SWAN
 expect_rejected ambiguous-branch-shadowing
 
+{
+    printf 'fn main():\n    log '
+    i=0
+    while [ "$i" -lt 300 ]; do printf '('; i=$((i + 1)); done
+    printf '1'
+    i=0
+    while [ "$i" -lt 300 ]; do printf ')'; i=$((i + 1)); done
+    printf '\n    return 0\nout\n'
+} > "$TMP/excessive-expression-depth.swan"
+expect_rejected excessive-expression-depth
+
 cat > "$TMP/initialized-on-all-branches.swan" <<'SWAN'
 fn main():
     var value: int
