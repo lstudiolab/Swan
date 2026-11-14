@@ -1,4 +1,4 @@
-#include "swan/ir.h"
+#include "swan/optimization.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -225,6 +225,63 @@ static int rejects_duplicate_ssa_definitions(void){
     return 0;
 }
 
+
+static int optimizer_repairs_compacted_block_metadata(void){
+    SwanIRModule module={0};
+    SwanIRFunction *function=swan_ir_add_function(&module,"main",SWAN_IR_I32,NULL,0);
+    SwanIRBlock *entry=function?swan_ir_add_block(function,"entry"):NULL;
+    SwanIRBlock *live=function?swan_ir_add_block(function,"live"):NULL;
+    SwanIRBlock *dead=function?swan_ir_add_block(function,"dead"):NULL;
+    if(!entry||!live||!dead){swan_ir_destroy(&module);return 100;}
+
+    SwanIRInst condition={0};
+    condition.op=SWAN_IR_CONST;
+    condition.type=SWAN_IR_I1;
+    condition.immediate=1;
+    uint32_t condition_value=swan_ir_add_inst(function,entry,condition);
+
+    SwanIRInst result={0};
+    result.op=SWAN_IR_CONST;
+    result.type=SWAN_IR_I32;
+    result.immediate=42;
+    uint32_t return_value=swan_ir_add_inst(function,entry,result);
+
+    if(!condition_value||!return_value||
+       !swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_COND_BR,condition_value,1,2})||
+       !swan_ir_terminate(live,(SwanIRTerm){SWAN_IR_RET,return_value,0,0})||
+       !swan_ir_terminate(dead,(SwanIRTerm){SWAN_IR_UNREACHABLE,0,0,0})){
+        swan_ir_destroy(&module);
+        return 101;
+    }
+
+    char error[256]={0};
+    if(!swan_ir_optimize(&module,error,sizeof(error))){
+        fprintf(stderr,"optimizer metadata repair: %s\n",error);
+        swan_ir_destroy(&module);
+        return 102;
+    }
+
+    if(function->block_count!=2||function->blocks[0].owner!=function||
+       function->blocks[1].owner!=function||function->blocks[0].index!=0||
+       function->blocks[1].index!=1){
+        fprintf(stderr,"optimizer metadata repair: compacted block ownership/index is stale\n");
+        swan_ir_destroy(&module);
+        return 103;
+    }
+
+    SwanIRValueLocation location=function->value_locations[return_value];
+    if(location.block!=0||location.index>=function->blocks[0].instruction_count||
+       function->blocks[location.block].instructions[location.index].result!=return_value){
+        fprintf(stderr,"optimizer metadata repair: SSA location cache is stale\n");
+        swan_ir_destroy(&module);
+        return 104;
+    }
+
+    int status=expect_valid(&module,"optimized compacted CFG");
+    swan_ir_destroy(&module);
+    return status;
+}
+
 int main(void){
     int status=builder_guards();if(status)return status;
     status=valid_scalar_and_call();if(status)return status;
@@ -236,6 +293,7 @@ int main(void){
     status=rejects_bad_terminator();if(status)return status;
     status=accepts_stale_ssa_location_cache();if(status)return status;
     status=rejects_duplicate_ssa_definitions();if(status)return status;
+    status=optimizer_repairs_compacted_block_metadata();if(status)return status;
     puts("Swan typed IR verifier passed: valid calls and SSA accepted; duplicate definitions, invalid types, PHI placement, operand arity, pointer constants, and terminators rejected.");
     return 0;
 }
