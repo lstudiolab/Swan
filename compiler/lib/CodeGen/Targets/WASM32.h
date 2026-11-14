@@ -163,7 +163,8 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
    SwanIRType t=swan_ir_value_type_of(fn,id);if(t==SWAN_IR_VOID)t=SWAN_IR_I64;ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type_for(t,memory64));
   }
   if(ok&&fn_allocas)ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,swan_wasm_type_for(SWAN_IR_PTR,memory64));
-  if(ok&&fn->block_count>1)ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,0x7f)&&swan_wasm_const(&body,false,0)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc);
+  if(ok&&fn->block_count>1)
+   ok=swan_wasm_u32(&body,1)&&swan_wasm_byte(&body,0x7f);
   for(size_t b=0;ok&&b<fn->block_count;b++)
    for(size_t i=0;ok&&i<fn->blocks[b].instruction_count;i++){
     const SwanIRInst *phi=&fn->blocks[b].instructions[i];
@@ -171,6 +172,9 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
      ok=swan_wasm_u32(&body,1)&&
         swan_wasm_byte(&body,swan_wasm_type_for(phi->type,memory64));
    }
+  /* WebAssembly requires every local declaration before the first opcode. */
+  if(ok&&fn->block_count>1)
+   ok=swan_wasm_const(&body,false,0)&&swan_wasm_byte(&body,0x21)&&swan_wasm_u32(&body,pc);
   size_t alloc_index=0;
   if(ok&&fn_allocas)ok=swan_wasm_byte(&body,0x23)&&swan_wasm_u32(&body,0)&&swan_wasm_byte(&body,0x22)&&swan_wasm_u32(&body,base_local)&&swan_wasm_const(&body,memory64,(int64_t)(fn_allocas*8u+16u))&&swan_wasm_byte(&body,memory64?0x7c:0x6a)&&swan_wasm_byte(&body,0x24)&&swan_wasm_u32(&body,0);
   if(ok&&fn->block_count>1){
