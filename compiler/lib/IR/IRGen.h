@@ -321,6 +321,15 @@ static inline bool swan_irgen_include_function(const Program *program,size_t ind
     return !program->reachability_computed||program->function_reachable[index];
 }
 static inline bool swan_irgen_program(Program *program,SwanIRModule *module,SwanError *error) {
+    if(error)memset(error,0,sizeof(*error));
+    if(!program||!module){
+        swan_error(error,NULL,"IR generation requires a program and output module");
+        return false;
+    }
+    if(program->count>1024){
+        swan_error(error,NULL,"IR generation exceeds the function limit");
+        return false;
+    }
     memset(module,0,sizeof(*module));
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
