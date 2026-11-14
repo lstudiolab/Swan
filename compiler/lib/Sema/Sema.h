@@ -174,7 +174,7 @@ static inline void swan_warning_block(Program *program,Stmt **body,size_t count)
   swan_warning_expr(program,statement->value);
   swan_warning_expr(program,statement->condition);
   if((statement->kind==S_IF||statement->kind==S_WHILE)&&
-     statement->condition&&statement->condition->kind==E_BOOL){
+     statement->condition&&statement->condition->kind==E_BOOL&&\n     statement->condition->token.text){
    bool condition=!strcmp(statement->condition->token.text,"true");
    if(statement->kind==S_IF){
     swan_warning_add(program,&statement->token,
