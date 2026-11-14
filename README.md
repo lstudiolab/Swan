@@ -212,7 +212,7 @@ func main() -> int:
     return 0
 ```
 
-`std:print >> expression` is Swan's namespaced output intrinsic. Other `std:name(...)` calls resolve to functions in `stdlib/std.swan`. The initial integer-focused API includes `abs`, `min`, `max`, `clamp`, `sign`, `square`, `cube`, `power`, `factorial`, `sum_to`, `is_even`, `is_odd`, `in_range`, and `average`. See [the language guide](docs/LANGUAGE_GUIDE.md#121-the-std-namespace) for behavior and current limitations.
+`std:print >> expression` is Swan's namespaced output intrinsic. Other `std:name(...)` calls resolve to ordinary functions in explicitly imported Swan modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use the `std:` prefix. See [the standard-library reference](stdlib/README.md) and [the language guide](docs/LANGUAGE_GUIDE.md#121-the-std-namespace) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
 
 ## C header interoperability
 
