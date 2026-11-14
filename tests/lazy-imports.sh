@@ -37,7 +37,6 @@ import foundation
 fn main():
     if false:
         foundation_hello()
-    out
     return 0
 SWAN
 "$SWAN" build "$TMP/branch.swan" --lazy-imports -o "$TMP/branch"
@@ -51,7 +50,6 @@ import foundation
 fn main():
     if true:
         foundation_hello()
-    out
     return 0
 SWAN
 "$SWAN" build "$TMP/branch-used.swan" --lazy-imports -o "$TMP/branch-used"
