@@ -746,7 +746,6 @@ These spellings are recognized in specific parser contexts and remain available 
 | `external` | External function declaration marker |
 
 | `lazy` | Modifier before an import |
-| `out` | Legacy block terminator accepted after a dedent |
 | `log` | Built-in output statement spelling |
 | `print` | Compatibility output statement spelling |
 | `echo` | Used with `!` for the output intrinsic |
