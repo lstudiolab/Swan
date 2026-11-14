@@ -13,6 +13,7 @@ func unused_helper() -> int:
 func main() -> int:
     var value = 1
     value = value
+    print 4 / 0
     if true:
         print value
     return 0
@@ -21,6 +22,7 @@ SWAN
 "$SWAN" "$TMP/warnings.swan" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"
 grep -q "self-assignment to 'value' has no effect" "$TMP/warnings.err"
 grep -q "condition is always true" "$TMP/warnings.err"
+grep -q "literal zero" "$TMP/warnings.err"
 grep -q "function 'unused_helper' is never reached from main" "$TMP/warnings.err"
 printf 'PASS: semantic warnings identify suspicious constructs without stopping compilation\n'
 
