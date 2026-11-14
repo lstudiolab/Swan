@@ -330,6 +330,18 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         swan_error(error,NULL,"IR generation exceeds the function limit");
         return false;
     }
+    if(program->count&&!program->functions){
+        swan_error(error,NULL,"IR generation received missing function declaration storage");
+        return false;
+    }
+    for(size_t i=0;i<program->count;i++){
+        if(!program->functions[i]||!program->functions[i]->name||
+           !program->functions[i]->name[0]){
+            swan_error(error,program->functions[i]?&program->functions[i]->token:NULL,
+                       "IR generation received an invalid function declaration");
+            return false;
+        }
+    }
     memset(module,0,sizeof(*module));
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
