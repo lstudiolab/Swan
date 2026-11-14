@@ -242,8 +242,7 @@ static inline SwanSILFunctionResult swan_sil_lower_function(
 
         if (opcode == 1) {
             if (!destination || destination >= 256 ||
-                swan_sil_ir_type(type_code) == SWAN_IR_VOID ||
-                state[base + 4] > INT32_MAX) {
+                swan_sil_ir_type(type_code) == SWAN_IR_VOID) {
                 swan_error(error, &fn->token,
                            "SIL emitted an invalid constant instruction");
                 return SWAN_SIL_FUNCTION_FAILED;
