@@ -21,6 +21,13 @@ fn main():
 SWAN
 expect_rejected break-outside-loop
 
+cat > "$TMP/obsolete-out-terminator.swan" <<'SWAN'
+func main() -> int:
+    out
+    return 0
+SWAN
+expect_rejected obsolete-out-terminator
+
 cat > "$TMP/continue-outside-loop.swan" <<'SWAN'
 fn main():
     continue
