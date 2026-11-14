@@ -38,7 +38,7 @@ static inline bool swan_codegen_riscv64_ir(const SwanIRModule *m,Text *o,char *e
   }
   size_t frame=(value_bytes+allocas*8u+phi_slots*8u+31u)&~(size_t)15u;
   if(frame<32)frame=32;
-  if(frame>2048){if(error&&cap)snprintf(error,cap,"RISC-V64 stack frame exceeds its immediate-offset limit");return false;}
+  if(frame>2047){if(error&&cap)snprintf(error,cap,"RISC-V64 stack frame exceeds its immediate-offset limit");return false;}
   text_add(o,".text\n.p2align 2\n.globl %s\n.type %s, @function\n%s:\n    addi sp, sp, -%zu\n    sd ra, %zu(sp)\n    sd s0, %zu(sp)\n    addi s0, sp, %zu\n",fn->name,fn->name,fn->name,frame,frame-8,frame-16,frame);
   for(size_t p=0;p<fn->parameter_count&&p<8;p++){
    if(fn->parameter_types[p]==SWAN_IR_I1)
