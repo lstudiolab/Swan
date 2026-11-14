@@ -25,4 +25,3 @@ fn sil_demand(state: u32_array, count: int, workspace: u32_array) -> int:
         scan = scan + 1
     return kept
 
-out
