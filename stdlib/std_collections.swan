@@ -1,0 +1,177 @@
+# Swan collections and sequence algorithms.
+# The current language exposes checked/unchecked u32 arrays rather than
+# generic Array<T>. Pass the logical length explicitly with every array.
+
+func array_sum(values: u32_array, length: int) -> int:
+    var total = 0
+    var index = 0
+    while index < length:
+        total = total + values[index]
+        index = index + 1
+    return total
+out
+
+func array_min(values: u32_array, length: int) -> int:
+    if length <= 0:
+        return 0
+    var result = values[0]
+    var index = 1
+    while index < length:
+        if values[index] < result:
+            result = values[index]
+        index = index + 1
+    return result
+out
+
+func array_max(values: u32_array, length: int) -> int:
+    if length <= 0:
+        return 0
+    var result = values[0]
+    var index = 1
+    while index < length:
+        if values[index] > result:
+            result = values[index]
+        index = index + 1
+    return result
+out
+
+func array_contains(values: u32_array, length: int, target: int) -> bool:
+    var index = 0
+    while index < length:
+        if values[index] == target:
+            return true
+        index = index + 1
+    return false
+out
+
+func array_index_of(values: u32_array, length: int, target: int) -> int:
+    var index = 0
+    while index < length:
+        if values[index] == target:
+            return index
+        index = index + 1
+    return 0 - 1
+out
+
+func array_count(values: u32_array, length: int, target: int) -> int:
+    var total = 0
+    var index = 0
+    while index < length:
+        if values[index] == target:
+            total = total + 1
+        index = index + 1
+    return total
+out
+
+func array_average(values: u32_array, length: int) -> int:
+    if length <= 0:
+        return 0
+    return array_sum(values, length) / length
+out
+
+func array_is_sorted(values: u32_array, length: int) -> bool:
+    if length < 2:
+        return true
+    var index = 1
+    while index < length:
+        if values[index - 1] > values[index]:
+            return false
+        index = index + 1
+    return true
+out
+
+func array_fill(values: u32_array, length: int, value: int) -> int:
+    var index = 0
+    while index < length:
+        values[index] = value
+        index = index + 1
+    return length
+out
+
+func array_copy(source: u32_array, destination: u32_array, length: int) -> int:
+    var index = 0
+    while index < length:
+        destination[index] = source[index]
+        index = index + 1
+    return length
+out
+
+func array_reverse(values: u32_array, length: int) -> int:
+    var left = 0
+    var right = length - 1
+    while left < right:
+        let temporary = values[left]
+        values[left] = values[right]
+        values[right] = temporary
+        left = left + 1
+        right = right - 1
+    return length
+out
+
+func array_linear_search(values: u32_array, length: int, target: int) -> int:
+    return array_index_of(values, length, target)
+out
+
+func array_binary_search(values: u32_array, length: int, target: int) -> int:
+    var low = 0
+    var high = length - 1
+    while low <= high:
+        let middle = low + (high - low) / 2
+        if values[middle] == target:
+            return middle
+        if values[middle] < target:
+            low = middle + 1
+        else:
+            high = middle - 1
+    return 0 - 1
+out
+
+func array_bubble_sort(values: u32_array, length: int) -> int:
+    var end = length
+    while end > 1:
+        var index = 1
+        var changed = false
+        while index < end:
+            if values[index - 1] > values[index]:
+                let temporary = values[index - 1]
+                values[index - 1] = values[index]
+                values[index] = temporary
+                changed = true
+            index = index + 1
+        if not changed:
+            return length
+        end = end - 1
+    return length
+out
+
+func array_selection_sort(values: u32_array, length: int) -> int:
+    var start = 0
+    while start < length:
+        var smallest = start
+        var index = start + 1
+        while index < length:
+            if values[index] < values[smallest]:
+                smallest = index
+            index = index + 1
+        if smallest != start:
+            let temporary = values[start]
+            values[start] = values[smallest]
+            values[smallest] = temporary
+        start = start + 1
+    return length
+out
+
+func array_insertion_sort(values: u32_array, length: int) -> int:
+    var index = 1
+    while index < length:
+        let current = values[index]
+        var position = index
+        while position > 0:
+            if values[position - 1] <= current:
+                break
+            values[position] = values[position - 1]
+            position = position - 1
+        values[position] = current
+        index = index + 1
+    return length
+out
