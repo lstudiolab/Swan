@@ -1,4 +1,6 @@
 #include "swan/codegen_x86_64_ir.h"
+#include "swan/codegen_aarch64.h"
+#include "swan/codegen_riscv64.h"
 #include "swan/optimization.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -101,10 +103,44 @@ int main(int argc,char **argv){
         swan_ir_destroy(&module);
         return 10;
     }
+    Text aarch64={0};
+    if(!swan_codegen_aarch64_ir(&module,&aarch64,error,sizeof(error))){
+        fprintf(stderr,"AArch64 IR code generation failed: %s\\n",error);
+        free(aarch64.data);
+        free(assembly.data);
+        swan_ir_destroy(&module);
+        return 11;
+    }
+    if(!strstr(aarch64.data,".Lsw_e")||!strstr(aarch64.data,"str x9, [sp, #")){
+        fprintf(stderr,"AArch64 phi edge-copy sequence was not emitted\\n");
+        free(aarch64.data);
+        free(assembly.data);
+        swan_ir_destroy(&module);
+        return 12;
+    }
+    Text riscv={0};
+    if(!swan_codegen_riscv64_ir(&module,&riscv,error,sizeof(error))){
+        fprintf(stderr,"RISC-V64 IR code generation failed: %s\\n",error);
+        free(riscv.data);
+        free(aarch64.data);
+        free(assembly.data);
+        swan_ir_destroy(&module);
+        return 13;
+    }
+    if(!strstr(riscv.data,".Lsw_e")||!strstr(riscv.data,"sd t0, ")){
+        fprintf(stderr,"RISC-V64 phi edge-copy sequence was not emitted\\n");
+        free(riscv.data);
+        free(aarch64.data);
+        free(assembly.data);
+        swan_ir_destroy(&module);
+        return 14;
+    }
     FILE *output=fopen(argv[1],"wb");
     bool written=output&&fwrite(assembly.data,1,assembly.len,output)==assembly.len;
     if(output&&fclose(output)!=0)written=false;
+    free(riscv.data);
+    free(aarch64.data);
     free(assembly.data);
     swan_ir_destroy(&module);
-    return written?0:11;
+    return written?0:15;
 }
