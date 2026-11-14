@@ -89,6 +89,7 @@ static inline bool swan_program_requires_ast_compatibility(const Program *progra
 }
 static inline bool swan_codegen(Program *program, Text *output,
                                 const SwanTarget *target, SwanError *error) {
+    if(error)memset(error,0,sizeof(*error));
     if (!target || target->architecture != SWAN_ARCH_X86_64) {
         swan_error(error, NULL, "requested code-generation backend is not implemented");
         return false;
