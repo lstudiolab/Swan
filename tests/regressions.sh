@@ -116,7 +116,8 @@ fn main() -> int:
 out
 SWAN
 "$SWAN" build "$TMP/boolean-abi.swan" -o "$TMP/boolean-abi"
-test "$("$TMP/boolean-abi")" = "0\n21"
+expected=$(printf '0\n21')
+test "$("$TMP/boolean-abi")" = "$expected"
 printf 'PASS: x86-64 AST backend normalizes boolean parameters and return values\\n'
 
 cat > "$TMP/unknown-function.swan" <<'SWAN'
