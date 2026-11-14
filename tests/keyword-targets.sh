@@ -50,7 +50,7 @@ readelf -h "$TMP/riscv64.o" | grep -q 'RISC-V'
 printf 'PASS: shared keyword control flow emits RISC-V64 ELF\n'
 
 "$BIN" build "$TMP/loop.swan" --target wasm32 -o "$TMP/loop.wasm"
-node -e 'const fs=require("fs"); WebAssembly.instantiate(fs.readFileSync(process.argv[1])).then(({instance})=>{if(instance.exports.main()!==4n)process.exit(1);}).catch(e=>{console.error(e);process.exit(1);});' "$TMP/loop.wasm"
+node -e 'const fs=require("fs"); const bytes=fs.readFileSync(process.argv[1]); WebAssembly.instantiate(bytes).then(({instance})=>{if(instance.exports.main()!==4n)process.exit(1);}).catch(e=>{console.error(e);console.error("WASM_HEX="+bytes.toString("hex"));process.exit(1);});' "$TMP/loop.wasm"
 printf 'PASS: shared keyword control flow executes as WASM32\n'
 
 "$BIN" build "$TMP/loop.swan" --target wasm64 -o "$TMP/loop64.wasm"
