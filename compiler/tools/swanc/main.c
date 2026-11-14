@@ -92,7 +92,8 @@ static int swan_run(int argc,char **argv){
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  bool emit_asm=false,emit_llvm=false,lazy_imports=false;const char *link_args[120];size_t link_arg_count=0;
  const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
- SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
+ SwanTarget custom_target={0};const SwanTarget *target=swan_target_host();
+ if(!target){fprintf(stderr,"swanc: automatic host targeting is currently supported on Linux x86_64, AArch64, ARMv7, and RISC-V64; use --target or --target-triple for another output target\n");return 2;}
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--emit-llvm"))emit_llvm=true;
