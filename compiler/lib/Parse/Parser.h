@@ -2,7 +2,7 @@
 #define SWAN_PARSER_H
 #include "swan/lexer.h"
 #include "swan/ast.h"
-typedef struct { TokenStream *ts; Program *program; SwanError *err; bool failed; } Parser;
+typedef struct { TokenStream *ts; Program *program; SwanError *err; bool failed; unsigned recursion_depth; } Parser;
 static inline Token *pk(Parser *p){return &p->ts->items[p->ts->pos<p->ts->count?p->ts->pos:p->ts->count-1];}
 static inline bool is(Parser *p,TokenKind k){return pk(p)->kind==k;}
 static inline Token take(Parser *p){Token t=*pk(p);if(t.kind!=T_EOF)p->ts->pos++;return t;}
@@ -14,6 +14,7 @@ static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=swan_arena_al
 static inline bool swan_type_token(const Token *t){return t&&(t->kind==T_IDENT||t->kind==T_BOOL_TYPE||(t->kind==T_INT&&t->text&&!strcmp(t->text,"int")));}
 static inline int precedence(TokenKind k){switch(k){case T_ASSIGN:return 1;case T_OR:return 2;case T_AND:return 3;case T_EQ:case T_NE:return 4;case T_LT:case T_GT:case T_LE:case T_GE:return 5;case T_PLUS:case T_MINUS:return 6;case T_STAR:case T_SLASH:case T_FLOORDIV:case T_PERCENT:return 7;default:return 0;}}
 static inline Expr *expression(Parser *p,int min);
+static inline Expr *expression_impl(Parser *p,int min);
 static inline Expr *prefix(Parser *p){
  Token t=take(p);Expr *e=NULL;
  if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
@@ -37,9 +38,11 @@ static inline Expr *prefix(Parser *p){
  return e;
 }
 static inline int precedence_token(Token *t){if(t->kind==T_IDENT){if(!strcmp(t->text,"or"))return 2;if(!strcmp(t->text,"and"))return 3;}return precedence(t->kind);}
-static inline Expr *expression(Parser *p,int min){Expr *left=prefix(p);while(left&&!p->failed){int prec=precedence_token(pk(p));if(prec<min)break;Token op=take(p);if(op.kind==T_IDENT){if(!strcmp(op.text,"or"))op.kind=T_OR;else if(!strcmp(op.text,"and"))op.kind=T_AND;}Expr *right=expression(p,op.kind==T_ASSIGN?prec:prec+1);Expr *e=new_expr(p,E_BINARY,op);if(!e)return left;e->left=left;e->right=right;e->contains_call=(left&&left->contains_call)||(right&&right->contains_call);left=e;}return left;}
+static inline Expr *expression_impl(Parser *p,int min){Expr *left=prefix(p);while(left&&!p->failed){int prec=precedence_token(pk(p));if(prec<min)break;Token op=take(p);if(op.kind==T_IDENT){if(!strcmp(op.text,"or"))op.kind=T_OR;else if(!strcmp(op.text,"and"))op.kind=T_AND;}Expr *right=expression(p,op.kind==T_ASSIGN?prec:prec+1);Expr *e=new_expr(p,E_BINARY,op);if(!e)return left;e->left=left;e->right=right;e->contains_call=(left&&left->contains_call)||(right&&right->contains_call);left=e;}return left;}
+static inline Expr *expression(Parser *p,int min){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing an expression");p->failed=true;return NULL;}p->recursion_depth++;Expr *result=expression_impl(p,min);p->recursion_depth--;return result;}
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
-static inline Stmt *statement(Parser *p){
+static inline Stmt *statement(Parser *p);
+static inline Stmt *statement_impl(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
  if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=false;s->manual_checked=false;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
  bool print_intrinsic=eat(p,T_PRINT);if(print_intrinsic||(is(p,T_IDENT)&&(!strcmp(pk(p)->text,"print")||!strcmp(pk(p)->text,"log")))){if(!print_intrinsic){take(p);if(eat(p,T_GT)&&!need(p,T_GT,"expected second '>' in log output operator"))return NULL;}s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
@@ -51,7 +54,8 @@ static inline Stmt *statement(Parser *p){
  if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=swan_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){swan_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
  s=new_stmt(p,S_EXPR,t);if(s)s->value=expression(p,1);return s;
 }
-static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
+static inline Stmt *statement(Parser *p){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing statements");p->failed=true;return NULL;}p->recursion_depth++;Stmt *result=statement_impl(p);p->recursion_depth--;return result;}
+static inline bool block_impl(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
  bool colon=eat(p,T_COLON);
  if(!need(p,T_NEWLINE,"expected newline"))return false;
  if(colon){if(!need(p,T_INDENT,"expected indentation after ':'"))return false;}
@@ -76,5 +80,6 @@ static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
  if(is(p,T_IDENT)&&pk(p)->text&&!strcmp(pk(p)->text,"out"))take(p);
  return true;
 }
+static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing blocks");p->failed=true;return false;}p->recursion_depth++;bool result=block_impl(p,out,count,capacity);p->recursion_depth--;return result;}
 static inline bool swan_parse(TokenStream *ts,Program *program,SwanError *err){Parser p={ts,program,err,false};separators(&p);while(!is(&p,T_EOF)&&!p.failed){bool lazy_import=is(&p,T_IDENT)&&pk(&p)->text&&!strcmp(pk(&p)->text,"lazy");if(lazy_import)take(&p);Token t=take(&p);if(lazy_import&&!(t.kind==T_IMPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"import")))){swan_error(err,&t,"lazy must modify an import declaration");return false;}if(t.kind==T_IMPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"import"))){Token module=take(&p);if(module.kind!=T_IDENT){swan_error(err,&module,"expected module name after import");return false;}if(!strcmp(module.text,"C")){Token header=take(&p);if(header.kind!=T_STRING){swan_error(err,&header,"expected C header path after import C");return false;}if(program->c_header_count>=64){swan_error(err,&header,"too many C header imports");return false;}program->c_headers[program->c_header_count++]=header.text;}else{if(program->import_count>=64){swan_error(err,&module,"too many standard-library imports");return false;}program->imports[program->import_count++]=module.text;}eat(&p,T_SEMI);separators(&p);continue;}bool exported=t.kind==T_EXPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"export"));if(exported){t=take(&p);if(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"C"))t=take(&p);}bool external=t.kind==T_EXTERN||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"external"));if(external)t=take(&p);if(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"fn"))t.kind=T_FN;if(t.kind!=T_FN){swan_error(err,&t,"only func declarations, external declarations, and imports are currently supported at file scope");return false;}if(program->count>=1024){swan_error(err,&t,"too many functions");return false;}Stmt *fn=new_stmt(&p,S_FUNCTION,t);if(!fn)return false;Token name=take(&p);if(name.kind!=T_IDENT){swan_error(err,&name,"expected function name");return false;}fn->name=name.text;fn->external=external;fn->exported=exported;need(&p,T_LP,"expected '('");if(!is(&p,T_RP)){fn->params=swan_arena_alloc(program,16*sizeof(*fn->params));fn->param_types=swan_arena_alloc(program,16*sizeof(*fn->param_types));if(!fn->params||!fn->param_types){swan_error(err,&t,"out of memory allocating function parameters");return false;}do{Token a=take(&p);if(a.kind!=T_IDENT||fn->param_count>=16){swan_error(err,&a,"invalid or excessive parameter list");return false;}fn->params[fn->param_count]=a.text;fn->param_types[fn->param_count]=NULL;fn->param_count++;if(eat(&p,T_COLON)){Token ty=take(&p);if(!swan_type_token(&ty)){swan_error(err,&ty,"expected parameter type");return false;}fn->param_types[fn->param_count-1]=ty.text;}}while(eat(&p,T_COMMA));}need(&p,T_RP,"expected ')'");if(eat(&p,T_ARROW)){Token ret=take(&p);if(!swan_type_token(&ret)){swan_error(err,&ret,"expected return type");return false;}fn->type=ret.text;}if(external){if(!is(&p,T_NEWLINE)&&!is(&p,T_EOF)){swan_error(err,pk(&p),"external function declarations cannot have a body");return false;}separators(&p);}else if(!block(&p,&fn->body,&fn->body_count,&fn->body_cap))return false;program->functions[program->count++]=fn;separators(&p);}return !p.failed;}
 #endif
