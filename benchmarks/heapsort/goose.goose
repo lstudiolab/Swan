@@ -1,4 +1,5 @@
 // 1,000,000,000 deterministic u32 values, sorted in place with max-heapsort.
+import std;
 const N = 1000000000;
 
 fn main() {
