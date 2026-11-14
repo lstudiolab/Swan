@@ -47,6 +47,30 @@ out
 SWAN
 expect_rejected unknown-name
 
+cat > "$TMP/uninitialized-variable.swan" <<'SWAN'
+fn main():
+    var value: int
+    log value
+    return 0
+out
+SWAN
+expect_rejected uninitialized-variable
+
+cat > "$TMP/initialized-on-all-branches.swan" <<'SWAN'
+fn main():
+    var value: int
+    if true:
+        value = 21
+    else:
+        value = 22
+    log value
+    return 0
+out
+SWAN
+"$SWAN" build "$TMP/initialized-on-all-branches.swan" -o "$TMP/initialized-on-all-branches"
+test "$("$TMP/initialized-on-all-branches")" = "21"
+printf 'PASS: definite initialization merges assignments from both branches\\n'
+
 cat > "$TMP/unknown-function.swan" <<'SWAN'
 fn main():
     missing_function()
