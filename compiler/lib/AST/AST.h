@@ -31,6 +31,6 @@ static inline void swan_program_destroy(Program *p){
  if(!p)return;
  SwanArenaChunk *chunk=p->arena;
  while(chunk){SwanArenaChunk *next=chunk->next;free(chunk);chunk=next;}
- p->arena=NULL;
+ memset(p,0,sizeof(*p));
 }
 #endif
