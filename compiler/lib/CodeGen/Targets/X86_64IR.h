@@ -106,7 +106,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch_offset=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      size_t scratch_offset=value_bytes+allocas*8u+phi_index*8u;
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov QWORD PTR [rbp-%zu], rax\n",
                swan_x64_slot(phi->incoming[q].value),scratch_offset);
       break;
@@ -118,7 +118,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
      const SwanIRInst *phi=&dest->instructions[i];
      if(phi->op!=SWAN_IR_PHI)continue;
      for(size_t q=0;q<phi->incoming_count;q++)if(phi->incoming[q].block==b){
-      size_t scratch_offset=value_bytes+allocas*8u+(phi_index+1u)*8u;
+      size_t scratch_offset=value_bytes+allocas*8u+phi_index*8u;
       text_add(o,"    mov rax, QWORD PTR [rbp-%zu]\n    mov QWORD PTR [rbp-%d], rax\n",
                scratch_offset,swan_x64_slot(phi->result));
       break;
