@@ -1,95 +1,101 @@
 # SVM Compiler Architecture
 
-## Decision
+The normative compiler design is defined in [COMPILER_SYSTEM.md](COMPILER_SYSTEM.md). This document summarizes SVM's specific place in that design and records the current implementation boundary.
 
-SVM means **Swan Virtual Machine compiler engine**, not an interpreter and not a target CPU. It is the target-independent compilation core that takes source after lexical analysis and drives it through verified, optimized intermediate representations into the selected target backend.
+## Definition
 
-SVM must never execute Swan source or typed IR by walking instructions in a runtime dispatch loop. The old register-frame interpreter and serialized-IR `.swvm` artifact are legacy behavior and are not the architecture to extend.
+SVM is Swan's **target-independent compiler middle-end**, not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
 
-## One pipeline, many targets
+SVM accepts typed, semantically checked source lowering and produces verified, optimized IR for Swan-owned target backends. It is an ahead-of-time compiler component. No production executable may execute SVM instructions by dispatching over them at runtime.
+
+## Canonical pipeline
 
 ```text
-.swan source
-    |
-    v
-Lexer -> tokens
-    |
-    v
-Parser -> AST
-    |
-    v
-Semantic analysis + type checking
-    |
-    v
-SVM frontend lowering
-    |  SIL bridge / general AST-to-typed SSA IR
-    v
-Typed IR verifier
-    |
-    v
-SVM optimizer
-    |  constant folding, CFG simplification, CSE, LICM, DCE, ...
-    v
-Verified optimized target-independent IR
-    |
-    +--> x86-64 instruction selection + register allocation + assembly
-    |
-    +--> AArch64 instruction selection + register allocation + assembly
-    |
-    +--> ARM/ARM64 instruction selection + register allocation + assembly
-    |
-    +--> RISC-V instruction selection + register allocation + assembly
-    |
-    +--> WebAssembly lowering + module emission
-    |
-    +--> LLVM IR bridge for additional triples and architectures
-    |
-    v
-Assembler / object writer / linker -> native executable or target module
+Project source files
+  -> per-file source manager, lexer and parser
+  -> shared project/module graph
+  -> name resolution and semantic/type analysis
+  -> SIL generation, verification and optimization
+  -> SIL-to-SVM lowering
+       documented compatibility lowering for constructs not yet in SIL
+  -> SVM typed SSA verification
+  -> target-independent SVM optimization
+  -> SVM verification
+  -> target legalization
+  -> instruction selection
+  -> machine IR verification
+  -> liveness and register allocation
+  -> frame layout and ABI lowering
+  -> machine-level optimization
+  -> machine instruction encoding
+  -> object emission
+  -> native linking
+  -> standalone AOT executable
 ```
 
-Every backend consumes the same verified, optimized IR contract. A target backend may reject an operation it cannot lower, but it must produce a diagnostic; it must not fall back to interpreting IR or silently emit placeholder behavior.
+WebAssembly is a separate AOT output target. It is not a native executable and requires a compatible WebAssembly host.
 
-## Responsibilities
+## Ownership boundaries
 
-- **Frontend:** UTF-8 validation, lexing, parsing, imports, name resolution, type checking, and diagnostics.
-- **SVM lowering:** converts the typed source representation into target-independent typed SSA IR. SIL is an optional frontend lowering path, not a target backend.
-- **SVM verifier:** validates types, SSA definitions, control-flow edges, PHI inputs, calls, and terminators before and after transformations.
-- **SVM optimizer:** performs target-independent optimizations and dead-code elimination. Backend-specific optimization follows instruction selection.
-- **Target backends:** perform target-specific legalization, instruction selection, register allocation, frame layout, ABI lowering, assembly or binary emission.
-- **Toolchain driver:** invokes assemblers and linkers for the selected object format and target ABI.
+- **Frontend:** source identity, UTF-8 validation, lexing, parsing, AST, module graph, imports and diagnostics.
+- **Semantic analysis:** declaration collection, name resolution, type checking, visibility, control-flow rules and ABI validation.
+- **SIL:** source-oriented typed intermediate representation, verification, canonicalization and high-level optimization.
+- **SVM:** target-independent typed SSA representation, verification, pass management and optimization.
+- **Target backend:** target data layout, legalization, instruction selection, machine IR, register allocation, frame layout, ABI lowering and machine code.
+- **Object writer:** sections, symbols, relocations and target object metadata.
+- **Driver/linker:** deterministic input collection, command-line policy, native link orchestration and executable validation.
 
-## Target matrix
+Each phase has explicit invariants and must fail with a diagnostic when its input violates them. An unsupported source construct, IR operation, target feature, ABI form, or relocation must never become a placeholder or silently run through an interpreter.
 
-The architecture is target-independent. x86-64 is one backend, not the default internal representation and not a prerequisite for other targets.
+## IR contract
 
-| Target family | Backend output |
-|---|---|
-| x86-64 | Native machine assembly and object code |
-| AArch64 / ARM64 | Native machine assembly and object code |
-| ARMv7 / ARM32 | Native machine assembly and object code |
-| RISC-V 32/64 | Native machine assembly and object code |
-| WebAssembly 32/64 | Wasm module |
-| Other LLVM-supported targets | LLVM IR followed by the selected LLVM/Clang target backend |
+SVM IR is typed SSA. The verifier is responsible for at least:
 
-Each target has its own instruction selector, register model, calling convention, data layout, and object format. Shared IR does not mean shared machine instructions or shared ABI assumptions.
+- valid function signatures and value types;
+- unique and valid SSA definitions;
+- dominance and use-before-definition rules;
+- valid control-flow edges and terminators;
+- PHI incoming values matching predecessor blocks;
+- call target and argument signature agreement;
+- valid memory operation pointer/value types;
+- operation-specific operand and metadata constraints.
 
-## Performance requirements
+Verification is required before optimization, after transformations that can invalidate structural invariants, and before target lowering. A verifier failure is a compiler failure; the backend must not attempt to repair malformed IR silently.
 
-1. No interpreter dispatch loop in compiled execution.
-2. No IR instruction-by-instruction runtime execution for normal `run` or `build`.
-3. Perform optimization before target lowering; run target-specific peephole and machine-level passes after lowering.
-4. Use liveness analysis and register allocation to minimize spills and memory traffic.
-5. Respect each target's ABI, alignment, stack rules, register classes, and relocation model.
-6. Keep compile-time profiling separate from generated-program runtime benchmarks.
-7. Benchmark every target with correctness checks and reproducible workloads before making speed claims.
+## Optimization contract
 
-## Strictness
+SVM's target-independent optimizer may perform constant folding/propagation, CFG simplification, unreachable-block removal, algebraic simplification, copy propagation, CSE, LICM, and DCE when their semantic preconditions are proven.
 
-Unsupported source constructs must fail during semantic analysis or lowering. Unsupported IR operations must fail in the verifier or target legalizer. Unsupported target features must fail in the backend with the target and operation identified. No silent fallback to the old interpreter is allowed.
+Every pass must declare required and preserved analyses, whether it mutates CFG or memory semantics, and its target dependencies. Integer transformations must preserve width, signedness and overflow semantics. Memory and call transformations must conservatively preserve observable side effects. PHI and CFG rewrites must preserve predecessor/value correspondence.
 
-## Migration status
+## Backend contract
 
-The repository has target-specific IR emitters for x86-64, AArch64, ARMv7, RISC-V64, WebAssembly, and an optional LLVM bridge. `swan_svm_prepare_ir` is the shared lowering, optimization, and verification entry point, and `swan_svm_codegen` dispatches the verified module to x86-64, AArch64, ARMv7, RISC-V64, WASM32/64, or LLVM. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Backend feature coverage is still unequal and the driver retains target-specific object/link handling; the next migration step is a data-driven backend registry and common object/link pipeline.
+A backend consumes only verified, optimized SVM IR. It owns its target-specific legalization and machine lowering, and must document its supported operation subset, ABI, data layout, register model, relocation model and object format.
 
-The shared SVM frontend, optimizer, verifier, and backend dispatcher are now used for all registered compiled targets. Completion still requires consolidating target-specific object/link orchestration, expanding each backend to the same language subset, and passing per-target compile/link/run or module-validation tests.
+A backend is not considered production-complete merely because it emits assembly or an object. Completion requires target-specific compile, link, ABI, and execution tests (or WebAssembly module validation and execution tests).
+
+Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not part of the intended production architecture. The existing optional LLVM bridge is transitional compatibility code; it must not be used as the native SVM implementation and must not be removed until replacement target coverage and migration tests exist.
+
+## AOT and performance rules
+
+1. No interpreter dispatch loop, VM, or bytecode execution path in production.
+2. `run` builds a host-native executable and launches it as a separate process.
+3. Cross-compilation emits destination-target artifacts; the host does not execute foreign machine code.
+4. Optimize target-independent IR before legalization; apply machine-level optimization after instruction selection.
+5. Respect target ABI, register classes, stack alignment, frame rules, and relocations.
+6. Profile compiler phases separately from generated-program runtime.
+7. Benchmark with correctness checks, repeated measurements, controlled settings and recorded hardware/toolchain versions. No unsupported cross-language speed claims.
+
+## Current repository status
+
+The repository currently has a C11 compiler driver, header-oriented implementation, a typed SSA IR, verifier and optimizer, a narrow Swan-authored SIL bridge, and Swan-owned emitters for several target families. It is not yet fully compliant with the normative contract:
+
+- the root `main.c` is a compatibility include of `compiler/tools/swanc/main.c`;
+- multiple source buffers are currently concatenated before lexing, so exact per-file source provenance remains a migration item;
+- SIL supports a narrow scalar straight-line subset and falls back to general typed-IR lowering for other constructs;
+- backend and object/link orchestration remains target-specific in the driver;
+- native assembly/object production still uses external toolchain components;
+- the optional LLVM bridge remains available for explicit target triples;
+- target source coverage and ABI completeness are unequal.
+
+See the migration sequence in [COMPILER_SYSTEM.md](COMPILER_SYSTEM.md). Do not describe a transitional feature as complete until its end-to-end tests establish that claim.
