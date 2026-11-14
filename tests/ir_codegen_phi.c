@@ -1,6 +1,7 @@
 #include "swan/codegen_x86_64_ir.h"
 #include "swan/codegen_aarch64.h"
 #include "swan/codegen_riscv64.h"
+#include "swan/codegen_wasm32.h"
 #include "swan/optimization.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -134,6 +135,16 @@ int main(int argc,char **argv){
         free(assembly.data);
         swan_ir_destroy(&module);
         return 14;
+    }
+    SwanWasmBuffer wasm={0};
+    if(!swan_codegen_wasm32(&module,&wasm,error,sizeof(error))||wasm.length<8){
+        fprintf(stderr,"WebAssembly phi lowering failed: %s\n",error);
+        free(wasm.data);
+        free(riscv.data);
+        free(aarch64.data);
+        free(assembly.data);
+        swan_ir_destroy(&module);
+        return 15;
     }
     FILE *output=fopen(argv[1],"wb");
     bool written=output&&fwrite(assembly.data,1,assembly.len,output)==assembly.len;
