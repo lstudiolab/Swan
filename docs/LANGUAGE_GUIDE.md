@@ -751,7 +751,7 @@ These spellings are recognized in specific parser contexts and remain available 
 | `print` | Compatibility output statement spelling |
 | `echo` | Used with `!` for the output intrinsic |
 
-The following are **not** reserved keywords: `int`, `bool`, `void`, `float`, `i64`, `u32`, `free`, `manual`, `defer`, `fn`, `import`, and `export`. Some may be recognized by type annotations, libraries, or contextual parser logic, but they are identifiers at the lexer level.
+The following are **not** reserved keywords: `int`, `bool`, `void`, `float`, `i64`, `u32`, `free`, `manual`, `defer`, `fn`, `import`, `export`, and `out`. Some may be recognized by type annotations, libraries, or contextual parser logic, but they are identifiers at the lexer level. In particular, `out` has no block-closing meaning; blocks end only when indentation dedents.
 
 ---
 
