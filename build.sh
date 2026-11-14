@@ -5,7 +5,7 @@ CC=${CC:-cc}
 mkdir -p "$ROOT/build"
 
 # Bootstrap the C11 host without linking the not-yet-built Swan SIL object.
-"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -DSWAN_SIL_BOOTSTRAP \
+"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror=implicit-function-declaration -Werror=return-type -Werror=incompatible-pointer-types -DSWAN_SIL_BOOTSTRAP \
     -I"$ROOT/compiler/include" "$ROOT/compiler/tools/swanc/main.c" -o "$ROOT/build/swan-bootstrap"
 
 # Compile the SIL passes from Swan source as one native object.
@@ -35,7 +35,7 @@ sed -i -E 's/(^|[^[:alnum:]_])main([^[:alnum:]_]|$)/\1swan_sil_build_stub\2/g' "
 "$CC" -c "$ROOT/build/sil_runtime.s" -o "$ROOT/build/sil_runtime.o"
 
 # Link the Swan-generated SIL implementation into the production compiler.
-"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic \
+"$CC" -std=c11 -O2 -DNDEBUG -Wall -Wextra -Wpedantic -Werror=implicit-function-declaration -Werror=return-type -Werror=incompatible-pointer-types \
     -I"$ROOT/compiler/include" "$ROOT/compiler/tools/swanc/main.c" "$ROOT/build/sil_runtime.o" \
     -o "$ROOT/build/swanc"
 ln -sf swanc "$ROOT/build/swan"
