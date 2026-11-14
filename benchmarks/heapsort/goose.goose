@@ -51,10 +51,10 @@ fn main() {
         }
     }
 
-    var checksum: u64 = 0;
+    var checksum: u32 = 0;
     for i in 0..N {
         if i > 0 && values[i - 1] > values[i] { abort("sort order invalid"); }
-        checksum += values[i] as u64;
+        checksum += values[i];
     }
     print(checksum);
 }
