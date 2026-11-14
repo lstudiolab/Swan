@@ -577,6 +577,51 @@ These are library functions, not language keywords. Their current implementation
 
 ---
 
+### 12.1 The `std:` namespace
+
+Import the standard library module once at file scope:
+
+```swan
+import std
+
+func main() -> int:
+    std:print >> "Hello from Swan"
+    std:print >> std:abs(-42)
+    std:print >> std:max(10, 20)
+    return 0
+```
+
+Every public standard-library function is called through the explicit `std:` prefix. The prefix is namespace syntax, not a reserved keyword and not a new runtime. It resolves to functions in `stdlib/std.swan` during the normal import and semantic-analysis phases.
+
+The output intrinsic uses the same namespace and the `>>` output operator:
+
+```swan
+std:print >> "text"
+std:print >> 42
+std:print >> true
+```
+
+The `std:print` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
+
+| API | Behavior |
+|---|---|
+| `std:abs(value)` | Absolute value |
+| `std:min(left, right)` | Smaller integer |
+| `std:max(left, right)` | Larger integer |
+| `std:clamp(value, lower, upper)` | Constrain an integer to a range |
+| `std:sign(value)` | Returns -1, 0, or 1 |
+| `std:square(value)` | Integer square |
+| `std:cube(value)` | Integer cube |
+| `std:power(base, exponent)` | Integer power; negative exponents return 0 |
+| `std:factorial(value)` | Factorial; negative inputs return 0 |
+| `std:sum_to(value)` | Sum from 1 through the input |
+| `std:is_even(value)` | Evenness test |
+| `std:is_odd(value)` | Oddness test |
+| `std:in_range(value, lower, upper)` | Inclusive range test |
+| `std:average(left, right)` | Integer average |
+
+The current standard library is integer-focused. Arithmetic overflow follows the active target/backend behavior; these helpers do not yet provide checked-arithmetic guarantees. Importing `std` is explicit. The compiler does not silently inject standard-library declarations into every source file.
+
 ## 13. Complete reserved-keyword reference
 
 The lexer defines exactly **31 case-sensitive reserved words**:
