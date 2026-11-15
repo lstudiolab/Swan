@@ -1,4 +1,4 @@
-fn main():
+func main():
     !printin >> "Hello from Swan";
     return 0
 
