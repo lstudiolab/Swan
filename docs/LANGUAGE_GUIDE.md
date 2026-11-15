@@ -515,7 +515,7 @@ A standard-library module is imported by name:
 import foundation
 
 func main() -> int:
-    echo_int(abs_int(-42))
+    !printin >> abs_int(-42);
     return 0
 ```
 
@@ -548,8 +548,6 @@ The repository's current `stdlib/foundation.swan` provides:
 | Function | Purpose |
 |---|---|
 | `foundation_hello()` | Prints a Foundation readiness message and returns an integer |
-| `echo_int(value)` | Logs an integer |
-| `echo_bool(value)` | Logs a boolean |
 | `abs_int(value)` | Absolute value |
 | `min_int(left, right)` | Smaller of two integers |
 | `max_int(left, right)` | Larger of two integers |
@@ -577,9 +575,9 @@ Import the standard library module once at file scope:
 import std
 
 func main() -> int:
-    !print >> "Hello from Swan"
-    !print >> !abs(-42)
-    !print >> !max(10, 20)
+    !printin >> "Hello from Swan"
+    !printin >> !abs(-42)
+    !printin >> !max(10, 20)
     return 0
 ```
 
@@ -588,9 +586,9 @@ The `!` prefix selects the standard-library namespace. It is not a separate runt
 The output intrinsic uses the same prefix and the `>>` operator:
 
 ```swan
-!print >> "text"
-!print >> 42
-!print >> true
+!printin >> "text"
+!printin >> 42
+!printin >> true
 ```
 
 The `!print` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
@@ -622,9 +620,9 @@ Import the integer mathematics module separately:
 import std_math
 
 func main() -> int:
-    !print >> !gcd(84, 30)
-    !print >> !integer_sqrt(144)
-    !print >> !is_prime(97)
+    !printin >> !gcd(84, 30)
+    !printin >> !integer_sqrt(144)
+    !printin >> !is_prime(97)
     return 0
 ```
 
@@ -663,8 +661,8 @@ func main() -> int:
     values[3] = 1
 
     !array_insertion_sort(values, 4)
-    !print >> !array_sum(values, 4)
-    !print >> !array_binary_search(values, 4, 6)
+    !printin >> !array_sum(values, 4)
+    !printin >> !array_binary_search(values, 4, 6)
     return 0
 ```
 
@@ -862,7 +860,7 @@ func main() -> int:
         !printin >> counter;
         counter = counter + 1
 
-    echo_int(total)
+    !printin >> total;
     return 0
 ```
 
