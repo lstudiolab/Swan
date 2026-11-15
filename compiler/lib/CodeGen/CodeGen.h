@@ -103,7 +103,7 @@ static inline bool swan_block_exceeds_ir_local_limit(
     return false;
 }
 static inline bool swan_program_requires_ast_compatibility(const Program *program){
-    if(!program||program->import_count)return true;
+    if(!program||(!program->bundle_imports&&program->import_count))return true;
     for(size_t i=0;i<program->count;i++){
         const Stmt *function=program->functions[i];
         if(!function)continue;
