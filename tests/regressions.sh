@@ -45,7 +45,7 @@ expect_rejected immutable-assignment
 
 cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
-    log missing_value
+    !printin >> missing_value;
     return 0
 SWAN
 expect_rejected unknown-name
@@ -53,7 +53,7 @@ expect_rejected unknown-name
 cat > "$TMP/index-scalar.swan" <<'SWAN'
 fn main():
     let value = 7
-    log value[0]
+    !printin >> value[0];
     return 0
 SWAN
 expect_rejected index-scalar
@@ -61,7 +61,7 @@ expect_rejected index-scalar
 cat > "$TMP/uninitialized-variable.swan" <<'SWAN'
 fn main():
     var value: int
-    log value
+    !printin >> value;
     return 0
 SWAN
 expect_rejected uninitialized-variable
@@ -77,7 +77,7 @@ SWAN
 expect_rejected ambiguous-branch-shadowing
 
 {
-    printf 'fn main():\n    log '
+    printf 'fn main():\n    !printin >> '
     i=0
     while [ "$i" -lt 300 ]; do printf '('; i=$((i + 1)); done
     printf '1'
@@ -94,7 +94,7 @@ fn main():
         value = 21
     else:
         value = 22
-    log value
+    !printin >> value;
     return 0
 SWAN
 "$SWAN" build "$TMP/initialized-on-all-branches.swan" -o "$TMP/initialized-on-all-branches"
@@ -103,13 +103,13 @@ printf 'PASS: definite initialization merges assignments from both branches\n'
 
 cat > "$TMP/boolean-abi.swan" <<'SWAN'
 fn identity(value: bool) -> bool:
-    log 0
+    !printin >> 0;
     return value
 fn main() -> int:
     if identity(true):
-        log 21
+        !printin >> 21;
     else:
-        log 0
+        !printin >> 0;
     return 0
 SWAN
 "$SWAN" build "$TMP/boolean-abi.swan" -o "$TMP/boolean-abi"
@@ -149,7 +149,7 @@ cat > "$TMP/call-arity.swan" <<'SWAN'
 fn add(left: int, right: int) -> int:
     return left + right
 fn main():
-    log add(1)
+    !printin >> add(1);
     return 0
 SWAN
 expect_rejected call-arity
@@ -168,7 +168,7 @@ fn choose(flag: bool) -> int:
     else
         return 22
 fn main():
-    log choose(true)
+    !printin >> choose(true);
     return 0
 SWAN
 "$SWAN" build "$TMP/return-both-branches.swan" -o "$TMP/return-both-branches"
@@ -178,9 +178,9 @@ printf 'PASS: function calls and branch return lowering\n'
 cat > "$TMP/short-circuit.swan" <<'SWAN'
 fn main():
     if false and (1 / 0 == 0)
-        log 1
+        !printin >> 1;
     if true or (1 / 0 == 0)
-        log 2
+        !printin >> 2;
     return 0
 SWAN
 "$SWAN" build "$TMP/short-circuit.swan" -o "$TMP/short-circuit"
@@ -198,7 +198,7 @@ fn main():
         total = total + i
         if total > 10
             break
-    log total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" build "$TMP/loop-control.swan" -o "$TMP/loop-control"
@@ -214,8 +214,8 @@ fn main():
         checked[i] = i + 1
         unchecked[i] = i + 5
         i = i + 1
-    log checked[3]
-    log unchecked[3]
+    !printin >> checked[3];
+    !printin >> unchecked[3];
     return 0
 SWAN
 "$SWAN" build "$TMP/array-modes.swan" -o "$TMP/array-modes"
@@ -230,7 +230,7 @@ fn main():
     while value <= 1000
         total = total + (value % 97)
         value = value + 1
-    log total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" build "$TMP/signed-remainder.swan" -o "$TMP/signed-remainder"
@@ -244,7 +244,7 @@ fn main():
     while i < 4
         values[i] = i
         i = i + 1
-    log values[3]
+    !printin >> values[3];
     return 0
 SWAN
 "$SWAN" "$TMP/proven-array-fill.swan" --emit-asm -o "$TMP/proven-array-fill.s"
@@ -296,8 +296,8 @@ fn main():
     var length = 8
     let values = array(length)
     values[0] = 5
-    log values[0]
-    log 7
+    !printin >> values[0];
+    !printin >> 7;
     return 0
 SWAN
 "$SWAN" build "$TMP/array-last-use.swan" -o "$TMP/array-last-use"
@@ -328,7 +328,7 @@ printf 'PASS: early-return cleanup is safe and idempotent\n'
 
 cat > "$TMP/samc-escape.swan" <<'SWAN'
 fn consume(value):
-    log value
+    !printin >> value;
     return 0
 fn main():
     let values = array(8)
