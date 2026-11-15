@@ -19,7 +19,7 @@ typedef struct {
     SwanIRLocal *locals;
     size_t local_count,local_capacity;
     size_t *break_targets,*continue_targets;
-    size_t loop_depth,loop_capacity;
+    size_t loop_depth,loop_capacity,continue_capacity;
     SwanError *error;
 } SwanIRGen;
 
@@ -95,8 +95,7 @@ static inline bool swan_irgen_push_loop(SwanIRGen *g,size_t break_target,size_t 
     size_t needed=g->loop_depth+1;
     if(!swan_reserve_array((void**)&g->break_targets,&g->loop_capacity,needed,sizeof(*g->break_targets)))
         return swan_irgen_fail(g,NULL,"out of memory growing loop target stack");
-    size_t continue_capacity=g->loop_capacity;
-    if(!swan_reserve_array((void**)&g->continue_targets,&continue_capacity,needed,sizeof(*g->continue_targets)))
+    if(!swan_reserve_array((void**)&g->continue_targets,&g->continue_capacity,needed,sizeof(*g->continue_targets)))
         return swan_irgen_fail(g,NULL,"out of memory growing loop target stack");
     g->break_targets[g->loop_depth]=break_target;g->continue_targets[g->loop_depth]=continue_target;g->loop_depth++;return true;
 }
