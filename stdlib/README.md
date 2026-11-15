@@ -1,18 +1,18 @@
 # Swan Standard Library
 
-The standard library is implemented in Swan source under `stdlib/`. Import a module explicitly, then call its public functions with the `std:` namespace:
+The standard library is implemented in Swan source under `stdlib/`. Import it explicitly, then use the `!` prefix for standard-library functions:
 
 ```swan
 import std
 import std_math
 
 func main() -> int:
-    std:print >> std:abs(-42)
-    std:print >> std:gcd(84, 30)
+    !printin >> !abs(-42)
+    !printin >> !gcd(84, 30)
     return 0
 ```
 
-`std:print >> expression` is a compiler output intrinsic. All other functions below are ordinary Swan functions loaded from the imported module source.
+`!printin >> expression;` is the single standard-library output intrinsic. All other functions are ordinary Swan functions loaded from the imported module source.
 
 ## Implemented Swan modules
 
@@ -23,7 +23,7 @@ Source: `stdlib/std.swan`
 - `abs`, `min`, `max`, `clamp`, `sign`
 - `square`, `cube`, `power`, `factorial`, `sum_to`
 - `is_even`, `is_odd`, `in_range`, `average`
-- `print` output statement: `std:print >> value`
+- `!printin >> value;` output intrinsic
 
 ### `std_math` — integer mathematics
 
