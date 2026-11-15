@@ -176,7 +176,7 @@ test "$("$TMP/tabs")" = "tab indentation"
 printf 'PASS: tab indentation width and source scanning\n'
 
 # A dedent must match an existing indentation level exactly.
-printf 'fn main():\n    if true\n        log "nested"\n      log "invalid"\n' > "$TMP/bad-indent.swan"
+printf 'fn main():\n    if true\n        !printin >> "nested";\n      !printin >> "invalid";\n' > "$TMP/bad-indent.swan"
 if "$SWAN" "$TMP/bad-indent.swan" --emit-asm -o "$TMP/bad-indent.s" 2>/dev/null; then
   echo 'FAIL: inconsistent indentation accepted' >&2
   exit 1
