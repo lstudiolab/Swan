@@ -66,7 +66,15 @@ static inline bool swan_load_imports(Program *p,const char *const *module_paths,
    swan_error(err,NULL,"in module '%s': %s",name,detail);if(err){err->line=line;err->col=col;}return false;
   }
   p->module_ends[module]=p->count;
-  for(size_t i=p->module_starts[module];i<p->module_ends[module];i++){p->functions[i]->imported=true;p->functions[i]->module_index=(int)module;}
+  for(size_t i=p->module_starts[module];i<p->module_ends[module];i++){
+   Stmt *function=p->functions[i];function->imported=true;function->module_index=(int)module;
+   size_t name_length=strlen(function->name);
+   if(name_length>SIZE_MAX-64){swan_error(err,&function->token,"module function linker name is too long");return false;}
+   char *link_name=swan_arena_alloc(p,name_length+64);
+   if(!link_name){swan_error(err,&function->token,"out of memory creating module-qualified function identity");return false;}
+   snprintf(link_name,name_length+64,"__swan_module_%zu_%s",module,function->name);
+   function->link_name=link_name;
+  }
  }
  return true;
 }
