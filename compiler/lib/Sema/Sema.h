@@ -311,7 +311,19 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
  size_t *buckets=malloc(bucket_count*sizeof(*buckets)),*next=p->count?malloc(p->count*sizeof(*next)):NULL;
  if(!buckets||(p->count&&!next)){free(buckets);free(next);swan_error(err,NULL,"out of memory building function index");return false;}
  for(size_t i=0;i<bucket_count;i++)buckets[i]=SIZE_MAX;
- for(size_t i=0;i<p->count;i++){size_t b=swan_name_hash(p->functions[i]->name)&(bucket_count-1);for(size_t n=buckets[b];n!=SIZE_MAX;n=next[n])if(!strcmp(p->functions[n]->name,p->functions[i]->name)){swan_error(err,&p->functions[i]->token,"function '%s' is already declared",p->functions[i]->name);free(buckets);free(next);return false;}next[i]=buckets[b];buckets[b]=i;}
+ for(size_t i=0;i<p->count;i++){
+  Stmt *current=p->functions[i];size_t b=swan_name_hash(current->name)&(bucket_count-1);
+  for(size_t n=buckets[b];n!=SIZE_MAX;n=next[n]){
+   Stmt *prior=p->functions[n];
+   if(!strcmp(prior->name,current->name)&&
+      ((!prior->imported&&!current->imported)||
+       (prior->imported&&current->imported&&prior->module_index==current->module_index))){
+    swan_error(err,&current->token,"function '%s' is already declared in this scope",current->name);
+    free(buckets);free(next);return false;
+   }
+  }
+  next[i]=buckets[b];buckets[b]=i;
+ }
  free(p->function_buckets);free(p->function_next);p->function_buckets=buckets;p->function_next=next;p->function_bucket_count=bucket_count;p->function_indexed=true;
  if(!swan_find_function(p,"main")){swan_error(err,NULL,"program must define fn main");return false;}
  SwanSymbols symbols={0};if(!swan_symbols_init(&symbols)){swan_error(err,NULL,"out of memory initializing semantic symbol table");return false;}bool ok=true;
