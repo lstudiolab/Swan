@@ -31,35 +31,39 @@ static inline char *swan_read_file(const char *path){
 }
 static inline void swan_release_modules(char **sources,char **texts,size_t count){
  for(size_t i=0;i<count;i++){free(sources[i]);free(texts[i]);}
+ free(sources);free(texts);
 }
-static inline bool swan_load_imports(Program *p,const char *stdlib_dir,char **sources,char **texts,size_t *module_count,SwanError *err){
- const char *loaded[64];size_t loaded_count=0,next=0;
+static inline char *swan_resolve_module(const char *name,const char *const *roots,size_t root_count,char resolved[2048]){
+ for(size_t i=0;i<root_count;i++){
+  int n=snprintf(resolved,2048,"%s/%s.swan",roots[i],name);
+  if(n<0||(size_t)n>=2048)continue;
+  char *source=swan_read_file(resolved);if(source)return source;
+ }
+ resolved[0]=0;return NULL;
+}
+static inline bool swan_load_imports(Program *p,const char *const *module_paths,size_t module_path_count,char ***sources_io,char ***texts_io,size_t *module_count,size_t *module_capacity,SwanError *err){
+ size_t next=0;
  while(next<p->import_count){
   const char *name=p->imports[next++];bool seen=false;
-  for(size_t i=0;i<loaded_count;i++)if(!strcmp(loaded[i],name)){seen=true;break;}
+  for(size_t i=0;i<p->module_count;i++)if(!strcmp(p->module_names[i],name)){seen=true;break;}
   if(seen)continue;
-  if(loaded_count>=64||*module_count>=64){swan_error(err,NULL,"standard-library import limit exceeded");return false;}
-  loaded[loaded_count++]=name;
-  if(p->module_count>=64){swan_error(err,NULL,"too many imported modules");return false;}
-  size_t module=(size_t)p->module_count++;
-  p->module_names[module]=name;p->module_starts[module]=p->count;
-  char path[2048];int path_len=snprintf(path,sizeof(path),"%s/%s.swan",stdlib_dir,name);
-  if(path_len<0||(size_t)path_len>=sizeof(path)){swan_error(err,NULL,"standard-library path is too long");return false;}
-  char *source=swan_read_file(path);
-  if(!source){swan_error(err,NULL,"cannot load standard-library module '%s' from '%s'",name,path);return false;}
-  TokenStream module_ts;
+  if(p->module_count>(size_t)INT_MAX){swan_error(err,NULL,"module index exceeds compiler representation");return false;}
+  size_t module=0;if(!swan_program_add_module(p,name,p->count,&module)){swan_error(err,NULL,"out of memory recording imported module");return false;}
+  char path[2048];char *source=swan_resolve_module(name,module_paths,module_path_count,path);
+  if(!source){swan_error(err,NULL,"cannot resolve module '%s' in %zu module search path(s)",name,module_path_count);return false;}
+  TokenStream module_ts={0};
   if(!swan_lex(source,&module_ts,err)){free(source);free(module_ts.items);free(module_ts.text_storage);return false;}
-  size_t slot=(*module_count)++;sources[slot]=source;texts[slot]=module_ts.text_storage;
-  bool parsed=swan_parse(&module_ts,p,err);
-  free(module_ts.items);
+  size_t needed=*module_count+1;
+  if(needed<*module_count||!swan_reserve_array((void**)sources_io,module_capacity,needed,sizeof(**sources_io))||
+     !swan_reserve_array((void**)texts_io,module_capacity,needed,sizeof(**texts_io))){
+   free(source);free(module_ts.items);free(module_ts.text_storage);swan_error(err,NULL,"out of memory retaining imported module sources");return false;
+  }
+  size_t slot=(*module_count)++;(*sources_io)[slot]=source;(*texts_io)[slot]=module_ts.text_storage;
+  bool parsed=swan_parse(&module_ts,p,err);free(module_ts.items);
   if(!parsed){
-   char detail[sizeof(err->message)];
-   unsigned line=err?err->line:0,col=err?err->col:0;
-   if(err)snprintf(detail,sizeof(detail),"%s",err->message);
-   else snprintf(detail,sizeof(detail),"module parsing failed");
-   swan_error(err,NULL,"in module '%s': %s",name,detail);
-   if(err){err->line=line;err->col=col;}
-   return false;
+   char detail[sizeof(err->message)];unsigned line=err?err->line:0,col=err?err->col:0;
+   if(err)snprintf(detail,sizeof(detail),"%s",err->message);else snprintf(detail,sizeof(detail),"module parsing failed");
+   swan_error(err,NULL,"in module '%s': %s",name,detail);if(err){err->line=line;err->col=col;}return false;
   }
   p->module_ends[module]=p->count;
   for(size_t i=p->module_starts[module];i<p->module_ends[module];i++){p->functions[i]->imported=true;p->functions[i]->module_index=(int)module;}
@@ -103,10 +107,12 @@ static inline void swan_mark_expr(Program *p,Expr *e){
 static inline void swan_mark_block(Program *p,Stmt **body,size_t count){
  for(size_t i=0;i<count;i++){Stmt *s=body[i];swan_mark_expr(p,s->value);swan_mark_expr(p,s->condition);swan_mark_block(p,s->body,s->body_count);swan_mark_block(p,s->alternate,s->alt_count);}
 }
-static inline void swan_compute_reachability(Program *p){
- memset(p->function_reachable,0,sizeof(p->function_reachable));p->reachability_computed=true;
+static inline bool swan_compute_reachability(Program *p,SwanError *err){
+ free(p->function_reachable);p->function_reachable=p->count?calloc(p->count,sizeof(*p->function_reachable)):NULL;
+ if(p->count&&!p->function_reachable){swan_error(err,NULL,"out of memory computing function reachability");return false;}
+ p->reachability_computed=true;
  Stmt *main_fn=swan_find_function(p,"main");size_t index=swan_function_index(p,main_fn);
- if(index!=SIZE_MAX){p->function_reachable[index]=true;swan_mark_block(p,main_fn->body,main_fn->body_count);}
+ if(index!=SIZE_MAX){p->function_reachable[index]=true;swan_mark_block(p,main_fn->body,main_fn->body_count);}return true;
 }
 static inline bool swan_module_is_used(Program *p,size_t module){
  for(size_t i=p->module_starts[module];i<p->module_ends[module];i++)if(p->function_reachable[i])return true;
