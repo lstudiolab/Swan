@@ -20,6 +20,7 @@ sh "$ROOT/tests/std-library.sh"
 sh "$ROOT/tests/std-math.sh"
 sh "$ROOT/tests/std-collections.sh"
 sh "$ROOT/tests/lazy-imports.sh"
+sh "$ROOT/tests/library-scale.sh"
 sh "$ROOT/tests/architecture.sh"
 
 cc -std=c11 -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" "$ROOT/tests/keywords.c" -o "$ROOT/build/keywords-test"
