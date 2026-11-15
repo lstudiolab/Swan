@@ -194,7 +194,7 @@ func calc_degrees_to_radians(degrees: int) -> int:
     return calc_multiply(degrees, CALC_PI) / 180
 
 func calc_radians_to_degrees(radians: int) -> int:
-    return calc_multiply(radians, 180 * CALC_SCALE) / CALC_PI
+    return (radians * 180 * CALC_SCALE) / CALC_PI
 
 # ---------------------------------------------------------------------------
 # Exponential and logarithmic functions
