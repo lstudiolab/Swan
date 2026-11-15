@@ -97,7 +97,7 @@ static inline void swan_mark_expr(Program *p,Expr *e){
  if(e->kind==E_CALL){
   const char *callee=swan_expr_terminal_name(e->left);
   if(callee){
-   Stmt *fn=swan_find_function(p,callee);
+   Stmt *fn=swan_find_link_function(p,callee);
    if(fn){
     size_t i=swan_function_index(p,fn);
     if(i!=SIZE_MAX&&!p->function_reachable[i]){
