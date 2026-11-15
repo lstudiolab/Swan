@@ -175,7 +175,7 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
         if(!e->left||e->left->kind!=E_NAME){swan_irgen_fail(g,&e->token,"only direct function calls are supported");return 0;}
         size_t index=g->module->function_count;
         for(size_t i=0;i<g->module->function_count;i++)if(!strcmp(g->module->functions[i].name,e->left->token.text)){index=i;break;}
-        if(index==g->module->function_count){swan_irgen_fail(g,&e->token,"unknown function in IR call");return 0;}
+        if(index==g->module->function_count){ swan_irgen_fail(g,&e->token,"unknown function '%s' in IR call",e->left->token.text);return 0;}
         SwanIRFunction *callee=&g->module->functions[index];
         if(callee->parameter_count!=e->argc){swan_irgen_fail(g,&e->token,"function call argument count mismatch");return 0;}
         SwanIRInst in={0};in.op=SWAN_IR_CALL;in.type=callee->return_type;in.symbol=e->left->token.text;
