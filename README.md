@@ -196,7 +196,16 @@ func main() -> int:
 
 `!printin >> expression;` is the single standard-library output intrinsic. Foundation provides integer helpers `abs_int`, `min_int`, `max_int`, `clamp_int`, `sign_int`, `square_int`, `cube_int`, `power_int`, `factorial_int`, `sum_to_int`, `average_int`, `is_even`, `is_odd`, and `in_range_int`.
 
-Set `SWAN_STDLIB` or pass `--stdlib <directory>` to select a standard-library directory.
+Set `SWAN_STDLIB` or pass `--stdlib <directory>` to select the primary standard-library directory. Add project or vendor library roots with repeatable `--module-path <directory>` (or `-I <directory>`). Imports are resolved by searching the primary standard-library directory first, then additional roots in command-line order. Transitive imports use the same search path:
+
+```sh
+./build/swanc build app/main.swan \
+  --module-path app/modules \
+  --module-path vendor/swan \
+  -o app
+```
+
+Each import currently resolves to one file named `<module>.swan` directly inside a search root. This is source-module discovery, not yet a package manager: package manifests, semantic versions, lockfiles, namespaced symbols, module privacy, and dynamic dependency graphs remain future work. The current compiler also retains fixed limits of 64 imported modules and 1,024 functions per program.
 
 ## Standard library
 
