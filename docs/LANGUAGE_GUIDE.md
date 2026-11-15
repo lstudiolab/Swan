@@ -242,7 +242,7 @@ import std
 func main() -> int:
     !printin >> "Hello, Swan!";
     !printin >> 123;
-    !printin >> true;
+    !printin >> true;;
     return 0
 ```
 
@@ -575,9 +575,9 @@ Import the standard library module once at file scope:
 import std
 
 func main() -> int:
-    !printin >> "Hello from Swan"
-    !printin >> !abs(-42)
-    !printin >> !max(10, 20)
+    !printin >> "Hello from Swan";
+    !printin >> !abs(-42);
+    !printin >> !max(10, 20);
     return 0
 ```
 
@@ -586,12 +586,12 @@ The `!` prefix selects the standard-library namespace. It is not a separate runt
 The output intrinsic uses the same prefix and the `>>` operator:
 
 ```swan
-!printin >> "text"
-!printin >> 42
-!printin >> true
+!printin >> "text";
+!printin >> 42;
+!printin >> true;
 ```
 
-The `!print` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
+The `!printin` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
 
 | API | Behavior |
 |---|---|
