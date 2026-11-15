@@ -231,6 +231,10 @@ func calc_atan(value: int) -> int:
 func calc_asin(value: int) -> int:
     if value < 0 - CALC_SCALE or value > CALC_SCALE:
         return 0
+    if value == CALC_SCALE:
+        return CALC_HALF_PI
+    if value == 0 - CALC_SCALE:
+        return 0 - CALC_HALF_PI
     let radicand = CALC_SCALE - calc_multiply(value, value)
     return calc_atan(calc_divide(value, calc_square_root(radicand)))
 
