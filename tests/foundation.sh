@@ -10,20 +10,20 @@ import foundation
 import foundation
 fn main():
     foundation_hello()
-    echo_int(abs_int(-9))
-    echo_int(average_int(4, 7))
-    echo_bool(is_even(12))
-    echo_bool(is_odd(9))
-    echo_int(min_int(8, 3))
-    echo_int(max_int(8, 3))
-    echo_int(clamp_int(15, 0, 10))
-    echo_int(sign_int(-20))
-    echo_int(square_int(5))
-    echo_int(cube_int(3))
-    echo_int(power_int(2, 8))
-    echo_int(factorial_int(5))
-    echo_int(sum_to_int(10))
-    echo_bool(in_range_int(5, 1, 9))
+    !printin >> abs_int(-9);
+    !printin >> average_int(4, 7);
+    !printin >> is_even(12);
+    !printin >> is_odd(9);
+    !printin >> min_int(8, 3);
+    !printin >> max_int(8, 3);
+    !printin >> clamp_int(15, 0, 10);
+    !printin >> sign_int(-20);
+    !printin >> square_int(5);
+    !printin >> cube_int(3);
+    !printin >> power_int(2, 8);
+    !printin >> factorial_int(5);
+    !printin >> sum_to_int(10);
+    !printin >> in_range_int(5, 1, 9);
     return 0
 SWAN
 
@@ -47,4 +47,4 @@ Foundation standard library ready
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: imported Foundation standard library and echo! intrinsic\n'
+printf 'PASS: imported Foundation standard library and !printin output\n'
