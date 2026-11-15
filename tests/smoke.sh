@@ -9,7 +9,7 @@ mkdir -p "$TMP"
 
 cat > "$TMP/hello.swan" <<'SWAN'
 fn main():
-    log "Hello"
+    !printin >> "Hello";
     return 0
 SWAN
 "$SWAN" "$TMP/hello.swan" --emit-asm -o "$TMP/hello.s"
@@ -22,7 +22,7 @@ cat > "$TMP/indentation-block.swan" <<'SWAN'
 func main() -> int:
     let message = 42
     if true:
-        print message
+        !printin >> message;
     return 0
 SWAN
 "$SWAN" "$TMP/indentation-block.swan" --emit-asm -o "$TMP/indentation-block.s"
@@ -41,7 +41,7 @@ fn main():
     let and = 6
     let or = 7
     let not = 8
-    print log + manualCount + none + extern + funcName
+    !printin >> log + manualCount + none + extern + funcName;
 SWAN
 "$SWAN" "$TMP/legacy-identifiers.swan" --emit-asm -o "$TMP/legacy-identifiers.s"
 ${CC:-cc} -x assembler "$TMP/legacy-identifiers.s" -o "$TMP/legacy-identifiers"
@@ -54,9 +54,9 @@ fn main():
     var x: int = 0
     while x < 3
         if x == 1
-            log x
+            !printin >> x;
         else
-            log 0
+            !printin >> 0;
         x = x + 1
     return 0
 SWAN
@@ -72,9 +72,9 @@ fn main():
     if true
         while false
             if true
-                log "unreachable"
-        log "inner blocks closed together"
-    log "outer block closed"
+                !printin >> "unreachable";
+        !printin >> "inner blocks closed together";
+    !printin >> "outer block closed";
     return 0
 SWAN
 "$SWAN" "$TMP/multi-dedent.swan" --emit-asm -o "$TMP/multi-dedent.s"
@@ -87,7 +87,7 @@ cat > "$TMP/functions.swan" <<'SWAN'
 fn answer():
     return 42
 fn main():
-    log answer()
+    !printin >> answer();
     return 0
 SWAN
 "$SWAN" "$TMP/functions.swan" --emit-asm -o "$TMP/functions.s"
@@ -98,7 +98,7 @@ printf 'PASS: inferred integer return type and inline helper emission\n'
 cat > "$TMP/int64.swan" <<'SWAN'
 fn main():
     let large: int = 3000000000
-    log large
+    !printin >> large;
     return 0
 SWAN
 "$SWAN" "$TMP/int64.swan" --emit-asm -o "$TMP/int64.s"
@@ -111,7 +111,7 @@ printf 'PASS: 64-bit integer lowering\n'
 cat > "$TMP/manual-identifier.swan" <<'SWAN'
 fn main():
     let manual = 27
-    print manual
+    !printin >> manual;
     return 0
 SWAN
 "$SWAN" "$TMP/manual-identifier.swan" --emit-asm -o "$TMP/manual-identifier.s"
@@ -135,7 +135,7 @@ printf 'PASS: removed manual memory modifier is rejected\\n'
 
 cat > "$TMP/invalid.swan" <<'SWAN'
 fn main():
-    log missing
+    !printin >> missing;
     return 0
 SWAN
 if "$SWAN" "$TMP/invalid.swan" --emit-asm -o "$TMP/invalid.s" 2>/dev/null; then
@@ -146,7 +146,7 @@ printf 'PASS: semantic errors rejected\n'
 
 cat > "$TMP/identifier-location.swan" <<'SWAN'
 fn main():
-    log missing
+    !printin >> missing;
     return 0
 SWAN
 if "$SWAN" "$TMP/identifier-location.swan" --emit-asm -o "$TMP/identifier-location.s" 2>"$TMP/identifier-location.err"; then
@@ -160,7 +160,7 @@ cat > "$TMP/keyword-operators.swan" <<'SWAN'
 fn main():
     var enabled: bool = true
     if enabled and not false or false
-        log "keyword operators preserved"
+        !printin >> "keyword operators preserved";
     return 0
 SWAN
 "$SWAN" "$TMP/keyword-operators.swan" --emit-asm -o "$TMP/keyword-operators.s"
@@ -185,7 +185,7 @@ printf 'PASS: inconsistent indentation rejected\n'
 
 cat > "$TMP/string-escapes.swan" <<'SWAN'
 fn main():
-    log "quote: \" slash: \\ newline:\n tab:\t"
+    !printin >> "quote: \" slash: \\ newline:\n tab:\t";
     return 0
 SWAN
 "$SWAN" "$TMP/string-escapes.swan" --emit-asm -o "$TMP/string-escapes.s"
@@ -225,10 +225,10 @@ fn main():
     var sum = 0
     i = 0
     while i < 8
-        log values[i]
+        !printin >> values[i];
         sum = sum + values[i]
         i = i + 1
-    log sum
+    !printin >> sum;
     return 0
 SWAN
 "$SWAN" "$TMP/arrays.swan" --emit-asm -o "$TMP/arrays.s"
@@ -247,8 +247,8 @@ fn main():
     values[3] = 41
     var index = 2
     values[index] = 17
-    log values[3]
-    log values[index]
+    !printin >> values[3];
+    !printin >> values[index];
     return 0
 SWAN
 "$SWAN" "$TMP/array-known-length.swan" --emit-asm -o "$TMP/array-known-length.s"
@@ -276,8 +276,8 @@ fn value() -> int:
 fn add(a: int, b: int) -> int:
     return a + b
 fn main():
-    log 5 + value()
-    log add(1, add(2, 3))
+    !printin >> 5 + value();
+    !printin >> add(1, add(2, 3));
     return 0
 SWAN
 "$SWAN" "$TMP/nested-calls.swan" --emit-asm -o "$TMP/nested-calls.s"
@@ -289,11 +289,11 @@ printf 'PASS: nested calls and ABI stack alignment\\n'
 # Power-of-two integer division preserves signed truncation toward zero.
 cat > "$TMP/power-two-division.swan" <<'SWAN'
 fn main():
-    log 3 // 2
-    log -3 // 2
-    log -1 // 2
-    log -5 // 4
-    log 5 // 4
+    !printin >> 3 // 2;
+    !printin >> -3 // 2;
+    !printin >> -1 // 2;
+    !printin >> -5 // 4;
+    !printin >> 5 // 4;
     return 0
 SWAN
 "$SWAN" "$TMP/power-two-division.swan" --emit-asm -o "$TMP/power-two-division.s"
@@ -323,12 +323,12 @@ fn main():
     let negativeModulo = -195 % 97
     let smallModulo = -5 % 3
     let positiveModulo = 5 % 3
-    log answer()
-    log f + g + h + i
-    log modulo
-    log negativeModulo
-    log smallModulo
-    log positiveModulo
+    !printin >> answer();
+    !printin >> f + g + h + i;
+    !printin >> modulo;
+    !printin >> negativeModulo;
+    !printin >> smallModulo;
+    !printin >> positiveModulo;
     return 0
 SWAN
 "$SWAN" "$TMP/caller-saved-locals.swan" --emit-asm -o "$TMP/caller-saved-locals.s"
@@ -369,7 +369,7 @@ fn main():
                     high = middle - 1
         checksum = checksum + found
         query = query + 1
-    log checksum
+    !printin >> checksum;
     return 0
 SWAN
 "$SWAN" "$TMP/binary-search.swan" --emit-asm -o "$TMP/binary-search.s"
