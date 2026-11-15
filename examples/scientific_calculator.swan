@@ -197,6 +197,60 @@ func calc_radians_to_degrees(radians: int) -> int:
     return (radians * 180 * CALC_SCALE) / CALC_PI
 
 # ---------------------------------------------------------------------------
+# Inverse trigonometry
+# ---------------------------------------------------------------------------
+
+func calc_atan_series(value: int) -> int:
+    let value2 = calc_multiply(value, value)
+    var term = value
+    var total = value
+    var denominator = 3
+    var positive = false
+    while denominator <= 61:
+        term = calc_multiply(term, value2)
+        if positive:
+            total = total + term / denominator
+            positive = false
+        else:
+            total = total - term / denominator
+            positive = true
+        denominator = denominator + 2
+    return total
+
+func calc_atan(value: int) -> int:
+    if value > CALC_SCALE:
+        return CALC_HALF_PI - calc_atan(CALC_SCALE * CALC_SCALE / value)
+    if value < 0 - CALC_SCALE:
+        return 0 - CALC_HALF_PI - calc_atan(CALC_SCALE * CALC_SCALE / value)
+    if value > CALC_SCALE / 2:
+        return CALC_PI / 4 + calc_atan_series(calc_divide(value - CALC_SCALE, value + CALC_SCALE))
+    if value < 0 - CALC_SCALE / 2:
+        return 0 - CALC_PI / 4 + calc_atan_series(calc_divide(value + CALC_SCALE, CALC_SCALE - value))
+    return calc_atan_series(value)
+
+func calc_asin(value: int) -> int:
+    if value < 0 - CALC_SCALE or value > CALC_SCALE:
+        return 0
+    let radicand = CALC_SCALE - calc_multiply(value, value)
+    return calc_atan(calc_divide(value, calc_square_root(radicand)))
+
+func calc_acos(value: int) -> int:
+    return CALC_HALF_PI - calc_asin(value)
+
+func calc_atan2(y: int, x: int) -> int:
+    if x > 0:
+        return calc_atan(calc_divide(y, x))
+    if x < 0 and y >= 0:
+        return calc_atan(calc_divide(y, x)) + CALC_PI
+    if x < 0 and y < 0:
+        return calc_atan(calc_divide(y, x)) - CALC_PI
+    if x == 0 and y > 0:
+        return CALC_HALF_PI
+    if x == 0 and y < 0:
+        return 0 - CALC_HALF_PI
+    return 0
+
+# ---------------------------------------------------------------------------
 # Exponential and logarithmic functions
 # ---------------------------------------------------------------------------
 
@@ -268,6 +322,25 @@ func calc_tanh(value: int) -> int:
     if denominator == 0:
         return 0
     return calc_divide(calc_sinh(value), denominator)
+
+# ---------------------------------------------------------------------------
+# Statistics for scalar samples
+# ---------------------------------------------------------------------------
+
+func calc_mean_two(left: int, right: int) -> int:
+    return (left + right) / 2
+
+func calc_mean_three(first: int, second: int, third: int) -> int:
+    return (first + second + third) / 3
+
+func calc_variance_two(left: int, right: int) -> int:
+    let mean = calc_mean_two(left, right)
+    let first_delta = left - mean
+    let second_delta = right - mean
+    return (calc_square(first_delta) + calc_square(second_delta)) / 2
+
+func calc_standard_deviation_two(left: int, right: int) -> int:
+    return calc_square_root(calc_variance_two(left, right))
 
 # ---------------------------------------------------------------------------
 # Number theory and combinatorics
