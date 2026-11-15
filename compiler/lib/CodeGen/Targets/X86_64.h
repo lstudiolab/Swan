@@ -67,13 +67,9 @@ static inline void cg_save_volatile(Text *o,Locals *l){for(int i=0;i<l->volatile
 static inline void cg_restore_volatile(Text *o,Locals *l){for(int i=l->volatile_reg_count-1;i>=0;i--)cg_pop(o,cg_volatile_regs[i]);}
 static inline bool expr_has_call(Expr *e){return e&&e->contains_call;}
 static inline unsigned cg_function_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
-static inline Stmt *cg_find_function(Program *p,const char *name){
- if(!p)return NULL;
- if(p->function_indexed&&p->function_bucket_count){size_t b=cg_function_hash(name)&(p->function_bucket_count-1);for(size_t n=p->function_buckets[b];n!=SIZE_MAX;n=p->function_next[n]){Stmt *fn=p->functions[n];if(!strcmp(fn->name,name))return fn;}return NULL;}
- for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];
- return NULL;
-}
-static inline int cg_function_module_index(Program *p,const char *name){Stmt *fn=cg_find_function(p,name);return fn&&fn->imported?fn->module_index:-1;}
+static inline Stmt *cg_find_function(Program *p,const char *name){return swan_find_function(p,name);}
+static inline Stmt *cg_find_link_function(Program *p,const char *name){return swan_find_link_function(p,name);}
+static inline int cg_function_module_index(Program *p,const char *name){Stmt *fn=cg_find_link_function(p,name);return fn&&fn->imported?fn->module_index:-1;}
 static inline bool expr_is_nonnegative_midpoint(Expr *division,Expr *condition){
  if(!division||division->kind!=E_BINARY||(division->token.kind!=T_SLASH&&division->token.kind!=T_FLOORDIV)||!division->right||division->right->kind!=E_INT)return false;
  if(!condition||condition->kind!=E_BINARY||(condition->token.kind!=T_LE&&condition->token.kind!=T_LT)||!condition->left||!condition->right||condition->left->kind!=E_NAME||condition->right->kind!=E_NAME)return false;
@@ -1104,7 +1100,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
    }
   }
   collect_locals(fn->body,fn->body_count,&l);if(l.failed){free(l.items);swan_error(err,&fn->token,"out of memory growing AST backend local table");return false;}samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);if(l.slots>INT32_MAX/8){free(l.items);swan_error(err,&fn->token,"AST backend stack frame exceeds signed displacement range");return false;}int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
-  char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->name);
+  char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported&&!fn->imported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->link_name?fn->link_name:fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
   ownership_initialize_handles(o,&l);
@@ -1134,7 +1130,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
   Stmt *fn=p->functions[i];
   if(!fn->imported||!p->function_reachable[i]||fn->module_index==p->codegen_module_index)continue;
   const char *module=p->module_names[fn->module_index];
-  text_add(o,".section .rodata\n.Lswan_lazy_module_%s:\n    .string \"%s\"\n.Lswan_lazy_symbol_%s:\n    .string \"swan_fn_%s\"\n",fn->name,module,fn->name,fn->name);
+  text_add(o,".section .rodata\n.Lswan_lazy_module_%s:\n    .string \"%s\"\n.Lswan_lazy_symbol_%s:\n    .string \"swan_fn_%s\"\n",fn->link_name?fn->link_name:fn->name,module,fn->name,fn->link_name?fn->link_name:fn->name);
   text_add(o,".section .data\n.p2align 3\n.Lswan_lazy_slot_%s:\n    .quad 0\n.text\n.globl swan_lazy_%s\nswan_lazy_%s:\n    mov rax, QWORD PTR [rip + .Lswan_lazy_slot_%s]\n    test rax, rax\n    jne .Lswan_lazy_ready_%s\n    push rdi\n    push rsi\n    push rdx\n    push rcx\n    push r8\n    push r9\n    sub rsp, 8\n    lea rdi, [rip + .Lswan_lazy_module_%s]\n    lea rsi, [rip + .Lswan_lazy_symbol_%s]\n    call swan_resolve@PLT\n    add rsp, 8\n    mov QWORD PTR [rip + .Lswan_lazy_slot_%s], rax\n    pop r9\n    pop r8\n    pop rcx\n    pop rdx\n    pop rsi\n    pop rdi\n.Lswan_lazy_ready_%s:\n    jmp QWORD PTR [rip + .Lswan_lazy_slot_%s]\n",fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name,fn->name);
  }
  if(o->uses_array_bounds)text_add(o,".text\n.Lswan_array_bounds_fail:\n    call abort@PLT\n    ud2\n");
