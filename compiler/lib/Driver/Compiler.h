@@ -41,7 +41,7 @@ static inline char *swan_resolve_module(const char *name,const char *const *root
  }
  resolved[0]=0;return NULL;
 }
-static inline bool swan_load_imports(Program *p,const char *const *module_paths,size_t module_path_count,char ***sources_io,char ***texts_io,size_t *module_count,size_t *module_capacity,SwanError *err){
+static inline bool swan_load_imports(Program *p,const char *const *module_paths,size_t module_path_count,char ***sources_io,char ***texts_io,size_t *module_count,size_t *source_capacity,size_t *text_capacity,SwanError *err){
  size_t next=0;
  while(next<p->import_count){
   const char *name=p->imports[next++];bool seen=false;
@@ -54,8 +54,8 @@ static inline bool swan_load_imports(Program *p,const char *const *module_paths,
   TokenStream module_ts={0};
   if(!swan_lex(source,&module_ts,err)){free(source);free(module_ts.items);free(module_ts.text_storage);return false;}
   size_t needed=*module_count+1;
-  if(needed<*module_count||!swan_reserve_array((void**)sources_io,module_capacity,needed,sizeof(**sources_io))||
-     !swan_reserve_array((void**)texts_io,module_capacity,needed,sizeof(**texts_io))){
+  if(needed<*module_count||!swan_reserve_array((void**)sources_io,source_capacity,needed,sizeof(**sources_io))||
+     !swan_reserve_array((void**)texts_io,text_capacity,needed,sizeof(**texts_io))){
    free(source);free(module_ts.items);free(module_ts.text_storage);swan_error(err,NULL,"out of memory retaining imported module sources");return false;
   }
   size_t slot=(*module_count)++;(*sources_io)[slot]=source;(*texts_io)[slot]=module_ts.text_storage;
