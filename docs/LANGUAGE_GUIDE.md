@@ -221,7 +221,7 @@ C header imports are the documented route for supported C interoperability; see 
 
 ### Exported C functions
 
-The parser accepts `export C func` as an exported function marker. The currently documented native x86-64 System V scalar/pointer ABI subset is:
+The parser accepts `export func` and `export C func` as exported function markers. Export currently applies to functions only; exported variables, constants, types, structures, enums, namespaces, and whole-module re-exports are not implemented. The currently documented native x86-64 System V scalar/pointer ABI subset for C exports is:
 
 ```swan
 export C func swan_add(left: i64, right: i64) -> i64:
@@ -509,7 +509,7 @@ Small fixed-size, non-escaping arrays may use stack-frame storage as an optimiza
 
 ## 11. Imports and modules
 
-A standard-library module is imported by name:
+A standard-library or installed Swan library module is imported by its module name:
 
 ```swan
 import foundation
@@ -519,7 +519,7 @@ func main() -> int:
     return 0
 ```
 
-The loader resolves `foundation` to `foundation.swan` in the selected standard-library directory. By default, imported Swan modules are bundled into the program's generated assembly. Imported functions are included according to reachability.
+The loader resolves `foundation` to `foundation.swan` in the selected standard-library directory. The same module-loading mechanism is used for Swan library modules available in the configured library search locations. By default, imported Swan modules are bundled into the program's generated assembly. Imported functions are included according to reachability. The current import grammar accepts a module name and C header imports; aliases, selective imports, wildcard imports, arbitrary source paths, package manifests, and version constraints are not implemented yet. A library must be resolvable by the compiler's configured module search path.
 
 A lazy import uses the contextual modifier:
 
@@ -529,7 +529,7 @@ lazy import foundation
 
 Lazy imports use the compiler's optional shared-library module model on the supported native path. The generated `.modules/` directory must remain beside the executable.
 
-The parser accepts `import` contextually; it is not part of the reserved-word set. `lazy` is also contextual and is not reserved.
+`import` and `export` are reserved, case-sensitive keywords. `lazy` remains contextual and is not reserved.
 
 ### Importing C headers
 
@@ -684,7 +684,7 @@ The lexer defines exactly **31 case-sensitive reserved words**:
 ```text
 func struct let var null if else const type match guard block while loop
 true false break continue return as from self pass upto init deinit enum
-throw throws rethrow catch
+throw throws rethrow catch import export
 ```
 
 The table below describes their intended role and current implementation status.
