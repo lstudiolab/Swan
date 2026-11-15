@@ -1,15 +1,5 @@
 # Swan Foundation
-# Dependency-free integer helpers and the echo! output intrinsic.
-
-func foundation_hello() -> int:
-    echo!("Foundation standard library ready")
-    return 0
-
-func echo_int(value: int) -> void:
-    log value
-
-func echo_bool(value: bool) -> void:
-    log value
+# Dependency-free integer helpers.
 
 func abs_int(value: int) -> int:
     if value < 0:
