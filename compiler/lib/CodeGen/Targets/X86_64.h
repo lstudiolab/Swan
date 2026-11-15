@@ -294,7 +294,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   cg_restore_volatile(o,l);o->uses_array_bounds=true;
   return;
  }
- if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
+ 
  Stmt *callee_fn=o->program?cg_find_link_function(o->program,name):NULL;
  int target_module=callee_fn&&callee_fn->imported?callee_fn->module_index:-1;
  bool external_call=callee_fn&&callee_fn->external;
@@ -312,30 +312,45 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   }
  }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
- char symbol[SWAN_MAX_TEXT+32];
+ char symbol[SWAN_MAX_TEXT+128];
  if(external_call||(callee_fn&&callee_fn->exported&&!callee_fn->imported))snprintf(symbol,sizeof(symbol),"%s",name);
  else if(target_module>=0&&o->program&&!o->program->bundle_imports&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);
  else if(!strcmp(name,"main"))strcpy(symbol,"main");
  else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
  bool nested=false;for(size_t i=0;i<e->argc;i++)if(expr_has_call(e->args[i]))nested=true;
  cg_save_volatile(o,l);
+ size_t stack_arg_count=e->argc>6?e->argc-6:0;
+ if(stack_arg_count>SIZE_MAX/8||e->argc>SIZE_MAX/8){swan_error(err,&e->token,"call argument area size overflow");return;}
+ size_t stack_bytes=stack_arg_count*8;
+ if(stack_bytes>(size_t)INT32_MAX){swan_error(err,&e->token,"call stack arguments exceed the x86-64 displacement range");return;}
+ int entry=o->frameless?8:0;
  if(!nested){
-  int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);
-  for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov %s, rax\n",regs[i]);}
+  int pad=(int)((16-((o->stack_depth+entry+(int)stack_bytes)%16))%16);
+  int reserve=(int)stack_bytes+pad;cg_reserve(o,reserve);
+  for(size_t i=0;i<e->argc;i++){
+   emit_expr(o,e->args[i],l,err);
+   if(i<6)text_add(o,"    mov %s, rax\n",regs[i]);
+   else text_add(o,"    mov QWORD PTR [rsp + %d], rax\n",pad+(int)(i-6)*8);
+  }
   text_add(o,"    call %s\n",symbol);
-  if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))
-   text_add(o,"    movzx eax, al\n");
-  cg_release(o,pad);cg_restore_volatile(o,l);return;
+  if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))text_add(o,"    movzx eax, al\n");
+  cg_release(o,reserve);cg_restore_volatile(o,l);return;
  }
- int area=(int)(((e->argc*8+15)/16)*16);
- int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry+area)%16))%16;
- cg_reserve(o,area+pad);
- for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %d], rax\n",pad+(int)i*8);}
- for(size_t i=0;i<e->argc;i++)text_add(o,"    mov %s, QWORD PTR [rsp + %d]\n",regs[i],pad+(int)i*8);
+ if(e->argc>(size_t)INT32_MAX/8){swan_error(err,&e->token,"call staging area exceeds the x86-64 displacement range");return;}
+ size_t stage_bytes=e->argc*8,stage_area=(stage_bytes+15u)&~(size_t)15u;
+ if(stage_area>(size_t)INT32_MAX||stack_bytes+stage_area>(size_t)INT32_MAX){swan_error(err,&e->token,"call staging area exceeds the x86-64 stack frame range");return;}
+ cg_reserve(o,(int)stage_area);
+ for(size_t i=0;i<e->argc;i++){emit_expr(o,e->args[i],l,err);text_add(o,"    mov QWORD PTR [rsp + %zu], rax\n",i*8);}
+ int pad=(int)((16-((o->stack_depth+entry+(int)stack_bytes)%16))%16);
+ int reserve=(int)stack_bytes+pad;cg_reserve(o,reserve);
+ size_t stage_base=(size_t)reserve;
+ for(size_t i=6;i<e->argc;i++)
+  text_add(o,"    mov rax, QWORD PTR [rsp + %zu]\n    mov QWORD PTR [rsp + %d], rax\n",stage_base+i*8,pad+(int)(i-6)*8);
+ for(size_t i=0;i<e->argc&&i<6;i++)
+  text_add(o,"    mov %s, QWORD PTR [rsp + %zu]\n",regs[i],stage_base+i*8);
  text_add(o,"    call %s\n",symbol);
- if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))
-  text_add(o,"    movzx eax, al\n");
- cg_release(o,area+pad);cg_restore_volatile(o,l);
+ if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))text_add(o,"    movzx eax, al\n");
+ cg_release(o,reserve);cg_release(o,(int)stage_area);cg_restore_volatile(o,l);
 }
 static inline bool cg_const_value(Expr *e,int64_t *out);
 static inline bool cg_const_value_uncached(Expr *e,int64_t *out){
@@ -1104,10 +1119,6 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
   if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
-  if(fn->param_count>6){
-   swan_error(err,&fn->token,"x86-64 AST backend supports at most six function parameters");
-   return false;
-  }
   if(p->codegen_module_index<0&&fn->imported&&!p->bundle_imports)continue;
   if(p->bundle_imports&&fn->imported&&!p->function_reachable[i])continue;
   if(p->codegen_module_index>=0&&(!fn->imported||fn->module_index!=p->codegen_module_index||!p->function_reachable[i]))continue;
@@ -1120,7 +1131,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
    }
   }
   collect_locals(fn->body,fn->body_count,&l);if(l.failed){free(l.items);swan_error(err,&fn->token,"out of memory growing AST backend local table");return false;}samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);if(l.slots>INT32_MAX/8){free(l.items);swan_error(err,&fn->token,"AST backend stack frame exceeds signed displacement range");return false;}int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
-  char sym[SWAN_MAX_TEXT+16];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported&&!fn->imported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->link_name?fn->link_name:fn->name);
+  char sym[SWAN_MAX_TEXT+128];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported&&!fn->imported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->link_name?fn->link_name:fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
   ownership_initialize_handles(o,&l);
@@ -1141,6 +1152,19 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
      const char *dst=cg_reg_name(v->reg);
      if(strcmp(dst,regs[index]))text_add(o,"    mov %s, %s\n",dst,regs[index]);
     }else text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",v->slot*8,regs[index]);
+   }
+  }
+  for(size_t index=6;index<fn->param_count;index++){
+   Local *v=local_find(&l,fn->params[index]);if(!v)continue;
+   size_t offset=16+(index-6)*8;
+   bool boolean_parameter=fn->param_types&&fn->param_types[index]&&(!strcmp(fn->param_types[index],"bool")||!strcmp(fn->param_types[index],"i1"));
+   if(v->reg>=0){
+    if(boolean_parameter)text_add(o,"    movzx rax, BYTE PTR [rbp + %zu]\n    mov %s, rax\n",offset,cg_reg_name(v->reg));
+    else text_add(o,"    mov %s, QWORD PTR [rbp + %zu]\n",cg_reg_name(v->reg),offset);
+   }else{
+    if(boolean_parameter)text_add(o,"    movzx rax, BYTE PTR [rbp + %zu]\n",offset);
+    else text_add(o,"    mov rax, QWORD PTR [rbp + %zu]\n",offset);
+    text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);
    }
   }
   emit_block(o,fn->body,fn->body_count,&l,&strid,err);emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
