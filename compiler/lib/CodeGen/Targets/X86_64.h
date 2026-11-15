@@ -1,6 +1,7 @@
 #ifndef SWAN_CODEGEN_X86_64_H
 #define SWAN_CODEGEN_X86_64_H
 #include "swan/parser.h"
+#include <limits.h>
 typedef struct { char *data; size_t len,cap; int stack_depth; bool frameless,uses_array_bounds,failed; int next_label,loop_depth,block_depth,loop_break[128],loop_continue[128]; Expr *hoist_expr,*recurrence_expr,*inline_arg,*active_loop_condition; const char *inline_param,*active_midpoint_array,*active_midpoint_index,*active_fill_array,*active_fill_index; Program *program; } Text;
 static inline bool text_reserve(Text *t,size_t extra){
  if(extra>SIZE_MAX-t->len-1)return false;
