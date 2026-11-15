@@ -74,13 +74,13 @@ static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
- if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
+ if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
  const char **swan_inputs=NULL,**c_inputs=NULL;size_t swan_input_count=0,swan_input_capacity=0,c_input_count=0,c_input_capacity=0;
  const char *first=argv[index++];struct stat first_stat;
  if(stat(first,&first_stat)==0&&S_ISDIR(first_stat.st_mode)){
@@ -130,9 +130,9 @@ static int swan_run(int argc,char **argv){
   else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;
   else if(!strcmp(argv[i],"--warnings-as-errors"))warnings_as_errors=true;
   else if(!strcmp(argv[i],"--stdlib")&&i+1<argc){stdlib_dir=argv[++i];module_paths[0]=stdlib_dir;}
-  else if((!strcmp(argv[i],"--module-path")||!strcmp(argv[i],"-I"))&&i+1<argc){if(module_path_count>=64){fprintf(stderr,"swan: too many module search paths (maximum 64)\\n");return 2;}module_paths[module_path_count++]=argv[++i];}
+  else if((!strcmp(argv[i],"--module-path")||!strcmp(argv[i],"-I"))&&i+1<argc){if(module_path_count>=64){fprintf(stderr,"swan: too many module search paths (maximum 64)\n");return 2;}module_paths[module_path_count++]=argv[++i];}
   else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
-  else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\n");return 2;}link_args[link_arg_count++]=argv[++i];}
+  else if(!strcmp(argv[i],"--link")&&i+1<argc){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[++i])){fprintf(stderr,"swan: out of memory recording linker input\n");return 2;}}
   else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i])||!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[++i]))return 2;}
   else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i]))return 2;}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
@@ -332,12 +332,14 @@ static int swan_run(int argc,char **argv){
  if(!written){fprintf(stderr,"swan: failed to write temporary assembly\n");unlink(temp);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return 1;}
  int result=0;
  if(has_lazy){
-  char *cc_args[136];size_t cc_count=0;
-  cc_args[cc_count++]="cc";cc_args[cc_count++]="-rdynamic";cc_args[cc_count++]="-x";cc_args[cc_count++]="assembler";cc_args[cc_count++]=temp;
+  if(link_arg_count>SIZE_MAX-16||link_arg_count+16>SIZE_MAX/sizeof(char*)){fprintf(stderr,"swan: linker argument vector size overflow\\n");unlink(temp);unlink(runtime_source);return 1;}
+  char **cc_args=calloc(link_arg_count+16,sizeof(*cc_args));
+  if(!cc_args){fprintf(stderr,"swan: out of memory building linker command\\n");unlink(temp);unlink(runtime_source);return 1;}
+  size_t cc_count=0;cc_args[cc_count++]="cc";cc_args[cc_count++]="-rdynamic";cc_args[cc_count++]="-x";cc_args[cc_count++]="assembler";cc_args[cc_count++]=temp;
   cc_args[cc_count++]="-x";cc_args[cc_count++]="c";cc_args[cc_count++]=runtime_source;cc_args[cc_count++]="-ldl";cc_args[cc_count++]="-x";cc_args[cc_count++]="none";
   for(size_t i=0;i<link_arg_count;i++)cc_args[cc_count++]=(char*)link_args[i];
   cc_args[cc_count++]="-o";cc_args[cc_count++]=exe;cc_args[cc_count]=NULL;
-  result=swan_exec(cc_args,true);unlink(temp);unlink(runtime_source);
+  result=swan_exec(cc_args,true);free(cc_args);unlink(temp);unlink(runtime_source);
   if(result!=0){if(temporary_output&&mode!=SWAN_BUILD)unlink(exe);if(temporary_output)swan_remove_lazy_modules(exe,&p);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);free(assembly.data);return result<0?1:result;}
  }else{
   result=swan_link_assembly_with_args("cc",temp,exe,link_args,link_arg_count);unlink(temp);
