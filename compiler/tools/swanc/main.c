@@ -6,19 +6,30 @@
 static bool swan_has_suffix(const char *path,const char *suffix){
  size_t a=strlen(path),b=strlen(suffix);return a>=b&&!strcmp(path+a-b,suffix);
 }
-static bool swan_collect_directory(const char *directory,const char **swan,size_t *sn,
-                                   const char **c,size_t *cn){
+static bool swan_append_input(const char ***items,size_t *count,size_t *capacity,const char *path){
+ if(!items||!count||!capacity||!path||*count==SIZE_MAX||
+    !swan_reserve_array((void**)items,capacity,*count+1,sizeof(**items)))return false;
+ (*items)[(*count)++]=path;return true;
+}
+static bool swan_collect_directory(const char *directory,const char ***swan,size_t *sn,size_t *sc,
+                                   const char ***c,size_t *cn,size_t *cc){
  char pattern[4096];glob_t matches={0};int n=snprintf(pattern,sizeof(pattern),"%s/*.swan",directory);
  if(n<0||(size_t)n>=sizeof(pattern))return false;
  int result=glob(pattern,0,NULL,&matches);
  if(result!=0&&result!=GLOB_NOMATCH){globfree(&matches);return false;}
- for(size_t i=0;i<matches.gl_pathc;i++){if(*sn>=128){globfree(&matches);return false;}char *path=strdup(matches.gl_pathv[i]);if(!path){globfree(&matches);return false;}swan[(*sn)++]=path;}
+ for(size_t i=0;i<matches.gl_pathc;i++){
+  char *path=strdup(matches.gl_pathv[i]);
+  if(!path||!swan_append_input(swan,sn,sc,path)){free(path);globfree(&matches);return false;}
+ }
  globfree(&matches);memset(&matches,0,sizeof(matches));
  n=snprintf(pattern,sizeof(pattern),"%s/*.c",directory);
  if(n<0||(size_t)n>=sizeof(pattern))return false;
  result=glob(pattern,0,NULL,&matches);
  if(result!=0&&result!=GLOB_NOMATCH){globfree(&matches);return false;}
- for(size_t i=0;i<matches.gl_pathc;i++){if(*cn>=120){globfree(&matches);return false;}char *path=strdup(matches.gl_pathv[i]);if(!path){globfree(&matches);return false;}c[(*cn)++]=path;}
+ for(size_t i=0;i<matches.gl_pathc;i++){
+  char *path=strdup(matches.gl_pathv[i]);
+  if(!path||!swan_append_input(c,cn,cc,path)){free(path);globfree(&matches);return false;}
+ }
  globfree(&matches);return true;
 }
 static char *swan_read_sources(const char *const *paths,size_t count){
@@ -70,10 +81,10 @@ static int swan_run(int argc,char **argv){
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [-o output]\n",SWAN_VERSION);return 2;}
- const char *swan_inputs[128],*c_inputs[120];size_t swan_input_count=0,c_input_count=0;
+ const char **swan_inputs=NULL,**c_inputs=NULL;size_t swan_input_count=0,swan_input_capacity=0,c_input_count=0,c_input_capacity=0;
  const char *first=argv[index++];struct stat first_stat;
  if(stat(first,&first_stat)==0&&S_ISDIR(first_stat.st_mode)){
-  if(!swan_collect_directory(first,swan_inputs,&swan_input_count,c_inputs,&c_input_count)){
+  if(!swan_collect_directory(first,&swan_inputs,&swan_input_count,&swan_input_capacity,&c_inputs,&c_input_count,&c_input_capacity)){
    fprintf(stderr,"swanc: cannot collect sources from '%s'\n",first);return 2;
   }
  }else if(swan_has_suffix(first,".swan"))swan_inputs[swan_input_count++]=first;
@@ -92,7 +103,7 @@ static int swan_run(int argc,char **argv){
  const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
- bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false;const char *link_args[120];size_t link_arg_count=0;
+ bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false;const char **link_args=NULL;size_t link_arg_count=0,link_arg_capacity=0;
  const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
  SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
@@ -124,8 +135,8 @@ static int swan_run(int argc,char **argv){
   else if((!strcmp(argv[i],"--module-path")||!strcmp(argv[i],"-I"))&&i+1<argc){if(module_path_count>=64){fprintf(stderr,"swan: too many module search paths (maximum 64)\\n");return 2;}module_paths[module_path_count++]=argv[++i];}
   else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
   else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\n");return 2;}link_args[link_arg_count++]=argv[++i];}
-  else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(link_arg_count+2>120)return 2;link_args[link_arg_count++]=argv[i];link_args[link_arg_count++]=argv[++i];}
-  else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(link_arg_count>=120)return 2;link_args[link_arg_count++]=argv[i];}
+  else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i])||!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[++i]))return 2;}
+  else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i]))return 2;}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
    const char *name=argv[++i];target=swan_target_find(name);
    if(!target){fprintf(stderr,"swan: unknown target '%s'; use --list-targets\n",name);return 2;}
