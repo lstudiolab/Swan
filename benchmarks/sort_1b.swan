@@ -66,6 +66,6 @@ fn main():
         if values[verify - 1] > values[verify]
             sorted = 0
         verify = verify + 1
-    log sorted
+    !printin >> sorted;
     return 0
 
