@@ -9,19 +9,19 @@ fn main() -> int:
     count = sil_emit_binary(state, count, 18 * 16777216 + 3 * 65536 + 1 * 256 + 2)
     count = sil_emit_return(state, count, 3)
     if sil_verify(state, count) != 1
-        echo!("SIL_VERIFY_FAILED")
+        !printin >> "SIL_VERIFY_FAILED";
         return 1
     count = sil_optimize(state, count, workspace)
     if count != 2
-        echo!("SIL_OPTIMIZE_COUNT_FAILED")
-        log count
+        !printin >> "SIL_OPTIMIZE_COUNT_FAILED";
+        !printin >> count;
         return 2
     if state[0] != 17 or state[1] != 3 or state[4] != 30
-        echo!("SIL_FOLD_RESULT_FAILED")
+        !printin >> "SIL_FOLD_RESULT_FAILED";
         return 3
     if state[5] != 10 or state[7] != 3
-        echo!("SIL_RETURN_FAILED")
+        !printin >> "SIL_RETURN_FAILED";
         return 4
-    echo!("SIL_PIPELINE_PASSED")
+    !printin >> "SIL_PIPELINE_PASSED";
     return 0
 
