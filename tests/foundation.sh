@@ -29,7 +29,6 @@ SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
-Foundation standard library ready
 9
 5
 1
@@ -47,4 +46,4 @@ Foundation standard library ready
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: imported Foundation standard library and !printin output\n'
+printf 'PASS: imported Foundation helpers and !printin output\n'
