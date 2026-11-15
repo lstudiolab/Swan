@@ -9,21 +9,21 @@ cat > "$TMP/program.swan" <<'SWAN'
 import std_math
 
 func main() -> int:
-    std:print >> std:gcd(84, 30)
-    std:print >> std:lcm(21, 6)
-    std:print >> std:euclidean_mod(-5, 3)
-    std:print >> std:floor_div(-7, 3)
-    std:print >> std:ceil_div(7, 3)
-    std:print >> std:integer_sqrt(144)
-    std:print >> std:is_prime(97)
-    std:print >> std:is_prime(99)
-    std:print >> std:is_composite(99)
-    std:print >> std:triangular(10)
-    std:print >> std:distance_int(-4, 9)
-    std:print >> std:is_power_of_two(1024)
-    std:print >> std:is_power_of_two(1000)
-    std:print >> std:next_power_of_two(1000)
-    std:print >> std:fibonacci(10)
+    !printin >> !gcd(84, 30)
+    !printin >> !lcm(21, 6)
+    !printin >> !euclidean_mod(-5, 3)
+    !printin >> !floor_div(-7, 3)
+    !printin >> !ceil_div(7, 3)
+    !printin >> !integer_sqrt(144)
+    !printin >> !is_prime(97)
+    !printin >> !is_prime(99)
+    !printin >> !is_composite(99)
+    !printin >> !triangular(10)
+    !printin >> !distance_int(-4, 9)
+    !printin >> !is_power_of_two(1024)
+    !printin >> !is_power_of_two(1000)
+    !printin >> !next_power_of_two(1000)
+    !printin >> !fibonacci(10)
     return 0
 SWAN
 
