@@ -32,21 +32,33 @@ static inline char *swan_read_file(const char *path){
 static inline void swan_release_modules(char **sources,char **texts,size_t count){
  for(size_t i=0;i<count;i++){free(sources[i]);free(texts[i]);}
 }
-static inline bool swan_load_imports(Program *p,const char *stdlib_dir,char **sources,char **texts,size_t *module_count,SwanError *err){
+static inline bool swan_module_path(const char *root,const char *name,char path[2048]){
+ if(!root||!name||!*root||!*name)return false;
+ int n=snprintf(path,2048,"%s/%s.swan",root,name);
+ return n>0&&(size_t)n<2048;
+}
+static inline char *swan_resolve_module(const char *name,const char *const *roots,size_t root_count,char resolved[2048]){
+ for(size_t i=0;i<root_count;i++){
+  if(!swan_module_path(roots[i],name,resolved))continue;
+  char *source=swan_read_file(resolved);
+  if(source)return source;
+ }
+ resolved[0]=0;
+ return NULL;
+}
+static inline bool swan_load_imports(Program *p,const char *const *module_paths,size_t module_path_count,char **sources,char **texts,size_t *module_count,SwanError *err){
  const char *loaded[64];size_t loaded_count=0,next=0;
  while(next<p->import_count){
   const char *name=p->imports[next++];bool seen=false;
   for(size_t i=0;i<loaded_count;i++)if(!strcmp(loaded[i],name)){seen=true;break;}
   if(seen)continue;
-  if(loaded_count>=64||*module_count>=64){swan_error(err,NULL,"standard-library import limit exceeded");return false;}
+  if(loaded_count>=64||*module_count>=64){swan_error(err,NULL,"module import limit exceeded (64); increase compiler module capacity before adding more dependencies");return false;}
   loaded[loaded_count++]=name;
-  if(p->module_count>=64){swan_error(err,NULL,"too many imported modules");return false;}
+  if(p->module_count>=64){swan_error(err,NULL,"too many imported modules (64)");return false;}
   size_t module=(size_t)p->module_count++;
   p->module_names[module]=name;p->module_starts[module]=p->count;
-  char path[2048];int path_len=snprintf(path,sizeof(path),"%s/%s.swan",stdlib_dir,name);
-  if(path_len<0||(size_t)path_len>=sizeof(path)){swan_error(err,NULL,"standard-library path is too long");return false;}
-  char *source=swan_read_file(path);
-  if(!source){swan_error(err,NULL,"cannot load standard-library module '%s' from '%s'",name,path);return false;}
+  char path[2048];char *source=swan_resolve_module(name,module_paths,module_path_count,path);
+  if(!source){swan_error(err,NULL,"cannot resolve module '%s' in %zu module search path(s)",name,module_path_count);return false;}
   TokenStream module_ts;
   if(!swan_lex(source,&module_ts,err)){free(source);free(module_ts.items);free(module_ts.text_storage);return false;}
   size_t slot=(*module_count)++;sources[slot]=source;texts[slot]=module_ts.text_storage;
