@@ -30,6 +30,13 @@ static inline Stmt *swan_find_function(Program *p,const char *name){
 }
 static inline Stmt *swan_find_link_function(Program *p,const char *link_name){
  if(!p||!link_name)return NULL;
+ if(p->function_indexed&&p->function_bucket_count){
+  size_t b=swan_name_hash(link_name)&(p->function_bucket_count-1);
+  for(size_t n=p->link_function_buckets[b];n!=SIZE_MAX;n=p->link_function_next[n]){
+   Stmt *fn=p->functions[n];if(fn->link_name&&!strcmp(fn->link_name,link_name))return fn;
+  }
+  return NULL;
+ }
  for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(fn->link_name&&!strcmp(fn->link_name,link_name))return fn;}
  return NULL;
 }
