@@ -47,4 +47,4 @@ Swan std library ready
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: std namespace, std:print, and standard functions\n'
+printf 'PASS: std namespace, !printin, and standard functions\n'
