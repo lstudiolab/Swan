@@ -109,7 +109,7 @@ true false break continue return as from self pass upto init deinit enum
 throw throws rethrow catch
 ```
 
-This is a 31-word, case-sensitive set. `import` and `export` are contextual file-scope spellings; they are not reserved words. Other removed spellings (including `free`, `manual`, `defer`, `bool`, and `int`) are identifiers.
+This is a 33-word, case-sensitive set. `import` and `export` are reserved words; `lazy` remains contextual. Other removed spellings (including `free`, `manual`, `defer`, `bool`, and `int`) are identifiers.
 
 ```swan
 func main() -> int:
