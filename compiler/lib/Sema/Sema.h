@@ -15,8 +15,32 @@ static inline bool swan_symbols_init(SwanSymbols *s){memset(s,0,sizeof(*s));retu
 static inline void swan_symbols_destroy(SwanSymbols *s){if(!s)return;free(s->items);free(s->buckets);memset(s,0,sizeof(*s));}
 static inline void swan_symbols_reset(SwanSymbols *s){s->count=0;for(size_t i=0;i<s->bucket_count;i++)s->buckets[i]=SIZE_MAX;}
 static inline Stmt *swan_find_function(Program *p,const char *name){
- if(p->function_indexed&&p->function_bucket_count){size_t b=swan_name_hash(name)&(p->function_bucket_count-1);for(size_t n=p->function_buckets[b];n!=SIZE_MAX;n=p->function_next[n]){Stmt *fn=p->functions[n];if(!strcmp(fn->name,name))return fn;}return NULL;}
- for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
+ Stmt *local=NULL,*imported=NULL;
+ if(p->function_indexed&&p->function_bucket_count){
+  size_t b=swan_name_hash(name)&(p->function_bucket_count-1);
+  for(size_t n=p->function_buckets[b];n!=SIZE_MAX;n=p->function_next[n]){
+   Stmt *fn=p->functions[n];if(strcmp(fn->name,name))continue;
+   if(!fn->imported){local=fn;break;}
+   if(imported)return NULL;imported=fn;
+  }
+ }else{
+  for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(strcmp(fn->name,name))continue;if(!fn->imported){local=fn;break;}if(imported)return NULL;imported=fn;}
+ }
+ return local?local:imported;
+}
+static inline Stmt *swan_find_link_function(Program *p,const char *link_name){
+ if(!p||!link_name)return NULL;
+ for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(fn->link_name&&!strcmp(fn->link_name,link_name))return fn;}
+ return NULL;
+}
+static inline Stmt *swan_find_module_function(Program *p,const char *module_name,const char *function_name){
+ if(!p||!module_name||!function_name)return NULL;
+ for(size_t m=0;m<p->module_count;m++)if(!strcmp(p->module_names[m],module_name))
+  for(size_t i=p->module_starts[m];i<p->module_ends[m];i++)if(!strcmp(p->functions[i]->name,function_name))return p->functions[i];
+ return NULL;
+}
+static inline bool swan_function_name_ambiguous(Program *p,const char *name){
+ bool found=false;for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(fn->imported&&!strcmp(fn->name,name)){if(found)return true;found=true;}}return false;
 }
 static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *index){
  if(!s->bucket_count)return false;size_t b=swan_name_hash(name)&(s->bucket_count-1);
@@ -49,13 +73,23 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
   case E_INT:case E_FLOAT:case E_STRING:case E_BOOL:return true;
   case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(!v->initialized){swan_error(err,&e->token,"use of uninitialized variable '%s'",e->token.text);return false;}if(v->manual_checked){if(v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}swan_error(err,&e->token,"manual allocation handles may only be indexed or released with free");return false;}return true;}
   case E_CALL:{
-   const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or dotted function path");return false;}
-   if(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked")){
-    if(e->argc!=1){swan_error(err,&e->token,"array_u32 expects exactly one length argument");return false;}
+   const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or module-qualified function path");return false;}
+   if(e->left&&e->left->kind==E_NAME&&(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked"))){
+    if(e->argc!=1){swan_error(err,&e->token,"array allocation expects exactly one length argument");return false;}
     return swan_check_expr(p,e->args[0],symbols,err);
    }
-   Stmt *fn=swan_find_function(p,callee);
-   if(!fn){swan_error(err,&e->token,"unknown function '%s'",callee);return false;}
+   Stmt *fn=NULL;
+   if(e->left&&e->left->kind==E_MEMBER&&e->left->left&&e->left->left->kind==E_NAME&&e->left->right&&e->left->right->kind==E_NAME){
+    const char *module=e->left->left->token.text;
+    fn=swan_find_module_function(p,module,callee);
+    if(!fn){swan_error(err,&e->token,"module '%s' does not export a function named '%s'",module,callee);return false;}
+    Token member=e->left->right->token;member.text=fn->link_name?fn->link_name:fn->name;
+    e->left->kind=E_NAME;e->left->token=member;e->left->left=NULL;e->left->right=NULL;
+   }else{
+    fn=swan_find_function(p,callee);
+    if(!fn){if(swan_function_name_ambiguous(p,callee))swan_error(err,&e->token,"function '%s' is ambiguous; qualify it with its module name",callee);else swan_error(err,&e->token,"unknown function '%s'",callee);return false;}
+    if(e->left&&e->left->kind==E_NAME)e->left->token.text=fn->link_name?fn->link_name:fn->name;
+   }
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
    for(size_t i=0;i<e->argc;i++){
     if(e->args[i]&&e->args[i]->kind==E_NAME){size_t arg_index;if(swan_symbol_find(symbols,e->args[i]->token.text,&arg_index)&&symbols->items[arg_index].manual_checked){swan_error(err,&e->args[i]->token,"manual ownership cannot be copied into a function call");return false;}}
