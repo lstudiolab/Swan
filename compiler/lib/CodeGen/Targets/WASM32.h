@@ -122,7 +122,6 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   const SwanIRFunction *fn=&m->functions[f];
   if(fn->external){if(error&&cap)snprintf(error,cap,"WebAssembly backend does not yet support external function imports");return false;}
   if(!strcmp(fn->name,"main"))main_index=f;
-  if(fn->parameter_count>32){if(error&&cap)snprintf(error,cap,"WebAssembly backend supports at most 32 parameters");return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];if(in->op==SWAN_IR_ALLOCA)alloca_total++;
    if(in->type==SWAN_IR_F32||in->type==SWAN_IR_F64){if(error&&cap)snprintf(error,cap,"floating-point IR lowering is not implemented in WebAssembly backend");return false;}
