@@ -353,3 +353,10 @@ Implementation headers live under `compiler/lib`. The small headers in `compiler
 ## Production systems language roadmap
 
 Swan's long-term workload targets include AAA game engines, high-throughput servers, AI infrastructure, operating systems, embedded software, and general-purpose applications. The implementation plan, required language/runtime capabilities, target backend gates, and definition-of-done policy are documented in [Production Systems Language Expansion](docs/PRODUCTION_SYSTEMS_LANGUAGE_ROADMAP.md). Planned capabilities are explicitly distinguished from implemented and production-validated features; the roadmap is not a claim that those capabilities already exist.
+
+
+## SwanUi
+
+SwanUi is the planned declarative UI framework for Swan, inspired by SwiftUI's view composition, state-driven updates, layout system, controls, navigation, presentation, drawing, animation, and accessibility model. It is designed around a platform-neutral view graph and Swan-owned renderer contract, with explicit platform backends.
+
+The framework design and staged implementation plan live in [SwanUi/README.md](SwanUi/README.md), [SwanUi/DESIGN.md](SwanUi/DESIGN.md), and [SwanUi/ROADMAP.md](SwanUi/ROADMAP.md). SwanUi is currently at the design stage: the current Swan compiler does not yet provide all language features required for a full declarative UI API, and no production renderer or platform backend is claimed.
