@@ -21,7 +21,7 @@ SWAN
 "$SWAN" "$TMP/log-operator.swan" --emit-asm -o "$TMP/log-operator.s"
 cc -x assembler "$TMP/log-operator.s" -o "$TMP/log-operator"
 test "$("$TMP/log-operator")" = "Hello, World!"
-printf 'PASS: log >> output operator\n'
+printf 'PASS: !printin standard-library output\n'
 cat > "$TMP/arithmetic.swan" <<'SWAN'
 fn main():
     let a: int = 40
