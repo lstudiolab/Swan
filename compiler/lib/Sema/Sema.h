@@ -175,9 +175,8 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
  return true;
 }
 static inline void swan_warning_add(Program *program,const Token *token,const char *format,...){
- if(program->warning_count>=sizeof(program->warnings)/sizeof(program->warnings[0])){
-  program->warnings_dropped++;
-  return;
+ if(program->warning_count==SIZE_MAX||!swan_reserve_array((void**)&program->warnings,&program->warning_capacity,program->warning_count+1,sizeof(*program->warnings))){
+  program->warnings_dropped++;return;
  }
  SwanWarning *warning=&program->warnings[program->warning_count++];
  warning->line=token?token->line:0;
