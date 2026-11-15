@@ -50,7 +50,7 @@ struct CounterView: View:
 
     func body() -> some View:
         VStack(spacing: 12):
-            Text("Count: \\(count)")
+            Text("Count: \(count)")
             Button("Increase"):
                 count = count + 1
 ```
