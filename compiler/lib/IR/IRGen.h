@@ -40,8 +40,10 @@ static inline SwanIRBlock *swan_irgen_block(SwanIRGen *g) {
 static inline bool swan_irgen_open(SwanIRGen *g) {
     SwanIRBlock *b=swan_irgen_block(g); return b && !b->terminated;
 }
-static inline bool swan_irgen_fail(SwanIRGen *g,const Token *token,const char *message) {
-    swan_error(g->error,token,"%s",message);return false;
+static inline bool swan_irgen_fail(SwanIRGen *g,const Token *token,const char *format,...) {
+    char detail[512];va_list args;va_start(args,format);
+    vsnprintf(detail,sizeof(detail),format,args);va_end(args);
+    swan_error(g->error,token,"%s",detail);return false;
 }
 static inline uint32_t swan_irgen_emit(SwanIRGen *g,SwanIRInst in) {
     SwanIRBlock *block=swan_irgen_block(g);
