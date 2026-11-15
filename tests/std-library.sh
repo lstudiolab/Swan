@@ -9,21 +9,21 @@ cat > "$TMP/program.swan" <<'SWAN'
 import std
 
 func main() -> int:
-    std:print >> "Swan std library ready"
-    std:print >> std:abs(-9)
-    std:print >> std:average(4, 7)
-    std:print >> std:is_even(12)
-    std:print >> std:is_odd(9)
-    std:print >> std:min(8, 3)
-    std:print >> std:max(8, 3)
-    std:print >> std:clamp(15, 0, 10)
-    std:print >> std:sign(-20)
-    std:print >> std:square(5)
-    std:print >> std:cube(3)
-    std:print >> std:power(2, 8)
-    std:print >> std:factorial(5)
-    std:print >> std:sum_to(10)
-    std:print >> std:in_range(5, 1, 9)
+    !printin >> "Swan std library ready"
+    !printin >> !abs(-9)
+    !printin >> !average(4, 7)
+    !printin >> !is_even(12)
+    !printin >> !is_odd(9)
+    !printin >> !min(8, 3)
+    !printin >> !max(8, 3)
+    !printin >> !clamp(15, 0, 10)
+    !printin >> !sign(-20)
+    !printin >> !square(5)
+    !printin >> !cube(3)
+    !printin >> !power(2, 8)
+    !printin >> !factorial(5)
+    !printin >> !sum_to(10)
+    !printin >> !in_range(5, 1, 9)
     return 0
 SWAN
 
