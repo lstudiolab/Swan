@@ -43,7 +43,7 @@ static inline unsigned cg_name_hash(const char *s){uint32_t h=2166136261u;for(;*
 static inline Local *local_find(Locals *l,const char *name){unsigned b=cg_name_hash(name)&2047u;for(int n=l->buckets[b];n;n=l->items[n-1].next)if(!strcmp(l->items[n-1].name,name))return &l->items[n-1];return NULL;}
 static inline Local *local_add(Locals *l,const char *name,bool mut){
  if(l->count>=(size_t)INT32_MAX||l->count==SIZE_MAX||!swan_reserve_array((void**)&l->items,&l->capacity,l->count+1,sizeof(*l->items))){l->failed=true;return NULL;}
- size_t i=l->count++;unsigned b=cg_name_hash(name)&2047u;Local *v=&l->items[i];v->name=name;v->mut=mut;v->reg=-1;v->slot=0;v->next=l->buckets[b];l->buckets[b]=(int)i+1;
+ size_t i=l->count++;unsigned b=cg_name_hash(name)&2047u;Local *v=&l->items[i];memset(v,0,sizeof(*v));v->name=name;v->mut=mut;v->reg=-1;v->slot=0;v->next=l->buckets[b];l->buckets[b]=(int)i+1;
  if(!l->caller_saved&&l->saved_reg_count<5){v->reg=l->saved_reg_count++;l->reg_count++;}
  else if(l->volatile_reg_count<5){v->reg=5+l->volatile_reg_count++;l->reg_count++;}
  else if(l->saved_reg_count<5){v->reg=l->saved_reg_count++;l->reg_count++;}
