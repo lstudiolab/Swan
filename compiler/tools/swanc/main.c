@@ -87,16 +87,14 @@ static int swan_run(int argc,char **argv){
   if(!swan_collect_directory(first,&swan_inputs,&swan_input_count,&swan_input_capacity,&c_inputs,&c_input_count,&c_input_capacity)){
    fprintf(stderr,"swanc: cannot collect sources from '%s'\n",first);return 2;
   }
- }else if(swan_has_suffix(first,".swan"))swan_inputs[swan_input_count++]=first;
- else if(swan_has_suffix(first,".c"))c_inputs[c_input_count++]=first;
+ }else if(swan_has_suffix(first,".swan")){if(!swan_append_input(&swan_inputs,&swan_input_count,&swan_input_capacity,first)){fprintf(stderr,"swanc: out of memory recording source input\\n");return 2;}}
+ else if(swan_has_suffix(first,".c")){if(!swan_append_input(&c_inputs,&c_input_count,&c_input_capacity,first)){fprintf(stderr,"swanc: out of memory recording C input\\n");return 2;}}
  else {fprintf(stderr,"swanc: expected a .swan file or source directory\n");return 2;}
  while(index<argc&&(swan_has_suffix(argv[index],".swan")||swan_has_suffix(argv[index],".c"))){
   if(swan_has_suffix(argv[index],".swan")){
-   if(swan_input_count>=128){fprintf(stderr,"swanc: too many Swan source files\n");return 2;}
-   swan_inputs[swan_input_count++]=argv[index++];
+   if(!swan_append_input(&swan_inputs,&swan_input_count,&swan_input_capacity,argv[index++])){fprintf(stderr,"swanc: out of memory recording source input\\n");return 2;}
   }else{
-   if(c_input_count>=120){fprintf(stderr,"swanc: too many C source files\n");return 2;}
-   c_inputs[c_input_count++]=argv[index++];
+   if(!swan_append_input(&c_inputs,&c_input_count,&c_input_capacity,argv[index++])){fprintf(stderr,"swanc: out of memory recording C input\\n");return 2;}
   }
  }
  if(!swan_input_count){fprintf(stderr,"swanc: source directory contains no .swan files\n");return 2;}
