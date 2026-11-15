@@ -13,7 +13,7 @@ typedef struct {
  const char **imports; size_t import_count,import_capacity;
  const char **c_headers; size_t c_header_count,c_header_capacity;
  SwanArenaChunk *arena;
- size_t *function_buckets,*function_next,function_bucket_count;
+ size_t *function_buckets,*function_next,*link_function_buckets,*link_function_next,function_bucket_count;
  bool function_indexed;
  size_t source_function_count,module_count,module_capacity;
  size_t *module_starts,*module_ends; size_t module_starts_capacity,module_ends_capacity;
@@ -84,7 +84,7 @@ static inline bool swan_arena_grow(Program *p,void **items,size_t old_count,size
 }
 static inline void swan_program_destroy(Program *p){
  if(!p)return;
- free(p->functions);free(p->imports);free(p->c_headers);free(p->module_names);free(p->module_starts);free(p->module_ends);free(p->function_buckets);free(p->function_next);free(p->function_reachable);free(p->warnings);
+ free(p->functions);free(p->imports);free(p->c_headers);free(p->module_names);free(p->module_starts);free(p->module_ends);free(p->function_buckets);free(p->function_next);free(p->link_function_buckets);free(p->link_function_next);free(p->function_reachable);free(p->warnings);
  SwanArenaChunk *chunk=p->arena;
  while(chunk){SwanArenaChunk *next=chunk->next;free(chunk);chunk=next;}
  memset(p,0,sizeof(*p));
