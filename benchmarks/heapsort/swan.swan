@@ -57,12 +57,12 @@ func main() -> int:
     while i < count
         if i > 0
             if values[i - 1] > values[i]
-                log "SORT_FAILED"
+                !printin >> "SORT_FAILED";
                 return 2
         checksum = checksum + values[i]
         i = i + 1
 
     checksum = checksum % 4294967296
-    log checksum
+    !printin >> checksum;
     return 0
 
