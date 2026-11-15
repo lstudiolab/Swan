@@ -1,7 +1,6 @@
-import foundation
+import std
 
-fn main():
-    echo!("Foundation output works")
-    echo_int(42)
+func main() -> int:
+    !printin >> "Standard-library output works";
+    !printin >> 42;
     return 0
-
