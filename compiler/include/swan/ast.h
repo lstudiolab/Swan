@@ -1,0 +1,5 @@
+#ifndef SWAN_COMPAT_AST_H
+#define SWAN_COMPAT_AST_H
+/* Compatibility include; implementation lives in compiler/lib. */
+#include "../../lib/AST/AST.h"
+#endif
