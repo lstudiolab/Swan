@@ -6,7 +6,7 @@ TMP="$ROOT/build/c11-tests"
 mkdir -p "$TMP"
 cat > "$TMP/hello.swan" <<'SWAN'
 fn main():
-    print "Hello from Swan C"
+    !printin >> "Hello from Swan C";
     return 0
 SWAN
 "$SWAN" "$TMP/hello.swan" --emit-asm -o "$TMP/hello.s"
@@ -15,7 +15,7 @@ test "$("$TMP/hello")" = "Hello from Swan C"
 printf 'PASS: C11 frontend emits native x86-64 assembly and string output\n'
 cat > "$TMP/log-operator.swan" <<'SWAN'
 fn main():
-    log >> "Hello, World!";
+    !printin >> "Hello, World!";
     return 0
 SWAN
 "$SWAN" "$TMP/log-operator.swan" --emit-asm -o "$TMP/log-operator.s"
@@ -27,7 +27,7 @@ fn main():
     let a: int = 40
     var b: int = 2
     b = b + 1
-    print a + b
+    !printin >> a + b;
     return 0
 SWAN
 "$SWAN" "$TMP/arithmetic.swan" --emit-asm -o "$TMP/arithmetic.s"
@@ -36,13 +36,13 @@ test "$("$TMP/arithmetic")" = "43"
 printf 'PASS: typed locals, mutation, and arithmetic lowering\n'
 cat > "$TMP/remainder.swan" <<'SWAN'
 fn main():
-    print 195 % 97
-    print 194 % 97
-    print 9223372036854775807 % 97
-    print -195 % 97
-    print 13 % 4
-    print -13 % 4
-    print -8 % 4
+    !printin >> 195 % 97;
+    !printin >> 194 % 97;
+    !printin >> 9223372036854775807 % 97;
+    !printin >> -195 % 97;
+    !printin >> 13 % 4;
+    !printin >> -13 % 4;
+    !printin >> -8 % 4;
     return 0
 SWAN
 "$SWAN" "$TMP/remainder.swan" --emit-asm -o "$TMP/remainder.s"
@@ -59,7 +59,7 @@ cat > "$TMP/calls.swan" <<'SWAN'
 fn add(a: int, b: int) -> int:
     return a + b
 fn main():
-    print add(20, 22)
+    !printin >> add(20, 22);
     return 0
 SWAN
 "$SWAN" "$TMP/calls.swan" --emit-asm -o "$TMP/calls.s"
@@ -71,9 +71,9 @@ fn main():
     var value: int = 0
     while value < 3
         if value == 1
-            print 9
+            !printin >> 9;
         else
-            print value
+            !printin >> value;
         value = value + 1
     return 0
 SWAN
@@ -90,7 +90,7 @@ fn main():
     while i < 10
         sum = sum + i
         i = i + 1
-    print sum
+    !printin >> sum;
     return 0
 SWAN
 "$SWAN" "$TMP/unroll.swan" --emit-asm -o "$TMP/unroll.s"
@@ -108,7 +108,7 @@ fn main():
             total = total + 1
             j = j + 1
         i = i + 1
-    print total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" "$TMP/nested-loops.swan" --emit-asm -o "$TMP/nested-loops.s"
@@ -128,7 +128,7 @@ fn main():
                 k = k + 1
             j = j + 1
         i = i + 1
-    print total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
@@ -148,7 +148,7 @@ fn main():
     while i < 0
         total = total + 1
         i = i + 1
-    print total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" "$TMP/zero-loop.swan" --emit-asm -o "$TMP/zero-loop.s"
@@ -164,7 +164,7 @@ fn main():
             i = i + 1
         total = total + 1
         i = i + 1
-    print total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" "$TMP/loop-fallback.swan" --emit-asm -o "$TMP/loop-fallback.s"
@@ -173,7 +173,7 @@ test "$("$TMP/loop-fallback")" = "3"
 printf 'PASS: loops with noncanonical induction updates retain top-tested control flow\n'
 cat > "$TMP/unknown-name.swan" <<'SWAN'
 fn main():
-    print missing_name
+    !printin >> missing_name;
     return 0
 SWAN
 if "$SWAN" "$TMP/unknown-name.swan" --emit-asm -o "$TMP/unknown-name.s"; then
@@ -200,7 +200,7 @@ fn add(a: int, b: int) -> int:
 fn wrap(value: int) -> int:
     return add(value, base())
 fn main():
-    print 1 + wrap(21)
+    !printin >> 1 + wrap(21);
     return 0
 SWAN
 "$SWAN" "$TMP/nested-calls.swan" --emit-asm -o "$TMP/nested-calls.s"
@@ -219,7 +219,7 @@ fn main():
         else
             total = total + transform(i + 1)
         i = i + 1
-    print total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" "$TMP/call-hotpath.swan" --emit-asm -o "$TMP/call-hotpath.s"
@@ -248,7 +248,7 @@ cat > "$TMP/leaf-registers.swan" <<'SWAN'
 fn leaf(a: int, b: int, c: int, d: int, e: int) -> int:
     return (a + b) * (c + d) + e
 fn main():
-    print leaf(1, 2, 3, 4, 5)
+    !printin >> leaf(1, 2, 3, 4, 5);
     return 0
 SWAN
 "$SWAN" "$TMP/leaf-registers.swan" --emit-asm -o "$TMP/leaf-registers.s"
@@ -264,7 +264,7 @@ cat > "$TMP/accumulator-side-effect.swan" <<'SWAN'
 fn main():
     var total = 2
     total = total + (total = 5)
-    print total
+    !printin >> total;
     return 0
 SWAN
 "$SWAN" "$TMP/accumulator-side-effect.swan" --emit-asm -o "$TMP/accumulator-side-effect.s"
@@ -275,12 +275,12 @@ cat > "$TMP/local-operands.swan" <<'SWAN'
 fn main():
     var left = 84
     var right = 7
-    print left + right
-    print left - right
-    print left * right
-    print left / right
-    print left % right
-    print left > right
+    !printin >> left + right;
+    !printin >> left - right;
+    !printin >> left * right;
+    !printin >> left / right;
+    !printin >> left % right;
+    !printin >> left > right;
     return 0
 SWAN
 "$SWAN" "$TMP/local-operands.swan" --emit-asm -o "$TMP/local-operands.s"
@@ -304,10 +304,10 @@ fn main():
     values[1] = 42
     values[2] = 7
     values[3] = 99
-    print values[0]
-    print values[1]
-    print values[2]
-    print values[3]
+    !printin >> values[0];
+    !printin >> values[1];
+    !printin >> values[2];
+    !printin >> values[3];
     return 0
 SWAN
 "$SWAN" "$TMP/array-u32.swan" --emit-asm -o "$TMP/array-u32.s"
@@ -324,7 +324,7 @@ fn main():
     var high = 7
     while low <= high
         var middle = low + (high - low) // 2
-        print values[middle]
+        !printin >> values[middle];
         break
     return 0
 SWAN
@@ -349,7 +349,7 @@ fn main():
     var high = 7
     while low <= high
         var middle = low + (high - low) // 2
-        print values[middle]
+        !printin >> values[middle];
         low = -1
         break
     return 0
@@ -366,16 +366,16 @@ cat > "$TMP/power-two-multiply.swan" <<'SWAN'
 fn main():
     var value = 7
     var dividend = -43
-    print value * 8
-    print -value * 8
-    print value * -8
-    print value * 1
-    print value * -1
-    print value * 0
-    print dividend / 8
-    print dividend / -8
-    print dividend % 8
-    print dividend % -8
+    !printin >> value * 8;
+    !printin >> -value * 8;
+    !printin >> value * -8;
+    !printin >> value * 1;
+    !printin >> value * -1;
+    !printin >> value * 0;
+    !printin >> dividend / 8;
+    !printin >> dividend / -8;
+    !printin >> dividend % 8;
+    !printin >> dividend % -8;
     return 0
 SWAN
 "$SWAN" "$TMP/power-two-multiply.swan" --emit-asm -o "$TMP/power-two-multiply.s"
@@ -412,8 +412,8 @@ fn main():
     while index < 4
         values[index] = fourth
         index = index + 1
-    print first + second + third + fourth + fifth + sixth + seventh
-    print values[3]
+    !printin >> first + second + third + fourth + fifth + sixth + seventh;
+    !printin >> values[3];
     return 0
 SWAN
 "$SWAN" "$TMP/array-store-register.swan" --emit-asm -o "$TMP/array-store-register.s"
@@ -437,7 +437,7 @@ fn main():
     let values = array(4)
     values[0] = 12
     var index = 0
-    print a + values[index] + (b % 97)
+    !printin >> a + values[index] + (b % 97);
     return 0
 SWAN
 "$SWAN" "$TMP/add-scratch-preservation.swan" --emit-asm -o "$TMP/add-scratch-preservation.s"
@@ -507,7 +507,7 @@ fn main():
         if values[i - 1] > values[i]
             sorted = 0
         i = i + 1
-    print sorted
+    !printin >> sorted;
     return 0
 SWAN
 "$SWAN" "$TMP/heapsort.swan" --emit-asm -o "$TMP/heapsort.s"
@@ -533,7 +533,7 @@ fn main():
     let e = 55
     let f = 66
     let g = 77
-    print combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1)
+    !printin >> combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1);
     return 0
 SWAN
 "$SWAN" "$TMP/volatile-preservation.swan" --emit-asm -o "$TMP/volatile-preservation.s"
@@ -548,7 +548,7 @@ fi
 printf 'PASS: callee-saved and volatile local preservation across calls\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
 fn main():
-    print (6 * 7) + (9 - 2)
+    !printin >> (6 * 7) + (9 - 2);
     return 0
 SWAN
 "$SWAN" "$TMP/constant-fold.swan" --emit-asm -o "$TMP/constant-fold.s"
@@ -566,7 +566,7 @@ fn main():
     let limit = 5
     while index < limit
         index = index + 1
-    print index
+    !printin >> index;
     return 0
 SWAN
 "$SWAN" "$TMP/local-compare.swan" --emit-asm -o "$TMP/local-compare.s"
@@ -588,9 +588,9 @@ fn main():
     value = value * factor
     value = value - 2
     value = value + 1
-    print value
+    !printin >> value;
     value = value * 8
-    print value
+    !printin >> value;
     var a = 1
     var b = 2
     var c = 3
@@ -599,7 +599,7 @@ fn main():
     var spilled = 6
     spilled = spilled * factor
     spilled = spilled - value
-    print spilled
+    !printin >> spilled;
     return 0
 SWAN
 "$SWAN" "$TMP/compound-arithmetic.swan" --emit-asm -o "$TMP/compound-arithmetic.s"
