@@ -16,22 +16,22 @@ func main() -> int:
     values[3] = 2
     values[4] = 5
     values[5] = 1
-    std:print >> std:array_sum(values, 6)
-    std:print >> std:array_min(values, 6)
-    std:print >> std:array_max(values, 6)
-    std:print >> std:array_contains(values, 6, 7)
-    std:print >> std:array_index_of(values, 6, 2)
-    std:print >> std:array_count(values, 6, 2)
-    std:print >> std:array_average(values, 6)
-    std:print >> std:array_is_sorted(values, 6)
-    std:array_insertion_sort(values, 6)
-    std:print >> std:array_is_sorted(values, 6)
-    std:print >> std:array_binary_search(values, 6, 7)
-    std:print >> values[0]
-    std:print >> values[5]
-    std:array_reverse(values, 6)
-    std:print >> values[0]
-    std:print >> values[5]
+    !printin >> !array_sum(values, 6)
+    !printin >> !array_min(values, 6)
+    !printin >> !array_max(values, 6)
+    !printin >> !array_contains(values, 6, 7)
+    !printin >> !array_index_of(values, 6, 2)
+    !printin >> !array_count(values, 6, 2)
+    !printin >> !array_average(values, 6)
+    !printin >> !array_is_sorted(values, 6)
+    !array_insertion_sort(values, 6)
+    !printin >> !array_is_sorted(values, 6)
+    !printin >> !array_binary_search(values, 6, 7)
+    !printin >> values[0]
+    !printin >> values[5]
+    !array_reverse(values, 6)
+    !printin >> values[0]
+    !printin >> values[5]
     return 0
 SWAN
 
