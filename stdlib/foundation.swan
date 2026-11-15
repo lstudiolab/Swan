@@ -1,6 +1,9 @@
 # Swan Foundation
 # Dependency-free integer helpers.
 
+func foundation_hello() -> int:
+    return 0
+
 func abs_int(value: int) -> int:
     if value < 0:
         return 0 - value
