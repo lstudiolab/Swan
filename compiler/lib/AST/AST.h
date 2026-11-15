@@ -16,7 +16,7 @@ typedef struct {
  size_t *function_buckets,*function_next,function_bucket_count;
  bool function_indexed;
  size_t source_function_count,module_count,module_capacity;
- size_t *module_starts,*module_ends;
+ size_t *module_starts,*module_ends; size_t module_starts_capacity,module_ends_capacity;
  const char **module_names;
  bool *function_reachable;
  bool reachability_computed,bundle_imports;
@@ -52,20 +52,10 @@ static inline bool swan_program_add_module(Program *p,const char *name,size_t st
  if(!p||!name||p->module_count==SIZE_MAX)return false;
  size_t needed=p->module_count+1;
  if(!swan_reserve_array((void**)&p->module_names,&p->module_capacity,needed,sizeof(*p->module_names)))return false;
- size_t capacity=p->module_capacity;
- /* Keep the parallel arrays at the same capacity. */
- size_t starts_capacity=capacity,ends_capacity=capacity;
- if(!swan_reserve_array((void**)&p->module_starts,&starts_capacity,needed,sizeof(*p->module_starts))||
-    !swan_reserve_array((void**)&p->module_ends,&ends_capacity,needed,sizeof(*p->module_ends)))return false;
+ if(!swan_reserve_array((void**)&p->module_starts,&p->module_starts_capacity,needed,sizeof(*p->module_starts))||
+    !swan_reserve_array((void**)&p->module_ends,&p->module_ends_capacity,needed,sizeof(*p->module_ends)))return false;
  p->module_starts[p->module_count]=start;p->module_ends[p->module_count]=start;
  p->module_names[p->module_count]=name;if(index)*index=p->module_count;p->module_count++;return true;
-}
-static inline bool swan_arena_grow(Program *p,void **items,size_t old_count,size_t new_count,size_t item_size){
- if(!p||!items||new_count<old_count||new_count>SIZE_MAX/item_size)return false;
- void *next=swan_arena_alloc(p,new_count*item_size);
- if(!next)return false;
- if(old_count)memcpy(next,*items,old_count*item_size);
- *items=next;return true;
 }
 static inline void *swan_arena_alloc(Program *p,size_t size){
  if(!p)return NULL;
@@ -84,6 +74,13 @@ static inline void *swan_arena_alloc(Program *p,size_t size){
  c->used+=size;
  memset(result,0,size);
  return result;
+}
+static inline bool swan_arena_grow(Program *p,void **items,size_t old_count,size_t new_count,size_t item_size){
+ if(!p||!items||!item_size||new_count<old_count||new_count>SIZE_MAX/item_size)return false;
+ void *next=swan_arena_alloc(p,new_count*item_size);
+ if(!next)return false;
+ if(old_count)memcpy(next,*items,old_count*item_size);
+ *items=next;return true;
 }
 static inline void swan_program_destroy(Program *p){
  if(!p)return;
