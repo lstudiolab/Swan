@@ -16,10 +16,10 @@ typedef struct {
     SwanIRModule *module;
     SwanIRFunction *function;
     size_t block;
-    SwanIRLocal locals[256];
-    size_t local_count;
-    size_t break_targets[64], continue_targets[64];
-    size_t loop_depth;
+    SwanIRLocal *locals;
+    size_t local_count,local_capacity;
+    size_t *break_targets,*continue_targets;
+    size_t loop_depth,loop_capacity;
     SwanError *error;
 } SwanIRGen;
 
@@ -84,6 +84,21 @@ static inline uint32_t swan_irgen_compare_zero(SwanIRGen *g,uint32_t value) {
     if(t==SWAN_IR_I1)return value;
     uint32_t zero=swan_irgen_const(g,t,0);SwanIRInst in={0};
     in.op=SWAN_IR_ICMP_NE;in.type=SWAN_IR_I1;in.a=value;in.b=zero;return swan_irgen_emit(g,in);
+}
+static inline bool swan_irgen_add_local(SwanIRGen *g,SwanIRLocal local){
+    if(g->local_count==SIZE_MAX||!swan_reserve_array((void**)&g->locals,&g->local_capacity,g->local_count+1,sizeof(*g->locals)))
+        return swan_irgen_fail(g,NULL,"out of memory growing IR local table");
+    g->locals[g->local_count++]=local;return true;
+}
+static inline bool swan_irgen_push_loop(SwanIRGen *g,size_t break_target,size_t continue_target){
+    if(g->loop_depth==SIZE_MAX)return swan_irgen_fail(g,NULL,"loop nesting depth overflow");
+    size_t needed=g->loop_depth+1;
+    if(!swan_reserve_array((void**)&g->break_targets,&g->loop_capacity,needed,sizeof(*g->break_targets)))
+        return swan_irgen_fail(g,NULL,"out of memory growing loop target stack");
+    size_t continue_capacity=g->loop_capacity;
+    if(!swan_reserve_array((void**)&g->continue_targets,&continue_capacity,needed,sizeof(*g->continue_targets)))
+        return swan_irgen_fail(g,NULL,"out of memory growing loop target stack");
+    g->break_targets[g->loop_depth]=break_target;g->continue_targets[g->loop_depth]=continue_target;g->loop_depth++;return true;
 }
 static inline SwanIRLocal *swan_irgen_local(SwanIRGen *g,const char *name) {
     for(size_t i=g->local_count;i>0;i--)if(!strcmp(g->locals[i-1].name,name))return &g->locals[i-1];
@@ -266,8 +281,7 @@ static inline bool swan_irgen_while(SwanIRGen *g,Stmt *s) {
     g->block=cond_id;uint32_t cond=swan_irgen_expr(g,s->condition);if(!cond)return false;
     cond=swan_irgen_compare_zero(g,cond);if(!cond)return false;
     if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_COND_BR,cond,(uint32_t)body_id,(uint32_t)end_id}))return false;
-    if(g->loop_depth>=64)return swan_irgen_fail(g,&s->token,"loop nesting limit exceeded");
-    g->break_targets[g->loop_depth]=end_id;g->continue_targets[g->loop_depth]=cond_id;g->loop_depth++;
+    if(!swan_irgen_push_loop(g,end_id,cond_id))return false;
     size_t local_mark=g->local_count;
     g->block=body_id;bool ok=swan_irgen_statements(g,s->body,s->body_count);g->loop_depth--;g->local_count=local_mark;if(!ok)return false;
     if(swan_irgen_open(g)&&!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)cond_id,0}))return false;
@@ -278,7 +292,6 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
         Stmt *s=body[i];
         switch(s->kind) {
             case S_VARIABLE:{
-                if(g->local_count>=256)return swan_irgen_fail(g,&s->token,"local variable limit exceeded");
                 SwanIRType type=s->type?swan_irgen_type(s->type):SWAN_IR_VOID;
                 uint32_t value=0;bool memory=s->mutable_value;
                 if(memory){
@@ -293,7 +306,7 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
                     if(memory){SwanIRInst store={0};store.op=SWAN_IR_STORE;store.type=SWAN_IR_VOID;store.a=value;store.b=init;if(!swan_irgen_emit_void(g,store))return false;}else value=init;
                 }else if(!memory)return swan_irgen_fail(g,&s->token,"immutable local requires an initializer");
                 if(type==SWAN_IR_VOID)return swan_irgen_fail(g,&s->token,"unsupported local variable type");
-                g->locals[g->local_count++]=(SwanIRLocal){s->name,value,type,memory};break;
+                if(!swan_irgen_add_local(g,(SwanIRLocal){s->name,value,type,memory}))return false;break;
             }
             case S_RETURN:{
                 uint32_t value=s->value?swan_irgen_expr_as(g,s->value,g->function->return_type):0;if(s->value&&!value)return false;
@@ -326,8 +339,8 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         swan_error(error,NULL,"IR generation requires a program and output module");
         return false;
     }
-    if(program->count>1024){
-        swan_error(error,NULL,"IR generation exceeds the function limit");
+    if(program->count>SIZE_MAX/sizeof(SwanIRFunction *)){
+        swan_error(error,NULL,"IR function table size overflow");
         return false;
     }
     for(size_t i=0;i<program->count;i++){
@@ -341,23 +354,26 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
     memset(module,0,sizeof(*module));
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
-        Stmt *source=program->functions[i];SwanIRType params[16];
-        if(source->param_count>16){swan_error(error,&source->token,"IR backend supports at most 16 parameters per function");goto fail;}
-        for(size_t p=0;p<source->param_count;p++){params[p]=swan_irgen_type(source->param_types?source->param_types[p]:NULL);if(params[p]==SWAN_IR_VOID){swan_error(error,&source->token,"unsupported or missing parameter type");goto fail;}}
+        Stmt *source=program->functions[i];
+        if(source->param_count>UINT32_MAX-1u||source->param_count>SIZE_MAX/sizeof(SwanIRType)){swan_error(error,&source->token,"function parameter count exceeds the IR value-ID range");goto fail;}
+        SwanIRType *params=source->param_count?malloc(source->param_count*sizeof(*params)):NULL;
+        if(source->param_count&&!params){swan_error(error,&source->token,"out of memory lowering function parameters");goto fail;}
+        bool valid=true;for(size_t p=0;p<source->param_count;p++){params[p]=swan_irgen_type(source->param_types?source->param_types[p]:NULL);if(params[p]==SWAN_IR_VOID){swan_error(error,&source->token,"unsupported or missing parameter type");valid=false;break;}}
         SwanIRType ret=swan_irgen_type(source->type);
-        SwanIRFunction *created=swan_ir_add_function(module,source->name,ret,params,source->param_count);if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}created->external=source->external;
+        SwanIRFunction *created=valid?swan_ir_add_function(module,source->name,ret,params,source->param_count):NULL;free(params);
+        if(!valid)goto fail;if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}created->external=source->external;
     }
     if(!module->function_count){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
+    SwanIRGen g={0};
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
         Stmt *source=program->functions[i];if(source->external)continue;SwanIRFunction *fn=NULL;
         for(size_t fi=0;fi<module->function_count;fi++)if(!strcmp(module->functions[fi].name,source->name)){fn=&module->functions[fi];break;}
         if(!fn){swan_error(error,&source->token,"internal IR function mapping failure");goto fail;}
         SwanIRBlock *entry=swan_ir_add_block(fn,"entry");if(!entry){swan_error(error,&source->token,"out of memory creating entry block");goto fail;}
-        SwanIRGen g={0};g.module=module;g.function=fn;g.error=error;g.block=0;
+        g.module=module;g.function=fn;g.error=error;g.block=0;g.local_count=0;g.loop_depth=0;
         for(size_t p=0;p<source->param_count;p++){
-            if(g.local_count>=256)goto fail;
-            g.locals[g.local_count++]=(SwanIRLocal){source->params[p],(uint32_t)p+1,fn->parameter_types[p],false};
+            if(!swan_irgen_add_local(&g,(SwanIRLocal){source->params[p],(uint32_t)p+1,fn->parameter_types[p],false}))goto fail;
         }
         if(!swan_irgen_statements(&g,source->body,source->body_count))goto fail;
         if(swan_irgen_open(&g)){
@@ -365,9 +381,11 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
             else {swan_error(error,&source->token,"non-void function can reach its end without returning");goto fail;}
         }
     }
+    free(g.locals);free(g.break_targets);free(g.continue_targets);memset(&g,0,sizeof(g));
     {char verify[256];if(!swan_ir_verify(module,verify,sizeof(verify))){swan_error(error,NULL,"generated IR failed verification: %s",verify);goto fail;}}
     return true;
 fail:
+    free(g.locals);free(g.break_targets);free(g.continue_targets);
     swan_ir_destroy(module);return false;
 }
 #endif
