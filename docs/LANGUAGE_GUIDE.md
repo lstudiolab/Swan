@@ -744,6 +744,31 @@ The following are **not** reserved keywords: `int`, `bool`, `void`, `float`, `i6
 
 ---
 
+## 13.1 Module search paths
+
+A source module is imported by its file name without the `.swan` suffix:
+
+```swan
+import math_helpers
+
+func main() -> int:
+    !printin >> add_values(20, 22)
+    return 0
+```
+
+By default, the compiler searches the configured standard-library directory (`stdlib/`, `SWAN_STDLIB`, or `--stdlib`). Project and vendor module directories can be added with repeatable `--module-path` or `-I` options:
+
+```sh
+./build/swanc build app/main.swan \
+    --module-path app/modules \
+    --module-path vendor/swan \
+    -o app
+```
+
+The standard-library directory is searched first, followed by additional directories in the order supplied. Imported modules may import other modules; transitive imports use the same search path. A module currently maps to one `<name>.swan` file at the root of a search directory.
+
+**Current boundary:** imports are compiled into the same program and share the existing global function namespace. This does not yet provide package manifests, version constraints, lockfiles, module-qualified symbol isolation, visibility rules, or a separately compiled binary interface. The loader currently supports at most 64 imported modules, and the program representation supports at most 1,024 functions. These are explicit compiler limits, not recommended library sizes.
+
 ## 14. C interoperability
 
 The current C header importer uses Clang's C AST dump to read a supported subset of declarations. Imported functions become external declarations and native x86-64 System V calls.
