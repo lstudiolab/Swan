@@ -1,0 +1,1 @@
+This is a short information but some swan code in the benchmark's are outdated code and uses swan 1.0 beta which is the version of swan when its still in beta as the release version is called swan 1.0 sequoia, also as the release update come the pass benchmark swan code no longer work!
