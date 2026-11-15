@@ -35,8 +35,8 @@ static inline bool swan_ascii_digit(unsigned char c){return c>='0'&&c<='9';}
 static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)||c=='_'||c>=0x80;}
 static inline bool swan_ident_continue(unsigned char c){return swan_ident_start(c)||swan_ascii_digit(c);}
 static inline TokenKind swan_keyword(const char *s,size_t n) {
- /* Canonical Swan reserved-word set. Contextual spellings such as import/export
-  * are recognized by the parser where needed, but remain valid identifiers. */
+ /* Canonical Swan reserved-word set. File-scope declarations use reserved
+  * import/export tokens so misspellings cannot silently become identifiers. */
  switch(n) {
  case 2:
   if(!memcmp(s,"if",2))return T_IF;
@@ -72,6 +72,8 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"catch",5))return T_CATCH;
   break;
  case 6:
+  if(!memcmp(s,"import",6))return T_IMPORT;
+  if(!memcmp(s,"export",6))return T_EXPORT;
   if(!memcmp(s,"struct",6))return T_STRUCT;
   if(!memcmp(s,"return",6))return T_RETURN;
   if(!memcmp(s,"deinit",6))return T_DEINIT;
