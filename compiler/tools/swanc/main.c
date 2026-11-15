@@ -119,7 +119,8 @@ static int swan_run(int argc,char **argv){
   else if(!strcmp(argv[i],"--cpu")&&i+1<argc)target_cpu=argv[++i];
   else if(!strcmp(argv[i],"--profile"))swan_profile_enabled=true;
   else if(!strcmp(argv[i],"--warnings-as-errors"))warnings_as_errors=true;
-  else if(!strcmp(argv[i],"--stdlib")&&i+1<argc)stdlib_dir=argv[++i];
+  else if(!strcmp(argv[i],"--stdlib")&&i+1<argc){stdlib_dir=argv[++i];module_paths[0]=stdlib_dir;}
+  else if((!strcmp(argv[i],"--module-path")||!strcmp(argv[i],"-I"))&&i+1<argc){if(module_path_count>=64){fprintf(stderr,"swan: too many module search paths (maximum 64)\\n");return 2;}module_paths[module_path_count++]=argv[++i];}
   else if(!strcmp(argv[i],"-o")&&i+1<argc)output=argv[++i];
   else if(!strcmp(argv[i],"--link")&&i+1<argc){if(link_arg_count>=120){fprintf(stderr,"swan: too many linker inputs\n");return 2;}link_args[link_arg_count++]=argv[++i];}
   else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(link_arg_count+2>120)return 2;link_args[link_arg_count++]=argv[i];link_args[link_arg_count++]=argv[++i];}
@@ -152,9 +153,9 @@ static int swan_run(int argc,char **argv){
  swan_profile_end(SWAN_PROFILE_PARSE,stage);
  free(ts.items);p.source_function_count=p.count;
  if(!swan_import_c_headers(&p,&err)){fprintf(stderr,"swan: %s\n",err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
- char *module_sources[64]={0},*module_texts[64]={0};size_t module_count=0;
+ char **module_sources=NULL,**module_texts=NULL;size_t module_count=0,module_source_capacity=0,module_text_capacity=0;
  stage=swan_profile_start();
- if(!swan_load_imports(&p,stdlib_dir,module_sources,module_texts,&module_count,&err)){
+ if(!swan_load_imports(&p,module_paths,module_path_count,&module_sources,&module_texts,&module_count,&module_source_capacity,&module_text_capacity,&err)){
   fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;
  }
  swan_profile_end(SWAN_PROFILE_IMPORTS,stage);
@@ -162,7 +163,7 @@ static int swan_run(int argc,char **argv){
  if(!swan_semantic_check(&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  swan_profile_end(SWAN_PROFILE_SEMA,stage);
  stage=swan_profile_start();
- swan_compute_reachability(&p);swan_profile_end(SWAN_PROFILE_REACHABILITY,stage);
+ if(!swan_compute_reachability(&p,&err)){fprintf(stderr,"swan: %s\\n",err.message);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}swan_profile_end(SWAN_PROFILE_REACHABILITY,stage);
  swan_collect_warnings(&p);
  size_t warning_count=swan_print_warnings(&p);
  if(warnings_as_errors&&warning_count){
