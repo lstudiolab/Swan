@@ -17,9 +17,14 @@
 
 static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module,SwanError *error){
 #ifndef SWAN_SIL_BOOTSTRAP
-    SwanSILResult sil_result=swan_sil_try_irgen_program(program,module,error);
-    if(sil_result==SWAN_SIL_LOWERED)return true;
-    if(sil_result==SWAN_SIL_FAILED)return false;
+    /* SIL currently serializes source-level function names. Until its symbol
+       table consumes the module linker identities, imported programs use the
+       typed IR frontend directly rather than mixing two symbol namespaces. */
+    if(!program->module_count){
+        SwanSILResult sil_result=swan_sil_try_irgen_program(program,module,error);
+        if(sil_result==SWAN_SIL_LOWERED)return true;
+        if(sil_result==SWAN_SIL_FAILED)return false;
+    }
 #endif
     return swan_irgen_program(program,module,error);
 }
