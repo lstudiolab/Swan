@@ -349,3 +349,7 @@ compiler/
 ```
 
 Implementation headers live under `compiler/lib`. The small headers in `compiler/include/swan` forward to those implementations, preserving stable include paths for embedders and tests. The root `main.c` remains as a compatibility entry point.
+
+## Production systems language roadmap
+
+Swan's long-term workload targets include AAA game engines, high-throughput servers, AI infrastructure, operating systems, embedded software, and general-purpose applications. The implementation plan, required language/runtime capabilities, target backend gates, and definition-of-done policy are documented in [Production Systems Language Expansion](docs/PRODUCTION_SYSTEMS_LANGUAGE_ROADMAP.md). Planned capabilities are explicitly distinguished from implemented and production-validated features; the roadmap is not a claim that those capabilities already exist.
