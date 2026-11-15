@@ -1,27 +1,34 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed; int previous; } SwanSymbol;
-typedef struct { SwanSymbol *items; size_t count; int buckets[2048]; } SwanSymbols;
-static inline unsigned swan_name_hash(const char *s){
- uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;
+typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed; size_t previous; } SwanSymbol;
+typedef struct { SwanSymbol *items; size_t count,capacity; size_t *buckets,bucket_count; } SwanSymbols;
+static inline unsigned swan_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
+static inline bool swan_symbols_rehash(SwanSymbols *s,size_t wanted){
+ size_t count=16;while(count<wanted){if(count>SIZE_MAX/2)return false;count*=2;}
+ if(count>SIZE_MAX/sizeof(*s->buckets))return false;size_t *buckets=malloc(count*sizeof(*buckets));if(!buckets)return false;
+ for(size_t i=0;i<count;i++)buckets[i]=SIZE_MAX;
+ for(size_t i=0;i<s->count;i++){size_t b=swan_name_hash(s->items[i].name)&(count-1);s->items[i].previous=buckets[b];buckets[b]=i;}
+ free(s->buckets);s->buckets=buckets;s->bucket_count=count;return true;
 }
+static inline bool swan_symbols_init(SwanSymbols *s){memset(s,0,sizeof(*s));return swan_symbols_rehash(s,16);}
+static inline void swan_symbols_destroy(SwanSymbols *s){if(!s)return;free(s->items);free(s->buckets);memset(s,0,sizeof(*s));}
+static inline void swan_symbols_reset(SwanSymbols *s){s->count=0;for(size_t i=0;i<s->bucket_count;i++)s->buckets[i]=SIZE_MAX;}
 static inline Stmt *swan_find_function(Program *p,const char *name){
- if(p->function_indexed){unsigned b=swan_name_hash(name)&2047u;for(int n=p->function_buckets[b];n;n=p->function_next[n-1]){Stmt *fn=p->functions[n-1];if(!strcmp(fn->name,name))return fn;}return NULL;}
- for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];
- return NULL;
+ if(p->function_indexed&&p->function_bucket_count){size_t b=swan_name_hash(name)&(p->function_bucket_count-1);for(size_t n=p->function_buckets[b];n!=SIZE_MAX;n=p->function_next[n]){Stmt *fn=p->functions[n];if(!strcmp(fn->name,name))return fn;}return NULL;}
+ for(size_t i=0;i<p->count;i++)if(!strcmp(p->functions[i]->name,name))return p->functions[i];return NULL;
 }
 static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *index){
- unsigned b=swan_name_hash(name)&2047u;for(int n=s->buckets[b];n;n=s->items[n-1].previous){if(!strcmp(s->items[n-1].name,name)){if(index)*index=(size_t)(n-1);return true;}}return false;
+ if(!s->bucket_count)return false;size_t b=swan_name_hash(name)&(s->bucket_count-1);
+ for(size_t n=s->buckets[b];n!=SIZE_MAX;n=s->items[n].previous)if(!strcmp(s->items[n].name,name)){if(index)*index=n;return true;}return false;
 }
 static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array,bool manual,bool checked){
- if(s->count>=1024)return false;
- unsigned b=swan_name_hash(name)&2047u;size_t i=s->count++;
- SwanSymbol *v=&s->items[i];v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->previous=s->buckets[b];s->buckets[b]=(int)i+1;return true;
+ if(s->count==SIZE_MAX||!swan_reserve_array((void**)&s->items,&s->capacity,s->count+1,sizeof(*s->items)))return false;
+ if(s->count+1>s->bucket_count-s->bucket_count/4){if(s->bucket_count>SIZE_MAX/2||!swan_symbols_rehash(s,s->bucket_count*2))return false;}
+ size_t b=swan_name_hash(name)&(s->bucket_count-1),i=s->count++;SwanSymbol *v=&s->items[i];
+ v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->previous=s->buckets[b];s->buckets[b]=i;return true;
 }
-static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){
- while(s->count>mark){size_t i=--s->count;unsigned b=swan_name_hash(s->items[i].name)&2047u;s->buckets[b]=s->items[i].previous;}
-}
+static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){while(s->count>mark){size_t i=--s->count;size_t b=swan_name_hash(s->items[i].name)&(s->bucket_count-1);s->buckets[b]=s->items[i].previous;}}
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
  if(!expression)return false;
  if(expression->kind==E_CALL){
@@ -133,53 +140,27 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     break;
    case S_IF:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
-    size_t outer=symbols->count;
-    bool before[1024],then_state[1024],else_state[1024];
-    bool before_initialized[1024],then_initialized[1024],else_initialized[1024];
-    for(size_t k=0;k<outer;k++){
-     before[k]=symbols->items[k].manual_freed;
-     before_initialized[k]=symbols->items[k].initialized;
-    }
-    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);return false;}
-    for(size_t k=0;k<outer;k++){
-     then_state[k]=symbols->items[k].manual_freed;
-     then_initialized[k]=symbols->items[k].initialized;
-    }
+    size_t outer=symbols->count;if(outer>SIZE_MAX/(6*sizeof(bool))){swan_error(err,&s->token,"branch state size overflow");return false;}
+    bool *states=calloc(outer?outer*6:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking branch state");return false;}
+    bool *before=states,*then_state=states+outer,*else_state=states+outer*2,*before_initialized=states+outer*3,*then_initialized=states+outer*4,*else_initialized=states+outer*5;
+    for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;}
+    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
+    for(size_t k=0;k<outer;k++){then_state[k]=symbols->items[k].manual_freed;then_initialized[k]=symbols->items[k].initialized;}
+    swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++){symbols->items[k].manual_freed=before[k];symbols->items[k].initialized=before_initialized[k];}
+    if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
+    for(size_t k=0;k<outer;k++){else_state[k]=symbols->items[k].manual_freed;else_initialized[k]=symbols->items[k].initialized;}
     swan_symbols_leave(symbols,outer);
-    for(size_t k=0;k<outer;k++){
-     symbols->items[k].manual_freed=before[k];
-     symbols->items[k].initialized=before_initialized[k];
-    }
-    if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);return false;}
-    for(size_t k=0;k<outer;k++){
-     else_state[k]=symbols->items[k].manual_freed;
-     else_initialized[k]=symbols->items[k].initialized;
-    }
-    swan_symbols_leave(symbols,outer);
-    for(size_t k=0;k<outer;k++){
-     if(symbols->items[k].manual_checked&&then_state[k]!=else_state[k]){
-      swan_error(err,&s->token,"manual variable '%s' must have the same ownership state on every branch",symbols->items[k].name);return false;
-     }
-     symbols->items[k].manual_freed=then_state[k];
-     symbols->items[k].initialized=then_initialized[k]&&else_initialized[k];
-    }
-    break;
+    for(size_t k=0;k<outer;k++){if(symbols->items[k].manual_checked&&then_state[k]!=else_state[k]){swan_error(err,&s->token,"manual variable '%s' must have the same ownership state on every branch",symbols->items[k].name);free(states);return false;}symbols->items[k].manual_freed=then_state[k];symbols->items[k].initialized=then_initialized[k]&&else_initialized[k];}
+    free(states);break;
    }
    case S_WHILE:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
-    size_t outer=symbols->count;
-    bool before[1024],before_initialized[1024];
-    for(size_t k=0;k<outer;k++){
-     before[k]=symbols->items[k].manual_freed;
-     before_initialized[k]=symbols->items[k].initialized;
-    }
-    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,outer);return false;}
-    for(size_t k=0;k<outer;k++)if(symbols->items[k].manual_checked&&symbols->items[k].manual_freed!=before[k]){
-     swan_error(err,&s->token,"manual variable '%s' cannot change ownership inside a loop; free it after the loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);return false;
-    }
-    swan_symbols_leave(symbols,outer);
-    for(size_t k=0;k<outer;k++)symbols->items[k].initialized=before_initialized[k];
-    break;
+    size_t outer=symbols->count;if(outer>SIZE_MAX/(2*sizeof(bool))){swan_error(err,&s->token,"loop state size overflow");return false;}
+    bool *states=calloc(outer?outer*2:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking loop state");return false;}
+    bool *before=states,*before_initialized=states+outer;for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;}
+    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,outer);free(states);return false;}
+    for(size_t k=0;k<outer;k++)if(symbols->items[k].manual_checked&&symbols->items[k].manual_freed!=before[k]){swan_error(err,&s->token,"manual variable '%s' cannot change ownership inside a loop; free it after the loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);free(states);return false;}
+    swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++)symbols->items[k].initialized=before_initialized[k];free(states);break;
    }
    case S_BREAK:case S_CONTINUE:
     if(!loop_depth){swan_error(err,&s->token,"break and continue are only valid inside a loop");return false;}
@@ -279,87 +260,38 @@ static inline size_t swan_print_warnings(const Program *program){
  return program->warning_count+program->warnings_dropped;
 }
 
-static inline bool swan_validate_local_names(Stmt **body,size_t count,
-        const char **names,size_t *name_count,SwanError *error){
- for(size_t i=0;i<count;i++){
-  Stmt *statement=body[i];
-  if(!statement)continue;
-  if(statement->kind==S_VARIABLE){
-   for(size_t prior=0;prior<*name_count;prior++){
-    if(!strcmp(names[prior],statement->name)){
-     swan_error(error,&statement->token,
-                "local variable '%s' is redeclared; local shadowing is not supported",
-                statement->name);
-     return false;
-    }
-   }
-   if(*name_count>=1024){
-    swan_error(error,&statement->token,
-               "function exceeds the 1024-local-variable limit");
-    return false;
-   }
-   names[(*name_count)++]=statement->name;
+static inline bool swan_validate_local_names(Stmt **body,size_t count,const char ***names,size_t *name_count,size_t *name_capacity,SwanError *error){
+ for(size_t i=0;i<count;i++){Stmt *statement=body[i];if(!statement)continue;
+  if(statement->kind==S_VARIABLE){for(size_t prior=0;prior<*name_count;prior++)if(!strcmp((*names)[prior],statement->name)){swan_error(error,&statement->token,"local variable '%s' is redeclared; local shadowing is not supported",statement->name);return false;}
+   if(*name_count==SIZE_MAX||!swan_reserve_array((void**)names,name_capacity,*name_count+1,sizeof(**names))){swan_error(error,&statement->token,"out of memory validating local declarations");return false;}(*names)[(*name_count)++]=statement->name;
   }
-  if(!swan_validate_local_names(statement->body,statement->body_count,
-                                names,name_count,error)||
-     !swan_validate_local_names(statement->alternate,statement->alt_count,
-                                names,name_count,error))return false;
- }
- return true;
+  if(!swan_validate_local_names(statement->body,statement->body_count,names,name_count,name_capacity,error)||!swan_validate_local_names(statement->alternate,statement->alt_count,names,name_count,name_capacity,error))return false;
+ }return true;
 }
 
 static inline bool swan_semantic_check(Program *p,SwanError *err){
- if(err)memset(err,0,sizeof(*err));
- if(!p){
-  swan_error(err,NULL,"semantic analysis requires a program");
-  return false;
- }
- if(p->count>1024){
-  swan_error(err,NULL,"program exceeds the semantic function limit");
-  return false;
- }
- for(size_t i=0;i<p->count;i++){
-  if(!p->functions[i]||!p->functions[i]->name||!p->functions[i]->name[0]){
-   swan_error(err,p->functions[i]?&p->functions[i]->token:NULL,
-              "program contains an invalid function declaration");
-   return false;
-  }
-  if(p->functions[i]->param_count>16||
-     (p->functions[i]->param_count&&!p->functions[i]->params)){
-   swan_error(err,&p->functions[i]->token,
-              "function '%s' has invalid parameter storage or exceeds the 16-parameter limit",
-              p->functions[i]->name);
-   return false;
-  }
- }
- memset(p->function_buckets,0,sizeof(p->function_buckets));p->function_indexed=true;
- for(size_t i=0;i<p->count;i++){
-  unsigned b=swan_name_hash(p->functions[i]->name)&2047u;
-  for(int n=p->function_buckets[b];n;n=p->function_next[n-1])if(!strcmp(p->functions[n-1]->name,p->functions[i]->name)){swan_error(err,&p->functions[i]->token,"function '%s' is already declared",p->functions[i]->name);return false;}
-  p->function_next[i]=(unsigned short)p->function_buckets[b];p->function_buckets[b]=(int)i+1;
- }
+ if(err)memset(err,0,sizeof(*err));if(!p){swan_error(err,NULL,"semantic analysis requires a program");return false;}
+ for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(!fn||!fn->name||!fn->name[0]){swan_error(err,fn?&fn->token:NULL,"program contains an invalid function declaration");return false;}if(fn->param_count&&!fn->params){swan_error(err,&fn->token,"function '%s' has invalid parameter storage",fn->name);return false;}}
+ if(p->count>SIZE_MAX/2){swan_error(err,NULL,"function index size overflow");return false;}size_t bucket_count=16;
+ while(bucket_count<p->count*2){if(bucket_count>SIZE_MAX/2){swan_error(err,NULL,"function index size overflow");return false;}bucket_count*=2;}
+ if(bucket_count>SIZE_MAX/sizeof(*p->function_buckets)||p->count>SIZE_MAX/sizeof(*p->function_next)){swan_error(err,NULL,"function index size overflow");return false;}
+ size_t *buckets=malloc(bucket_count*sizeof(*buckets)),*next=p->count?malloc(p->count*sizeof(*next)):NULL;
+ if(!buckets||(p->count&&!next)){free(buckets);free(next);swan_error(err,NULL,"out of memory building function index");return false;}
+ for(size_t i=0;i<bucket_count;i++)buckets[i]=SIZE_MAX;
+ for(size_t i=0;i<p->count;i++){size_t b=swan_name_hash(p->functions[i]->name)&(bucket_count-1);for(size_t n=buckets[b];n!=SIZE_MAX;n=next[n])if(!strcmp(p->functions[n]->name,p->functions[i]->name)){swan_error(err,&p->functions[i]->token,"function '%s' is already declared",p->functions[i]->name);free(buckets);free(next);return false;}next[i]=buckets[b];buckets[b]=i;}
+ free(p->function_buckets);free(p->function_next);p->function_buckets=buckets;p->function_next=next;p->function_bucket_count=bucket_count;p->function_indexed=true;
  if(!swan_find_function(p,"main")){swan_error(err,NULL,"program must define fn main");return false;}
- SwanSymbols symbols={0};symbols.items=calloc(1024,sizeof(*symbols.items));if(!symbols.items){swan_error(err,NULL,"out of memory allocating semantic symbol table");return false;}
- bool ok=true;
- for(size_t i=0;i<p->count&&ok;i++){
-  Stmt *fn=p->functions[i];if(fn->external)continue;symbols.count=0;memset(symbols.buckets,0,sizeof(symbols.buckets));
-  const char *local_names[1024];
-  size_t local_name_count=0;
-  for(size_t a=0;a<fn->param_count;a++){
-   if(!fn->params[a]||!fn->params[a][0]){
-    swan_error(err,&fn->token,"function '%s' has an invalid parameter name",fn->name);
-    ok=false;
-    break;
-   }
+ SwanSymbols symbols={0};if(!swan_symbols_init(&symbols)){swan_error(err,NULL,"out of memory initializing semantic symbol table");return false;}bool ok=true;
+ for(size_t i=0;i<p->count&&ok;i++){Stmt *fn=p->functions[i];if(fn->external)continue;swan_symbols_reset(&symbols);const char **local_names=NULL;size_t local_name_count=0,local_name_capacity=0;
+  for(size_t a=0;a<fn->param_count;a++){if(!fn->params[a]||!fn->params[a][0]){swan_error(err,&fn->token,"function '%s' has an invalid parameter name",fn->name);ok=false;break;}
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    bool is_array=fn->param_types&&fn->param_types[a]&&!strcmp(fn->param_types[a],"u32_array");
-   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)){swan_error(err,&fn->token,"too many parameters");ok=false;break;}
-   local_names[local_name_count++]=fn->params[a];
+   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)){swan_error(err,&fn->token,"out of memory adding function parameter");ok=false;break;}
+   if(!swan_reserve_array((void**)&local_names,&local_name_capacity,local_name_count+1,sizeof(*local_names))){swan_error(err,&fn->token,"out of memory validating parameters");ok=false;break;}local_names[local_name_count++]=fn->params[a];
   }
-  if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,
-                                     local_names,&local_name_count,err);
-  if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);
+  if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,&local_names,&local_name_count,&local_name_capacity,err);
+  if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);free(local_names);
  }
- free(symbols.items);return ok;
+ swan_symbols_destroy(&symbols);return ok;
 }
 #endif
