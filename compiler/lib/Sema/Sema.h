@@ -315,9 +315,15 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
  if(p->count>SIZE_MAX/2){swan_error(err,NULL,"function index size overflow");return false;}size_t bucket_count=16;
  while(bucket_count<p->count*2){if(bucket_count>SIZE_MAX/2){swan_error(err,NULL,"function index size overflow");return false;}bucket_count*=2;}
  if(bucket_count>SIZE_MAX/sizeof(*p->function_buckets)||p->count>SIZE_MAX/sizeof(*p->function_next)){swan_error(err,NULL,"function index size overflow");return false;}
- size_t *buckets=malloc(bucket_count*sizeof(*buckets)),*next=p->count?malloc(p->count*sizeof(*next)):NULL;
- if(!buckets||(p->count&&!next)){free(buckets);free(next);swan_error(err,NULL,"out of memory building function index");return false;}
- for(size_t i=0;i<bucket_count;i++)buckets[i]=SIZE_MAX;
+ size_t *buckets=malloc(bucket_count*sizeof(*buckets));
+ size_t *next=p->count?malloc(p->count*sizeof(*next)):NULL;
+ size_t *link_buckets=malloc(bucket_count*sizeof(*link_buckets));
+ size_t *link_next=p->count?malloc(p->count*sizeof(*link_next)):NULL;
+ if(!buckets||!link_buckets||(p->count&&(!next||!link_next))){
+  free(buckets);free(next);free(link_buckets);free(link_next);
+  swan_error(err,NULL,"out of memory building function indexes");return false;
+ }
+ for(size_t i=0;i<bucket_count;i++){buckets[i]=SIZE_MAX;link_buckets[i]=SIZE_MAX;}
  for(size_t i=0;i<p->count;i++){
   Stmt *current=p->functions[i];size_t b=swan_name_hash(current->name)&(bucket_count-1);
   for(size_t n=buckets[b];n!=SIZE_MAX;n=next[n]){
@@ -326,12 +332,23 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
       ((!prior->imported&&!current->imported)||
        (prior->imported&&current->imported&&prior->module_index==current->module_index))){
     swan_error(err,&current->token,"function '%s' is already declared in this scope",current->name);
-    free(buckets);free(next);return false;
+    free(buckets);free(next);free(link_buckets);free(link_next);return false;
    }
   }
   next[i]=buckets[b];buckets[b]=i;
+  const char *link_name=current->link_name?current->link_name:current->name;
+  size_t lb=swan_name_hash(link_name)&(bucket_count-1);
+  for(size_t n=link_buckets[lb];n!=SIZE_MAX;n=link_next[n])
+   if(!strcmp(p->functions[n]->link_name?p->functions[n]->link_name:p->functions[n]->name,link_name)){
+    swan_error(err,&current->token,"internal linker symbol '%s' is duplicated",link_name);
+    free(buckets);free(next);free(link_buckets);free(link_next);return false;
+   }
+  link_next[i]=link_buckets[lb];link_buckets[lb]=i;
  }
- free(p->function_buckets);free(p->function_next);p->function_buckets=buckets;p->function_next=next;p->function_bucket_count=bucket_count;p->function_indexed=true;
+ free(p->function_buckets);free(p->function_next);free(p->link_function_buckets);free(p->link_function_next);
+ p->function_buckets=buckets;p->function_next=next;
+ p->link_function_buckets=link_buckets;p->link_function_next=link_next;
+ p->function_bucket_count=bucket_count;p->function_indexed=true;
  if(!swan_find_function(p,"main")){swan_error(err,NULL,"program must define fn main");return false;}
  SwanSymbols symbols={0};if(!swan_symbols_init(&symbols)){swan_error(err,NULL,"out of memory initializing semantic symbol table");return false;}bool ok=true;
  for(size_t i=0;i<p->count&&ok;i++){Stmt *fn=p->functions[i];if(fn->external)continue;swan_symbols_reset(&symbols);const char **local_names=NULL;size_t local_name_count=0,local_name_capacity=0;
