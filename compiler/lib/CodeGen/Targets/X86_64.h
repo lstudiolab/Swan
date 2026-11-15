@@ -275,11 +275,11 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   return;
  }
  if(e->argc>6){swan_error(err,&e->token,"x86-64 backend supports at most six arguments");return;}
- Stmt *callee_fn=o->program?cg_find_function(o->program,name):NULL;
+ Stmt *callee_fn=o->program?cg_find_link_function(o->program,name):NULL;
  int target_module=callee_fn&&callee_fn->imported?callee_fn->module_index:-1;
  bool external_call=callee_fn&&callee_fn->external;
  if(o->program&&(o->program->bundle_imports||target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
-  Stmt *fn=cg_find_function(o->program,name);
+  Stmt *fn=cg_find_link_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
    const char *parameter=fn->params[0];Expr *body=fn->body[0]->value;
    if(expr_inline_pure(body,parameter,true)){
@@ -293,7 +293,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  }
  const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
  char symbol[SWAN_MAX_TEXT+32];
- if(external_call||(callee_fn&&callee_fn->exported))snprintf(symbol,sizeof(symbol),"%s",name);
+ if(external_call||(callee_fn&&callee_fn->exported&&!callee_fn->imported))snprintf(symbol,sizeof(symbol),"%s",name);
  else if(target_module>=0&&o->program&&!o->program->bundle_imports&&target_module!=o->program->codegen_module_index)snprintf(symbol,sizeof(symbol),"swan_lazy_%s",name);
  else if(!strcmp(name,"main"))strcpy(symbol,"main");
  else snprintf(symbol,sizeof(symbol),"swan_fn_%s",name);
