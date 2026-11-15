@@ -16,7 +16,7 @@ Create a file named `hello.swan`:
 
 ```swan
 func main() -> int:
-    log "Hello, Swan!"
+    !printin >> "Hello, Swan!";
     return 0
 ```
 
@@ -46,7 +46,7 @@ Equivalent compatibility example:
 
 ```swan
 fn main() -> int:
-    log "Hello"
+    !printin >> "Hello";
     return 0
 ```
 
@@ -63,9 +63,9 @@ Use four spaces per indentation level. Do not mix tabs and spaces. A block begin
 ```swan
 func main() -> int:
     if 10 > 5:
-        log "Ten is greater"
+        !printin >> "Ten is greater";
     else:
-        log "This branch is not selected"
+        !printin >> "This branch is not selected";
 
     return 0
 ```
@@ -92,7 +92,7 @@ A hash begins a line comment:
 # This is a comment.
 func main() -> int:
     # This is also a comment.
-    log "Ready"
+    !printin >> "Ready";
     return 0
 ```
 
@@ -137,9 +137,9 @@ func main() -> int:
     var score = 10
     score = score + 5
 
-    log language
-    log version
-    log score
+    !printin >> language;
+    !printin >> version;
+    !printin >> score;
     return 0
 ```
 
@@ -185,7 +185,7 @@ func add(left: int, right: int) -> int:
 
 func main() -> int:
     let result = add(20, 22)
-    log result
+    !printin >> result;
     return 0
 ```
 
@@ -206,7 +206,7 @@ A simple function call:
 
 ```swan
 func greet():
-    log "Welcome"
+    !printin >> "Welcome";
 
 func main() -> int:
     greet()
@@ -234,27 +234,19 @@ This does not imply that every Swan type or every target ABI can be exported.
 
 ## 5. Output
 
-The current language provides a built-in logging/output statement:
+Swan has one output operation, provided by the standard library:
 
 ```swan
-log "Hello"
-log 123
-log 3.14
-log true
-```
+import std
 
-The parser also accepts `print expression` and the `echo!(...)` output intrinsic form:
-
-```swan
 func main() -> int:
-    print "Output through print"
-    echo!("Output through echo!")
+    !printin >> "Hello, Swan!";
+    !printin >> 123;
+    !printin >> true;
     return 0
 ```
 
-The Foundation module provides `echo_int` and `echo_bool` functions. The compiler's `log` statement is a language construct; `echo_int` and `echo_bool` are library functions.
-
----
+`!printin >> expression;` is the single standard-library output intrinsic. It writes the value followed by a newline. There are no separate `log`, `print`, or `echo!` language operations.
 
 ## 6. Types and values
 
@@ -381,9 +373,9 @@ func main() -> int:
     let score = 85
 
     if score >= 90:
-        log "Excellent"
+        !printin >> "Excellent";
     else:
-        log "Keep improving"
+        !printin >> "Keep improving";
 
     return 0
 ```
@@ -411,7 +403,7 @@ func main() -> int:
     var count = 0
 
     while count < 5:
-        log count
+        !printin >> count;
         count = count + 1
 
     return 0
@@ -436,7 +428,7 @@ func main() -> int:
         if count == 7:
             break
 
-        log count
+        !printin >> count;
 
     return 0
 ```
@@ -497,7 +489,7 @@ func main() -> int:
     var values = array_u32(4)
     values[0] = 10
     values[1] = 20
-    log values[0]
+    !printin >> values[0];
     return 0
 ```
 
@@ -577,7 +569,7 @@ These are library functions, not language keywords. Their current implementation
 
 ---
 
-### 12.1 The `std:` namespace
+### 12.1 The `!` standard-library prefix
 
 Import the standard library module once at file scope:
 
@@ -585,40 +577,40 @@ Import the standard library module once at file scope:
 import std
 
 func main() -> int:
-    std:print >> "Hello from Swan"
-    std:print >> std:abs(-42)
-    std:print >> std:max(10, 20)
+    !print >> "Hello from Swan"
+    !print >> !abs(-42)
+    !print >> !max(10, 20)
     return 0
 ```
 
-Every public standard-library function is called through the explicit `std:` prefix. The prefix is namespace syntax, not a reserved keyword and not a new runtime. It resolves to functions in `stdlib/std.swan` during the normal import and semantic-analysis phases.
+The `!` prefix selects the standard-library namespace. It is not a separate runtime or a reserved word. Imported functions in `stdlib/std.swan` are resolved during normal semantic analysis.
 
-The output intrinsic uses the same namespace and the `>>` output operator:
+The output intrinsic uses the same prefix and the `>>` operator:
 
 ```swan
-std:print >> "text"
-std:print >> 42
-std:print >> true
+!print >> "text"
+!print >> 42
+!print >> true
 ```
 
-The `std:print` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
+The `!print` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
 
 | API | Behavior |
 |---|---|
-| `std:abs(value)` | Absolute value |
-| `std:min(left, right)` | Smaller integer |
-| `std:max(left, right)` | Larger integer |
-| `std:clamp(value, lower, upper)` | Constrain an integer to a range |
-| `std:sign(value)` | Returns -1, 0, or 1 |
-| `std:square(value)` | Integer square |
-| `std:cube(value)` | Integer cube |
-| `std:power(base, exponent)` | Integer power; negative exponents return 0 |
-| `std:factorial(value)` | Factorial; negative inputs return 0 |
-| `std:sum_to(value)` | Sum from 1 through the input |
-| `std:is_even(value)` | Evenness test |
-| `std:is_odd(value)` | Oddness test |
-| `std:in_range(value, lower, upper)` | Inclusive range test |
-| `std:average(left, right)` | Integer average |
+| `!abs(value)` | Absolute value |
+| `!min(left, right)` | Smaller integer |
+| `!max(left, right)` | Larger integer |
+| `!clamp(value, lower, upper)` | Constrain an integer to a range |
+| `!sign(value)` | Returns -1, 0, or 1 |
+| `!square(value)` | Integer square |
+| `!cube(value)` | Integer cube |
+| `!power(base, exponent)` | Integer power; negative exponents return 0 |
+| `!factorial(value)` | Factorial; negative inputs return 0 |
+| `!sum_to(value)` | Sum from 1 through the input |
+| `!is_even(value)` | Evenness test |
+| `!is_odd(value)` | Oddness test |
+| `!in_range(value, lower, upper)` | Inclusive range test |
+| `!average(left, right)` | Integer average |
 
 The current standard library is integer-focused. Arithmetic overflow follows the active target/backend behavior; these helpers do not yet provide checked-arithmetic guarantees. Importing `std` is explicit. The compiler does not silently inject standard-library declarations into every source file.
 
@@ -630,9 +622,9 @@ Import the integer mathematics module separately:
 import std_math
 
 func main() -> int:
-    std:print >> std:gcd(84, 30)
-    std:print >> std:integer_sqrt(144)
-    std:print >> std:is_prime(97)
+    !print >> !gcd(84, 30)
+    !print >> !integer_sqrt(144)
+    !print >> !is_prime(97)
     return 0
 ```
 
@@ -640,19 +632,19 @@ The Swan-authored `stdlib/std_math.swan` module currently provides:
 
 | API | Behavior |
 |---|---|
-| `std:gcd(left, right)` | Euclidean greatest common divisor |
-| `std:lcm(left, right)` | Least common multiple; returns 0 if either input is 0 |
-| `std:euclidean_mod(value, modulus)` | Non-negative remainder for positive modulus; returns 0 for non-positive modulus |
-| `std:floor_div(left, right)` | Mathematical floor division; returns 0 for a zero divisor |
-| `std:ceil_div(left, right)` | Mathematical ceiling division; returns 0 for a zero divisor |
-| `std:integer_sqrt(value)` | Floor of the non-negative integer square root; negative input returns 0 |
-| `std:is_prime(value)` | Primality test by trial division |
-| `std:is_composite(value)` | Composite-number test |
-| `std:triangular(value)` | Sum from 1 through a positive input |
-| `std:distance_int(left, right)` | Absolute distance between integer values |
-| `std:is_power_of_two(value)` | Tests for a positive power of two |
-| `std:next_power_of_two(value)` | Next power of two for positive inputs; the caller must ensure the result fits the signed integer range |
-| `std:fibonacci(value)` | Iterative Fibonacci number; negative input returns 0 |
+| `!gcd(left, right)` | Euclidean greatest common divisor |
+| `!lcm(left, right)` | Least common multiple; returns 0 if either input is 0 |
+| `!euclidean_mod(value, modulus)` | Non-negative remainder for positive modulus; returns 0 for non-positive modulus |
+| `!floor_div(left, right)` | Mathematical floor division; returns 0 for a zero divisor |
+| `!ceil_div(left, right)` | Mathematical ceiling division; returns 0 for a zero divisor |
+| `!integer_sqrt(value)` | Floor of the non-negative integer square root; negative input returns 0 |
+| `!is_prime(value)` | Primality test by trial division |
+| `!is_composite(value)` | Composite-number test |
+| `!triangular(value)` | Sum from 1 through a positive input |
+| `!distance_int(left, right)` | Absolute distance between integer values |
+| `!is_power_of_two(value)` | Tests for a positive power of two |
+| `!next_power_of_two(value)` | Next power of two for positive inputs; the caller must ensure the result fits the signed integer range |
+| `!fibonacci(value)` | Iterative Fibonacci number; negative input returns 0 |
 
 These functions are regular Swan code, not compiler intrinsics. They are compiled with the importing program. Integer overflow in arithmetic functions that do not explicitly guard it follows the active backend's integer behavior.
 
@@ -670,9 +662,9 @@ func main() -> int:
     values[2] = 6
     values[3] = 1
 
-    std:array_insertion_sort(values, 4)
-    std:print >> std:array_sum(values, 4)
-    std:print >> std:array_binary_search(values, 4, 6)
+    !array_insertion_sort(values, 4)
+    !print >> !array_sum(values, 4)
+    !print >> !array_binary_search(values, 4, 6)
     return 0
 ```
 
@@ -861,13 +853,13 @@ func main() -> int:
     var total = calculate_total(unit_price, quantity)
 
     if total >= 100:
-        log "Large order"
+        !printin >> "Large order";
     else:
-        log "Standard order"
+        !printin >> "Standard order";
 
     var counter = 0
     while counter < quantity:
-        log counter
+        !printin >> counter;
         counter = counter + 1
 
     echo_int(total)
