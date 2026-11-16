@@ -30,6 +30,12 @@ static inline bool swan_utf8_valid(const unsigned char *s,size_t n,size_t *bad) 
  }
  return true;
 }
+static inline void swan_source_location(const char *src,size_t offset,unsigned *line,unsigned *col) {
+ unsigned l=1,c=1;
+ for(size_t i=0;i<offset;i++){if(src[i]=='\n'){l++;c=1;}else c++;}
+ if(line)*line=l;
+ if(col)*col=c;
+}
 static inline bool swan_ascii_alpha(unsigned char c){return (c>='a'&&c<='z')||(c>='A'&&c<='Z');}
 static inline bool swan_ascii_digit(unsigned char c){return c>='0'&&c<='9';}
 static inline bool swan_ident_start(unsigned char c){return swan_ascii_alpha(c)||c=='_'||c>=0x80;}
@@ -88,20 +94,22 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
  }
  return T_IDENT;
 }
+static inline bool swan_emit_view(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
+ if(ts->count==SIZE_MAX||ts->count+1>SIZE_MAX/sizeof(*ts->items)){Token t={0};swan_error(err,&t,"token count exceeds addressable storage");return false;}
+ if(ts->count==ts->capacity){size_t cap=ts->capacity?ts->capacity*2:4;if(cap<ts->capacity||cap>SIZE_MAX/sizeof(*ts->items)){swan_error(err,NULL,"token storage size overflow");return false;}Token *items=realloc(ts->items,cap*sizeof(*items));if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}ts->items=items;ts->capacity=cap;}
+ Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;t->text=n?s:"";return true;
+}
 static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
  if(ts->count==SIZE_MAX||ts->count+1>SIZE_MAX/sizeof(*ts->items)){Token t={0};swan_error(err,&t,"token count exceeds addressable storage");return false;}
  if(ts->count==ts->capacity){
-  size_t cap=ts->capacity?ts->capacity:256;
+  size_t cap=ts->capacity?ts->capacity*2:(ts->length/8+4<64?ts->length/8+4:64);if(cap<4)cap=4;
   if(ts->capacity){if(cap>SIZE_MAX/2)cap=ts->count+1;else cap*=2;}
   if(cap<ts->count+1||cap>SIZE_MAX/sizeof(*ts->items)){swan_error(err,NULL,"token storage size overflow");return false;}
   Token *items=realloc(ts->items,cap*sizeof(*items));if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}ts->items=items;ts->capacity=cap;
  }
  if(n>SIZE_MAX-ts->text_used-1){Token t={0};t.line=line;t.col=col;swan_error(err,&t,"token text storage size overflow");return false;}
- if(n&&n+1>ts->text_capacity-ts->text_used){
-  size_t need=ts->text_used+n+1,cap=ts->text_capacity?ts->text_capacity:64;
-  while(cap<need){if(cap>SIZE_MAX/2){cap=need;break;}cap*=2;}
-  char *storage=realloc(ts->text_storage,cap);if(!storage){swan_error(err,NULL,"out of memory storing token text");return false;}ts->text_storage=storage;ts->text_capacity=cap;
- }
+ if(n&&!ts->text_storage){ts->text_capacity=ts->length+1;ts->text_storage=malloc(ts->text_capacity);if(!ts->text_storage){swan_error(err,NULL,"out of memory storing token text");return false;}}
+ if(n&&n+1>ts->text_capacity-ts->text_used){Token t={0};t.line=line;t.col=col;swan_error(err,&t,"decoded token text exceeds source-sized storage");return false;}
  Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;
  if(n){t->text=ts->text_storage+ts->text_used;memcpy(ts->text_storage+ts->text_used,s,n);ts->text_storage[ts->text_used+n]=0;ts->text_used+=n+1;}else t->text="";return true;
 }
@@ -110,10 +118,8 @@ static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
  if(!src||!ts){swan_error(err,NULL,"lexer requires source text and an output token stream");return false;}
  memset(ts,0,sizeof(*ts));ts->source=src;ts->length=strlen(src);
  size_t bad=0;
- if(!swan_utf8_valid((const unsigned char*)src,ts->length,&bad)){swan_error(err,NULL,"source is not valid UTF-8 at byte offset %zu",bad);return false;}
- if(ts->length>(SIZE_MAX-16)/2){swan_error(err,NULL,"source file is too large");return false;}
- ts->text_capacity=ts->length*2+16;ts->text_storage=malloc(ts->text_capacity);
- if(!ts->text_storage){swan_error(err,NULL,"out of memory allocating token text");return false;}
+ if(!swan_utf8_valid((const unsigned char*)src,ts->length,&bad)){unsigned l,c;swan_source_location(src,bad,&l,&c);Token t={0};t.line=l;t.col=c;swan_error(err,&t,"source is not valid UTF-8 (byte offset %zu)",bad);return false;}
+ if(ts->length==SIZE_MAX){swan_error(err,NULL,"source file is too large");return false;}
  size_t i=0;unsigned line=1,col=1;unsigned indents[128]={0};size_t depth=1;bool line_start=true;
  /* Accept and strip an optional UTF-8 BOM at the beginning of a source file. */
  if(ts->length>=3&&(unsigned char)src[0]==0xEF&&(unsigned char)src[1]==0xBB&&(unsigned char)src[2]==0xBF)i=3;
@@ -129,13 +135,13 @@ static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
   if(c=='#'){while(i<ts->length&&src[i]!='\n'){i++;col++;}continue;}
   if(c=='\n'){if(!swan_emit(ts,T_NEWLINE,"",0,line,col,err))return false;i++;line++;col=1;line_start=true;continue;}
   unsigned sl=line,sc=col;size_t st=i;
-  if(swan_ident_start((unsigned char)c)){while(i<ts->length&&swan_ident_continue((unsigned char)src[i])){size_t width=(unsigned char)src[i]>=0x80?swan_utf8_width((const unsigned char*)src+i):1;i+=width;col+=(unsigned)width;}size_t n=i-st;if(!swan_emit(ts,swan_keyword(src+st,n),src+st,n,sl,sc,err))return false;continue;}
-  if(swan_ascii_digit((unsigned char)c)){while(i<ts->length&&swan_ascii_digit((unsigned char)src[i])){i++;col++;}TokenKind k=T_INT;if(i+1<ts->length&&src[i]=='.'&&swan_ascii_digit((unsigned char)src[i+1])){k=T_FLOAT;i++;col++;while(i<ts->length&&swan_ascii_digit((unsigned char)src[i])){i++;col++;}}if(!swan_emit(ts,k,src+st,i-st,sl,sc,err))return false;continue;}
-  if(c=='"'||c=='\''){char quote=c;i++;col++;char value[SWAN_MAX_TEXT];size_t n=0;bool closed=false;while(i<ts->length){c=src[i++];col++;if(c==quote){closed=true;break;}if(c=='\\'){if(i>=ts->length)break;c=src[i++];col++;switch(c){case 'n':c='\n';break;case 'r':c='\r';break;case 't':c='\t';break;case '\\':case '"':case '\'':break;default:{Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unknown string escape");return false;}}}if(n+1>=sizeof(value)){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"string literal too long");return false;}value[n++]=c;}if(!closed){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unterminated string");return false;}if(!swan_emit(ts,T_STRING,value,n,sl,sc,err))return false;continue;}
+  if(swan_ident_start((unsigned char)c)){while(i<ts->length&&swan_ident_continue((unsigned char)src[i])){size_t width=(unsigned char)src[i]>=0x80?swan_utf8_width((const unsigned char*)src+i):1;i+=width;col+=(unsigned)width;}size_t n=i-st;if(!swan_emit_view(ts,swan_keyword(src+st,n),src+st,n,sl,sc,err))return false;continue;}
+  if(swan_ascii_digit((unsigned char)c)){while(i<ts->length&&swan_ascii_digit((unsigned char)src[i])){i++;col++;}TokenKind k=T_INT;if(i+1<ts->length&&src[i]=='.'&&swan_ascii_digit((unsigned char)src[i+1])){k=T_FLOAT;i++;col++;while(i<ts->length&&swan_ascii_digit((unsigned char)src[i])){i++;col++;}}if(!swan_emit_view(ts,k,src+st,i-st,sl,sc,err))return false;continue;}
+  if(c=='"'||c=='\''){char quote=c;bool triple=quote=='"'&&i+2<ts->length&&src[i+1]=='"'&&src[i+2]=='"';size_t opening=triple?3:1;i+=opening;col+=(unsigned)opening;char value[SWAN_MAX_TEXT];size_t n=0;bool closed=false;while(i<ts->length){if(triple&&i+2<ts->length&&src[i]=='"'&&src[i+1]=='"'&&src[i+2]=='"'){i+=3;col+=3;closed=true;break;}c=src[i++];if(c=='\n'){if(!triple){i--;break;}line++;col=1;line_start=false;}else col++;if(c==quote&&!triple){closed=true;break;}if(c=='\\'){if(i>=ts->length)break;c=src[i++];col++;switch(c){case 'n':c='\n';break;case 'r':c='\r';break;case 't':c='\t';break;case '\\':case '"':case '\'':break;default:{Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"unknown string escape");return false;}}}if(n+1>=sizeof(value)){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,"string literal too long");return false;}value[n++]=c;}if(!closed){Token t={0};t.line=sl;t.col=sc;swan_error(err,&t,triple?"unterminated triple-quoted string":"unterminated string");return false;}if(!swan_emit(ts,T_STRING,value,n,sl,sc,err))return false;continue;}
   TokenKind k=T_EOF;size_t n=1;
   if(i+1<ts->length){char d=src[i+1];if(c=='-'&&d=='>'){k=T_ARROW;n=2;}else if(c=='/'&&d=='/'){k=T_FLOORDIV;n=2;}else if(c=='='&&d=='='){k=T_EQ;n=2;}else if(c=='!'&&d=='='){k=T_NE;n=2;}else if(c=='<'&&d=='='){k=T_LE;n=2;}else if(c=='>'&&d=='='){k=T_GE;n=2;}}
   if(k==T_EOF)switch(c){case '(':k=T_LP;break;case ')':k=T_RP;break;case ':':k=T_COLON;break;case ',':k=T_COMMA;break;case '+':k=T_PLUS;break;case '-':k=T_MINUS;break;case '*':k=T_STAR;break;case '/':k=T_SLASH;break;case '%':k=T_PERCENT;break;case '=':k=T_ASSIGN;break;case '!':k=T_BANG;break;case '<':k=T_LT;break;case '>':k=T_GT;break;case '[':k=T_LB;break;case ']':k=T_RB;break;case '.':k=T_DOT;break;case ';':k=T_SEMI;break;default:{Token t={0};t.line=line;t.col=col;swan_error(err,&t,"unexpected character '%c'",c);return false;}}
-  if(!swan_emit(ts,k,src+i,n,sl,sc,err))return false;
+  if(!swan_emit_view(ts,k,src+i,n,sl,sc,err))return false;
   i+=n;col+=(unsigned)n;
  }
  while(depth>1){depth--;if(!swan_emit(ts,T_DEDENT,"",0,line,col,err))return false;}
