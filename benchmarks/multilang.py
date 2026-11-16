@@ -8,7 +8,7 @@ BIN.mkdir(parents=True, exist_ok=True)
 N = 10_000_000
 EXPECTED = N * len(b"Hello, World!\n")
 programs = {
- "swan": ("hello.swan", f'fn main() -> int:\n    for i in 0..{N}\n        log "Hello, World!"\n    return 0\n'),
+ "swan": ("hello.swan", f'func main() -> int:\n    for i in 0..{N}\n        !printin >> "Hello, World!"\n    return 0\n'),
  "goose": ("hello.goose", f'fn main() {{\n    for i in {N} {{ print("Hello, World!"); }}\n}}\n'),
  "c": ("hello.c", f'#include <stdio.h>\nint main(void) {{ for (long i=0; i<{N}; ++i) puts("Hello, World!"); return 0; }}\n'),
  "cpp": ("hello.cpp", f'#include <cstdio>\nint main() {{ for (long i=0; i<{N}; ++i) std::puts("Hello, World!"); }}\n'),
