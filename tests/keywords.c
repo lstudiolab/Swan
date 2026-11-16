@@ -14,7 +14,8 @@ int main(void) {
     };
     static const char *const identifiers[] = {
         "fn","out","store","manual","for","nil","none","namespace",
-        "variant","protocol","thread","async","external","lazy","case","set","print",
+        "variant","protocol","thread","async","external","lazy","case","set",
+        /* print is intentionally not reserved; it remains a valid identifier. */ "print",
         "free","borrow","and","or","not","extern","defer","bool","inline","static",
         "private","public","mod","in","int"
     };
