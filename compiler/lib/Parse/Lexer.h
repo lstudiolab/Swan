@@ -101,21 +101,34 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
  }
  return T_IDENT;
 }
+static inline bool swan_token_reserve(TokenStream *ts,SwanError *err,unsigned line,unsigned col) {
+ if(ts->count==SIZE_MAX||ts->count+1>SIZE_MAX/sizeof(*ts->items)){
+  Token t={0};t.line=line;t.col=col;swan_error(err,&t,"token count exceeds addressable storage");return false;
+ }
+ if(ts->count<ts->capacity)return true;
+ size_t cap=ts->capacity;
+ if(!cap){cap=ts->length/8+4;if(cap<4)cap=4;if(cap>64)cap=64;}
+ else if(cap>SIZE_MAX/2)cap=ts->count+1;
+ else cap*=2;
+ if(cap<ts->count+1||cap>SIZE_MAX/sizeof(*ts->items)){
+  swan_error(err,NULL,"token storage size overflow");return false;
+ }
+ Token *items=realloc(ts->items,cap*sizeof(*items));
+ if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}
+ ts->items=items;ts->capacity=cap;return true;
+}
 static inline bool swan_emit_view(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
- if(ts->count==SIZE_MAX||ts->count+1>SIZE_MAX/sizeof(*ts->items)){Token t={0};swan_error(err,&t,"token count exceeds addressable storage");return false;}
- if(ts->count==ts->capacity){size_t cap=ts->capacity?ts->capacity*2:4;if(cap<ts->capacity||cap>SIZE_MAX/sizeof(*ts->items)){swan_error(err,NULL,"token storage size overflow");return false;}Token *items=realloc(ts->items,cap*sizeof(*items));if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}ts->items=items;ts->capacity=cap;}
+ if(!swan_token_reserve(ts,err,line,col))return false;
  Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;t->text=n?s:"";return true;
 }
 static inline bool swan_emit(TokenStream *ts,TokenKind k,const char *s,size_t n,unsigned line,unsigned col,SwanError *err) {
- if(ts->count==SIZE_MAX||ts->count+1>SIZE_MAX/sizeof(*ts->items)){Token t={0};swan_error(err,&t,"token count exceeds addressable storage");return false;}
- if(ts->count==ts->capacity){
-  size_t cap=ts->capacity?ts->capacity*2:(ts->length/8+4<64?ts->length/8+4:64);if(cap<4)cap=4;
-  if(ts->capacity){if(cap>SIZE_MAX/2)cap=ts->count+1;else cap*=2;}
-  if(cap<ts->count+1||cap>SIZE_MAX/sizeof(*ts->items)){swan_error(err,NULL,"token storage size overflow");return false;}
-  Token *items=realloc(ts->items,cap*sizeof(*items));if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}ts->items=items;ts->capacity=cap;
- }
+ if(!swan_token_reserve(ts,err,line,col))return false;
  if(n>SIZE_MAX-ts->text_used-1){Token t={0};t.line=line;t.col=col;swan_error(err,&t,"token text storage size overflow");return false;}
- if(n&&!ts->text_storage){ts->text_capacity=ts->length+1;ts->text_storage=malloc(ts->text_capacity);if(!ts->text_storage){swan_error(err,NULL,"out of memory storing token text");return false;}}
+ if(n&&!ts->text_storage){
+  if(ts->length==SIZE_MAX){swan_error(err,NULL,"source file is too large for token text storage");return false;}
+  ts->text_capacity=ts->length+1;ts->text_storage=malloc(ts->text_capacity);
+  if(!ts->text_storage){swan_error(err,NULL,"out of memory storing token text");return false;}
+ }
  if(n&&n+1>ts->text_capacity-ts->text_used){Token t={0};t.line=line;t.col=col;swan_error(err,&t,"decoded token text exceeds source-sized storage");return false;}
  Token *t=&ts->items[ts->count++];t->kind=k;t->line=line;t->col=col;
  if(n){t->text=ts->text_storage+ts->text_used;memcpy(ts->text_storage+ts->text_used,s,n);ts->text_storage[ts->text_used+n]=0;ts->text_used+=n+1;}else t->text="";return true;
