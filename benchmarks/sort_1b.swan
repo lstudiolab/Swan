@@ -1,6 +1,6 @@
 # Sort one billion deterministic pseudorandom 32-bit integers in place.
 # Requires approximately 4 GB for the input array.
-fn main():
+func main():
     let count = 1000000000
     let values = array_u32_unchecked(count)
 
