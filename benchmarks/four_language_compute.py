@@ -10,7 +10,7 @@ RUNTIME_RUNS = 5
 TIMER = "/usr/bin/time"
 
 SRC = {
-"Swan": """fn main() -> int:
+"Swan": """func main() -> int:
     var total = 0
     var i = 0
     while i < 1000
@@ -22,7 +22,7 @@ SRC = {
                 k = k + 1
             j = j + 1
         i = i + 1
-    log total
+    !printin >> total
     return 0
 """,
 "Goose": """import std;
