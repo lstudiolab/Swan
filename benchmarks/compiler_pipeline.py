@@ -52,19 +52,19 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
     for count in (256, 512):
         lines: list[str] = []
         for i in range(count):
-            lines += [f"fn front_{i}(value: int) -> int:",
+            lines += [f"func front_{i}(value: int) -> int:",
                       f"    return ((value + {i + 3}) * 3 - {i % 17}) / 3", ""]
-        lines += ["fn main() -> int:", "    var value = 7",
+        lines += ["func main() -> int:", "    var value = 7",
                   f"    value = front_{count - 1}(value)", "    return value"]
         result[f"frontend-{count}"] = write_source(directory, f"frontend-{count}", lines)
 
     # Deep dependency chain stresses name lookup and reachability.
     count = 512
-    lines = ["fn chain_0(value: int) -> int:", "    return value + 1", ""]
+    lines = ["func chain_0(value: int) -> int:", "    return value + 1", ""]
     for i in range(1, count):
-        lines += [f"fn chain_{i}(value: int) -> int:",
+        lines += [f"func chain_{i}(value: int) -> int:",
                   f"    return chain_{i - 1}(value) + {i % 101 + 1}", ""]
-    lines += ["fn main() -> int:", f"    return chain_{count - 1}(1)"]
+    lines += ["func main() -> int:", f"    return chain_{count - 1}(1)"]
     result["deep-call-chain-512"] = write_source(directory, "deep-call-chain-512", lines)
 
     # Broad call graph with expression-tree pressure.
@@ -72,15 +72,15 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
     lines = []
     for i in range(count):
         terms = " + ".join(f"(value * {j + 2} + {i + j})" for j in range(12))
-        lines += [f"fn expr_{i}(value: int) -> int:", f"    return {terms}", ""]
-    lines += ["fn main() -> int:", "    var total = 0"]
+        lines += [f"func expr_{i}(value: int) -> int:", f"    return {terms}", ""]
+    lines += ["func main() -> int:", "    var total = 0"]
     lines += [f"    total = total + expr_{i}({i + 1})" for i in range(count)]
     lines += ["    return total"]
     result["expression-callgraph-256"] = write_source(directory, "expression-callgraph-256", lines)
 
     # Runtime workload: enough loop work to rise above process-start noise.
     result["runtime-loop"] = write_source(directory, "runtime-loop", [
-        "fn main() -> int:",
+        "func main() -> int:",
         "    var i = 0",
         "    var total = 0",
         "    while i < 2000000:",
