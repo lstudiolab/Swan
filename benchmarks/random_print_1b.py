@@ -12,8 +12,8 @@ COMPILE_REPEATS, RUNTIME_REPEATS = 3, 3
 
 def source(language, emit):
     if language == "Swan":
-        output = "        log state\n" if emit else ""
-        return f"""fn main() -> int:
+        output = "        !printin >> state\n" if emit else ""
+        return f"""func main() -> int:
     var i = 0
     var state = {SEED}
     var checksum = 0
@@ -21,7 +21,7 @@ def source(language, emit):
         state = (state * {MULTIPLIER}) % {MODULUS}
 {output}        checksum = (checksum + state) % {CHECK_MOD}
         i = i + 1
-    log checksum
+    !printin >> checksum
     return 0
 """
     output = "        print(state);\n" if emit else ""
