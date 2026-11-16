@@ -1,5 +1,5 @@
 # Deterministic binary-search workload: 20M values and 20M queries.
-fn main() -> int:
+func main() -> int:
     let values = array_unchecked(20000000)
     var i = 0
     while i < 20000000
