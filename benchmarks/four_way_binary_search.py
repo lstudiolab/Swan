@@ -69,7 +69,7 @@ fn main() {
 }
 """
 SWAN_SRC = r"""
-fn main() -> int:
+func main() -> int:
     let values = array(20000000)
     var i = 0
     while i < 20000000
@@ -98,7 +98,7 @@ fn main() -> int:
         if target >= 20000000
             target = target - 20000000
         query = query + 1
-    log checksum
+    !printin >> checksum
     return 0
 """
 
