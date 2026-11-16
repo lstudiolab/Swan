@@ -61,12 +61,12 @@ def main() -> None:
         function_count = 400
 
         lines = [
-            f"fn value_{index}() -> int:\n    return {index}\n"
+            f"func value_{index}() -> int:\n    return {index}\n"
             for index in range(function_count)
         ]
         lines.extend([
-            "fn main() -> int:",
-            f"    log value_{function_count - 1}()",
+            "func main() -> int:",
+            f"    !printin >> value_{function_count - 1}()",
             "    return 0",
             "",
         ])
@@ -97,7 +97,7 @@ def main() -> None:
         nested_binary = work / "nested_1b"
         limit = 1000
         nested_source.write_text(
-            "fn main() -> int:\n"
+            "func main() -> int:\n"
             "    var total = 0\n"
             "    var i = 0\n"
             "    while i < 1000\n"
@@ -109,7 +109,7 @@ def main() -> None:
             "                k = k + 1\n"
             "            j = j + 1\n"
             "        i = i + 1\n"
-            "    log total\n"
+            "    !printin >> total\n"
             "    return 0\n",
             encoding="utf-8",
         )
