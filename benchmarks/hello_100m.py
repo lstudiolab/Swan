@@ -8,7 +8,7 @@ OUT.mkdir(exist_ok=True)
 goose_src = OUT / "hello.goose"
 swan_src = OUT / "hello.swan"
 goose_src.write_text('fn main() {\n' + f'    for i in {N} {{ print("Hello, World!"); }}\n' + '}\n')
-swan_src.write_text('fn main() -> int:\n' + f'    for i in 0..{N}\n' + '        log "Hello, World!"\n    return 0\n')
+swan_src.write_text('func main() -> int:\n' + f'    for i in 0..{N}\n' + '        !printin >> "Hello, World!"\n    return 0\n')
 
 def measured(command, label):
     memfile = OUT / (label + "-rss.txt")
