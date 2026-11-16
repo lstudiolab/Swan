@@ -214,6 +214,10 @@ func main() -> int:
 
 `!printin >> expression` is Swan's namespaced output intrinsic. Other `!name(...)` calls resolve to ordinary functions in explicitly imported Swan modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use the `!` prefix. See [the standard-library reference](stdlib/README.md) and [the language guide](docs/LANGUAGE_GUIDE.md#121-the-!-standard-library-prefix) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
 
+## Data-center and backend runtime roadmap
+
+Swan's planned backend runtime, JSON engine, SQL interface, concurrency model, networking stack, memory model, and performance acceptance gates are specified in [Data-Center Runtime and Backend Contract](docs/DATA_CENTER_RUNTIME.md). This is an implementation roadmap, not a claim that those APIs already exist. The current standard library does not yet provide production JSON, SQL, networking, or concurrency support. Features will be marked implemented only after end-to-end compiler, runtime, backend, and integration tests pass.
+
 ## C header interoperability
 
 The native C header importer uses Clang's C AST dump to read supported declarations. Imported functions become external declarations in Swan's AST and typed IR; the native x86-64 System V backend emits real C ABI calls.
