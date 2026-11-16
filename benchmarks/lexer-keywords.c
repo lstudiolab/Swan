@@ -12,7 +12,7 @@ static const char *const words[] = {
 static volatile unsigned sink;
 
 static unsigned linear_keyword(const char *word) {
-    for (unsigned i = 0; i < sizeof(words)/sizeof(words[0]); ++i)
+    for (unsigned i = 0; i < 33; ++i)
         if (strcmp(word, words[i]) == 0) return i + 1;
     return 0;
 }
