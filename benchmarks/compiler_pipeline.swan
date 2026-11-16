@@ -1,15 +1,15 @@
 # Compiler-pipeline profiling workload.
 # Exercises typed IR generation, calls, loops, branches and short-circuit PHIs.
-fn sum8(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int) -> int:
+func sum8(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int) -> int:
     return h
 
-fn explode() -> bool:
+func explode() -> bool:
     return 1 / 0 == 0
 
-fn double(x: int) -> int:
+func double(x: int) -> int:
     return x * 2
 
-fn main() -> int:
+func main() -> int:
     var count = 0
     var total = 0
     while count < 128:
