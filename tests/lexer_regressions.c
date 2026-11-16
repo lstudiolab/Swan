@@ -24,6 +24,27 @@ int main(void) {
     assert(ts.items[1].line == 2 && ts.items[1].col == 9);
     release_tokens(&ts);
 
+    const char *three_lines = "\"\"\"alpha\nbeta\ngamma\"\"\"\nnext";
+    assert(swan_lex(three_lines, &ts, &error));
+    assert(ts.items[0].kind == T_STRING);
+    assert(strcmp(ts.items[0].text, "alpha\nbeta\ngamma") == 0);
+    assert(ts.items[1].kind == T_NEWLINE);
+    assert(ts.items[2].kind == T_IDENT);
+    assert(ts.items[2].line == 4 && ts.items[2].col == 1);
+    release_tokens(&ts);
+
+    /* Token capacity grows geometrically rather than quadrupling. */
+    char many_tokens[513];
+    for (size_t i = 0; i < 256; ++i) {
+        many_tokens[i * 2] = 'x';
+        many_tokens[i * 2 + 1] = ' ';
+    }
+    many_tokens[512] = '\0';
+    assert(swan_lex(many_tokens, &ts, &error));
+    assert(ts.count == 257);
+    assert(ts.capacity >= ts.count && ts.capacity <= 512);
+    release_tokens(&ts);
+
     const char *following = "\"first\\nsecond\"\nname";
     assert(swan_lex(following, &ts, &error));
     assert(ts.items[0].kind == T_STRING);
