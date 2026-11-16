@@ -112,7 +112,7 @@ def main() -> None:
         assembly = work / "one-billion.s"
         executable = work / "one-billion"
         source.write_text(
-            "fn main() -> int:\n"
+            "func main() -> int:\n"
             "    var total = 0\n"
             "    var i = 0\n"
             "    while i < 1000\n"
@@ -124,7 +124,7 @@ def main() -> None:
             "                k = k + 1\n"
             "            j = j + 1\n"
             "        i = i + 1\n"
-            "    log total\n"
+            "    !printin >> total\n"
             "    return 0\n",
             encoding="utf-8",
         )
