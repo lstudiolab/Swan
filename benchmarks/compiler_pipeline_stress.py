@@ -50,11 +50,11 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
         lines = []
         for i in range(count):
             lines.extend([
-                f"fn front_{i}(value: int) -> int:",
+                f"func front_{i}(value: int) -> int:",
                 f"    return ((value + {i + 3}) * 3 - {i % 17}) / 3",
                 "",
             ])
-        lines.extend(["fn main() -> int:", "    var value = 7",
+        lines.extend(["func main() -> int:", "    var value = 7",
                       f"    value = front_{count - 1}(value)", "    return value"])
         result[f"frontend-{count}"] = write_source(
             directory, f"frontend-{count}", lines
@@ -63,14 +63,14 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
     # Deep dependency chain stresses symbol lookup, reachability and call
     # lowering without executing a deep recursion at runtime.
     count = 512
-    lines = ["fn chain_0(value: int) -> int:", "    return value + 1", ""]
+    lines = ["func chain_0(value: int) -> int:", "    return value + 1", ""]
     for i in range(1, count):
         lines.extend([
-            f"fn chain_{i}(value: int) -> int:",
+            f"func chain_{i}(value: int) -> int:",
             f"    return chain_{i - 1}(value) + {i % 101 + 1}",
             "",
         ])
-    lines.extend(["fn main() -> int:", f"    return chain_{count - 1}(1)"])
+    lines.extend(["func main() -> int:", f"    return chain_{count - 1}(1)"])
     result["deep-call-chain-512"] = write_source(
         directory, "deep-call-chain-512", lines
     )
@@ -80,9 +80,9 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
     lines = []
     for i in range(count):
         terms = " + ".join(f"(value * {j + 2} + {i + j})" for j in range(12))
-        lines.extend([f"fn expr_{i}(value: int) -> int:",
+        lines.extend([f"func expr_{i}(value: int) -> int:",
                       f"    return {terms}", ""])
-    lines.extend(["fn main() -> int:", "    var total = 0"])
+    lines.extend(["func main() -> int:", "    var total = 0"])
     lines.extend(f"    total = total + expr_{i}({i + 1})" for i in range(count))
     lines.append("    return total")
     result["expression-callgraph-256"] = write_source(
@@ -93,7 +93,7 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
     lines = []
     for i in range(64):
         lines.extend([
-            f"fn flow_{i}(value: int) -> int:",
+            f"func flow_{i}(value: int) -> int:",
             "    var index = 0",
             "    var total = value",
             "    while index < 16:",
@@ -105,7 +105,7 @@ def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
             "    return total",
             "",
         ])
-    lines.extend(["fn main() -> int:", "    var total = 0"])
+    lines.extend(["func main() -> int:", "    var total = 0"])
     lines.extend(f"    total = total + flow_{i}({i})" for i in range(64))
     lines.append("    return total")
     result["control-flow-64"] = write_source(
