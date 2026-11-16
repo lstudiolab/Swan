@@ -46,7 +46,7 @@ def median_build(command_factory, env: dict[str, str], work: pathlib.Path,
     return statistics.median(samples)
 
 
-SWAN_SOURCE = """fn main() -> int:
+SWAN_SOURCE = """func main() -> int:
     var total = 0
     var i = 0
     while i < 1000
@@ -55,7 +55,7 @@ SWAN_SOURCE = """fn main() -> int:
             total = total + ((i * 31 + j * 17) % 97)
             j = j + 1
         i = i + 1
-    log total
+    !printin >> total
     return 0
 """
 
