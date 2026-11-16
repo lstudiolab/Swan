@@ -74,13 +74,13 @@ static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
- if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan> [more.swan ...] [native.c ...] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
+ if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm|--emit-llvm] [--target x86_64|--target-triple triple] [--target-feature feature] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
  const char **swan_inputs=NULL,**c_inputs=NULL;size_t swan_input_count=0,swan_input_capacity=0,c_input_count=0,c_input_capacity=0;
  const char *first=argv[index++];struct stat first_stat;
  if(stat(first,&first_stat)==0&&S_ISDIR(first_stat.st_mode)){
@@ -101,11 +101,11 @@ static int swan_run(int argc,char **argv){
  const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
- bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false;const char **link_args=NULL;size_t link_arg_count=0,link_arg_capacity=0;
+ bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false;size_t compile_jobs=1;const char **link_args=NULL;size_t link_arg_count=0,link_arg_capacity=0;
  const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
  SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
-  if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
+  if(!strcmp(argv[i],"--low-resource"))compile_jobs=1;\n  else if(!strcmp(argv[i],"--jobs")&&i+1<argc){char *end=NULL;errno=0;unsigned long jobs=strtoul(argv[++i],&end,10);if(errno||!end||*end||jobs!=1){fprintf(stderr,"swan: this compiler currently supports only --jobs 1; parallel compilation is not implemented\\n");return 2;}compile_jobs=(size_t)jobs;}\n  else if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--emit-llvm"))emit_llvm=true;
   else if(!strcmp(argv[i],"--lazy-imports"))lazy_imports=true;
   else if(!strcmp(argv[i],"--target-triple")&&i+1<argc){
@@ -141,7 +141,7 @@ static int swan_run(int argc,char **argv){
    if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);return 2;}
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);return 2;}
  }
- if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");return 2;}
+ if(compile_jobs!=1){fprintf(stderr,"swan: invalid compiler worker limit\\n");return 2;}\n if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");return 2;}
  if((target_feature_count||target_cpu)&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --cpu and --target-feature require --target-triple\n");return 2;}
  if(emit_llvm&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --emit-llvm requires --target-triple\n");return 2;}
  if(emit_asm&&emit_llvm){fprintf(stderr,"swan: choose either --emit-asm or --emit-llvm\n");return 2;}
