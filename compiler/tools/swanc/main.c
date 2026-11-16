@@ -106,7 +106,8 @@ static int swan_run(int argc,char **argv){
  SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--low-resource"))compile_jobs=1;
-  else if(!strcmp(argv[i],"--jobs")&&i+1<argc){char *end=NULL;errno=0;unsigned long jobs=strtoul(argv[++i],&end,10);if(errno||!end||*end||jobs!=1){fprintf(stderr,"swan: this compiler currently supports only --jobs 1; parallel compilation is not implemented\n");return 2;}compile_jobs=(size_t)jobs;}\n  else if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
+  else if(!strcmp(argv[i],"--jobs")&&i+1<argc){char *end=NULL;errno=0;unsigned long jobs=strtoul(argv[++i],&end,10);if(errno||!end||*end||jobs!=1){fprintf(stderr,"swan: this compiler currently supports only --jobs 1; parallel compilation is not implemented\n");return 2;}compile_jobs=(size_t)jobs;}
+  else if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--emit-llvm"))emit_llvm=true;
   else if(!strcmp(argv[i],"--lazy-imports"))lazy_imports=true;
   else if(!strcmp(argv[i],"--target-triple")&&i+1<argc){
@@ -142,7 +143,8 @@ static int swan_run(int argc,char **argv){
    if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);return 2;}
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);return 2;}
  }
- if(compile_jobs!=1){fprintf(stderr,"swan: invalid compiler worker limit\n");return 2;}\n if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");return 2;}
+ if(compile_jobs!=1){fprintf(stderr,"swan: invalid compiler worker limit\n");return 2;
+ if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");return 2;}
  if((target_feature_count||target_cpu)&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --cpu and --target-feature require --target-triple\n");return 2;}
  if(emit_llvm&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --emit-llvm requires --target-triple\n");return 2;}
  if(emit_asm&&emit_llvm){fprintf(stderr,"swan: choose either --emit-asm or --emit-llvm\n");return 2;}
