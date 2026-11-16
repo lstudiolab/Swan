@@ -27,13 +27,13 @@ def expected_value():
 
 
 SOURCES = {
-    "Swan": f"""fn main() -> int:
+    "Swan": f"""func main() -> int:
     var state = {SEED}
     var i = 0
     while i < {N}
         state = (state * {MULTIPLIER} + {INCREMENT}) % {MODULUS}
         i = i + 1
-    log state
+    !printin >> state
     return 0
 """,
     "Goose": f"""import std;
