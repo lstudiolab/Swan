@@ -16,13 +16,13 @@ EXPECTED = 479_999_984
 REPEATS = 5
 
 SOURCES = {
-    "Swan": f"""fn main() -> int:
+    "Swan": f"""func main() -> int:
     var total = 0
     var i = 0
     while i < {N}
         total = total + ((i * 13 + 7) % 97)
         i = i + 1
-    log total
+    !printin >> total
     return 0
 """,
     "Goose": f"""import std;
