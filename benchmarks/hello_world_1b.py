@@ -13,10 +13,10 @@ SWAN = ROOT / "build" / "swan"
 N = 1_000_000_000
 
 SOURCES = {
-    "Swan": f"""fn main() -> int:
+    "Swan": f"""func main() -> int:
     var i = 0
     while i < {N}
-        echo!("Hello World")
+        !printin >> "Hello World"
         i = i + 1
     return 0
 """,
