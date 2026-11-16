@@ -47,6 +47,10 @@ Source: `stdlib/std_collections.swan`
 
 The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length; it does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
 
+## Backend runtime development order
+
+The data-center runtime is being developed in dependency order: strings/bytes and aggregate layout; typed dynamic collections and deterministic cleanup; runtime ABI and I/O; JSON parsing/encoding and streaming; SQL drivers and connection pools; then HTTP services and scalable concurrency. See [the data-center runtime contract](../docs/DATA_CENTER_RUNTIME.md) for API requirements, security constraints, benchmarks, and acceptance gates. These modules must not be represented by stub functions or advertised as available before their complete implementations and tests exist.
+
 ## Compatibility and correctness boundaries
 
 The current language/backend subset is not yet sufficient to implement all Swift and Goose standard-library surfaces in Swan source. The following capabilities must not be advertised as implemented until Swan has the required language/runtime support and end-to-end tests:
