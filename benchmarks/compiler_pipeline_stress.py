@@ -30,7 +30,11 @@ PROFILE_LINE = re.compile(
 STAGES = (
     "Source file read", "Lexing", "Parsing", "Import loading",
     "Semantic analysis", "Reachability analysis", "IR generation",
-    "IR optimization", "Target code generation",
+    "IR verification (inclusive)", "IR optimization",
+    "IR pass: constant folding", "IR pass: CFG simplification",
+    "IR pass: algebraic simplification", "IR pass: copy propagation",
+    "IR pass: common-subexpression elimination", "IR pass: loop-invariant code motion",
+    "IR pass: dead-code elimination", "Target code generation",
     "AST fallback code generation", "Assembly output", "Native linking",
     "Program execution", "Total wall time", "Benchmark process wall time", "Peak compiler RSS",
 )
@@ -191,7 +195,7 @@ def main() -> None:
           f"{args.warmups} warm-up run(s)")
     print("Unit: seconds (lower is faster); peak compiler RSS is KiB (lower is smaller)")
     print("Workloads are generated afresh for each benchmark invocation.")
-    print("IR generation includes SIL bridging and typed-IR fallback.")
+    print("Compiler 1 uses direct AST-to-SVM typed-IR lowering; AST compatibility codegen is reported separately.")
     for name, samples in results.items():
         print(f"\n[{name}] source={source_sizes[name]} bytes")
         keys = set().union(*(sample.keys() for sample in samples))

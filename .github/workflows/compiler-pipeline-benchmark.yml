@@ -29,15 +29,28 @@ jobs:
         shell: bash
         run: |
           mkdir -p benchmark-results
-          /usr/bin/time -f '%e' -o benchmark-results/compiler-build-seconds.txt sh build.sh
-      - name: Run stage, compile-time, runtime, and per-file benchmarks
+          /usr/bin/time -f '%e %M' -o benchmark-results/compiler-build-metrics.txt sh build.sh
+      - name: Verify stage profiling before benchmarking
+        run: sh tests/profile.sh
+      - name: Run stage, optimizer-pass, memory, compile-time, runtime, and per-file benchmarks
         run: |
           python3 benchmarks/compiler_pipeline.py --repeats 7 --warmups 2 --output-dir benchmark-results
       - name: Record build time
         run: |
           printf '\n## Full compiler build time\n\n' >> benchmark-results/compiler-pipeline.md
-          printf 'Build time: %s seconds\n' "$(cat benchmark-results/compiler-build-seconds.txt)" >> benchmark-results/compiler-pipeline.md
+          BUILD_METRICS=$(cat benchmark-results/compiler-build-metrics.txt)
+          BUILD_SECONDS=${BUILD_METRICS%% *}
+          BUILD_RSS_KB=${BUILD_METRICS##* }
+          printf 'Build time: %s seconds\n' "$BUILD_SECONDS" >> benchmark-results/compiler-pipeline.md
+          printf 'Compiler build peak RSS: %s KiB\n' "$BUILD_RSS_KB" >> benchmark-results/compiler-pipeline.md
+      - name: Add benchmark report to the GitHub Actions summary
+        if: always()
+        run: |
+          if [ -f benchmark-results/compiler-pipeline.md ]; then
+            cat benchmark-results/compiler-pipeline.md >> "$GITHUB_STEP_SUMMARY"
+          fi
       - name: Upload benchmark reports
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: swan-compiler-pipeline-benchmark

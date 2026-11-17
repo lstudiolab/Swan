@@ -19,16 +19,26 @@ typedef enum {
  SWAN_PROFILE_SEMA, SWAN_PROFILE_REACHABILITY, SWAN_PROFILE_IRGEN,
  SWAN_PROFILE_IR_OPT, SWAN_PROFILE_CODEGEN, SWAN_PROFILE_AST_CODEGEN,
  SWAN_PROFILE_ASM_WRITE, SWAN_PROFILE_LINK, SWAN_PROFILE_RUN,
+ SWAN_PROFILE_IR_VERIFY, SWAN_PROFILE_IR_PASS_CONSTANT_FOLD,
+ SWAN_PROFILE_IR_PASS_CFG, SWAN_PROFILE_IR_PASS_ALGEBRAIC,
+ SWAN_PROFILE_IR_PASS_COPY, SWAN_PROFILE_IR_PASS_CSE,
+ SWAN_PROFILE_IR_PASS_LICM, SWAN_PROFILE_IR_PASS_DCE,
  SWAN_PROFILE_COUNT
 } SwanProfileStage;
 static const char *const swan_profile_names[SWAN_PROFILE_COUNT]={
  "Source file read","Lexing","Parsing","Import loading",
  "Semantic analysis","Reachability analysis","IR generation",
  "IR optimization","Target code generation","AST fallback code generation",
- "Assembly output","Native linking","Program execution"
+ "Assembly output","Native linking","Program execution",
+ "IR verification (inclusive)","IR pass: constant folding",
+ "IR pass: CFG simplification","IR pass: algebraic simplification",
+ "IR pass: copy propagation","IR pass: common-subexpression elimination",
+ "IR pass: loop-invariant code motion","IR pass: dead-code elimination"
 };
 static bool swan_profile_enabled=false;
 static uint64_t swan_profile_ns[SWAN_PROFILE_COUNT];
+static size_t swan_profile_ir_pass_executions;
+static size_t swan_profile_ir_pass_rounds;
 static struct timespec swan_profile_total_start;
 static inline bool swan_profile_time(struct timespec *t){
 #if defined(SWAN_USE_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
@@ -47,6 +57,8 @@ static inline void swan_profile_end(SwanProfileStage stage,uint64_t start){
 }
 static inline void swan_profile_reset(void){
  memset(swan_profile_ns,0,sizeof(swan_profile_ns));
+ swan_profile_ir_pass_executions=0;
+ swan_profile_ir_pass_rounds=0;
  if(!swan_profile_time(&swan_profile_total_start))memset(&swan_profile_total_start,0,sizeof(swan_profile_total_start));
 }
 static inline void swan_profile_print(void){
@@ -59,6 +71,7 @@ static inline void swan_profile_print(void){
   fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\n",swan_profile_names[i],seconds,elapsed?(double)swan_profile_ns[i]*100.0/(double)elapsed:0.0);
  }
  fprintf(stderr,"  %-30s %0.9f s\n","Total wall time",(double)elapsed/1e9);
+ fprintf(stderr,"  IR pass executions: %zu (rounds: %zu; maximum: 350)\n",swan_profile_ir_pass_executions,swan_profile_ir_pass_rounds);
 }
 #define SWAN_VERSION "0.8.0"
 #define SWAN_MEMORY_MODEL "Automatic cleanup; borrow checking incomplete"

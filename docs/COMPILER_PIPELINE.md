@@ -1,84 +1,65 @@
 # Swan Compiler Pipeline
 
-## Overview
+## One production compiler
 
-Swan's production compiler combines a C11 host frontend/orchestrator, a small Swan-authored SIL subsystem, a general typed-IR pipeline, Swan-owned target backends, and an x86-64 AST compatibility backend.
+Swan has one production compiler: Compiler 1, the C11 implementation in `compiler/tools/swanc/main.c`. `build.sh` compiles that translation unit directly into `build/swanc` and creates `build/swan` as a compatibility alias.
 
-## Build-time bootstrap
-
-The build process is separate from compiling a user program:
-
-```text
-build.sh
-  -> compile main.c as temporary C11 bootstrap compiler
-  -> concatenate compiler/sil/*.swan stages
-  -> bootstrap compiler emits SIL runtime assembly
-  -> system assembler creates SIL runtime object
-  -> link main.c + SIL runtime object
-  -> build/swan
-```
-
-The SIL object is generated from Swan source and linked into the final compiler. The C11 host still owns CLI orchestration, lexing, parsing, AST, semantic analysis, general IR, optimization, and backends.
+There is no second compiler, self-hosting compiler, bootstrap executable, generated secondary source bundle, or generated secondary object. The production compiler is not used to compile another compiler.
 
 ## User-program compilation
 
 ```text
-project inputs
+.swan files
   -> deterministic source discovery
-  -> one source buffer, lexer and parser per file
+  -> source buffers and source identity
+  -> UTF-8 validation and lexing
+  -> indentation-aware parsing and AST construction
   -> shared project/module graph
-  -> C-header declaration import
-  -> Swan standard-library module loading
-  -> semantic analysis
-  -> function reachability
-  -> source lowering
-       eligible scalar functions: AST -> Swan SIL -> typed IR
-       other IR-supported functions: AST -> typed IR
-       x86-only compatibility features: AST -> x86-64 assembly
-  -> SVM shared compile core: typed-IR verification and optimization
-  -> selected target code generation
-  -> assembly/object/module emission
-  -> assembler/linker (when applicable)
+  -> standard-library and C-header import loading
+  -> semantic analysis and name resolution
+  -> reachability analysis
+  -> direct AST -> SVM typed SSA IR lowering
+  -> SVM verification
+  -> target-independent optimization (up to 350 pass executions)
+  -> final SVM verification and analysis rebuild
+  -> target-specific legalization and code generation
+  -> assembly / object / WebAssembly emission
+  -> native assembler and linker where applicable
 ```
 
-The SIL route is optional per function. The bridge starts with a complete general typed-IR module and substitutes SIL-lowered functions only when the narrow SIL subset accepts them. Unsupported SIL constructs do not force a failure when the general IR path supports them.
+The x86-64 AST compatibility backend remains for supported features not yet represented in typed IR, including the current array/output and runtime-lazy import paths. It is selected based on source features before typed-IR compilation. It is never used to recover from a verifier, optimizer, or code-generation failure.
 
-The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Native x86-64 project builds keep each source file as a separate assembly/object translation unit. Until imported-module symbol identities are fully supported by per-file typed-IR lowering, multi-source x86-64 builds use the AST compatibility backend for each translation unit. For `--emit-asm` and `--emit-llvm`, the driver selects each source translation unit and emits one corresponding target artifact (`.s`, `.wasm`, or `.ll`) per source file across the supported backends. These cross-target emission artifacts retain external references and must be combined by a compatible target linker where one exists. Cross-target `build` still emits the backend's project-level artifact.
+## SVM optimization
 
-## Typed IR optimization
+The typed-IR optimizer runs a bounded, change-driven fixed-point pass pipeline. Its current pass sequence includes constant folding, CFG simplification, algebraic simplification, copy propagation, common-subexpression elimination, loop-invariant code motion, a second CSE pass, and dead-code elimination. The pass manager stops when a complete round makes no changes and rejects failure to converge within 350 pass executions.
 
-The typed-IR pass manager currently includes:
+The compiler verifies IR at pipeline boundaries. Debug builds also verify after mutating pass boundaries. Profiling records total IR generation, IR verification, total optimization, each individual optimization pass, and target code generation. Per-pass timings are inclusive and overlap the total optimization time; they are diagnostic breakdowns, not additive totals.
 
-1. Width-aware constant folding.
-2. Constant-select folding.
-3. Constant-branch folding and CFG simplification.
-4. Unreachable-block pruning.
-5. Algebraic simplification.
-6. Trivial-PHI copy propagation.
-7. Dominance-aware common-subexpression elimination.
-8. Conservative loop-invariant code motion.
-9. A post-hoisting CSE pass.
-10. Dead-code elimination using value-worklist liveness propagation.
+## Stage profiling
 
-Potentially trapping operations and memory effects must be preserved. IR is always verified before optimization and after final cleanup. Debug builds also verify every pass boundary; optimized release builds skip redundant intermediate whole-module verifier walks and retain the final verification gate. SSA value types are indexed by value ID for constant-time type queries. Optimizations are semantics-preserving and target-independent.
+Run a single compilation with profiling:
 
-## Swan-authored SIL subsystem
+```sh
+./build/swanc build --profile examples/hello.swan -o build/hello
+```
 
-The SIL stages are in `compiler/sil/` and are compiled during `build.sh`. The current instruction stream uses five 32-bit words per instruction: encoded opcode/type, destination, left operand, right operand, and immediate/parameter index.
+The report includes source read, lexing, parsing, imports, semantic analysis, reachability, typed-IR generation, IR verification, total optimization, each optimization pass, target code generation, AST compatibility code generation, assembly output, native linking, execution where applicable, and optimization pass/round counts.
 
-The current builder/pass subset includes parameter records, constants, add/subtract/multiply, equality, signed-less-than, copy, and return. It is deliberately bounded to 256 value IDs and 256 instructions; packed immediates are restricted to non-negative values up to 65535.
+## GitHub Actions benchmark
 
-The bridge accepts only straight-line functions with one return expression and scalar parameter/literal/arithmetic/comparison forms. It is not the general IR and does not yet implement CFG, branches, variables, memory, general calls, loops, or imports. General typed-IR lowering remains the fallback for other supported functions.
+The `Swan Compiler Pipeline Benchmark` workflow runs on compiler/benchmark changes to `main` and can also be started manually. It builds the production compiler directly, measures build time, and benchmarks generated frontend-, call-graph-, expression-, control-flow-, and runtime-heavy workloads.
 
-## Backend selection
+Each workload uses warmups and repeated measurements. The report includes median stage durations, end-to-end wall time, peak compiler RSS, per-header C frontend attribution from Clang `-ftime-trace`, host metadata, CSV, JSON, and Markdown output. GitHub Actions publishes the Markdown report in the run summary and uploads the raw reports as an artifact.
 
-- `--target x86_64`: native System V Linux code generation; may use typed IR or AST compatibility lowering.
-- `--target aarch64`, `armv7`, `riscv64`: Swan-owned limited scalar IR backends that emit target objects/assembly.
-- `--target wasm32`, `wasm64`: Swan-owned limited WebAssembly module emitters.
-- `--target-triple <triple>`: explicit LLVM portability bridge. Requires an installed Clang/LLVM target backend and is restricted to Swan typed IR.
+Run the same benchmark locally:
 
-SVM is the shared compiler engine, not a target. The legacy IR interpreter and `.swvm` target have been removed. The CLI's target list identifies available generators, not full source-language parity. Each backend has its own supported types, operations, argument limits, and ABI restrictions. See [ARCHITECTURE.md](ARCHITECTURE.md) and the root README for the current summary.
+```sh
+sh build.sh
+python3 benchmarks/compiler_pipeline.py --repeats 7 --warmups 2
+```
 
-## Failure behavior
+Peak RSS is reported in KiB; timing values are seconds. IR verification and per-pass rows are nested substage measurements and must not be added to their parent totals.
 
-Unknown semantic or IR nodes, invalid IR, unsupported backend instructions, and unsupported target/language combinations must produce diagnostics. The compiler must not silently generate empty code or silently switch to C/LLVM code generation.
+## Benchmark interpretation
+
+Compare identical revisions, workloads, optimization settings, and machine classes. Keep compile time, generated-program runtime, compiler peak memory, and executable size as separate measurements. A single result does not establish a language-wide performance ranking.

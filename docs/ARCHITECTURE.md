@@ -1,80 +1,62 @@
 # Swan Compiler Architecture
 
-## Implementation model
+## Production compiler
 
-Swan is a compiled language with a C11 compiler host and a Swan-authored SIL subsystem. `main.c` is the host compiler's only compiled C translation unit; most host compiler components are headers in `compiler/include/swan/`. The SIL builder and passes live as `.swan` files in `compiler/sil/` and are compiled to a native object during the build.
+Swan has one production compiler: Compiler 1, implemented in C11. The sole compiled compiler translation unit is `compiler/tools/swanc/main.c`; focused subsystem headers live under `compiler/lib/` and stable compatibility headers live under `compiler/include/swan/`.
 
-Swan owns source parsing, AST construction, semantic analysis, typed IR, optimization, and its native target code generators. Swan source is not transpiled to C. SVM is the target-independent compiler engine; it is not a target CPU or an interpreter.
+`build.sh` compiles the production executable directly to `build/swanc`. `build/swan` is a compatibility alias to that same executable. The build does not create a temporary bootstrap compiler, compile a second compiler, concatenate Swan compiler sources, or link generated compiler objects.
 
-## Build and bootstrap
-
-`build.sh` performs these steps:
-
-1. Compile `main.c` as a temporary C11 bootstrap compiler with SIL bridge integration disabled.
-2. Concatenate the SIL source stages, removing their module import declarations for the bootstrap compilation unit.
-3. Ask the bootstrap compiler to emit assembly for the SIL runtime source.
-4. Assemble that output to an object.
-5. Link the object with `main.c` to produce `build/swan`.
-
-The production executable therefore includes native code generated from Swan-authored SIL. The SIL stage is intentionally small and does not replace the C11 host frontend or general typed-IR lowering.
-
-## Active source-lowering paths
+## Compiler pipeline
 
 ```text
-.swan source
-  -> UTF-8 validation / lexer
-  -> indentation-aware parser / AST
-  -> C-header declarations + Swan module loading
-  -> semantic analysis
-  -> reachability analysis
-  -> choose lowering path
-       SIL bridge for eligible straight-line scalar functions
-       general AST -> typed SSA IR for remaining IR-supported functions
-       AST -> x86-64 compatibility codegen for features outside IR
-  -> SVM verified typed-IR compilation core
-       IR verifier -> target-independent optimizer -> verified optimized IR
-  -> selected target backend (x86-64, AArch64, ARMv7, RISC-V, WASM, LLVM)
-  -> emitter / assembler / linker
+Swan source
+  -> source manager and UTF-8 validation
+  -> lexer
+  -> indentation-aware parser and AST
+  -> imports and shared project/module graph
+  -> semantic analysis and reachability
+  -> AST -> typed SVM IR
+  -> IR verification
+  -> target-independent optimization
+  -> final IR verification
+  -> selected Swan target backend
+  -> assembly/object/WebAssembly emission
+  -> platform assembler and linker where applicable
 ```
 
-The SIL bridge is an optimization/lowering route for a narrow subset, not a mandatory stage for every function. It first creates a general typed-IR candidate, then substitutes SIL output for eligible functions. Unsupported SIL functions retain general IR lowering.
-
-The x86-64 path retains AST code generation for supported constructs not yet represented in typed IR, particularly arrays, output/logging, and runtime-lazy imports. Other targets consume typed IR and therefore have a narrower source-feature set.
+The x86-64 AST compatibility backend remains for supported language features not yet represented in typed IR. The driver selects it based on source features before attempting IR lowering. It is not a fallback for a failed IR pipeline.
 
 ## Compiler components
 
 | Component | Responsibility |
 |---|---|
-| `core.h` | Shared tokens, errors, text buffers, arena and profiling support |
-| `lexer.h` | UTF-8 validation, indentation tokens, literals and keyword recognition |
-| `ast.h` / `parser.h` | AST model and indentation-aware syntax parser, including a dedicated explicit-release statement node |
-| `c_header.h` | Clang-assisted import of supported C function declarations |
-| `compiler.h` | Module loading, semantic pipeline, reachability and CLI-facing orchestration helpers |
-| `sema.h` | Name/scope checks, declaration checks and strict `manual var` ownership analysis |
-| `sil_bridge.h` | Lower eligible scalar AST functions through Swan-authored SIL into typed IR |
-| `ir.h` / `irgen.h` | Typed SSA data model, verifier support and AST-to-IR lowering |
-| `optimization.h` | Target-independent typed-IR optimization passes |
-| `codegen.h` | Shared SVM compile engine and target dispatcher: lowering, optimization, verification, and backend selection |
-| `codegen_*.h` | Swan-owned target-specific lowering |
-| `codegen_llvm.h` | Optional explicit LLVM IR portability bridge |
-| `emitter.h` | Assembly serialization |
-| `linker.h` | Host assembler/linker process invocation |
+| `Basic/Core.h` | Shared tokens, errors, text buffers, arena and profiling support |
+| `Parse/Lexer.h` | UTF-8 validation, indentation tokens, literals and keyword recognition |
+| `AST/AST.h` / `Parse/Parser.h` | AST model and indentation-aware syntax parser |
+| `Sema/Sema.h` | Name/scope checks, declarations and semantic validation |
+| `Sema/CHeader.h` | Clang-assisted import of supported C function declarations |
+| `Driver/Compiler.h` | Module loading, source ownership, semantic pipeline and CLI orchestration helpers |
+| `IR/IR.h` / `IR/IRGen.h` | Typed SSA data model, verifier and AST-to-IR lowering |
+| `IR/Optimization.h` | Target-independent typed-IR optimization passes and pass manager |
+| `CodeGen/CodeGen.h` | Shared SVM compile engine and target dispatcher |
+| `CodeGen/Targets/` | Swan-owned target-specific lowering and emission |
+| `Basic/Linker.h` / `Serialization/AssemblyEmitter.h` | Platform linker invocation and assembly serialization |
 
-## Typed IR contract
+## Typed IR
 
 Typed IR is target-independent SSA with function-local value IDs, basic blocks, explicit terminators, typed instructions, and PHI incoming edges. The IR model represents scalar integer and floating-point types, booleans, pointers, arithmetic, comparisons, select, PHI, alloca/load/store, and calls.
 
 The verifier checks structural and type invariants, including value definitions, use-before-definition, dominance, CFG targets, terminators, PHI predecessor coverage, operand types, and call signatures. A data-model operation is not necessarily supported by every source lowerer or target backend.
 
-The optimization pipeline performs width-aware constant folding, select and CFG simplification, algebraic simplification, trivial-PHI propagation, dominance-aware CSE, conservative LICM, post-hoisting CSE, and DCE. DCE uses a value worklist to propagate liveness. Transformations are checked with IR verification.
+The optimizer performs width-aware constant folding, select and CFG simplification, algebraic simplification, trivial-PHI propagation, dominance-aware CSE, conservative LICM, post-hoisting CSE, and worklist DCE. The fixed-point pass manager is bounded to 350 pass executions and records per-pass timing when profiling is enabled.
 
 ## Runtime and memory
 
-The intended SVM architecture emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WebAssembly targets emit WebAssembly modules.
+SVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WebAssembly targets emit WebAssembly modules.
 
-The x86-64 compatibility backend supports the currently implemented u32 array forms and SAMC cleanup. Small fixed-size non-escaping arrays can use a stack-frame fast path. The newer `manual var` syntax opts a direct array allocation into strict local single-owner checks; it does not implement borrowing or ownership transfer. Legacy `store` syntax remains compatible and is not subject to the new strict checks.
+The x86-64 compatibility backend supports the currently implemented u32 array forms and automatic cleanup for eligible local arrays. Small fixed-size non-escaping arrays can use a stack-frame fast path. This is not yet a general ownership or borrow-checking system.
 
-## Backend and ABI boundaries
+## Backend boundaries
 
 | Backend | Object/runtime boundary | Scope |
 |---|---|---|
@@ -84,7 +66,6 @@ The x86-64 compatibility backend supports the currently implemented u32 array fo
 | RISC-V64 | Linux integer ABI subset | Limited scalar IR object/assembly emission |
 | WASM32 | WebAssembly 32-bit memory | Limited scalar/control-flow module emission |
 | WASM64 | WebAssembly memory64 | Limited memory64 module emission |
-| SVM | Target-independent compile engine | Shared lowering, verification, and optimization before target-specific code generation |
 | LLVM triple | Depends on target triple/toolchain | Explicit typed-IR portability route; Clang/LLVM must support the target |
 
 Successful object emission is not proof of runtime ABI compatibility. Cross-target linking, full runtime support, standard-library module bundling, aggregates, and full frontend parity remain incomplete.
@@ -99,5 +80,4 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 6. Describe parser, semantic, IR, and backend support separately.
 7. Treat performance as unproven until measured on reproducible workloads.
 
-
-See [SVM Compiler Architecture](SVM_ARCHITECTURE.md) for the target-independent compiler design, target matrix, performance requirements, and migration criteria.
+See [SVM Compiler Architecture](SVM_ARCHITECTURE.md) for the target-independent compiler design and performance requirements.

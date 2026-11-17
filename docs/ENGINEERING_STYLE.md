@@ -11,7 +11,7 @@ The goal is code that is predictable, locally understandable, mechanically verif
 3. Keep responsibilities narrow. A file and a function should have one primary reason to change.
 4. Make data flow visible. Prefer explicit parameters and return values over hidden global state.
 5. Fail closed. Unsupported syntax, IR, target features, ABI forms, or relocations produce diagnostics; they never become placeholders or interpreter fallbacks.
-6. Verify boundaries. Validate parsed AST, SIL, SVM, machine IR, and object metadata at phase boundaries.
+6. Verify boundaries. Validate parsed AST, SVM IR, machine IR, and object metadata at phase boundaries.
 7. Optimize measured hot paths. Use algorithmic improvements before micro-optimizations and keep benchmark evidence with performance changes.
 8. Preserve deterministic behavior. Stable source ordering, symbol resolution, diagnostics, pass ordering, and artifact naming are part of compiler quality.
 
@@ -53,7 +53,7 @@ Swan uses explicit ownership with arena allocation for compilation-scoped graphs
 - Source buffers and source identities belong to the source manager.
 - Tokens borrow source identity and own or reference token text according to the token-stream lifetime.
 - AST nodes belong to the program arena; AST nodes do not individually free arena memory.
-- SIL/SVM modules own their dynamic instruction, block, and metadata arrays.
+- SVM modules own their dynamic instruction, block, and metadata arrays.
 - Backend temporary state belongs to the backend invocation and is destroyed before returning.
 - Object buffers belong to the object writer until ownership is transferred to the caller.
 - Never retain pointers into temporary token streams, stack buffers, or reallocatable arrays.
@@ -69,7 +69,6 @@ The source tree follows subsystem boundaries rather than historical implementati
 - Parse: lexer, token stream, parser and syntax recovery.
 - AST: source-oriented syntax representation.
 - Sema: declaration indexing, name resolution, type checking and language rules.
-- SIL: typed source-oriented IR and high-level transformations.
 - IR: typed SSA SVM, builders, verifier, analyses and pass manager.
 - Target: target triples, data layout, ABI and feature descriptions.
 - Machine: target legalization, instruction selection and machine IR.

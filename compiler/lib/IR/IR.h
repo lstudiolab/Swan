@@ -404,7 +404,7 @@ static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
     return true;
 }
 
-static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) {
+static inline bool swan_ir_verify_impl(const SwanIRModule *m,char *error,size_t cap) {
  if(!m||m->function_count>m->function_capacity||(m->function_count&&!m->functions))return swan_ir_fail(error,cap,"invalid module storage",NULL,0,0);
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
@@ -523,5 +523,12 @@ static inline bool swan_ir_verify(const SwanIRModule *m,char *error,size_t cap) 
  }
  if(error&&cap)error[0]=0;
  return true;
+}
+
+static inline bool swan_ir_verify(const SwanIRModule *module,char *error,size_t capacity) {
+ uint64_t stage=swan_profile_start();
+ bool valid=swan_ir_verify_impl(module,error,capacity);
+ swan_profile_end(SWAN_PROFILE_IR_VERIFY,stage);
+ return valid;
 }
 #endif

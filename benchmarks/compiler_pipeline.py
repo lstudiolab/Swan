@@ -26,6 +26,7 @@ from collections import defaultdict
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 HEADER = "Swan compiler pipeline profile (seconds)"
+RSS_MARKER = re.compile(r"^__SWAN_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
 PROFILE_LINE = re.compile(
     r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*[0-9]+(?:\.[0-9]+)?%\))?\s*$"
 )
@@ -34,7 +35,12 @@ STAGES = (
     "Semantic analysis", "Reachability analysis", "IR generation",
     "IR optimization", "Target code generation",
     "AST fallback code generation", "Assembly output", "Native linking",
+    "IR verification (inclusive)", "IR pass: constant folding",
+    "IR pass: CFG simplification", "IR pass: algebraic simplification",
+    "IR pass: copy propagation", "IR pass: common-subexpression elimination",
+    "IR pass: loop-invariant code motion", "IR pass: dead-code elimination",
     "Total wall time", "Benchmark process wall time", "Program runtime",
+    "Peak compiler RSS",
 )
 
 
@@ -106,17 +112,25 @@ def parse_profile(stderr: str) -> dict[str, float]:
 
 def compile_once(compiler: pathlib.Path, source: pathlib.Path,
                  output: pathlib.Path) -> dict[str, float]:
+    time_bin = pathlib.Path("/usr/bin/time")
+    if not time_bin.is_file():
+        raise RuntimeError("GNU time is required for peak compiler RSS measurement")
+    command = [
+        str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
+        str(compiler), "build", "--profile", str(source), "-o", str(output),
+    ]
     start = time.perf_counter()
-    proc = subprocess.run(
-        [str(compiler), "build", "--profile", str(source), "-o", str(output)],
-        cwd=ROOT, text=True, capture_output=True,
-    )
+    proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
     elapsed = time.perf_counter() - start
     if proc.returncode:
         raise RuntimeError(f"{source.name} compile failed:\n{proc.stderr[-12000:]}")
     if not output.is_file() or output.stat().st_size == 0:
         raise RuntimeError(f"{source.name}: compiler produced no executable")
     values = parse_profile(proc.stderr)
+    rss = RSS_MARKER.search(proc.stderr)
+    if not rss:
+        raise RuntimeError("GNU time did not report peak compiler RSS")
+    values["Peak compiler RSS"] = float(rss.group(1))
     values["Benchmark process wall time"] = elapsed
     run_start = time.perf_counter()
     executed = subprocess.run([str(output)], cwd=ROOT, stdout=subprocess.DEVNULL,
@@ -136,8 +150,8 @@ def profile_compiler_files(directory: pathlib.Path) -> list[dict[str, object]]:
     trace_dir.mkdir()
     command = [
         clang, "-std=c11", "-O2", "-DNDEBUG", "-Wall", "-Wextra", "-Wpedantic",
-        "-DSWAN_SIL_BOOTSTRAP", f"-I{ROOT / 'compiler' / 'include'}",
-        "-ftime-trace", "-c", str(ROOT / "main.c"), "-o", str(trace_dir / "main.o"),
+        f"-I{ROOT / 'compiler' / 'include'}",
+        "-ftime-trace", "-c", str(ROOT / "compiler" / "tools" / "swanc" / "main.c"), "-o", str(trace_dir / "swanc.o"),
     ]
     start = time.perf_counter()
     proc = subprocess.run(command, cwd=trace_dir, text=True, capture_output=True)
@@ -165,7 +179,7 @@ def profile_compiler_files(directory: pathlib.Path) -> list[dict[str, object]]:
             float(row["compile_seconds"]) / sum(float(x["compile_seconds"]) for x in rows) * 100
             if rows else 0.0
         )
-    rows.insert(0, {"file": "main.c + compiler frontend total",
+    rows.insert(0, {"file": "production C11 compiler translation unit total",
                     "compile_seconds": compile_elapsed, "share_percent": 100.0})
     return rows
 
@@ -175,7 +189,7 @@ def write_reports(results: dict[str, list[dict[str, float]]],
     output_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "host": platform.platform(),
-        "unit": "seconds",
+        "unit": "seconds; peak compiler RSS is KiB",
         "workloads": {},
         "compiler_files": file_rows,
     }
@@ -189,25 +203,27 @@ def write_reports(results: dict[str, list[dict[str, float]]],
     )
     with (output_dir / "compiler-pipeline.csv").open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
-        writer.writerow(["workload", "metric", "seconds"])
+        writer.writerow(["workload", "metric", "value", "unit"])
         for name, metrics in summary["workloads"].items():
-            writer.writerows([name, metric, f"{value:.9f}"] for metric, value in metrics.items())
+            writer.writerows([name, metric, f"{value:.9f}", "KiB" if metric == "Peak compiler RSS" else "seconds"] for metric, value in metrics.items())
         for row in file_rows:
-            writer.writerow(["compiler-file", row["file"], f"{float(row['compile_seconds']):.9f}"])
+            writer.writerow(["compiler-file", row["file"], f"{float(row['compile_seconds']):.9f}", "seconds"])
     lines = [
         "# Swan compiler pipeline benchmark", "",
         f"- Host: {summary['host']}",
-        "- Unit: seconds (lower is faster)",
+        "- Stage unit: seconds (lower is faster); peak compiler RSS: KiB (lower is smaller)",
         "- Statistic: median of measured runs",
         "",
         "## Compilation stages and runtime", "",
-        "| Workload | Metric | Seconds |",
-        "|---|---|---:|",
+        "| Workload | Pipeline stage / metric | Median | Unit |",
+        "|---|---|---:|---|",
     ]
     for name, metrics in summary["workloads"].items():
         for metric, value in metrics.items():
-            lines.append(f"| {name} | {metric} | {value:.9f} |")
-    lines += ["", "## Compiler source-file frontend cost", "",
+            unit = "KiB" if metric == "Peak compiler RSS" else "s"
+            display = f"{value:.0f}" if unit == "KiB" else f"{value:.9f}"
+            lines.append(f"| {name} | {metric} | {display} | {unit} |")
+    lines += ["", "> IR verification and per-pass rows are inclusive substage timings. They overlap with IR generation/optimization totals and must not be added to the parent-stage totals.", "", "## Compiler source-file frontend cost", "",
               "| File | Compile seconds | Share of traced file time |",
               "|---|---:|---:|"]
     for row in file_rows:

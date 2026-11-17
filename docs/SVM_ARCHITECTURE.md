@@ -1,12 +1,12 @@
 # SVM Compiler Architecture
 
-The normative compiler design is defined in [COMPILER_SYSTEM.md](COMPILER_SYSTEM.md). This document summarizes SVM's specific place in that design and records the current implementation boundary.
+The normative compiler design is defined in [COMPILER_SYSTEM.md](COMPILER_SYSTEM.md). This document summarizes SVM's role and current implementation boundary.
 
 ## Definition
 
 SVM is Swan's **target-independent compiler middle-end**, not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
 
-SVM accepts typed, semantically checked source lowering and produces verified, optimized IR for Swan-owned target backends. It is an ahead-of-time compiler component. No production executable may execute SVM instructions by dispatching over them at runtime.
+Swan source is lowered directly from the checked AST into typed SVM IR. SVM verifies and optimizes that IR before handing it to Swan-owned target backends. No production executable dispatches over SVM instructions at runtime.
 
 ## Canonical pipeline
 
@@ -15,12 +15,10 @@ Project source files
   -> per-file source manager, lexer and parser
   -> shared project/module graph
   -> name resolution and semantic/type analysis
-  -> SIL generation, verification and optimization
-  -> SIL-to-SVM lowering
-       documented compatibility lowering for constructs not yet in SIL
-  -> SVM typed SSA verification
-  -> target-independent SVM optimization
+  -> direct AST-to-SVM typed SSA lowering
   -> SVM verification
+  -> target-independent SVM optimization
+  -> final SVM verification and analysis rebuild
   -> target legalization
   -> instruction selection
   -> machine IR verification
@@ -39,7 +37,6 @@ WebAssembly is a separate AOT output target. It is not a native executable and r
 
 - **Frontend:** source identity, UTF-8 validation, lexing, parsing, AST, module graph, imports and diagnostics.
 - **Semantic analysis:** declaration collection, name resolution, type checking, visibility, control-flow rules and ABI validation.
-- **SIL:** source-oriented typed intermediate representation, verification, canonicalization and high-level optimization.
 - **SVM:** target-independent typed SSA representation, verification, pass management and optimization.
 - **Target backend:** target data layout, legalization, instruction selection, machine IR, register allocation, frame layout, ABI lowering and machine code.
 - **Object writer:** sections, symbols, relocations and target object metadata.
@@ -64,13 +61,13 @@ Verification is required before optimization, after transformations that can inv
 
 ## Optimization contract
 
-SVM's target-independent optimizer may perform constant folding/propagation, CFG simplification, unreachable-block removal, algebraic simplification, copy propagation, CSE, LICM, and DCE when their semantic preconditions are proven.
+The optimizer runs a bounded, change-driven fixed-point pipeline with a maximum of 350 pass executions. Its current pass sequence includes width-aware constant folding, CFG simplification, algebraic simplification, copy propagation, common-subexpression elimination, loop-invariant code motion, post-hoisting CSE, and dead-code elimination.
 
 Every pass must declare required and preserved analyses, whether it mutates CFG or memory semantics, and its target dependencies. Integer transformations must preserve width, signedness and overflow semantics. Memory and call transformations must conservatively preserve observable side effects. PHI and CFG rewrites must preserve predecessor/value correspondence.
 
 ## Backend contract
 
-A backend consumes only verified, optimized SVM IR. It owns its target-specific legalization and machine lowering, and must document its supported operation subset, ABI, data layout, register model, relocation model and object format.
+A backend consumes only verified, optimized SVM IR. It owns target-specific legalization and machine lowering, and must document its supported operation subset, ABI, data layout, register model, relocation model and object format.
 
 A backend is not considered production-complete merely because it emits assembly or an object. Completion requires target-specific compile, link, ABI, and execution tests (or WebAssembly module validation and execution tests).
 
@@ -88,11 +85,10 @@ Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not
 
 ## Current repository status
 
-The repository currently has a C11 compiler driver, header-oriented implementation, a typed SSA IR, verifier and optimizer, a narrow Swan-authored SIL bridge, and Swan-owned emitters for several target families. It is not yet fully compliant with the normative contract:
+The repository has a single C11 production compiler, a header-oriented implementation, typed SSA IR, a verifier and optimizer, and Swan-owned emitters for several target families. It is not yet fully compliant with the long-term contract:
 
 - the root `main.c` is a compatibility include of `compiler/tools/swanc/main.c`;
 - source files are lexed and parsed independently and retain stable source paths; native x86-64 project builds emit one assembly/object translation unit per source file, while cross-target backends still consume a project-wide IR module;
-- SIL supports a narrow scalar straight-line subset and falls back to general typed-IR lowering for other constructs; multi-source native projects deliberately retain the AST compatibility backend until imported-module symbol identities are fully supported by per-file IR lowering;
 - backend and object/link orchestration remains target-specific in the driver;
 - native assembly/object production still uses external toolchain components;
 - the optional LLVM bridge remains available for explicit target triples;

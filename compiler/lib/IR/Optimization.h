@@ -677,7 +677,7 @@ static const SwanIRPass swan_ir_default_passes[]={
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"post-licm-common-subexpression-elimination"},
     {SWAN_IR_PASS_DEAD_CODE,"dead-code-elimination"}
 };
-static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,bool *changed_out,char *error,size_t cap){
+static inline bool swan_ir_run_pass_impl(SwanIRModule *module,SwanIRPassKind pass,bool *changed_out,char *error,size_t cap){
     bool changed=false;
     if(changed_out)*changed_out=false;
     if(pass==SWAN_IR_PASS_CONSTANT_FOLD){
@@ -736,6 +736,24 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,boo
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");
     return false;
 }
+static inline SwanProfileStage swan_ir_pass_profile_stage(SwanIRPassKind pass){
+    switch(pass){
+        case SWAN_IR_PASS_CONSTANT_FOLD:return SWAN_PROFILE_IR_PASS_CONSTANT_FOLD;
+        case SWAN_IR_PASS_CFG_SIMPLIFY:return SWAN_PROFILE_IR_PASS_CFG;
+        case SWAN_IR_PASS_ALGEBRAIC:return SWAN_PROFILE_IR_PASS_ALGEBRAIC;
+        case SWAN_IR_PASS_COPY_PROPAGATION:return SWAN_PROFILE_IR_PASS_COPY;
+        case SWAN_IR_PASS_COMMON_SUBEXPRESSION:return SWAN_PROFILE_IR_PASS_CSE;
+        case SWAN_IR_PASS_LOOP_INVARIANT:return SWAN_PROFILE_IR_PASS_LICM;
+        case SWAN_IR_PASS_DEAD_CODE:return SWAN_PROFILE_IR_PASS_DCE;
+    }
+    return SWAN_PROFILE_IR_PASS_DCE;
+}
+static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,bool *changed_out,char *error,size_t cap){
+    uint64_t stage=swan_profile_start();
+    bool ok=swan_ir_run_pass_impl(module,pass,changed_out,error,cap);
+    swan_profile_end(swan_ir_pass_profile_stage(pass),stage);
+    return ok;
+}
 #define SWAN_IR_MAX_OPTIMIZATION_PASSES 350u
 typedef struct {
     size_t passes_executed;
@@ -764,6 +782,7 @@ static inline bool swan_ir_optimize_with_stats(SwanIRModule *module,
         if(!round_changed){converged=true;break;}
     }
     if(stats){stats->passes_executed=executed;stats->rounds=rounds;stats->converged=converged;}
+    if(swan_profile_enabled){swan_profile_ir_pass_executions+=executed;swan_profile_ir_pass_rounds+=rounds;}
     if(!converged){
         if(error&&cap)snprintf(error,cap,"optimization did not converge within %u pass executions",SWAN_IR_MAX_OPTIMIZATION_PASSES);
         return false;

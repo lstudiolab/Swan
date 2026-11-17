@@ -14,7 +14,7 @@ Swan is an ahead-of-time (AOT), native-code compiler.
 - A successful native build produces a normal object file and/or executable for the selected target ABI.
 - The executable does not contain or require a Swan interpreter, JIT compiler, SVM virtual machine, or bytecode dispatch loop.
 - SVM is a compiler subsystem and intermediate representation (IR), not a runtime machine.
-- SIL and SVM are compiler IRs. Neither is a distributable runtime bytecode format.
+- SVM is Swan's target-independent typed compiler IR. It is not a distributable runtime bytecode format.
 - `run` means build a native executable for the host and then launch that executable as a separate operating-system process. It must never mean interpret source or IR.
 - WebAssembly is a separately selected AOT output format. A WebAssembly module is not a Swan interpreter or native executable; execution requires a compatible WebAssembly host.
 - No performance claim may conflate compiler throughput, executable startup, and generated-program runtime.
@@ -31,14 +31,13 @@ Swan-owned components include:
 2. Lexer and parser.
 3. AST and module graph.
 4. Name resolution and semantic/type analysis.
-5. SIL and SIL verification/optimization.
-6. SVM typed SSA IR, verifier, and optimization pass manager.
-7. Target descriptions, data layouts, ABIs, and relocation models.
-8. Instruction selection and target legalization.
-9. Machine-level IR and machine verifiers.
-10. Liveness analysis, register allocation, frame layout, and spill placement.
-11. Machine instruction encoding and object-file emission.
-12. Native linking orchestration and executable validation.
+5. SVM typed SSA IR, verifier, and optimization pass manager.
+6. Target descriptions, data layouts, ABIs, and relocation models.
+7. Instruction selection and target legalization.
+8. Machine-level IR and machine verifiers.
+9. Liveness analysis, register allocation, frame layout, and spill placement.
+10. Machine instruction encoding and object-file emission.
+11. Native linking orchestration and executable validation.
 
 Operating-system assemblers/linkers and system libraries may be used as explicitly documented platform tools during the transition. They are not substitutes for Swan's compiler middle-end or backend. The long-term native path must be able to emit relocatable object files without routing Swan IR through another compiler's backend.
 
@@ -68,7 +67,6 @@ compiler/
     Core/       source manager, arenas, diagnostics, common types
     Frontend/   lexer, parser, AST, declarations, module graph
     Sema/       name resolution, type checking, language rules
-    SIL/        SIL model, builder, verifier, lowering, passes
     SVM/        typed SSA IR, builder, verifier, pass manager
     Analysis/   dominators, loops, alias/liveness and reusable analyses
     Optimize/   target-independent optimization passes
@@ -102,10 +100,7 @@ Project inputs
   -> declaration collection across the whole project
   -> name resolution and semantic/type analysis
   -> generic/overload and ABI validation, when supported
-  -> SIL generation for eligible source constructs
-  -> SIL verification
-  -> SIL canonicalization and optimization
-  -> lowering to SVM typed SSA IR
+  -> direct AST-to-SVM typed SSA IR lowering
   -> SVM verification
   -> target-independent optimization pipeline
   -> SVM verification after transformations
@@ -121,7 +116,7 @@ Project inputs
   -> executable/object validation
 ```
 
-A construct may temporarily use a documented compatibility lowering path, but it must join the same project-level semantic model and produce a diagnostic if the selected target cannot represent it. Compatibility paths must not silently claim full SIL/SVM coverage.
+A construct may temporarily use a documented compatibility lowering path, but it must join the same project-level semantic model and produce a diagnostic if the selected target cannot represent it. Compatibility paths must not silently claim typed-IR or backend feature coverage.
 
 ### 4.1 Project-wide compilation
 
@@ -150,10 +145,7 @@ Each phase has an explicit input, output, invariant, and failure behavior.
 | Parser | token stream | AST | malformed syntax is rejected; no silent node substitution |
 | Module graph | ASTs/imports | project graph | unique module identity; deterministic dependency graph |
 | Sema | project graph | typed declarations | names, types, visibility and control flow are valid |
-| SILGen | typed AST | SIL functions/modules | every emitted value has a defined type and origin |
-| SIL verifier | SIL | verified SIL | valid definitions, uses, blocks, types and terminators |
-| SIL optimizer | verified SIL | optimized SIL | each pass preserves verifier invariants |
-| SVM lowering | typed AST/SIL | SVM module | every source operation is represented or rejected |
+| SVM lowering | checked AST | SVM module | every source operation is represented or rejected |
 | SVM verifier | SVM module | verified module | valid SSA, types, CFG, PHIs, calls and terminators |
 | SVM optimizer | verified SVM | optimized SVM | pass preconditions hold; verifier passes after mutation |
 | Target legalizer | optimized SVM + target | legal target IR | no unsupported operation remains |
@@ -166,24 +158,24 @@ A phase must not continue after a failed prerequisite. Errors must carry a sourc
 
 Warnings are non-fatal by default and must identify suspicious but not provably invalid source constructs. The driver may promote warnings to errors with `--warnings-as-errors`; when promoted, compilation stops before code generation and must not leave a newly generated output artifact. Warning checks must avoid claiming certainty where control-flow or alias information is incomplete.
 
-## 5. SIL and SVM responsibilities
+## 5. SVM responsibilities
 
-SIL is a higher-level, source-oriented optimization/lowering IR. It should preserve semantic structure long enough to perform transformations that benefit from source-level types, ownership/lifetime facts, and structured control flow.
+SVM is the compiler's single target-independent typed SSA representation. The production compiler lowers supported source constructs directly from the checked AST into SVM. It owns IR construction, structural and type verification, optimization pass management, and the verified representation passed to target backends.
 
-SVM is the target-independent, typed SSA representation consumed by target legalization and machine lowering. It must not contain target-specific register numbers or encode one CPU's instruction set.
+The SVM representation must not contain target-specific register numbers or encode one CPU's instruction set. Target-dependent transformations occur only after target selection.
 
-The intended boundary is:
+The canonical lowering contract is:
 
-- SILGen lowers semantically checked source into SIL.
-- SIL verification validates SIL before transformations.
-- SIL passes simplify and optimize SIL while preserving its semantic invariants.
-- SIL lowering converts supported SIL operations into SVM operations.
-- Constructs not yet expressible in SIL use a named, tested lowering fallback into SVM. The fallback is transitional and must not be hidden.
-- SVM verification runs before optimization, after any pass that mutates structural invariants, and before target lowering.
-- SVM optimizations are target-independent unless a pass explicitly declares a target dependency.
-- Backend-specific transformations occur only after target selection.
+- The frontend produces a checked project AST and module graph.
+- AST-to-SVM lowering creates typed functions, blocks, instructions, calls, and terminators.
+- SVM verification validates SSA definitions/uses, types, control flow, PHI edges, call signatures, and terminators.
+- Target-independent SVM passes preserve language semantics and declare their analysis requirements and invalidation behavior.
+- Verification runs before optimization, after transformations that can invalidate structural invariants, and before target lowering.
+- The backend legalizes and lowers verified SVM to its target-specific representation.
 
-SIL is not required to be the only lowering route on day one. It is required to have a growing, measured coverage boundary, with tests proving which constructs use it. A bridge that optimizes only a narrow subset must be described as a subset, not as complete SIL support.
+The x86-64 AST compatibility backend remains a deliberate, separately tested route for currently supported source features that are not represented in typed IR. It is selected by feature requirements, never as recovery after an IR/verifier/optimizer failure.
+
+The C11 production compiler is built directly. No bootstrap compiler or secondary compiler is built.
 
 ## 6. Optimization and pass management
 
@@ -268,7 +260,7 @@ C interoperability must remain an explicit ABI feature, not an accidental conseq
 Performance work must preserve correctness and be measured by phase.
 
 Required practices:
-- Use arena allocation for AST, token, SIL, SVM, and temporary analysis data where lifetimes are compilation-scoped.
+- Use arena allocation for AST, token, SVM, and temporary analysis data where lifetimes are compilation-scoped.
 - Reuse buffers and avoid repeated whole-module copies or serialization.
 - Cache immutable module parse/semantic artifacts with content and compiler-version keys.
 - Use hash-based symbol/module lookup with collision-safe equality checks.
@@ -305,11 +297,10 @@ A target is marked production-supported only when its documented source subset p
 
 ## 12. Current implementation facts and migration order
 
-The repository currently has a C11 driver, header-oriented compiler implementation, typed SSA IR, an SVM verifier/optimizer, a limited Swan-authored SIL bridge, several Swan-owned target emitters, and project-directory source collection. It also has transitional behavior that does not yet satisfy this contract:
+The repository currently has a C11 driver, header-oriented compiler implementation, typed SSA IR, an SVM verifier/optimizer, several Swan-owned target emitters, and project-directory source collection. It also has transitional behavior that does not yet satisfy this contract:
 
 - root `main.c` is a compatibility include; the actual driver is `compiler/tools/swanc/main.c`;
 - project sources are concatenated before lexing, so per-file source identity is not fully preserved;
-- SIL covers only a narrow scalar straight-line subset and starts from a complete general typed-IR candidate;
 - the driver contains target-specific output/link orchestration;
 - native assembly/object production still invokes external toolchain components;
 - the optional LLVM target bridge routes verified SVM IR through LLVM/Clang and is not part of the desired Swan-owned native backend;
@@ -318,15 +309,14 @@ The repository currently has a C11 driver, header-oriented compiler implementati
 
 Migration order:
 
-1. Establish source manager and per-file lex/parse while retaining the shared project graph.
-2. Make the phase pipeline explicit and test each phase boundary.
-3. Expand SIL semantics, verification, lowering coverage, and pass management.
-4. Consolidate SVM pass management, analysis preservation, and verifier checkpoints.
-5. Define a shared machine IR and target backend interface.
-6. Complete one native backend end-to-end, including register allocation and Swan-owned object emission.
-7. Migrate other backends to the same interface with per-target ABI tests.
-8. Remove the LLVM code-generation bridge after all required target support has a Swan-owned implementation; do not remove it before a replacement exists if doing so would break existing documented users.
-9. Consolidate object/link handling and make the root `main.c` the canonical driver.
-10. Expand C ABI coverage only alongside layout, ABI, and integration tests.
+1. Keep source identity and per-file lex/parse stable across the shared project graph.
+2. Make phase timing, allocation volume, peak RSS, and pass statistics observable in repeatable benchmarks.
+3. Consolidate SVM pass management, reusable analyses, and verifier checkpoints.
+4. Define a shared machine IR and target backend interface.
+5. Complete one native backend end-to-end, including register allocation and Swan-owned object emission.
+6. Migrate other backends to the same interface with per-target ABI tests.
+7. Remove the LLVM code-generation bridge only after required target support has a Swan-owned implementation and compatibility tests pass.
+8. Consolidate object/link handling and preserve the single direct C11 production build.
+9. Expand C ABI coverage only alongside layout, ABI, and integration tests.
 
 This sequence deliberately avoids a destructive rewrite. Preserve existing tested behavior while replacing transitional internals behind stable interfaces. Do not mark a migration step complete merely because a header or enum has been added; require an end-to-end test that exercises the behavior.

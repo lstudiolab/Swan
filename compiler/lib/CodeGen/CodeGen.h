@@ -10,22 +10,9 @@
 #include "swan/codegen_riscv64.h"
 #include "swan/codegen_wasm32.h"
 #include "swan/codegen_llvm.h"
-#ifndef SWAN_SIL_BOOTSTRAP
-#include "swan/sil_bridge.h"
-#endif
 
 
 static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module,SwanError *error){
-#ifndef SWAN_SIL_BOOTSTRAP
-    /* SIL currently serializes source-level function names. Until its symbol
-       table consumes the module linker identities, imported programs use the
-       typed IR frontend directly rather than mixing two symbol namespaces. */
-    if(!program->module_count&&program->codegen_source_index<0){
-        SwanSILResult sil_result=swan_sil_try_irgen_program(program,module,error);
-        if(sil_result==SWAN_SIL_LOWERED)return true;
-        if(sil_result==SWAN_SIL_FAILED)return false;
-    }
-#endif
     return swan_irgen_program(program,module,error);
 }
 
@@ -57,7 +44,7 @@ static inline bool swan_svm_prepare_ir(Program *program,SwanIRModule *module,
 
 /* The AST backend is a deliberate compatibility path, not a recovery path.
    Select it only when the source contains a construct that is known to require
-   it. An IR/SIL/verifier/optimizer failure must remain a hard compilation error. */
+   it. An IR verifier or optimizer failure must remain a hard compilation error. */
 static inline bool swan_expr_requires_ast_compatibility(const Expr *expression){
     if(!expression)return false;
     if(expression->kind==E_INDEX||expression->kind==E_FLOAT||

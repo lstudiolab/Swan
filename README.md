@@ -6,7 +6,7 @@ Licensed under Apache-2.0.
 
 ## Compiler system contract
 
-The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/ENGINEERING_STYLE.md](docs/ENGINEERING_STYLE.md). It defines Swan as an AOT compiler with a Swan-owned SIL/SVM pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
+The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/ENGINEERING_STYLE.md](docs/ENGINEERING_STYLE.md). It defines Swan as an AOT compiler with a Swan-owned SVM typed-IR pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
 
 ## Language guide
 
@@ -16,7 +16,7 @@ The programmer-facing syntax, coding conventions, complete reserved-keyword list
 
 The compiler has two cooperating source-lowering paths:
 
-- **Typed IR path:** preferred for the supported scalar/control-flow subset. Swan source is lowered through the Swan-authored SIL bridge when eligible, otherwise through the general AST-to-IR generator. The resulting typed SSA IR is verified, optimized, and sent to a selected backend.
+- **Typed IR path:** preferred for the supported scalar/control-flow subset. Swan source is lowered directly from the AST through the general typed-IR generator. The resulting typed SSA IR is verified, optimized, and sent to a selected backend.
 - **x86-64 AST compatibility path:** retains currently supported frontend features not yet represented in typed IR, notably arrays, output/logging, and runtime-lazy standard-library imports.
 
 The compatibility path is intentional. A construct supported by the x86-64 frontend is not automatically supported by every IR backend.
@@ -30,7 +30,6 @@ The compatibility path is intentional. A construct supported by the x86-64 front
   -> C-header import + standard-library module loading
   -> semantic analysis and reachability
   -> source lowering:
-       Swan SIL bridge (eligible scalar functions)
        general AST -> typed SSA IR (fallback)
        AST -> x86-64 compatibility backend (where required)
   -> typed IR verification
@@ -120,7 +119,7 @@ Inspect supported target names:
 ./build/swancc --list-targets
 ```
 
-The build uses a temporary C11 bootstrap executable to compile the Swan-authored SIL stage sources into assembly, assembles that output, and links the resulting object into the final compiler. The production executable is `build/swanc`; `build/swan` remains as a compatibility alias.
+`build.sh` compiles the C11 production compiler directly into `build/swanc`. No bootstrap compiler or secondary compiler is built. `build/swan` remains a compatibility alias to the same executable.
 
 ## Swan syntax
 
@@ -280,12 +279,6 @@ A C translation unit in the same project directory can declare and call `swan_ad
 
 The importer supports up to 16 scalar integer/bool parameters and scalar integer/bool or void returns. Opaque pointer parameters and returns are passed as machine-word `i64` values on x86-64 System V; Swan cannot yet dereference those imported pointers or describe pointee layouts. Structs/unions passed by value, callback invocation, variadic functions, floating-point ABI classification, C++ mangling, and non-System-V platform calling conventions remain unsupported. Clang must be installed for sources using `import C`. Linker inputs are currently accepted only by the native x86-64 executable path.
 
-## Swan-authored SIL
-
-The bootstrap SIL sources live in `compiler/lib/SIL/Runtime/`, with the C-to-SIL bridge in `compiler/lib/SIL/SILBridge.h`. The current SIL is a small scalar SSA builder/optimizer, not the full Swan language IR and not a replacement for the general IR generator. It supports parameter, constant, add/subtract/multiply, equality, signed-less-than, copy, and return records in a five-u32-word instruction format. Its current builder is bounded to 256 value IDs and 256 instructions, with packed non-negative immediates up to 16 bits.
-
-The bridge first constructs a complete typed-IR candidate, then replaces eligible straight-line, single-return scalar functions with SIL-lowered functions. Functions outside that subset keep the general typed-IR lowering. Both routes enter the same typed-IR verification, optimization, and backend stages. This lets a project mix SIL-lowered Swan functions with ordinary IR-lowered code and imported C declarations; C calls remain represented in typed IR and preserve their external ABI symbols. SIL itself does not yet encode general calls, control flow, local variables, memory operations, or loops. The bridge is therefore a staged lowering path, not yet a complete replacement for AST-to-IR lowering.
-
 ## Profiling and benchmarks
 
 Compiler-stage profiling:
@@ -296,7 +289,7 @@ Compiler-stage profiling:
 ./build/swanc run examples/hello.swan --profile
 ```
 
-The report measures source reading, lexing, parsing, imports, semantic analysis, reachability, IR generation, IR optimization, code generation, assembly output, linking, and execution where applicable.
+The report measures source reading, lexing, parsing, imports, semantic analysis, reachability, typed-IR generation, IR verification, total optimization, individual optimization passes, target code generation, assembly output, native linking, and execution where applicable. GitHub Actions also records peak compiler RSS for each workload.
 
 Repeatable compiler pipeline benchmark:
 
@@ -318,14 +311,13 @@ Run the complete repository test script:
 sh test.sh
 ```
 
-The script builds the compiler, checks header isolation and C11 compilation, runs C ABI and UTF-8 tests, profiling tests, smoke/regression tests, Foundation and lazy-import tests, architecture/backend tests, and the keyword registry test. Cross-target object validation does not establish native execution or full ABI correctness on those targets.
+The script builds the single production compiler directly, verifies that no bootstrap/secondary compiler artifacts are produced, checks header isolation and C11 compilation, runs C ABI and UTF-8 tests, profiling tests, smoke/regression tests, Foundation and lazy-import tests, architecture/backend tests, and the keyword registry test. Cross-target object validation does not establish native execution or full ABI correctness on those targets.
 
 ## Repository map
 
 - `main.c` — CLI orchestration and compiler entry point.
 - `compiler/include/swan/` — stable compatibility/public headers.
-- `compiler/lib/` — compiler implementation, organized by subsystem (AST, Basic, CodeGen, Driver, IR, Parse, SIL, Sema, Serialization).
-- `compiler/lib/SIL/Runtime/` — Swan-authored SIL builder, verifier, and optimization passes.
+- `compiler/lib/` — compiler implementation, organized by subsystem (AST, Basic, CodeGen, Driver, IR, Parse, Sema, Serialization).
 - `stdlib/` — source-level standard library.
 - `tests/` — compiler, runtime, ABI, regression, and target tests.
 - `benchmarks/` — compiler and runtime measurement programs.
@@ -383,8 +375,6 @@ compiler/
     Driver/            Compilation pipeline and orchestration
     IR/                Typed SVM IR, IR generation, optimization
     Parse/             UTF-8 lexer and parser
-    SIL/               Swan Intermediate Language bridge and runtime passes
-      Runtime/
     Sema/              Name/type checking and C header import
     Serialization/     Assembly output
   tools/

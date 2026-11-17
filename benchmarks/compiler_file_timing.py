@@ -45,9 +45,9 @@ def union_duration(intervals):
 def clang_sample(clang, trace_dir, sample):
     obj = trace_dir / f"main-{sample}.o"
     cmd = [clang, "-std=c11", "-O2", "-DNDEBUG", "-Wall", "-Wextra", "-Wpedantic",
-           "-DSWAN_SIL_BOOTSTRAP", f"-I{ROOT / 'compiler' / 'include'}",
+           f"-I{ROOT / 'compiler' / 'include'}",
            "-ftime-trace", "-ftime-trace-granularity=0",
-           "-c", str(ROOT / "main.c"), "-o", str(obj)]
+           "-c", str(ROOT / "compiler" / "tools" / "swanc" / "main.c"), "-o", str(obj)]
     started = time.perf_counter()
     proc = subprocess.run(cmd, cwd=trace_dir, text=True, capture_output=True)
     wall = time.perf_counter() - started
@@ -130,7 +130,7 @@ def main():
         "clang_translation_unit_wall_median_seconds": statistics.median(clang_walls),
         "swan_pipeline_workload": str(WORKLOAD.relative_to(ROOT)),
         "swan_pipeline_stage_medians_seconds": stages,
-        "note": "Per-file timings are exclusive frontend source-processing attribution, not runtime function costs. SIL pass sources are concatenated by build.sh and are not individually attributable in this header trace."
+        "note": "Per-file timings are exclusive frontend source-processing attribution, not runtime function costs. The C11 production compiler is compiled directly with no bootstrap or secondary compiler stage."
     }
     (output / "compiler-file-timing.json").write_text(json.dumps(result, indent=2) + "\n")
     lines = ["# Swan compiler file timing benchmark", "",
@@ -150,8 +150,8 @@ def main():
     for name, seconds in stages.items():
         lines.append(f"| {name} | {seconds:.9f} |")
     lines += ["", "## Interpretation", "",
-              "Per-file values measure exclusive frontend processing attributed to each header during compilation of main.c. The stage table measures Swan's actual source-compilation pipeline.",
-              "The SIL .swan passes are concatenated into one generated source file by build.sh; this report includes their build in the compiler build step but cannot separate their source-level compile time yet.",
+              "Per-file values measure exclusive frontend processing attributed to each header during compilation of the production C11 compiler translation unit. The stage table measures Swan's actual source-compilation pipeline.",
+              "The compiler build is one direct C11 translation-unit compilation; there is no bootstrap compiler or generated secondary compiler object.",
               "", "Raw medians and host metadata are in compiler-file-timing.json."]
     (output / "compiler-file-timing.md").write_text("\n".join(lines) + "\n")
     print("\n".join(lines))

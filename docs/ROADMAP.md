@@ -1,19 +1,19 @@
 # Swan Engineering Roadmap
 
-This roadmap separates implemented work from remaining engineering. It is not a claim that every planned item is already supported.
+This roadmap records the current production compiler and the remaining engineering work. Planned capabilities are not claims of completed support.
 
 ## Current baseline
 
-- Exact 36-word reserved-keyword contract shared by the C11 bootstrap lexer and Compiler 2 lexer, with regression tests for non-keyword legacy spellings.
-
-- C11 compiler host with a Swan-authored SIL scalar subsystem compiled during bootstrap.
+- One production compiler: the C11 implementation in `compiler/tools/swanc/main.c`.
+- `build.sh` builds that compiler directly. No bootstrap compiler or second compiler is built.
 - UTF-8-aware lexer and indentation-based parser.
-- AST semantic analysis, standard-library module loading, limited scalar C header import, and reachability analysis.
-- General typed SSA IR, verifier, AST-to-IR lowering, and target-independent optimizer.
+- AST semantic analysis, standard-library module loading, limited scalar C-header import, and reachability analysis.
+- General typed SSA IR, verifier, direct AST-to-IR lowering, and target-independent optimizer.
+- A bounded fixed-point optimizer with a maximum of 350 pass executions.
 - x86-64 typed-IR codegen plus AST compatibility codegen for additional implemented features.
 - Shared SVM compile core feeding Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
 - Optional explicit LLVM target-triple bridge.
-- Automatic cleanup for eligible local arrays and a stack-array fast path for small fixed non-escaping arrays; full move/borrow analysis is still a Compiler 2 release blocker.
+- Automatic cleanup for eligible local arrays and a stack-array fast path for small fixed non-escaping arrays.
 
 ## Completed optimization work
 
@@ -27,35 +27,19 @@ This roadmap separates implemented work from remaining engineering. It is not a 
 - Conservative loop-invariant code motion and post-hoisting CSE.
 - Worklist-based dead-code elimination.
 - x86-64 compatibility-path register locals, call preservation, leaf-frame elimination, small-function inlining, arithmetic strength reduction, and specialized array access/allocation paths.
+- Compiler stage profiling and GitHub Actions benchmark infrastructure, including peak RSS measurement.
 
-## Priority 0: make Compiler 2 executable and safe
+## Priority 0: measure and reduce compiler resource use
 
-Compiler 2 (swanc/) is not yet a complete compiler. Compiler 1 remains the bootstrap and production implementation until Compiler 2 passes the self-hosting contract in swanc/README.md.
+1. Establish repeatable GitHub Actions baselines for small, medium, and stress-sized Swan programs.
+2. Record per-stage and per-optimization-pass time, end-to-end wall time, compiler peak RSS, compiler build time, and generated artifact size.
+3. Use the measured bottlenecks to prioritize work; do not guess based on source size or pass count.
+4. Reduce avoidable token, AST, IR, and optimizer temporary allocations while preserving ownership and diagnostics.
+5. Replace repeated linear symbol/function scans in hot paths with collision-safe indexes where benchmarks show a benefit.
+6. Reuse optimizer workspaces and analysis results when their invalidation rules are explicit.
+7. Keep the non-profiled path free of timing overhead when profiling is disabled.
 
-Current Compiler 2 executable slices are the UTF-8 lexer, integer-expression Pratt parser, linear typed-IR verifier/optimizer, and linearized ownership-event verifier. The ownership verifier enforces one-owner state transitions and shared/exclusive borrow conflicts, but AST/CFG event generation, path-sensitive joins, lifetime inference, alias provenance, and automatic drop insertion are not implemented. Its regression suite is tests/swanc-ownership.sh.
-
-Required completion sequence:
-1. Implement complete source-file AST parsing and AST structural verification.
-2. Implement symbol resolution, canonical type checking, definite initialization, and control-flow graph construction.
-3. Generate ownership events from the CFG; implement branch/loop state joins, non-lexical borrow regions, move-path tracking, and deterministic drop elaboration.
-4. Implement verified SILGen, SIL ownership verification, demand analysis, and semantics-preserving SIL passes.
-5. Implement IRGen and complete typed IR verification, then SVM generation, legalization, liveness, register allocation, spilling, and SVM verification.
-6. Implement target-specific ABI/data-layout handling, native/WASM emitters, safe linker invocation, and explicit unsupported-feature errors.
-7. Wire the driver so any failed verifier, semantic error, unsupported construct, or unsafe operation stops the pipeline before code generation.
-8. Bootstrap Compiler 2 with Compiler 1, then rebuild Compiler 2 with itself and compare deterministic outputs. Run the same positive, negative, fuzz, regression, and target suites at both stages.
-
-## Release gates
-
-- No placeholder-only stage may be reachable from a production build.
-- No compiler stage may continue after a prior-stage error or failed verifier.
-- All ownership paths must have tests for branch joins, loops, early returns, aliasing, move, borrow conflicts, use-after-move, and automatic drops.
-- Fuzz the lexer, parser, AST verifier, IR/SIL/SVM verifiers, and target emitters with sanitizers enabled.
-- Run cross-target executable tests where native runners are available; object emission alone is not execution validation.
-- Record compile wall time, compile peak RSS, runtime, runtime peak RSS, artifact size, and checksums for identical Swan/Rust/C workloads.
-- Treat lower-than-Rust peak memory as an empirical target, not a guaranteed property; report medians and variance across repeated runs.
-- Do not cut a production release until stage-2/stage-3 self-hosting and all required release gates pass.
-
-## Priority 1: correctness and parity
+## Priority 1: correctness and backend parity
 
 1. Keep the full test suite green, including C ABI, UTF-8, automatic array lifetime, contextual compatibility syntax, lazy imports, typed IR, and all target emission.
 2. Add differential execution tests for equivalent programs compiled through typed-IR and AST compatibility paths.
@@ -84,4 +68,4 @@ Required completion sequence:
 
 ## Performance policy
 
-A change is not a performance win merely because it reduces source lines, instruction count, or compile time. Measure compile time and runtime separately, validate checksums, report memory use, and record the exact compiler revision and machine configuration. Do not claim superiority over C, Rust, or other languages without reproducible, current results.
+A change is not a performance win merely because it reduces source lines, instruction count, or compile time. Measure compile time and runtime separately, validate checksums, report memory use, and record the exact compiler revision and machine configuration. Compare only equivalent workloads and optimization settings. Do not claim superiority over C, Rust, Goose, or other languages without reproducible, current results.
