@@ -117,22 +117,6 @@ static inline bool swan_token_reserve(TokenStream *ts,SwanError *err,unsigned li
  if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}
  ts->items=items;ts->capacity=cap;return true;
 }
-static inline bool swan_token_reserve(TokenStream *ts,SwanError *err,unsigned line,unsigned col) {
- if(ts->count==SIZE_MAX||ts->count+1>SIZE_MAX/sizeof(*ts->items)){
-  Token t={0};t.line=line;t.col=col;swan_error(err,&t,"token count exceeds addressable storage");return false;
- }
- if(ts->count<ts->capacity)return true;
- size_t cap=ts->capacity;
- if(!cap){cap=ts->length/8+4;if(cap<4)cap=4;if(cap>64)cap=64;}
- else if(cap>SIZE_MAX/2)cap=ts->count+1;
- else cap*=2;
- if(cap<ts->count+1||cap>SIZE_MAX/sizeof(*ts->items)){
-  swan_error(err,NULL,"token storage size overflow");return false;
- }
- Token *items=realloc(ts->items,cap*sizeof(*items));
- if(!items){swan_error(err,NULL,"out of memory while tokenizing");return false;}
- ts->items=items;ts->capacity=cap;return true;
-}
 /* Token text is NUL-terminated throughout the parser and semantic pipeline.
  * Keep one contiguous arena so identifier comparisons and numeric conversion
  * never read past a source slice. At most 2*source_bytes+1 bytes are needed:
