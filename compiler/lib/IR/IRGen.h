@@ -338,7 +338,8 @@ static inline bool swan_irgen_include_function(const Program *program,size_t ind
     const Stmt *function=program->functions[index];
     if(function->source_index==(size_t)program->codegen_source_index)
         return !program->reachability_computed||program->function_reachable[index]||function->exported;
-    return program->codegen_include_external_functions;
+    return program->codegen_include_external_functions&&
+           (!program->reachability_computed||program->function_reachable[index]);
 }
 static inline bool swan_irgen_program(Program *program,SwanIRModule *module,SwanError *error) {
     if(error)memset(error,0,sizeof(*error));
