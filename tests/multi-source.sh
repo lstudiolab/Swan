@@ -81,7 +81,16 @@ SWAN
 "$ROOT/build/swanc" build "$TMP/cross" --target aarch64 --emit-asm -o "$TMP/aarch64"
 test -f "$TMP/aarch64/01_helper.s"
 test -f "$TMP/aarch64/02_main.s"
-"$ROOT/build/swanc" build "$TMP/cross" --target armv7 --emit-asm -o "$TMP/armv7"
+mkdir -p "$TMP/armv7-src"
+cat > "$TMP/armv7-src/01_helper.swan" <<'SWAN'
+export func arm_value() -> i32:
+    return 42
+SWAN
+cat > "$TMP/armv7-src/02_main.swan" <<'SWAN'
+func main() -> i32:
+    return arm_value() - 42
+SWAN
+"$ROOT/build/swanc" build "$TMP/armv7-src" --target armv7 --emit-asm -o "$TMP/armv7"
 test -f "$TMP/armv7/01_helper.s"
 test -f "$TMP/armv7/02_main.s"
 "$ROOT/build/swanc" build "$TMP/cross" --target riscv64 --emit-asm -o "$TMP/riscv64"
