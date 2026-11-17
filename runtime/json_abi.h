@@ -11,6 +11,9 @@ typedef struct SwanJsonHandle SwanJsonHandle;
 
 /* The handle owns a copy of input. Null means invalid input or OOM; a non-null
    handle with a non-empty error reports a parse failure. */
+SwanJsonHandle *swan_json_create(void);
+int32_t swan_json_parse_text(SwanJsonHandle *document, const char *input);
+int64_t swan_json_input_length(SwanJsonHandle *document);
 SwanJsonHandle *swan_json_open(const char *input);
 int64_t swan_json_get_i64(SwanJsonHandle *document, const char *key,
                           int64_t fallback);
