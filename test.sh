@@ -4,6 +4,7 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT"
 sh "$ROOT/build.sh"
 sh "$ROOT/tests/headers.sh"
+sh "$ROOT/tests/json-runtime.sh"
 sh "$ROOT/tests/ir-verifier.sh"
 sh "$ROOT/tests/ir-codegen-phi.sh"
 sh "$ROOT/tests/sil-bridge.sh"
