@@ -16,7 +16,7 @@
 #include <time.h>
 typedef enum {
  SWAN_PROFILE_READ, SWAN_PROFILE_LEX, SWAN_PROFILE_PARSE, SWAN_PROFILE_IMPORTS,
- SWAN_PROFILE_SEMA, SWAN_PROFILE_REACHABILITY, SWAN_PROFILE_IRGEN,
+ SWAN_PROFILE_SEMA, SWAN_PROFILE_REACHABILITY, SWAN_PROFILE_SIL, SWAN_PROFILE_IRGEN,
  SWAN_PROFILE_IR_OPT, SWAN_PROFILE_CODEGEN, SWAN_PROFILE_AST_CODEGEN,
  SWAN_PROFILE_ASM_WRITE, SWAN_PROFILE_LINK, SWAN_PROFILE_RUN,
  SWAN_PROFILE_IR_VERIFY, SWAN_PROFILE_IR_PASS_CONSTANT_FOLD,
@@ -27,7 +27,7 @@ typedef enum {
 } SwanProfileStage;
 static const char *const swan_profile_names[SWAN_PROFILE_COUNT]={
  "Source file read","Lexing","Parsing","Import loading",
- "Semantic analysis","Reachability analysis","IR generation",
+ "Semantic analysis","Reachability analysis","SIL generation and optimization","IR generation",
  "IR optimization","Target code generation","AST fallback code generation",
  "Assembly output","Native linking","Program execution",
  "IR verification (inclusive)","IR pass: constant folding",
@@ -39,6 +39,13 @@ static bool swan_profile_enabled=false;
 static uint64_t swan_profile_ns[SWAN_PROFILE_COUNT];
 static size_t swan_profile_ir_pass_executions;
 static size_t swan_profile_ir_pass_rounds;
+#define SWAN_COMPILER_OPTIMIZATION_BUDGET 350u
+static size_t swan_compiler_optimization_passes;
+static inline void swan_optimizer_reset(void){swan_compiler_optimization_passes=0;}
+static inline bool swan_optimizer_consume(size_t count){
+ if(count>SWAN_COMPILER_OPTIMIZATION_BUDGET-swan_compiler_optimization_passes)return false;
+ swan_compiler_optimization_passes+=count;return true;
+}
 static struct timespec swan_profile_total_start;
 static inline bool swan_profile_time(struct timespec *t){
 #if defined(SWAN_USE_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
