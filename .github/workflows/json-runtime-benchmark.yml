@@ -1,0 +1,57 @@
+name: JSON runtime throughput benchmark
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install Goose
+        shell: bash
+        run: |
+          curl -fsSL https://github.com/aardappel/goose/releases/download/v2026.4/goose-v2026.4-linux-x64.tar.gz -o /tmp/goose.tar.gz
+          mkdir -p /tmp/goose-dist
+          tar -xzf /tmp/goose.tar.gz -C /tmp/goose-dist
+          GOOSE_BIN="$(find /tmp/goose-dist -type f -name goose -perm -u+x | head -n 1)"
+          test -n "$GOOSE_BIN"
+          echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
+          "$GOOSE_BIN" version
+      - name: Record host
+        run: |
+          lscpu
+          free -h
+          uname -a
+          go version
+          rustc --version
+          cc --version
+      - name: Build Swan
+        run: sh build.sh
+      - name: Run JSON throughput comparison
+        run: python3 benchmarks/json/run.py
+      - name: Add benchmark summary
+        if: always()
+        run: |
+          if [ -f json-runtime-benchmark.md ]; then
+            cat json-runtime-benchmark.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "JSON benchmark did not complete; inspect the job logs." >> "$GITHUB_STEP_SUMMARY"
+          fi
+      - name: Upload raw results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: json-runtime-benchmark
+          path: |
+            json-runtime-benchmark.json
+            json-runtime-benchmark.md
+          if-no-files-found: warn
