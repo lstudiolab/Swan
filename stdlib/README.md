@@ -57,8 +57,7 @@ parse-error retrieval, and a nested object/array writer with UTF-8 escaping.
 
 This is a low-level x86-64 C-ABI surface. Opaque document and returned string
 pointers are represented as integer-register values because Swan does not yet
-have safe pointer or general string types. It is not yet a typed generic DOM,
-streaming reader, or JSON Lines API.
+have safe pointer or general string types. It is not yet a typed generic DOM, streaming reader, floating-point writer, or JSON Lines API.
 
 ### Native HTTP JSON service (C ABI)
 
