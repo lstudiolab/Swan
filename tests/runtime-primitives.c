@@ -2,6 +2,7 @@
 #include "runtime/thread_pool.h"
 #include <assert.h>
 #include <stdatomic.h>
+#include <stdio.h>
 #include <string.h>
 #include <sched.h>
 
