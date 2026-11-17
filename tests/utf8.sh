@@ -6,7 +6,7 @@ TMP="$ROOT/build/utf8-tests"
 mkdir -p "$TMP"
 
 cat > "$TMP/unicode.swan" <<'SWAN'
-fn main():
+func main():
     let café = 40
     let 你好 = 2
     !printin >> "UTF-8: café, 你好, 日本語, 🦢";
@@ -26,7 +26,7 @@ test "$("$SWAN" "$TMP/bom.swan")" = "BOM accepted"
 printf 'PASS: UTF-8 BOM handling\n'
 
 # Invalid byte sequences are rejected instead of being passed to later stages.
-printf 'fn main():\n    !printin >> "bad: \377"\n    return 0\n' > "$TMP/invalid.swan"
+printf 'func main():\n    !printin >> "bad: \377"\n    return 0\n' > "$TMP/invalid.swan"
 if "$SWAN" "$TMP/invalid.swan" --emit-asm -o "$TMP/invalid.s" 2>"$TMP/invalid.err"; then
     echo 'FAIL: invalid UTF-8 source was accepted' >&2
     exit 1
