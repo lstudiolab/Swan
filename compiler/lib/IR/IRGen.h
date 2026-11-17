@@ -371,6 +371,7 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         SwanIRFunction *created=valid?swan_ir_add_function(module,source->link_name?source->link_name:source->name,ret,params,source->param_count):NULL;free(params);
         if(!valid)goto fail;
         if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}
+        created->exported=source->exported;
         created->external=source->external||(program->codegen_source_index>=0&&
             source->source_index!=(size_t)program->codegen_source_index);
     }
