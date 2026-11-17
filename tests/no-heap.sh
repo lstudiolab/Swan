@@ -14,8 +14,8 @@ func main() -> int:
 SWAN
 "$SWAN" build "$TMP/stack.swan" --no-heap -o "$TMP/stack"
 "$TMP/stack"
-"$SWAN" build "$TMP/stack.swan" --no-heap --emit-asm -o "$TMP/assembly"
-if grep -q 'calloc@PLT' "$TMP/assembly/stack.s"; then
+"$SWAN" build "$TMP/stack.swan" --no-heap --emit-asm -o "$TMP/stack.s"
+if grep -q 'calloc@PLT' "$TMP/stack.s"; then
     echo "no-heap output unexpectedly calls calloc" >&2
     exit 1
 fi
