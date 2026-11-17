@@ -7,7 +7,7 @@ flow lowering, optimization, and native code generation.
 
 Run after `sh build.sh`:
     python3 benchmarks/compiler_pipeline_stress.py
-All reported durations are seconds. Results are medians across repeated runs.
+Durations are seconds; peak compiler RSS is KiB. Results are medians across repeated runs.
 """
 from __future__ import annotations
 
@@ -15,7 +15,6 @@ import argparse
 import pathlib
 import platform
 import re
-import shutil
 import statistics
 import subprocess
 import tempfile
