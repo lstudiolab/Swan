@@ -27,6 +27,21 @@ int main(void) {
     assert(bytes.length == 0);
     swan_bytes_destroy(&bytes);
 
+    /* Fixed caller-owned storage must never fall back to heap allocation. */
+    SwanByteBuffer fixed;
+    unsigned char fixed_storage[8];
+    swan_bytes_init(&fixed);
+    assert(swan_bytes_use_storage(&fixed, fixed_storage, sizeof(fixed_storage)));
+    assert(swan_bytes_append(&fixed, "12345678", 8));
+    assert(fixed.data == fixed_storage && fixed.length == 8);
+    assert(!swan_bytes_append_byte(&fixed, '!'));
+    assert(!swan_bytes_resize(&fixed, 9, 0));
+    swan_bytes_clear(&fixed);
+    assert(fixed.length == 0 && fixed.data == fixed_storage);
+    swan_bytes_destroy(&fixed);
+    fixed_storage[0] = 'S';
+    assert(fixed_storage[0] == 'S');
+
     SwanThreadPool pool;
     atomic_init(&completed, 0);
     assert(swan_thread_pool_init(&pool, 4, 256));
