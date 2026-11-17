@@ -29,7 +29,7 @@ The full `sh test.sh` suite includes both test runners.
 
 The JSON C ABI is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
 
-TCP/TLS, socket-server lifecycle, chunked transfer decoding, keep-alive/pipelining, cancellation,
+TLS, chunked transfer decoding, keep-alive/pipelining, generic route handlers, cancellation,
 structured task scopes, streaming JSON/JSONL, typed JSON values, and a Swan-level
 async scheduler are not implemented. Do not use the C worker pool as evidence
 that Swan async semantics exist.
