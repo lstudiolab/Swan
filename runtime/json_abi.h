@@ -18,6 +18,7 @@ int32_t swan_json_has_key(SwanJsonHandle *document, const char *key);
 
 /* Returned text is borrowed from the handle and remains valid until close. */
 const char *swan_json_compact(SwanJsonHandle *document);
+int64_t swan_json_compact_length(SwanJsonHandle *document);
 const char *swan_json_pretty(SwanJsonHandle *document);
 const char *swan_json_error(SwanJsonHandle *document);
 void swan_json_close(SwanJsonHandle *document);
