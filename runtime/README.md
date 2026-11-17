@@ -53,6 +53,13 @@ func main() -> int:
     return swan_http_json_server_run(server)
 ```
 
+Build the combined runtime object and link it with the Swan program:
+
+```sh
+cc -std=c11 -O2 -pthread -c runtime/http_json.c -o http_json.o
+swan build server.swan --link http_json.o -o server
+```
+
 The server binds all interfaces. It accepts one request per connection, parses
 JSON request bodies, and returns compact JSON. The blocking run call must be
 stopped from another thread before destroying the handle. It is a runtime
