@@ -68,7 +68,8 @@ static inline void cg_restore_volatile(Text *o,Locals *l){for(int i=l->volatile_
 static inline bool expr_has_call(Expr *e){return e&&e->contains_call;}
 static inline unsigned cg_function_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline Stmt *cg_find_function(Program *p,const char *name){
- if(!p||!name)return NULL;Stmt *local=NULL,*imported=NULL;
+ if(!p||!name)return NULL;
+ Stmt *local=NULL,*imported=NULL;
  if(p->function_indexed&&p->function_bucket_count){
   size_t b=cg_function_hash(name)&(p->function_bucket_count-1);
   for(size_t n=p->function_buckets[b];n!=SIZE_MAX;n=p->function_next[n]){
