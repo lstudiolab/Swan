@@ -6,6 +6,15 @@ import C "runtime/json_abi.h"
 func json_open(input: int) -> int:
     return swan_json_open(input)
 
+func json_create() -> int:
+    return swan_json_create()
+
+func json_parse(document: int, input: int) -> int:
+    return swan_json_parse_text(document, input)
+
+func json_input_length(document: int) -> int:
+    return swan_json_input_length(document)
+
 func json_close(document: int):
     swan_json_close(document)
 
