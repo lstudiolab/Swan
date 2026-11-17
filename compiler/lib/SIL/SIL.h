@@ -155,13 +155,16 @@ static inline bool swan_sil_verify(const SwanSILModule *m,char *error,size_t cap
    const SwanSILInstruction *in=&f->instructions[i];
    if(in->id!=i+1||in->operand_count>3){if(error&&cap)snprintf(error,cap,"malformed SIL instruction in %s at %zu",f->name,i);return false;}
    for(size_t k=0;k<in->operand_count;k++)if(!in->operands[k]||in->operands[k]>=in->id){
-    if(error&&cap)snprintf(error,cap,"SIL use-before-definition in %s at instruction %zu",f->name,i+1);return false;
+    if(error&&cap){snprintf(error,cap,"SIL use-before-definition in %s at instruction %zu",f->name,i+1);}
+    return false;
    }
    if(in->ownership==SWAN_SIL_GUARANTEED&&in->type!=SWAN_SIL_TYPE_OBJECT){
-    if(error&&cap)snprintf(error,cap,"guaranteed ownership applied to non-object SIL value in %s",f->name);return false;
+    if(error&&cap){snprintf(error,cap,"guaranteed ownership applied to non-object SIL value in %s",f->name);}
+    return false;
    }
    if(in->opcode==SWAN_SIL_STORE&&in->operand_count!=2){
-    if(error&&cap)snprintf(error,cap,"SIL store requires address and value in %s",f->name);return false;
+    if(error&&cap){snprintf(error,cap,"SIL store requires address and value in %s",f->name);}
+    return false;
    }
   }
  }
@@ -174,7 +177,8 @@ static inline bool swan_sil_canonicalize(SwanSILModule *m,bool *changed) {
   if(in->opcode==SWAN_SIL_COPY_VALUE&&in->operand_count==1){in->deleted=true;any=true;}
   if(in->opcode==SWAN_SIL_BORROW_VALUE&&in->ownership!=SWAN_SIL_GUARANTEED){in->ownership=SWAN_SIL_GUARANTEED;any=true;}
  }
- if(changed)*changed=any;return true;
+ if(changed)*changed=any;
+ return true;
 }
 static inline bool swan_sil_dead_value_elimination(SwanSILModule *m,bool *changed) {
  bool any=false;
