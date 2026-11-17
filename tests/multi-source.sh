@@ -29,10 +29,16 @@ C
 "$ROOT/build/swanc" build "$TMP/project" -o "$TMP/project-app"
 "$TMP/project-app"
 
-"$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/project.asm"
-grep -q 'swan_answer' "$TMP/project.asm"
-grep -q 'c_answer' "$TMP/project.asm"
-grep -q 'main' "$TMP/project.asm"
+"$ROOT/build/swanc" build "$TMP/project" --emit-asm -o "$TMP/assembly"
+test -f "$TMP/assembly/01_math.s"
+test -f "$TMP/assembly/02_main.s"
+test -f "$TMP/assembly/native_0.s"
+grep -q 'swan_answer' "$TMP/assembly/01_math.s"
+grep -q 'c_answer' "$TMP/assembly/02_main.s"
+grep -q 'main' "$TMP/assembly/02_main.s"
+grep -q '\.extern swan_answer' "$TMP/assembly/02_main.s"
+grep -q '\.extern c_answer' "$TMP/assembly/02_main.s"
+grep -q 'c_answer' "$TMP/assembly/native_0.s"
 
 cat > "$TMP/bad.swan" <<'SWAN'
 func main() -> int:
