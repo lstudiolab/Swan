@@ -88,7 +88,10 @@ static inline bool swan_c_header_finish_decl(Program *program,SwanCHeaderDecl *d
         strcpy(arg_name,arg);strcpy(arg_type,decl->parameter_types[p]);
         params[p]=arg_name;types[p]=arg_type;
     }
-    program->functions[program->count++]=fn;
+    if(!swan_program_add_function(program,fn)){
+        swan_error(error,NULL,"out of memory recording C header function '%s'",decl->name);
+        return false;
+    }
     return true;
 }
 
