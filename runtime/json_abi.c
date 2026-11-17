@@ -11,10 +11,17 @@ struct SwanJsonHandle {
     char error[128];
 };
 
-SwanJsonHandle *swan_json_create(void) {
+SwanJsonHandle *swan_json_create(int64_t initial_token_capacity) {
     SwanJsonHandle *handle = (SwanJsonHandle *)calloc(1, sizeof(*handle));
     if (!handle) return NULL;
     swan_json_document_init(&handle->document);
+    if (initial_token_capacity > 0 &&
+        (uint64_t)initial_token_capacity <= handle->document.limits.max_tokens &&
+        !swan_json_reserve_tokens(&handle->document)) {
+        swan_json_document_destroy(&handle->document);
+        free(handle);
+        return NULL;
+    }
     return handle;
 }
 
@@ -44,13 +51,6 @@ int32_t swan_json_parse_text(SwanJsonHandle *handle, const char *input) {
 
 int64_t swan_json_input_length(SwanJsonHandle *handle) {
     return handle && !handle->error[0] ? (int64_t)handle->document.input_length : -1;
-}
-
-SwanJsonHandle *swan_json_open(const char *input) {
-    SwanJsonHandle *handle = swan_json_create();
-    if (!handle) return NULL;
-    (void)swan_json_parse_text(handle, input);
-    return handle;
 }
 
 int64_t swan_json_get_i64(SwanJsonHandle *handle, const char *key,
