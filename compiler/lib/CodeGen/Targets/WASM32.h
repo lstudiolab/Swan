@@ -127,7 +127,7 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
    if(in->type==SWAN_IR_F32||in->type==SWAN_IR_F64){if(error&&cap)snprintf(error,cap,"floating-point IR lowering is not implemented in WebAssembly backend");return false;}
   }
  }
- if(main_index==m->function_count){if(error&&cap)snprintf(error,cap,"WebAssembly module requires a main function export");return false;}
+ if(main_index==m->function_count&&!m->allow_no_main){if(error&&cap)snprintf(error,cap,"WebAssembly module requires a main function export");return false;}
  SwanWasmBuffer type={0},func={0},exports={0},memory={0},globals={0},code={0},module={0};
  bool ok=swan_wasm_u32(&type,(uint32_t)m->function_count)&&swan_wasm_u32(&func,(uint32_t)m->function_count);
  for(size_t f=0;ok&&f<m->function_count;f++){
@@ -137,7 +137,9 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   if(ok&&fn->return_type!=SWAN_IR_VOID)ok=swan_wasm_byte(&type,swan_wasm_type_for(fn->return_type,memory64));
   ok=ok&&swan_wasm_u32(&func,(uint32_t)f);
  }
- ok=ok&&swan_wasm_u32(&exports,1)&&swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)main_index);
+ size_t export_count=main_index<m->function_count?1u:0u;
+ ok=ok&&swan_wasm_u32(&exports,(uint32_t)export_count);
+ if(ok&&export_count)ok=swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)main_index);
  if(alloca_total){
   uint64_t max_frame=0;
   for(size_t f=0;f<m->function_count;f++){size_t n=0;for(size_t b=0;b<m->functions[f].block_count;b++)for(size_t i=0;i<m->functions[f].blocks[b].instruction_count;i++)n+=m->functions[f].blocks[b].instructions[i].op==SWAN_IR_ALLOCA;if(n*8u+16u>max_frame)max_frame=n*8u+16u;}
