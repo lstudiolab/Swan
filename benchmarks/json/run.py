@@ -120,7 +120,7 @@ def main() -> None:
         )
         compile_seconds["Swan"] = time.perf_counter() - t0
         outputs["Swan"] = swan_bin
-        flags["Swan"] = "Swan x86-64 AST compatibility backend + C11 JSON runtime (-O3)"
+        flags["Swan"] = "Swan x86-64 C ABI dispatch + C11 JSON runtime driver (-O3)"
 
         go_bin = tmp / "go-json"
         t0 = time.perf_counter()
@@ -204,7 +204,7 @@ def main() -> None:
             "methodology": [
                 "Every implementation parses the same nested JSON request and compact-encodes the parsed document.",
                 "Every run checks the same id/workers values and returns identical checksum and total input+output bytes.",
-                "Swan calls its C11 JSON runtime through the new x86-64 C ABI; this is a Swan runtime benchmark, not a pure Swan parser.",
+                "Swan dispatches through its x86-64 C ABI to the C11 JSON runtime driver; the repeated hot loop runs in that runtime helper, so this isolates runtime throughput rather than Swan loop or per-call FFI overhead.",
                 "Go uses encoding/json; Goose uses its stdlib json DOM and writer; Rust uses serde_json with preserve_order.",
                 "The benchmark is in-process and excludes TCP/HTTP, TLS, and socket overhead.",
                 "Seven timed runs rotate execution order; throughput values are medians across runs.",
