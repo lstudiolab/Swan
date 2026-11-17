@@ -308,12 +308,13 @@ static inline size_t swan_print_warnings(const Program *program){
  return program->warning_count+program->warnings_dropped;
 }
 
-static inline bool swan_validate_local_names(Stmt **body,size_t count,const char ***names,size_t *name_count,size_t *name_capacity,SwanError *error){
+static inline bool swan_validate_local_names(Stmt **body,size_t count,SwanSymbols *names,SwanError *error){
  for(size_t i=0;i<count;i++){Stmt *statement=body[i];if(!statement)continue;
-  if(statement->kind==S_VARIABLE){for(size_t prior=0;prior<*name_count;prior++)if(!strcmp((*names)[prior],statement->name)){swan_error(error,&statement->token,"local variable '%s' is redeclared; local shadowing is not supported",statement->name);return false;}
-   if(*name_count==SIZE_MAX||!swan_reserve_array((void**)names,name_capacity,*name_count+1,sizeof(**names))){swan_error(error,&statement->token,"out of memory validating local declarations");return false;}(*names)[(*name_count)++]=statement->name;
+  if(statement->kind==S_VARIABLE){
+   if(swan_symbol_find(names,statement->name,NULL)){swan_error(error,&statement->token,"local variable '%s' is redeclared; local shadowing is not supported",statement->name);return false;}
+   if(!swan_symbol_add(names,statement->name,false,true,false,false,false)){swan_error(error,&statement->token,"out of memory validating local declarations");return false;}
   }
-  if(!swan_validate_local_names(statement->body,statement->body_count,names,name_count,name_capacity,error)||!swan_validate_local_names(statement->alternate,statement->alt_count,names,name_count,name_capacity,error))return false;
+  if(!swan_validate_local_names(statement->body,statement->body_count,names,error)||!swan_validate_local_names(statement->alternate,statement->alt_count,names,error))return false;
  }return true;
 }
 
@@ -360,16 +361,23 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
  p->function_bucket_count=bucket_count;p->function_indexed=true;
  if(!swan_find_function(p,"main")){swan_error(err,NULL,"program must define fn main");return false;}
  SwanSymbols symbols={0};if(!swan_symbols_init(&symbols)){swan_error(err,NULL,"out of memory initializing semantic symbol table");return false;}bool ok=true;
- for(size_t i=0;i<p->count&&ok;i++){Stmt *fn=p->functions[i];if(fn->external)continue;swan_symbols_reset(&symbols);const char **local_names=NULL;size_t local_name_count=0,local_name_capacity=0;
-  for(size_t a=0;a<fn->param_count;a++){if(!fn->params[a]||!fn->params[a][0]){swan_error(err,&fn->token,"function '%s' has an invalid parameter name",fn->name);ok=false;break;}
+ for(size_t i=0;i<p->count&&ok;i++){
+  Stmt *fn=p->functions[i];if(fn->external)continue;
+  swan_symbols_reset(&symbols);
+  SwanSymbols local_names={0};
+  if(!swan_symbols_init(&local_names)){swan_error(err,&fn->token,"out of memory initializing local declaration index");ok=false;break;}
+  for(size_t a=0;a<fn->param_count;a++){
+   if(!fn->params[a]||!fn->params[a][0]){swan_error(err,&fn->token,"function '%s' has an invalid parameter name",fn->name);ok=false;break;}
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    bool is_array=fn->param_types&&fn->param_types[a]&&!strcmp(fn->param_types[a],"u32_array");
-   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)){swan_error(err,&fn->token,"out of memory adding function parameter");ok=false;break;}
-   if(!swan_reserve_array((void**)&local_names,&local_name_capacity,local_name_count+1,sizeof(*local_names))){swan_error(err,&fn->token,"out of memory validating parameters");ok=false;break;}local_names[local_name_count++]=fn->params[a];
+   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)||
+      !swan_symbol_add(&local_names,fn->params[a],false,true,is_array,false,false)){
+    swan_error(err,&fn->token,"out of memory adding function parameter");ok=false;break;
+   }
   }
-  if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,&local_names,&local_name_count,&local_name_capacity,err);
+  if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,&local_names,err);
+  swan_symbols_destroy(&local_names);
   if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);
-  free(local_names);
  }
  swan_symbols_destroy(&symbols);return ok;
 }
