@@ -433,7 +433,7 @@ static int swan_run(int argc,char **argv){
   free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
- if(!has_lazy&&p.source_count>1&&target->architecture==SWAN_ARCH_X86_64){
+ if(!has_lazy&&(p.source_count>1||c_input_count>0)&&target->architecture==SWAN_ARCH_X86_64){
   if(mode==SWAN_EMIT){
    const char *directory=output?output:"asm";
    bool emitted=swan_emit_project_sources(&p,directory,c_inputs,c_input_count,&err);
