@@ -2,6 +2,7 @@ name: Swan Release Builds
 
 on:
   push:
+    branches: [main]
     tags: ["v*"]
   workflow_dispatch:
 
@@ -57,7 +58,9 @@ jobs:
         run: |
           mkdir -p dist/swan/bin
           cp build/swanc.exe dist/swan/bin/swanc.exe
-          cp /usr/bin/msys-2.0.dll dist/swan/bin/
+          ldd build/swanc.exe | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^\\/usr\\/bin\\/.*\\.dll$/) print $i }' | sort -u | while read -r dll; do
+            cp "$dll" dist/swan/bin/
+          done
           cat > dist/swan/README-WINDOWS.txt <<'EOF'
           Swan Windows x86_64 compiler
 
