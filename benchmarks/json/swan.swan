@@ -1,0 +1,34 @@
+import std_json
+
+func main() -> int:
+    let payload = "{\"id\":42,\"workers\":128,\"enabled\":true,\"service\":\"swan\",\"items\":[1,2,3,4,5],\"meta\":{\"region\":\"ap-southeast-1\",\"version\":1}}"
+    let document = !json_create()
+    if document == 0:
+        return 1
+
+    var request = 0
+    var checksum = 0
+    var bytes = 0
+    while request < 100000:
+        if !json_parse(document, payload) != 1:
+            !json_close(document)
+            return 2
+        let id = !json_get_i64(document, "id", -1)
+        let workers = !json_get_i64(document, "workers", -1)
+        if id != 42 or workers != 128:
+            !json_close(document)
+            return 3
+        let encoded = !json_compact(document)
+        let encoded_length = !json_compact_length(document)
+        let input_length = !json_input_length(document)
+        if encoded == 0 or encoded_length <= 0 or input_length <= 0:
+            !json_close(document)
+            return 4
+        checksum = checksum + id + workers
+        bytes = bytes + input_length + encoded_length
+        request = request + 1
+
+    !json_close(document)
+    !printin >> checksum
+    !printin >> bytes
+    return 0
