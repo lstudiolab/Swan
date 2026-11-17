@@ -357,20 +357,19 @@ static inline bool swan_json_parse_reuse(SwanJsonDocument *doc,
 }
 
 /* Input is borrowed; it must remain alive until document_destroy or reparse. */
-static inline bool swan_json_parse(SwanJsonDocument *doc,
-                                    const void *input, size_t length) {
+static inline bool swan_json_parse_reuse(SwanJsonDocument *doc,
+                                          const void *input, size_t length) {
     if (!doc || (!input && length)) return false;
-    SwanJsonLimits limits = doc->limits;
-    free(doc->tokens);
-    memset(doc, 0, sizeof(*doc));
-    doc->limits = limits;
+    doc->input = (const unsigned char *)input;
+    doc->input_length = length;
+    doc->token_count = 0;
+    doc->error_offset = 0;
+    doc->error[0] = 0;
     if (!doc->limits.max_depth) doc->limits.max_depth = 128;
     if (!doc->limits.max_tokens) doc->limits.max_tokens = 1000000;
     if (!doc->limits.max_input_bytes) doc->limits.max_input_bytes = 64u * 1024u * 1024u;
     if (length > doc->limits.max_input_bytes)
         return swan_json_fail(doc, 0, "input size limit exceeded");
-    doc->input = (const unsigned char *)input;
-    doc->input_length = length;
     SwanJsonParser parser = { doc, 0 };
     size_t root;
     if (!swan_json_parse_value(&parser, 0, &root)) return false;
@@ -378,6 +377,12 @@ static inline bool swan_json_parse(SwanJsonDocument *doc,
     if (parser.pos != length)
         return swan_json_fail(doc, parser.pos, "trailing data after JSON value");
     return root == 0;
+}
+
+/* Reset and parse while retaining allocated token capacity. */
+static inline bool swan_json_parse(SwanJsonDocument *doc,
+                                    const void *input, size_t length) {
+    return swan_json_parse_reuse(doc, input, length);
 }
 static inline bool swan_json_token_text(const SwanJsonDocument *doc,
                                          size_t token, const char **text,
