@@ -542,7 +542,8 @@ static inline bool swan_ir_value_defined_in_loop(const SwanIRFunction *fn,uint32
     uint32_t block=definition_blocks[value];
     return block!=UINT32_MAX&&block<fn->block_count&&loop[block];
 }
-static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char *error,size_t cap){
+static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,bool *changed_out,char *error,size_t cap){
+    bool changed=false;
     for(size_t fi=0;fi<module->function_count;fi++){
         SwanIRFunction *fn=&module->functions[fi];size_t n=fn->block_count;
         if(n<3)continue;
@@ -653,6 +654,7 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
                     if(error&&cap)snprintf(error,cap,"LICM candidate count changed during a hoist");
                     return false;
                 }
+                changed=true;
                 uint32_t *swap=definition_blocks;
                 definition_blocks=next_definition_blocks;
                 next_definition_blocks=swap;
@@ -660,6 +662,7 @@ static inline bool swan_ir_loop_invariant_code_motion(SwanIRModule *module,char 
         }
         free(loop);free(queue);free(definition_blocks);free(next_definition_blocks);
     }
+    if(changed_out)*changed_out=changed;
     return swan_ir_verify_pass_result(module,error,cap);
 }
 typedef enum { SWAN_IR_PASS_CONSTANT_FOLD, SWAN_IR_PASS_CFG_SIMPLIFY, SWAN_IR_PASS_ALGEBRAIC, SWAN_IR_PASS_COPY_PROPAGATION, SWAN_IR_PASS_COMMON_SUBEXPRESSION, SWAN_IR_PASS_LOOP_INVARIANT, SWAN_IR_PASS_DEAD_CODE } SwanIRPassKind;
@@ -674,7 +677,9 @@ static const SwanIRPass swan_ir_default_passes[]={
     {SWAN_IR_PASS_COMMON_SUBEXPRESSION,"post-licm-common-subexpression-elimination"},
     {SWAN_IR_PASS_DEAD_CODE,"dead-code-elimination"}
 };
-static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,char *error,size_t cap){
+static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,bool *changed_out,char *error,size_t cap){
+    bool changed=false;
+    if(changed_out)*changed_out=false;
     if(pass==SWAN_IR_PASS_CONSTANT_FOLD){
         for(size_t f=0;f<module->function_count;f++){
             SwanIRFunction *fn=&module->functions[f];
@@ -703,36 +708,52 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,cha
                 SwanIRInst *in=definitions[id];
                 if(!in)continue;
                 if(in->op==SWAN_IR_CONST){known[id]=1;values[id]=in->immediate;continue;}
+                SwanIROp old_op=in->op;
+                int64_t old_immediate=in->immediate;
                 if(swan_ir_fold_instruction_using(fn,in,known,values)){
                     known[id]=1;values[id]=in->immediate;
+                    if(in->op!=old_op||in->immediate!=old_immediate)changed=true;
                 }
             }
             free(known);free(values);free(definitions);
         }
         return swan_ir_verify_pass_result(module,error,cap);
     }
-    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){bool changed=false;return swan_ir_cfg_simplify(module,&changed,error,cap)&&swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_ALGEBRAIC){bool changed=false;if(!swan_ir_algebraic_simplify(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){bool changed=false;if(!swan_ir_copy_propagation(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){bool changed=false;if(!swan_ir_common_subexpression_eliminate(module,&changed,error,cap))return false;(void)changed;return swan_ir_verify_pass_result(module,error,cap);}
-    if(pass==SWAN_IR_PASS_LOOP_INVARIANT)return swan_ir_loop_invariant_code_motion(module,error,cap);
+    if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){if(!swan_ir_cfg_simplify(module,&changed,error,cap))return false;if(changed_out)*changed_out=changed;return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_ALGEBRAIC){if(!swan_ir_algebraic_simplify(module,&changed,error,cap))return false;if(changed_out)*changed_out=changed;return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COPY_PROPAGATION){if(!swan_ir_copy_propagation(module,&changed,error,cap))return false;if(changed_out)*changed_out=changed;return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_COMMON_SUBEXPRESSION){if(!swan_ir_common_subexpression_eliminate(module,&changed,error,cap))return false;if(changed_out)*changed_out=changed;return swan_ir_verify_pass_result(module,error,cap);}
+    if(pass==SWAN_IR_PASS_LOOP_INVARIANT){if(!swan_ir_loop_invariant_code_motion(module,&changed,error,cap))return false;if(changed_out)*changed_out=changed;return true;}
     if(pass==SWAN_IR_PASS_DEAD_CODE){
         bool changed=false;
         if(!swan_ir_dead_code_eliminate(module,&changed)){if(error&&cap)snprintf(error,cap,"out of memory during dead-code elimination");return false;}
-        (void)changed;
+        if(changed_out)*changed_out=changed;
         return swan_ir_verify_pass_result(module,error,cap);
     }
     if(error&&cap)snprintf(error,cap,"unknown IR optimization pass");
     return false;
 }
+#define SWAN_IR_MAX_OPTIMIZATION_PASSES 350u
 static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t cap) {
     if(!swan_ir_verify(module,error,cap))return false;
-    for(size_t i=0;i<sizeof(swan_ir_default_passes)/sizeof(swan_ir_default_passes[0]);i++)
-        if(!swan_ir_run_pass(module,swan_ir_default_passes[i].kind,error,cap))return false;
-    /* A final cheap cleanup catches constants and dead values exposed by DCE/LICM. */
-    if(!swan_ir_run_pass(module,SWAN_IR_PASS_CONSTANT_FOLD,error,cap)||
-       !swan_ir_run_pass(module,SWAN_IR_PASS_CFG_SIMPLIFY,error,cap)||
-       !swan_ir_run_pass(module,SWAN_IR_PASS_DEAD_CODE,error,cap))return false;
+    const size_t pass_count=sizeof(swan_ir_default_passes)/sizeof(swan_ir_default_passes[0]);
+    size_t executed=0;
+    bool converged=false;
+    while(executed<SWAN_IR_MAX_OPTIMIZATION_PASSES){
+        bool round_changed=false;
+        for(size_t i=0;i<pass_count&&executed<SWAN_IR_MAX_OPTIMIZATION_PASSES;i++,executed++){
+            bool changed=false;
+            if(!swan_ir_run_pass(module,swan_ir_default_passes[i].kind,&changed,error,cap))return false;
+            round_changed=round_changed||changed;
+        }
+        if(!round_changed){converged=true;break;}
+    }
+    if(!converged){
+        if(error&&cap)snprintf(error,cap,"optimization did not converge within %u pass executions",SWAN_IR_MAX_OPTIMIZATION_PASSES);
+        return false;
+    }
+    /* Final verifier and derived-analysis rebuild are mandatory. */
+
     for(size_t function_index=0;function_index<module->function_count;function_index++){
         SwanIRFunction *function=&module->functions[function_index];
         if(function->value_locations&&!swan_ir_rebuild_value_locations(function)){
