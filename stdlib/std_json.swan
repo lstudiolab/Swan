@@ -3,9 +3,6 @@
 # document handles opaque and uses the existing integer ABI representation.
 import C "runtime/json_abi.h"
 
-func json_open(input: int) -> int:
-    return swan_json_open(input)
-
 func json_create() -> int:
     return swan_json_create()
 
