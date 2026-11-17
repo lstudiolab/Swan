@@ -24,13 +24,14 @@ static int expect_invalid(SwanIRModule *m,const char *name,const char *needle){
 }
 static int valid_scalar_and_call(void){
     SwanIRModule m={0};
+    SwanIRFunction *main_fn=swan_ir_add_function(&m,"main",SWAN_IR_I32,
+        (SwanIRType[]){SWAN_IR_I32},1);
+    if(!main_fn)return 11;
+    /* Add the callee after its caller to exercise indexed forward lookup. */
     SwanIRFunction *callee=swan_ir_add_function(&m,"identity",SWAN_IR_I32,
         (SwanIRType[]){SWAN_IR_I32},1);
     if(!callee)return 10;
     callee->external=true;
-    SwanIRFunction *main_fn=swan_ir_add_function(&m,"main",SWAN_IR_I32,
-        (SwanIRType[]){SWAN_IR_I32},1);
-    if(!main_fn)return 11;
     SwanIRBlock *entry=swan_ir_add_block(main_fn,"entry");
     if(!entry)return 12;
     SwanIRInst call={0};call.op=SWAN_IR_CALL;call.type=SWAN_IR_I32;

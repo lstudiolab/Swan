@@ -405,11 +405,33 @@ static inline bool swan_ir_verify_unique_definitions(const SwanIRFunction *fn,
     return true;
 }
 
-static inline bool swan_ir_verify_impl(const SwanIRModule *m,char *error,size_t cap) {
+static inline int swan_ir_compare_function_names(const void *left,const void *right){
+ const SwanIRFunction *a=*(const SwanIRFunction *const*)left;
+ const SwanIRFunction *b=*(const SwanIRFunction *const*)right;
+ if(!a->name)return b->name?1:0;
+ if(!b->name)return -1;
+ return strcmp(a->name,b->name);
+}
+static inline const SwanIRFunction *swan_ir_find_function_by_name(
+    const SwanIRFunction *const *index,size_t count,const char *name){
+ size_t low=0,high=count;
+ while(low<high){
+  size_t middle=low+(high-low)/2;
+  const SwanIRFunction *candidate=index[middle];
+  if(!candidate->name){high=middle;continue;}
+  int comparison=strcmp(candidate->name,name);
+  if(comparison<0)low=middle+1;
+  else if(comparison>0)high=middle;
+  else return candidate;
+ }
+ return NULL;
+}
+static inline bool swan_ir_verify_body(const SwanIRModule *m,
+    const SwanIRFunction *const *function_index,size_t function_index_count,
+    char *error,size_t cap) {
  if(!m||m->function_count>m->function_capacity||(m->function_count&&!m->functions))return swan_ir_fail(error,cap,"invalid module storage",NULL,0,0);
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(fn->name)for(size_t prior=0;prior<f;prior++)if(m->functions[prior].name&&!strcmp(m->functions[prior].name,fn->name))return swan_ir_fail(error,cap,"duplicate function name",fn->name,0,0);
   if(!fn->name||!fn->name[0]||!swan_ir_type_valid(fn->return_type)||fn->next_value<=fn->parameter_count||fn->next_value>(uint32_t)(INT32_MAX/8))return swan_ir_fail(error,cap,"invalid function signature or register range",fn->name,0,0);
   if(fn->parameter_count>UINT32_MAX-1u||(fn->parameter_count&&!fn->parameter_types)||fn->block_count>fn->block_capacity||(fn->block_count&&!fn->blocks))return swan_ir_fail(error,cap,"invalid function storage or parameter table",fn->name,0,0);
   if(fn->parameter_count&&!fn->parameter_types)return swan_ir_fail(error,cap,"missing parameter types",fn->name,0,0);
@@ -462,8 +484,7 @@ static inline bool swan_ir_verify_impl(const SwanIRModule *m,char *error,size_t 
     }else if(in->op==SWAN_IR_ALLOCA){if(in->type!=SWAN_IR_PTR)return swan_ir_fail(error,cap,"alloca must produce ptr",fn->name,b,i);}
     else if(in->op==SWAN_IR_CALL){
      if(!in->symbol||(in->incoming_count&&!in->incoming))return swan_ir_fail(error,cap,"call has no callee symbol or argument array",fn->name,b,i);
-     const SwanIRFunction *callee=NULL;
-     for(size_t ci=0;ci<m->function_count;ci++)if(m->functions[ci].name&&!strcmp(m->functions[ci].name,in->symbol)){callee=&m->functions[ci];break;}
+     const SwanIRFunction *callee=swan_ir_find_function_by_name(function_index,function_index_count,in->symbol);
      if(!callee)return swan_ir_fail(error,cap,"call references an unknown function",fn->name,b,i);
      if(!swan_ir_type_valid(callee->return_type)||(callee->parameter_count&&!callee->parameter_types))return swan_ir_fail(error,cap,"callee has an invalid signature",fn->name,b,i);
      if(callee->return_type!=in->type||callee->parameter_count!=in->incoming_count)return swan_ir_fail(error,cap,"call signature does not match callee",fn->name,b,i);
@@ -524,6 +545,34 @@ static inline bool swan_ir_verify_impl(const SwanIRModule *m,char *error,size_t 
  }
  if(error&&cap)error[0]=0;
  return true;
+}
+
+static inline bool swan_ir_verify_impl(const SwanIRModule *module,char *error,size_t capacity) {
+ if(!module||module->function_count>module->function_capacity||
+    (module->function_count&&!module->functions))
+  return swan_ir_fail(error,capacity,"invalid module storage",NULL,0,0);
+ if(module->function_count>SIZE_MAX/sizeof(const SwanIRFunction*))
+  return swan_ir_fail(error,capacity,"function index size overflow",NULL,0,0);
+ const SwanIRFunction **function_index=NULL;
+ if(module->function_count){
+  function_index=malloc(module->function_count*sizeof(*function_index));
+  if(!function_index)
+   return swan_ir_fail(error,capacity,"out of memory building IR function index",NULL,0,0);
+  for(size_t i=0;i<module->function_count;i++)function_index[i]=&module->functions[i];
+  qsort(function_index,module->function_count,sizeof(*function_index),swan_ir_compare_function_names);
+  for(size_t i=1;i<module->function_count;i++){
+   const SwanIRFunction *previous=function_index[i-1];
+   const SwanIRFunction *current=function_index[i];
+   if(previous->name&&current->name&&!strcmp(previous->name,current->name)){
+    const char *duplicate=current->name;
+    free(function_index);
+    return swan_ir_fail(error,capacity,"duplicate function name",duplicate,0,0);
+   }
+  }
+ }
+ bool valid=swan_ir_verify_body(module,function_index,module->function_count,error,capacity);
+ free(function_index);
+ return valid;
 }
 
 static inline bool swan_ir_verify(const SwanIRModule *module,char *error,size_t capacity) {
