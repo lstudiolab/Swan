@@ -10,10 +10,10 @@ suite:
 | Component | Implemented surface | Boundary |
 |---|---|---|
 | Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |
-| JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; numeric accessor currently signed i64 |
-| JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point values and a typed Swan DOM remain open |
+| JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; i64 and finite f64 accessors; original token spans remain available for exact-decimal handling |
+| JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point writer values and a typed Swan DOM remain open |
 | Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
-| JSON writer | Swan-importable C ABI for nested objects/arrays, escaped UTF-8 strings, i64, booleans, and null | C ABI only; one root value, max depth 128; no float or typed DTO generation |
+| JSON writer | Swan-importable C ABI for nested objects/arrays, escaped UTF-8 strings, i64, booleans, and null | C ABI only; one root value, max depth 128; no float writer or typed DTO generation |
 | Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Swan task scheduler |
 | HTTP JSON server | Bounded POSIX HTTP/1.1 JSON echo/health server, worker-pool dispatch, queue backpressure, body limits, socket timeouts, counters | JSON-only fixed handler; one request per connection; no TLS, chunked transfer, keep-alive, or user-defined Swan route callbacks |
 | HTTP/1 parser | Bounded HTTP/1.0/1.1 request-line/header parser, Content-Length framing, case-insensitive header lookup, safe response framing | C API only; chunked transfer and keep-alive are not supported |
@@ -71,7 +71,7 @@ JSON is a core backend workload. Implement both a DOM-style API for convenient a
 
 - Parse objects, arrays, strings, numbers, booleans, and null with strict UTF-8 and escape validation.
 - Correctly handle surrogate pairs and reject malformed Unicode escapes.
-- Distinguish integer and floating-point number representations without silently losing precision.
+- Provide checked signed-integer and finite binary64 accessors; preserve original numeric token spans for consumers requiring exact decimal precision. Binary64 conversion is not an exact-decimal representation.
 - Encode strings with correct escaping; never emit invalid JSON.
 - Provide compact and pretty output.
 - Support JSON Lines without loading the entire file.
