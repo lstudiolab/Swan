@@ -50,7 +50,17 @@ if "$ROOT/build/swanc" build "$TMP/bad.swan" -o "$TMP/invalid" 2>"$TMP/diagnosti
 fi
 grep -F "$TMP/bad.swan:" "$TMP/diagnostic" >/dev/null
 
-printf 'PASS: independent per-file lexing/parsing with project-wide semantic analysis and C linking\n'
+cat > "$TMP/bad-name.swan" <<'SWAN'
+func main() -> int:
+    return missing_value
+SWAN
+if "$ROOT/build/swanc" build "$TMP/bad-name.swan" -o "$TMP/invalid-name" 2>"$TMP/name-diagnostic"; then
+    echo "expected unresolved name to fail" >&2
+    exit 1
+fi
+grep -F "$TMP/bad-name.swan:" "$TMP/name-diagnostic" >/dev/null
+
+printf 'PASS: per-file source buffers, source-aware semantic diagnostics, and separate assembly/object outputs\n'
 
 
 # Ten Swan source files must remain ten independent assembly translation units.
