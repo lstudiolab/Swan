@@ -9,7 +9,7 @@ cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -pthread -I"$ROOT" \
 "$ROOT/build/http-server"
 
 cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -pthread -I"$ROOT" \
-    -c "$ROOT/tests/http-abi-runtime.c" -o "$ROOT/build/http-abi-runtime.o"
+    -c "$ROOT/runtime/http_json.c" -o "$ROOT/build/http-abi-runtime.o"
 cat > "$ROOT/build/http-abi.swan" <<SWAN
 import C "$ROOT/runtime/http_server.h"
 
