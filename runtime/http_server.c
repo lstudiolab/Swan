@@ -178,6 +178,7 @@ static void swan_http_process_client(void *context) {
         separator = swan_http_header_end(headers, used);
         if (separator) break;
     }
+    headers[used] = 0;
     if (!separator) {
         swan_http_reply_text(fd, 431, "{\"error\":\"headers_too_large\"}");
         close(fd);
