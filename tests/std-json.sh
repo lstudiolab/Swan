@@ -20,8 +20,6 @@ func main() -> int:
         return 4
     if !json_compact(document) == 0 or !json_compact_length(document) <= 0:
         return 5
-    !json_close(document)
-
     if !json_parse(document, "{") != 0:
         return 6
     if !json_error(document) == 0:
