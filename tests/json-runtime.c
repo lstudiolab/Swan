@@ -80,6 +80,18 @@ int main(void) {
     assert(swan_json_parse_reuse(&reusable, "false", 5));
     swan_json_document_destroy(&reusable);
 
+    /* Caller-owned storage gives bounded, allocation-free token parsing. */
+    SwanJsonDocument fixed;
+    SwanJsonToken fixed_tokens[8];
+    swan_json_document_init(&fixed);
+    assert(swan_json_document_use_token_storage(
+        &fixed, fixed_tokens, sizeof(fixed_tokens) / sizeof(fixed_tokens[0])));
+    assert(swan_json_parse(&fixed, "[1,2,3]", 7));
+    assert(fixed.tokens == fixed_tokens && fixed.token_capacity == 8);
+    assert(!swan_json_parse_reuse(&fixed, "[1,2,3,4,5,6,7,8]", 17));
+    assert(strstr(fixed.error, "caller token buffer exhausted") != NULL);
+    swan_json_document_destroy(&fixed);
+
     SwanJsonDocument limited;
     swan_json_document_init(&limited);
     limited.limits.max_depth = 1;
