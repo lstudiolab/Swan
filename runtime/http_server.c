@@ -18,6 +18,9 @@
 
 #define SWAN_HTTP_HEADER_LIMIT 16384u
 #define SWAN_HTTP_BODY_LIMIT (8u * 1024u * 1024u)
+#ifndef MSG_NOSIGNAL
+#define MSG_NOSIGNAL 0
+#endif
 
 typedef struct SwanHttpServer SwanHttpServer;
 typedef struct {
@@ -78,6 +81,10 @@ static void swan_http_reply(int fd, int status, const char *body, size_t length)
         (void)swan_http_send_all(fd, header, (size_t)n);
         if (length) (void)swan_http_send_all(fd, body, length);
     }
+}
+
+static void swan_http_reply_text(int fd, int status, const char *body) {
+    swan_http_reply(fd, status, body, strlen(body));
 }
 
 static char *swan_http_header_end(char *data, size_t length) {
@@ -144,7 +151,7 @@ static void swan_http_process_client(void *context) {
         if (separator) break;
     }
     if (!separator) {
-        swan_http_reply(fd, 431, "{\"error\":\"headers_too_large\"}", 29);
+        swan_http_reply_text(fd, 431, "{\"error\":\"headers_too_large\"}");
         close(fd);
         return;
     }
@@ -157,7 +164,7 @@ static void swan_http_process_client(void *context) {
     char method[16], target[2048], version[16];
     if (sscanf(headers, "%15s %2047s %15s", method, target, version) != 3 ||
         strncmp(version, "HTTP/1.", 7) != 0) {
-        swan_http_reply(fd, 400, "{\"error\":\"bad_request_line\"}", 28);
+        swan_http_reply_text(fd, 400, "{\"error\":\"bad_request_line\"}");
         close(fd);
         return;
     }
@@ -165,24 +172,29 @@ static void swan_http_process_client(void *context) {
     size_t body_length = 0;
     int length_status = swan_http_parse_content_length(headers, &body_length);
     if (length_status == -2) {
-        swan_http_reply(fd, 501, "{\"error\":\"chunked_not_supported\"}", 33);
+        swan_http_reply_text(fd, 501, "{\"error\":\"chunked_not_supported\"}");
         close(fd);
         return;
     }
     if (length_status < 0 || (length_status == 0 && already_read != 0)) {
-        swan_http_reply(fd, 400, "{\"error\":\"invalid_content_length\"}", 34);
+        swan_http_reply_text(fd, 400, "{\"error\":\"invalid_content_length\"}");
+        close(fd);
+        return;
+    }
+    if (already_read > body_length) {
+        swan_http_reply_text(fd, 400, "{\"error\":\"unexpected_body_bytes\"}");
         close(fd);
         return;
     }
     if (body_length > SWAN_HTTP_BODY_LIMIT) {
-        swan_http_reply(fd, 413, "{\"error\":\"body_too_large\"}", 26);
+        swan_http_reply_text(fd, 413, "{\"error\":\"body_too_large\"}");
         close(fd);
         return;
     }
 
     char *body = (char *)malloc(body_length + 1);
     if (!body) {
-        swan_http_reply(fd, 500, "{\"error\":\"out_of_memory\"}", 25);
+        swan_http_reply_text(fd, 500, "{\"error\":\"out_of_memory\"}");
         close(fd);
         return;
     }
@@ -194,7 +206,7 @@ static void swan_http_process_client(void *context) {
         if (n < 0 && errno == EINTR) continue;
         if (n <= 0) {
             free(body);
-            swan_http_reply(fd, 400, "{\"error\":\"incomplete_body\"}", 27);
+            swan_http_reply_text(fd, 400, "{\"error\":\"incomplete_body\"}");
             close(fd);
             return;
         }
@@ -218,7 +230,7 @@ static void swan_http_process_client(void *context) {
     void *document = swan_json_create(64);
     if (!document) {
         free(body);
-        swan_http_reply(fd, 500, "{\"error\":\"out_of_memory\"}", 25);
+        swan_http_reply_text(fd, 500, "{\"error\":\"out_of_memory\"}");
         close(fd);
         return;
     }
@@ -235,7 +247,7 @@ static void swan_http_process_client(void *context) {
     if (!output || output_length < 0) {
         swan_json_close(document);
         free(body);
-        swan_http_reply(fd, 500, "{\"error\":\"encode_failed\"}", 26);
+        swan_http_reply_text(fd, 500, "{\"error\":\"encode_failed\"}");
         close(fd);
         return;
     }
@@ -326,10 +338,6 @@ int32_t swan_http_json_server_run(void *value) {
             free(client);
             atomic_fetch_add_explicit(&server->rejected, 1, memory_order_relaxed);
         }
-    }
-    if (server->listen_fd >= 0) {
-        close(server->listen_fd);
-        server->listen_fd = -1;
     }
     swan_thread_pool_shutdown(&server->pool, true);
     atomic_store_explicit(&server->running, false, memory_order_relaxed);
