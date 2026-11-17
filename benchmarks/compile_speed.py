@@ -273,6 +273,17 @@ def main() -> None:
                                       ("--version",) if language != "Goose" else ("--version",)),
             }
 
+    flags = {
+        "Swan": "native build defaults",
+        "Goose": f"--cc {args.cc}; Goose native defaults",
+        "Rust": "-C opt-level=2 -C codegen-units=1",
+        "C++": "-std=c++20 -O2 -pipe",
+        "C": "-std=c11 -O2 -pipe",
+        "ASM": "GAS x86-64; -x assembler -no-pie",
+    }
+    for language in rows:
+        rows[language]["flags"] = flags[language]
+
     print("Heavy native compilation benchmark")
     print(f"Host: {platform.platform()} ({platform.machine()})")
     print(f"Workload: {args.functions} functions x {args.operations} dependent operations "
@@ -305,8 +316,8 @@ def main() -> None:
         "- Compiler caches: unique source and output paths for every measured run",
         "- Correctness: compilation success and non-empty executable checked; runtime is intentionally excluded",
         "- ASM: handwritten x86-64 GAS; assembly + link only, not comparable to a high-level frontend",
-        "", "| Language | Median compile + link (s) | Best (s) | Median peak RSS (MiB) | Source (KiB) | Binary (KiB) | Toolchain |",
-        "|---|---:|---:|---:|---:|---:|---|",
+        "", "| Language | Median compile + link (s) | Best (s) | Median peak RSS (MiB) | Source (KiB) | Binary (KiB) | Toolchain | Flags |",
+        "|---|---:|---:|---:|---:|---:|---|---|",
     ]
     for language in ("Goose", "Swan", "Rust", "C++", "C", "ASM"):
         if language not in rows:
@@ -315,7 +326,8 @@ def main() -> None:
         lines.append(
             f"| {language} | {row['median_seconds']:.4f} | {row['min_seconds']:.4f} | "
             f"{row['median_peak_rss_kib'] / 1024:.1f} | {row['source_bytes'] / 1024:.1f} | "
-            f"{row['median_binary_bytes'] / 1024:.1f} | {row['version'].replace('|', '/')} |"
+            f"{row['median_binary_bytes'] / 1024:.1f} | {row['version'].replace('|', '/')} | "
+            f"{row['flags']} |"
         )
     lines += ["", "## Interpretation notes", "",
               "This is a compile-time benchmark, not a runtime benchmark. The same generated arithmetic workload shape is used across Goose, Swan, Rust, C++, and C. Compiler versions, optimization flags, source sizes, and peak RSS are recorded so results can be interpreted rather than treated as a universal ranking.",
