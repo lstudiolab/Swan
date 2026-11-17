@@ -27,7 +27,9 @@ typedef enum {
  SWAN_SIL_DEBUG_VALUE, SWAN_SIL_LOG
 } SwanSILOpcode;
 typedef struct {
- uint32_t id;
+ uint32_t id, block;
+ uint32_t targets[2];
+ size_t target_count;
  SwanSILOpcode opcode;
  SwanSILTypeKind type;
  SwanSILOwnership ownership;
@@ -37,13 +39,26 @@ typedef struct {
  const char *text;
  const Token *location;
  bool side_effecting;
+ bool terminates_block;
  bool deleted;
 } SwanSILInstruction;
+typedef struct {
+ uint32_t id;
+ uint32_t successors[2];
+ size_t successor_count;
+ size_t first_instruction, instruction_count;
+ bool terminated;
+} SwanSILBasicBlock;
+typedef struct { uint32_t break_block, continue_block; } SwanSILLoopTarget;
 typedef struct {
  const char *name;
  SwanSILInstruction *instructions;
  size_t instruction_count, instruction_capacity;
  size_t parameter_count;
+ SwanSILBasicBlock *blocks;
+ size_t block_count, block_capacity, current_block;
+ SwanSILLoopTarget *loops;
+ size_t loop_count, loop_capacity;
  bool external;
 } SwanSILFunction;
 typedef struct {
@@ -66,21 +81,20 @@ static inline bool swan_sil_reserve(void **items,size_t *capacity,size_t needed,
 }
 static inline void swan_sil_destroy(SwanSILModule *m) {
  if(!m)return;
- for(size_t i=0;i<m->function_count;i++)free(m->functions[i].instructions);
+ for(size_t i=0;i<m->function_count;i++){free(m->functions[i].instructions);free(m->functions[i].blocks);free(m->functions[i].loops);}
  free(m->functions);memset(m,0,sizeof(*m));
 }
-static inline SwanSILFunction *swan_sil_add_function(SwanSILModule *m,const char *name,size_t params,bool external) {
+static inline uint32_t swan_sil_add_block(SwanSILFunction *f) {\n if(!f||f->block_count>=UINT32_MAX||!swan_sil_reserve((void**)&f->blocks,&f->block_capacity,f->block_count+1,sizeof(*f->blocks)))return UINT32_MAX;\n uint32_t id=(uint32_t)f->block_count;SwanSILBasicBlock *b=&f->blocks[f->block_count++];memset(b,0,sizeof(*b));b->id=id;b->first_instruction=SIZE_MAX;return id;\n}\nstatic inline SwanSILFunction *swan_sil_add_function(SwanSILModule *m,const char *name,size_t params,bool external) {
  if(!m||!name||!swan_sil_reserve((void**)&m->functions,&m->function_capacity,m->function_count+1,sizeof(*m->functions)))return NULL;
  SwanSILFunction *f=&m->functions[m->function_count++];memset(f,0,sizeof(*f));
- f->name=name;f->parameter_count=params;f->external=external;return f;
+ f->name=name;f->parameter_count=params;f->external=external;\n if(swan_sil_add_block(f)==UINT32_MAX){m->function_count--;return NULL;}\n return f;
 }
 static inline uint32_t swan_sil_emit(SwanSILModule *m,SwanSILFunction *f,SwanSILInstruction in) {
  if(!m||!f||f->instruction_count>=UINT32_MAX||
     !swan_sil_reserve((void**)&f->instructions,&f->instruction_capacity,f->instruction_count+1,sizeof(*f->instructions)))return 0;
- in.id=(uint32_t)f->instruction_count+1;
- f->instructions[f->instruction_count++]=in;m->instruction_count++;return in.id;
+ in.id=(uint32_t)f->instruction_count+1;in.block=(uint32_t)f->current_block;\n if(f->current_block>=f->block_count)return 0;\n SwanSILBasicBlock *block=&f->blocks[f->current_block];\n if(block->terminated||in.target_count>2)return 0;\n if(block->first_instruction==SIZE_MAX)block->first_instruction=f->instruction_count;\n block->instruction_count++;\n if(in.terminates_block){block->terminated=true;block->successor_count=in.target_count;for(size_t i=0;i<in.target_count;i++)block->successors[i]=in.targets[i];}\n f->instructions[f->instruction_count++]=in;m->instruction_count++;return in.id;
 }
-static inline uint32_t swan_sil_expr(SwanSILModule *m,SwanSILFunction *f,const Expr *e) {
+static inline bool swan_sil_branch(SwanSILModule *m,SwanSILFunction *f,uint32_t target,const Token *location) {\n SwanSILInstruction branch={0};branch.opcode=SWAN_SIL_BRANCH;branch.type=SWAN_SIL_TYPE_TRIVIAL;branch.targets[0]=target;branch.target_count=1;branch.terminates_block=true;branch.side_effecting=true;branch.location=location;return swan_sil_emit(m,f,branch)!=0;\n}\nstatic inline bool swan_sil_cond_branch(SwanSILModule *m,SwanSILFunction *f,uint32_t condition,uint32_t yes,uint32_t no,const Token *location) {\n SwanSILInstruction branch={0};branch.opcode=SWAN_SIL_COND_BRANCH;branch.type=SWAN_SIL_TYPE_TRIVIAL;branch.operands[0]=condition;branch.operand_count=1;branch.targets[0]=yes;branch.targets[1]=no;branch.target_count=2;branch.terminates_block=true;branch.side_effecting=true;branch.location=location;return swan_sil_emit(m,f,branch)!=0;\n}\nstatic inline uint32_t swan_sil_expr(SwanSILModule *m,SwanSILFunction *f,const Expr *e) {
  if(!e)return 0;
  uint32_t a=swan_sil_expr(m,f,e->left),b=swan_sil_expr(m,f,e->right);
  uint32_t args[3]={0};size_t argc=0;
