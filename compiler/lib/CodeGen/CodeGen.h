@@ -112,6 +112,8 @@ static inline bool swan_program_requires_ast_compatibility(const Program *progra
     for(size_t i=0;i<program->count;i++){
         const Stmt *function=program->functions[i];
         if(!function)continue;
+        if(program->codegen_source_index>=0&&
+           function->source_index!=(size_t)program->codegen_source_index)continue;
         size_t maximum_locals=0;
         if(swan_block_exceeds_ir_local_limit(function->body,
                 function->body_count,0,&maximum_locals)||
