@@ -84,13 +84,13 @@ Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available
 
 ```sh
 sh build.sh
-./build/swancc run examples/hello.swan
+./build/swanc run examples/hello.swan
 ```
 
 Build an executable:
 
 ```sh
-./build/swancc build examples/hello.swan -o hello
+./build/swanc build examples/hello.swan -o hello
 ./hello
 ```
 
@@ -116,10 +116,37 @@ Each source file is parsed independently, and native x86-64 builds compile separ
 Inspect supported target names:
 
 ```sh
-./build/swancc --list-targets
+./build/swanc --list-targets
 ```
 
 `build.sh` compiles the C11 production compiler directly into `build/swanc`. No bootstrap compiler or secondary compiler is built. `build/swan` remains a compatibility alias to the same executable.
+
+## VS Code
+
+The repository includes a local editor extension for .swan syntax highlighting, indentation, and snippets. It is not yet a language server.
+
+Build and install the compiler on Linux or macOS:
+
+~~~sh
+sh build.sh
+mkdir -p ~/.local/bin
+cp build/swanc ~/.local/bin/swan
+export PATH="$HOME/.local/bin:$PATH"
+swan --version
+~~~
+
+Add the PATH export to your shell startup file so VS Code can find swan after restarting.
+
+Build and install the VS Code extension:
+
+~~~sh
+cd vscode
+npm install
+npm run package
+code --install-extension swan-language-0.1.0.vsix
+~~~
+
+Open a .swan file after reloading VS Code. The workspace build task uses the swan executable from PATH. On Windows, use WSL for the current POSIX compiler build.
 
 ## Swan syntax
 
@@ -342,17 +369,17 @@ project/
 
 ```sh
 # Emit one assembly file per Swan source into the output directory.
-./build/swancc build project --emit-asm -o build/assembly
+./build/swanc build project --emit-asm -o build/assembly
 # Result: main.s, math.s, physics.s, and one native_N.s per C source.
 
 # Or compile the translation units separately and link one executable.
-./build/swancc build project -o build/project
+./build/swanc build project -o build/project
 ```
 
 The same works with explicit source lists:
 
 ```sh
-./build/swancc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
+./build/swanc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
 ```
 
 Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. The project shares declaration and semantic analysis, not a combined assembly output. Each Swan source is emitted independently; imported modules follow the selected module-linking mode. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target executable linking, C source bundling, and complete cross-platform C ABI interoperability are still being developed.

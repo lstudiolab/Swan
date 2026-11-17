@@ -8,8 +8,7 @@ if [ "${SWAN_SANITIZE:-0}" = "1" ]; then
 fi
 mkdir -p "$ROOT/build"
 
-# Compiler 1 is the production compiler. Build it directly; there is no
-# bootstrap compiler, second compiler, generated SIL object, or stage handoff.
+# Build the single C11 production compiler directly; there is no bootstrap stage or second compiler.
 rm -f "$ROOT/build/swan-bootstrap" \
       "$ROOT/build/sil_runtime.swan" \
       "$ROOT/build/sil_runtime.s" \

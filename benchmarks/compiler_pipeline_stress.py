@@ -35,8 +35,8 @@ STAGES = (
     "IR pass: algebraic simplification", "IR pass: copy propagation",
     "IR pass: common-subexpression elimination", "IR pass: loop-invariant code motion",
     "IR pass: dead-code elimination", "Target code generation",
-    "AST fallback code generation", "Assembly output", "Native linking",
-    "Program execution", "Total wall time", "Benchmark process wall time", "Peak compiler RSS",
+    "AST fallback code generation", "Assembly output", "Total wall time",
+    "Compile-only wall time", "Peak compiler RSS",
 )
 
 
@@ -141,7 +141,7 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     if not time_bin.is_file():
         raise RuntimeError("GNU time is required to measure peak compiler RSS")
     command = [str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
-               str(compiler), "build", "--profile", str(source), "-o", str(output)]
+               str(compiler), "build", "--profile", str(source), "--emit-asm", "-o", str(output)]
     start = time.perf_counter()
     proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
     external = time.perf_counter() - start
@@ -151,13 +151,13 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
             f"{proc.stderr[-12000:]}"
         )
     if not output.is_file() or output.stat().st_size == 0:
-        raise RuntimeError(f"{source.name}: compiler produced no executable")
+        raise RuntimeError(f"{source.name}: compiler produced no assembly")
     values = parse_profile(proc.stderr)
     rss = RSS_MARKER.search(proc.stderr)
     if not rss:
         raise RuntimeError("GNU time did not report peak compiler RSS")
     values["Peak compiler RSS"] = float(rss.group(1))
-    values["Benchmark process wall time"] = external
+    values["Compile-only wall time"] = external
     return values
 
 
@@ -180,7 +180,7 @@ def main() -> None:
         source_sizes: dict[str, int] = {}
         for name, source in cases.items():
             source_sizes[name] = source.stat().st_size
-            output = directory / f"{name}.bin"
+            output = directory / f"{name}.s"
             for _ in range(args.warmups):
                 compile_once(compiler, source, output)
             results[name] = [
@@ -195,7 +195,7 @@ def main() -> None:
           f"{args.warmups} warm-up run(s)")
     print("Unit: seconds (lower is faster); peak compiler RSS is KiB (lower is smaller)")
     print("Workloads are generated afresh for each benchmark invocation.")
-    print("Compiler 1 uses direct AST-to-SVM typed-IR lowering; AST compatibility codegen is reported separately.")
+    print("Production compiler uses direct AST-to-SVM typed-IR lowering; AST compatibility codegen is reported separately.")
     for name, samples in results.items():
         print(f"\n[{name}] source={source_sizes[name]} bytes")
         keys = set().union(*(sample.keys() for sample in samples))

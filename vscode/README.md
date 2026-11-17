@@ -13,7 +13,23 @@ This extension adds basic editor support for Swan source files.
 
 Install the Swan compiler separately and ensure `swan` is available on your `PATH`. The compiler installation and usage instructions are in the repository root README.
 
-## Build and install
+## Install the compiler
+
+From the repository root, build the single production compiler and put it on PATH:
+
+~~~sh
+sh build.sh
+mkdir -p ~/.local/bin
+cp build/swanc ~/.local/bin/swan
+export PATH="$HOME/.local/bin:$PATH"
+swan --version
+~~~
+
+Add the PATH export to ~/.bashrc, ~/.zshrc, or your shell's startup file so VS Code can find the compiler after restarting.
+
+## Build and install the editor extension
+
+From the repository's vscode directory:
 
 ~~~sh
 npm install

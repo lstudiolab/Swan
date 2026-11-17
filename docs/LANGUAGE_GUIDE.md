@@ -818,7 +818,7 @@ The production model is:
 12. Link a native executable when requested.
 13. Execute the resulting native program as a normal operating-system process.
 
-SIL and SVM are compiler representations. SVM is not a CPU, runtime, interpreter, or bytecode format. The executable must not need a Swan VM.
+Typed IR and SVM are compiler representations. SVM is not a CPU, runtime, interpreter, or bytecode format. The executable must not need a Swan VM.
 
 Optimization is required to preserve the language's semantics. Integer transformations must respect width, signedness, and overflow rules. Memory and call transformations must preserve observable side effects. Backends must reject unsupported operations rather than emit placeholders.
 
