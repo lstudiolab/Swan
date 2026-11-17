@@ -6,6 +6,7 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
 
 - `bytes.h`: overflow-checked reusable byte buffer with geometric growth,
   append (including self-append), resize, clear, and deterministic destruction.
+  Caller-owned fixed storage is also supported; it never falls back to heap growth.
 - `json.h`: bounded JSON parser and compact/pretty encoder. The low-level
   document API borrows its input buffer and supports caller-owned token storage
   for allocation-free parsing; fixed buffers fail explicitly when exhausted.
