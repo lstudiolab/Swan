@@ -9,7 +9,7 @@ suite:
 
 | Component | Implemented surface | Boundary |
 |---|---|---|
-| Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |
+| Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |\n| Fixed-capacity arena | Caller-owned bump allocator with aligned allocation, zeroing, marks, rewind, and reset; no heap growth | Runtime primitive only; compiler scratch allocation and automatic object ownership are not yet routed through it |
 | JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; i64 and finite f64 accessors; caller-controlled token preallocation, caller-owned fixed-capacity storage for zero-heap parsing, and reuse; original token spans remain available for exact-decimal handling |
 | JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point writer values and a typed Swan DOM remain open |
 | Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
