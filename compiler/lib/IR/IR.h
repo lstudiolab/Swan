@@ -1,5 +1,6 @@
 #ifndef SWAN_IR_H
 #define SWAN_IR_H
+#include "../Basic/Core.h"
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
