@@ -60,6 +60,15 @@ if "$ROOT/build/swanc" build "$TMP/bad-name.swan" -o "$TMP/invalid-name" 2>"$TMP
 fi
 grep -F "$TMP/bad-name.swan:" "$TMP/name-diagnostic" >/dev/null
 
+cat > "$TMP/warning.swan" <<'SWAN'
+func unused_helper() -> i64:
+    return 7
+func main() -> i64:
+    return 0
+SWAN
+"$ROOT/build/swanc" build "$TMP/warning.swan" -o "$TMP/warning" 2>"$TMP/warning-diagnostic"
+grep -F "$TMP/warning.swan:" "$TMP/warning-diagnostic" >/dev/null
+
 mkdir -p "$TMP/cross"
 cat > "$TMP/cross/01_helper.swan" <<'SWAN'
 export func cross_value() -> i64:
