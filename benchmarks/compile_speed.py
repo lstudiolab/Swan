@@ -153,7 +153,7 @@ def version_of(executable: str, args: tuple[str, ...]) -> str:
         return "version unavailable"
 
 
-def run_sample(command: list[str], cwd: pathlib.Path) -> tuple[float, int, int]:
+def run_sample(command: list[str], cwd: pathlib.Path, output: pathlib.Path) -> tuple[float, int, int]:
     time_bin = shutil.which("time")
     if not time_bin:
         raise RuntimeError("GNU time is required for peak RSS measurement")
@@ -229,7 +229,7 @@ def main() -> None:
             if language == "Swan":
                 return [available[language], "build", str(source), "-o", str(output)]
             if language == "Goose":
-                return [available[language], "build", "--cc", args.cc, "-o", str(output), str(source)]
+                return [available[language], "build", "-o", str(output), str(source)]
             if language == "Rust":
                 return [available[language], "-C", "opt-level=2", "-C", "codegen-units=1",
                         str(source), "-o", str(output)]
@@ -244,7 +244,7 @@ def main() -> None:
             for warmup in range(args.warmups):
                 source = generated[language]
                 output = work / f"warm-{language}-{warmup}"
-                run_sample(command_for(language, source, output), work)
+                run_sample(command_for(language, source, output), work, output)
 
         # Rotate language order each repetition to reduce systematic thermal/
         # frequency bias from always measuring the same compiler first.
