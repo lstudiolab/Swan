@@ -14,12 +14,8 @@ func main() -> int:
             return 3
         request = request + 1
 
-    let id = swan_json_get_i64(document, "id", -1)
-    let workers = swan_json_get_i64(document, "workers", -1)
-    let input_length = swan_json_input_length(document)
-    let output_length = swan_json_compact_length(document)
-    let checksum = (id + workers) * 100000
-    let bytes = (input_length + output_length) * 100000
+    let checksum = (swan_json_get_i64(document, "id", -1) + swan_json_get_i64(document, "workers", -1)) * 100000
+    let bytes = (swan_json_input_length(document) + swan_json_compact_length(document)) * 100000
     swan_json_close(document)
     !printin >> checksum
     !printin >> bytes
