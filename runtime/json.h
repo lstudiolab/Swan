@@ -359,15 +359,26 @@ static inline bool swan_json_parse_reuse(SwanJsonDocument *doc,
 /* Input is borrowed; it must remain alive until document_destroy or reparse. */
 static inline bool swan_json_parse(SwanJsonDocument *doc,
                                     const void *input, size_t length) {
-    if (!doc) return false;
+    if (!doc || (!input && length)) return false;
+    SwanJsonLimits limits = doc->limits;
     free(doc->tokens);
-    doc->tokens = NULL;
-    doc->token_count = 0;
-    doc->token_capacity = 0;
-    doc->limits = (SwanJsonLimits){128, 1000000, 64u * 1024u * 1024u};
-    return swan_json_parse_reuse(doc, input, length);
+    memset(doc, 0, sizeof(*doc));
+    doc->limits = limits;
+    if (!doc->limits.max_depth) doc->limits.max_depth = 128;
+    if (!doc->limits.max_tokens) doc->limits.max_tokens = 1000000;
+    if (!doc->limits.max_input_bytes) doc->limits.max_input_bytes = 64u * 1024u * 1024u;
+    if (length > doc->limits.max_input_bytes)
+        return swan_json_fail(doc, 0, "input size limit exceeded");
+    doc->input = (const unsigned char *)input;
+    doc->input_length = length;
+    SwanJsonParser parser = { doc, 0 };
+    size_t root;
+    if (!swan_json_parse_value(&parser, 0, &root)) return false;
+    swan_json_ws(&parser);
+    if (parser.pos != length)
+        return swan_json_fail(doc, parser.pos, "trailing data after JSON value");
+    return root == 0;
 }
-
 static inline bool swan_json_token_text(const SwanJsonDocument *doc,
                                          size_t token, const char **text,
                                          size_t *length) {
@@ -387,14 +398,13 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
     const char *text;
     size_t length;
     if (!key || !swan_json_token_text(doc, token, &text, &length)) return false;
-    const unsigned char *raw = (const unsigned char *)text;
-    size_t key_length = strlen(key), i = 0, j = 0;
+    size_t i = 0, j = 0, key_length = strlen(key);
     while (i < length) {
-        uint32_t cp;
-        if (raw[i] == '\\') {
-            if (++i >= length) return false;
-            unsigned char escape = raw[i++];
-            switch (escape) {
+        uint32_t cp = (unsigned char)text[i++];
+        if (cp == '\\') {
+            if (i >= length) return false;
+            unsigned char escaped = (unsigned char)text[i++];
+            switch (escaped) {
                 case '"': cp = '"'; break;
                 case '\\': cp = '\\'; break;
                 case '/': cp = '/'; break;
@@ -407,17 +417,16 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
                     if (length - i < 4) return false;
                     cp = 0;
                     for (unsigned n = 0; n < 4; n++) {
-                        int h = swan_json_hex(raw[i++]);
+                        int h = swan_json_hex((unsigned char)text[i++]);
                         if (h < 0) return false;
                         cp = (cp << 4) | (uint32_t)h;
                     }
                     if (cp >= 0xD800 && cp <= 0xDBFF) {
-                        if (length - i < 6 || raw[i] != '\\' ||
-                            raw[i + 1] != 'u') return false;
-                        i += 2;
+                        if (length - i < 6 || text[i++] != '\\' ||
+                            text[i++] != 'u') return false;
                         uint32_t low = 0;
                         for (unsigned n = 0; n < 4; n++) {
-                            int h = swan_json_hex(raw[i++]);
+                            int h = swan_json_hex((unsigned char)text[i++]);
                             if (h < 0) return false;
                             low = (low << 4) | (uint32_t)h;
                         }
@@ -428,14 +437,6 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
                 }
                 default: return false;
             }
-        } else {
-            size_t width;
-            if (!swan_json_utf8(raw + i, length - i, &width) ||
-                width > key_length - j ||
-                memcmp(raw + i, key + j, width) != 0) return false;
-            i += width;
-            j += width;
-            continue;
         }
         unsigned char encoded[4];
         size_t width;
@@ -447,19 +448,17 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
             encoded[0] = (unsigned char)(0xE0 | (cp >> 12));
             encoded[1] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
             encoded[2] = (unsigned char)(0x80 | (cp & 0x3F)); width = 3;
-        } else {
+        } else if (cp <= 0x10FFFF) {
             encoded[0] = (unsigned char)(0xF0 | (cp >> 18));
             encoded[1] = (unsigned char)(0x80 | ((cp >> 12) & 0x3F));
             encoded[2] = (unsigned char)(0x80 | ((cp >> 6) & 0x3F));
             encoded[3] = (unsigned char)(0x80 | (cp & 0x3F)); width = 4;
-        }
-        if (width > key_length - j || memcmp(encoded, key + j, width) != 0)
-            return false;
+        } else return false;
+        if (width > key_length - j || memcmp(key + j, encoded, width)) return false;
         j += width;
     }
     return j == key_length;
 }
-
 static inline size_t swan_json_object_get(const SwanJsonDocument *doc,
                                            size_t object, const char *key) {
     if (!doc || object >= doc->token_count ||
