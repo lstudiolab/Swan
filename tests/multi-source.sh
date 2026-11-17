@@ -72,7 +72,16 @@ SWAN
 "$ROOT/build/swanc" build "$TMP/cross" --target aarch64 --emit-asm -o "$TMP/aarch64"
 test -f "$TMP/aarch64/01_helper.s"
 test -f "$TMP/aarch64/02_main.s"
-"$ROOT/build/swanc" build "$TMP/cross" --target wasm32 --emit-asm -o "$TMP/wasm"
+mkdir -p "$TMP/wasm-src"
+cat > "$TMP/wasm-src/01_helper.swan" <<'SWAN'
+export func wasm_helper() -> i64:
+    return 42
+SWAN
+cat > "$TMP/wasm-src/02_main.swan" <<'SWAN'
+func main() -> i64:
+    return 0
+SWAN
+"$ROOT/build/swanc" build "$TMP/wasm-src" --target wasm32 --emit-asm -o "$TMP/wasm"
 test -f "$TMP/wasm/01_helper.wasm"
 test -f "$TMP/wasm/02_main.wasm"
 "$ROOT/build/swanc" build "$TMP/cross" --target-triple aarch64-apple-macosx14.0.0 --emit-llvm -o "$TMP/llvm"
