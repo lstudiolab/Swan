@@ -8,7 +8,7 @@ rm -rf "$TMP"/*
 
 cat > "$TMP/unused.swan" <<'SWAN'
 lazy import foundation
-fn main():
+func main():
     return 0
 SWAN
 "$SWAN" build "$TMP/unused.swan" --lazy-imports -o "$TMP/unused"
@@ -17,7 +17,7 @@ test ! -d "$TMP/unused.modules"
 
 cat > "$TMP/used.swan" <<'SWAN'
 import foundation
-fn main():
+func main():
     !printin >> abs_int(-9);
     return 0
 SWAN
@@ -34,7 +34,7 @@ diff -u "$TMP/expected.out" "$TMP/used.out"
 
 cat > "$TMP/branch.swan" <<'SWAN'
 import foundation
-fn main():
+func main():
     if false:
         foundation_hello()
     return 0
@@ -47,7 +47,7 @@ mv "$TMP/foundation.saved" "$TMP/branch.modules/foundation.so"
 
 cat > "$TMP/branch-used.swan" <<'SWAN'
 import foundation
-fn main():
+func main():
     if true:
         foundation_hello()
     return 0
