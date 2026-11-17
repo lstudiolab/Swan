@@ -496,7 +496,7 @@ static inline bool swan_json_as_i64(const SwanJsonDocument *doc,
 }
 
 static inline bool swan_json_buffer_reserve(SwanJsonBuffer *b, size_t extra) {
-    if (!b || extra > SIZE_MAX - b->length - 1) return false;
+    if (!b || b->length == SIZE_MAX || extra > SIZE_MAX - b->length - 1) return false;
     size_t need = b->length + extra + 1;
     if (need <= b->capacity) return true;
     size_t cap = b->capacity ? b->capacity : 256;
