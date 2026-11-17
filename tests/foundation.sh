@@ -8,7 +8,7 @@ mkdir -p "$TMP"
 cat > "$TMP/program.swan" <<'SWAN'
 import foundation
 import foundation
-fn main():
+func main():
     foundation_hello()
     !printin >> abs_int(-9);
     !printin >> average_int(4, 7);
