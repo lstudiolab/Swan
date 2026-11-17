@@ -36,6 +36,18 @@ int main(void) {
     int64_t number = 0;
     assert(workers != SWAN_JSON_NONE);
     assert(swan_json_as_i64(&doc, workers, &number) && number == 128);
+    size_t fraction = swan_json_object_get(&doc, 0, "items");
+    assert(fraction != SWAN_JSON_NONE);
+    size_t item = doc.tokens[fraction].first_child;
+    item = doc.tokens[item].next_sibling;
+    item = doc.tokens[item].next_sibling;
+    double decimal = 0.0;
+    assert(swan_json_as_f64(&doc, item, &decimal) && decimal == 3.5);
+    size_t ok = swan_json_object_get(&doc, 0, "ok");
+    bool boolean = false;
+    assert(swan_json_as_bool(&doc, ok, &boolean) && boolean);
+    assert(!swan_json_as_i64(&doc, item, &number));
+    assert(!swan_json_as_bool(&doc, item, &boolean));
     assert(swan_json_object_get(&doc, root, "escapedKey") != SWAN_JSON_NONE);
 
     SwanJsonBuffer compact = {0}, pretty = {0};
@@ -106,6 +118,19 @@ int main(void) {
     invalid("\"raw\nnewline\"");
     invalid("\"bad UTF-8: \xC0\xAF\"");
     invalid("true false");
+
+    /* Numeric conversion rejects overflow and partial numeric forms. */
+    SwanJsonDocument numeric;
+    swan_json_document_init(&numeric);
+    assert(swan_json_parse(&numeric, "[1.25,1e3,1e9999]", 17));
+    double converted = 0.0;
+    size_t first = numeric.tokens[0].first_child;
+    assert(swan_json_as_f64(&numeric, first, &converted) && converted == 1.25);
+    size_t second = numeric.tokens[first].next_sibling;
+    assert(swan_json_as_f64(&numeric, second, &converted) && converted == 1000.0);
+    size_t third = numeric.tokens[second].next_sibling;
+    assert(!swan_json_as_f64(&numeric, third, &converted));
+    swan_json_document_destroy(&numeric);
     puts("JSON runtime tests passed");
     return 0;
 }
