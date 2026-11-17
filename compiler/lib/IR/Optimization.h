@@ -771,7 +771,8 @@ static inline bool swan_ir_optimize_with_stats(SwanIRModule *module,
     while(executed<SWAN_IR_MAX_OPTIMIZATION_PASSES&&swan_compiler_optimization_passes<SWAN_COMPILER_OPTIMIZATION_BUDGET){
         bool round_changed=false;
         rounds++;
-        for(size_t i=0;i<pass_count&&executed<SWAN_IR_MAX_OPTIMIZATION_PASSES&&swan_compiler_optimization_passes<SWAN_COMPILER_OPTIMIZATION_BUDGET;i++,executed++){\n            if(!swan_optimizer_consume(1)){if(error&&cap)snprintf(error,cap,"compiler-wide optimization budget exhausted during SVM IR optimization");return false;}
+        for(size_t i=0;i<pass_count&&executed<SWAN_IR_MAX_OPTIMIZATION_PASSES&&swan_compiler_optimization_passes<SWAN_COMPILER_OPTIMIZATION_BUDGET;i++,executed++){
+            if(!swan_optimizer_consume(1)){if(error&&cap)snprintf(error,cap,"compiler-wide optimization budget exhausted during SVM IR optimization");return false;}
             bool changed=false;
             if(!swan_ir_run_pass(module,swan_ir_default_passes[i].kind,&changed,error,cap)){
                 if(stats){stats->passes_executed=executed+1;stats->rounds=rounds;}
