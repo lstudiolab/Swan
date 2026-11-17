@@ -24,4 +24,4 @@ ln -sf swanc "$ROOT/build/swan"
 printf 'Built Swan production compiler: %s\n' "$ROOT/build/swanc"
 printf 'Compiler implementation: C11 (single production compiler)\n'
 printf 'Bootstrap: none\n'
-printf 'Pipeline: frontend -> SVM typed IR -> optimizer -> Swan target backend\n'
+printf 'Pipeline: frontend -> ownership-aware SIL -> SVM typed IR -> optimizer -> Swan target backend\n'
