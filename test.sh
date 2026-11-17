@@ -4,6 +4,8 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 cd "$ROOT"
 sh "$ROOT/build.sh"
 sh "$ROOT/tests/headers.sh"
+cc -std=c11 -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" "$ROOT/tests/arena.c" -o "$ROOT/build/arena-test"
+"$ROOT/build/arena-test"
 sh "$ROOT/tests/runtime-primitives.sh"
 sh "$ROOT/tests/arena.sh"
 sh "$ROOT/tests/json-runtime.sh"
