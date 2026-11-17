@@ -178,7 +178,6 @@ def run_sample(command: list[str], cwd: pathlib.Path, output: pathlib.Path) -> t
             f"Command failed ({result.returncode}): {' '.join(command)}\n"
             + "\n".join(diagnostics)[-10000:]
         )
-    output = pathlib.Path(command[-1])
     if not output.is_file() or output.stat().st_size == 0:
         raise RuntimeError(f"Toolchain did not produce expected output: {output}")
     if rss is None:
@@ -258,7 +257,7 @@ def main() -> None:
                 unique_source.write_bytes(source.read_bytes())
                 output = work / f"{language}-{repeat}.bin"
                 samples[language].append(run_sample(
-                    command_for(language, unique_source, output), work
+                    command_for(language, unique_source, output), work, output
                 ))
 
         rows = {}
