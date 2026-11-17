@@ -89,6 +89,14 @@ Emit x86-64 assembly:
 ./build/swancc examples/hello.swan --emit-asm -o hello.s
 ```
 
+Emit one assembly file per Swan source in a multi-file project:
+
+```sh
+./build/swan build Sources/ --emit-asm -o build/assembly
+```
+
+Each source file is parsed independently, and native x86-64 builds compile separate objects before linking the project. Cross-target backends still use a project-wide IR artifact.
+
 Inspect supported target names:
 
 ```sh
