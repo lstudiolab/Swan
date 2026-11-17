@@ -69,7 +69,8 @@ for n in 0 1 2 3 4 5 6 7 8; do
     value=$((n + 1))
     cat > "$TMP/ten-source/source_$n.swan" <<SWAN
 export C func source_value_$n() -> int:
-    return $value
+    let value = $value
+    return value
 SWAN
 done
 cat > "$TMP/ten-source/main.swan" <<'SWAN'
@@ -84,4 +85,8 @@ for n in 0 1 2 3 4 5 6 7 8; do
     test -f "$TMP/ten-assembly/source_$n.s"
 done
 test -f "$TMP/ten-assembly/main.s"
-printf 'PASS: ten Swan files produce ten independent assembly translation units\n'
+for n in 0 1 2 3 4 5 6 7 8; do
+    grep -q "\\.globl source_value_$n" "$TMP/ten-assembly/source_$n.s"
+    grep -q "\\.extern source_value_$n" "$TMP/ten-assembly/main.s"
+done
+printf 'PASS: ten Swan files produce ten independent assembly translation units and linked symbols\n'
