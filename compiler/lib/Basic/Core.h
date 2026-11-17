@@ -78,7 +78,8 @@ static inline void swan_profile_print(void){
   fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\n",swan_profile_names[i],seconds,elapsed?(double)swan_profile_ns[i]*100.0/(double)elapsed:0.0);
  }
  fprintf(stderr,"  %-30s %0.9f s\n","Total wall time",(double)elapsed/1e9);
- fprintf(stderr,"  IR pass executions: %zu (rounds: %zu; maximum: 350)\n",swan_profile_ir_pass_executions,swan_profile_ir_pass_rounds);
+ fprintf(stderr,"  IR pass executions: %zu (rounds: %zu)\n",swan_profile_ir_pass_executions,swan_profile_ir_pass_rounds);
+ fprintf(stderr,"  Compiler-wide optimization passes: %zu / %u\n",swan_compiler_optimization_passes,SWAN_COMPILER_OPTIMIZATION_BUDGET);
 }
 #define SWAN_VERSION "0.8.0"
 #define SWAN_MEMORY_MODEL "Automatic cleanup; borrow checking incomplete"
