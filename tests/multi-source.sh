@@ -71,11 +71,11 @@ grep -F "$TMP/warning.swan:" "$TMP/warning-diagnostic" >/dev/null
 
 mkdir -p "$TMP/cross"
 cat > "$TMP/cross/01_helper.swan" <<'SWAN'
-export func cross_value() -> i64:
+export func cross_value() -> i32:
     return 42
 SWAN
 cat > "$TMP/cross/02_main.swan" <<'SWAN'
-func main() -> i64:
+func main() -> i32:
     return cross_value() - 42
 SWAN
 "$ROOT/build/swanc" build "$TMP/cross" --target aarch64 --emit-asm -o "$TMP/aarch64"
