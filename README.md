@@ -323,7 +323,7 @@ The parser keyword registry is not a feature checklist. A feature is described a
 
 ## Whole-project compilation
 
-Pass a source directory to compile every top-level `.swan` file in that directory as one program. Swan declarations are parsed into one shared program, then analyzed, optimized, and code-generated together. Top-level `.c` files in the same directory are compiled to native assembly and appended to the same output assembly file.
+A project directory is one program and one link graph, but **each source file remains its own translation unit and produces its own assembly artifact**. Ten `.swan` files produce ten Swan assembly files; there is no ten-files-to-one-assembly batching rule. Declarations are resolved across the project, while code generation retains each source file's identity. Native executable builds compile the per-source assembly into separate objects and link those objects into the final executable.
 
 ```text
 project/
@@ -335,10 +335,11 @@ project/
 ```
 
 ```sh
-# One directory -> one program -> one combined assembly file
-./build/swancc build project --emit-asm -o build/project.asm
+# Emit one assembly file per Swan source into the output directory.
+./build/swancc build project --emit-asm -o build/assembly
+# Result: main.s, math.s, physics.s, and one native_N.s per C source.
 
-# Or compile and link that combined assembly into one executable
+# Or compile the translation units separately and link one executable.
 ./build/swancc build project -o build/project
 ```
 
@@ -348,7 +349,7 @@ The same works with explicit source lists:
 ./build/swancc build src/main.swan src/math.swan src/physics.swan src/native.c -o app
 ```
 
-Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. Imported Swan modules are bundled by default; `--lazy-imports` intentionally opts out of the single-file model. The single-assembly guarantee applies to Swan and C source inputs for the native x86-64 target. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target support for C source bundling and complete cross-platform C ABI interoperability are still being developed.
+Directory discovery is currently non-recursive: place project source files in the selected directory, or pass nested source files explicitly. The project shares declaration and semantic analysis, not a combined assembly output. Each Swan source is emitted independently; imported modules follow the selected module-linking mode. Prebuilt object files and external system libraries remain normal linker inputs. Cross-target executable linking, C source bundling, and complete cross-platform C ABI interoperability are still being developed.
 
 The C header importer currently supports the documented scalar C ABI subset. Pointer and aggregate layouts, callbacks, variadic functions, and broader platform ABI support require additional implementation; they are not implied by accepting a C source file.
 
