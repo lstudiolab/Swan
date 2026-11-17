@@ -26,11 +26,7 @@ The full `sh test.sh` suite includes both test runners.
 
 ## Not yet available
 
-These headers are not currently callable from ordinary Swan source. The
-compiler's AST backend still rejects string values outside `!printin`, and
-the typed-IR path does not yet lower string literals or aggregate runtime
-values. The current C importer maps pointer declarations to machine-word
-integers but does not provide safe pointer types or a source-level string ABI.
+The `std_json` source module is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
 
 HTTP/TCP/TLS, socket lifecycle, a complete request/response API, cancellation,
 structured task scopes, and Swan-level JSON values are not implemented by
