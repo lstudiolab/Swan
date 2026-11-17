@@ -56,7 +56,6 @@ static inline bool swan_load_imports(Program *p,const char *const *module_paths,
   if(!source){swan_error(err,NULL,"cannot resolve module '%s' in %zu module search path(s)",name,module_path_count);return false;}
   TokenStream module_ts={0};
   if(!swan_lex(source,&module_ts,err)){free(source);free(module_ts.items);free(module_ts.text_storage);return false;}
-  swan_token_stream_set_source_name(&module_ts,path);
   size_t needed=*module_count+1;
   if(needed<*module_count||!swan_reserve_array((void**)sources_io,source_capacity,needed,sizeof(**sources_io))||
      !swan_reserve_array((void**)texts_io,text_capacity,needed,sizeof(**texts_io))){
@@ -68,6 +67,7 @@ static inline bool swan_load_imports(Program *p,const char *const *module_paths,
   }
   size_t slot=(*module_count)++;(*sources_io)[slot]=source;(*texts_io)[slot]=module_ts.text_storage;
   source=NULL;module_ts.text_storage=NULL;p->current_source_index=p->source_count-1;
+  swan_token_stream_set_source_name(&module_ts,p->source_files[p->current_source_index].path);
   bool parsed=swan_parse(&module_ts,p,err);free(module_ts.items);
   if(!parsed){
    char detail[sizeof(err->message)];unsigned line=err?err->line:0,col=err?err->col:0;
