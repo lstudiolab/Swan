@@ -30,7 +30,8 @@ static inline char *swan_read_file(const char *path){
  if(failed||memchr(s,0,got)){free(s);errno=EILSEQ;return NULL;}s[got]=0;return s;
 }
 static inline void swan_release_modules(char **sources,char **texts,size_t count){
- for(size_t i=0;i<count;i++){free(sources[i]);free(texts[i]);}
+ (void)count;
+ /* Source buffers and token text are owned by Program's source manager. */
  free(sources);free(texts);
 }
 static inline char *swan_resolve_module(const char *name,const char *const *roots,size_t root_count,char resolved[2048]){
@@ -58,7 +59,12 @@ static inline bool swan_load_imports(Program *p,const char *const *module_paths,
      !swan_reserve_array((void**)texts_io,text_capacity,needed,sizeof(**texts_io))){
    free(source);free(module_ts.items);free(module_ts.text_storage);swan_error(err,NULL,"out of memory retaining imported module sources");return false;
   }
+  if(!swan_program_add_source(p,path,source,module_ts.text_storage)){
+   free(source);free(module_ts.items);free(module_ts.text_storage);
+   swan_error(err,NULL,"out of memory retaining imported source file '%s'",path);return false;
+  }
   size_t slot=(*module_count)++;(*sources_io)[slot]=source;(*texts_io)[slot]=module_ts.text_storage;
+  source=NULL;module_ts.text_storage=NULL;p->current_source_index=p->source_count-1;
   bool parsed=swan_parse(&module_ts,p,err);free(module_ts.items);
   if(!parsed){
    char detail[sizeof(err->message)];unsigned line=err?err->line:0,col=err?err->col:0;
