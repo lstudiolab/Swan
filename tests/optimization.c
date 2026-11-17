@@ -61,6 +61,26 @@ static void check_constant_chain(size_t length){
  assert(entry->instructions[0].immediate==(int64_t)(length+1));
  swan_ir_destroy(&module);
 }
+static void check_optimizer_budget(void){
+ SwanIRModule module={0};
+ SwanIRFunction *fn=swan_ir_add_function(&module,"budget",SWAN_IR_I64,NULL,0);assert(fn);
+ SwanIRBlock *entry=swan_ir_add_block(fn,"entry");assert(entry);
+ SwanIRInst one={0};one.op=SWAN_IR_CONST;one.type=SWAN_IR_I64;one.immediate=20;
+ uint32_t a=swan_ir_add_inst(fn,entry,one);assert(a);
+ SwanIRInst two=one;two.immediate=22;
+ uint32_t b=swan_ir_add_inst(fn,entry,two);assert(b);
+ SwanIRInst add={0};add.op=SWAN_IR_ADD;add.type=SWAN_IR_I64;add.a=a;add.b=b;
+ uint32_t result=swan_ir_add_inst(fn,entry,add);assert(result);
+ assert(swan_ir_terminate(entry,(SwanIRTerm){SWAN_IR_RET,result,0,0}));
+ SwanIROptStats stats={0};char error[256]={0};
+ assert(swan_ir_optimize_with_stats(&module,&stats,error,sizeof(error)));
+ assert(stats.converged&&stats.rounds>0);
+ assert(stats.passes_executed>0&&stats.passes_executed<=SWAN_IR_MAX_OPTIMIZATION_PASSES);
+ assert(stats.passes_executed==stats.rounds*
+        (sizeof(swan_ir_default_passes)/sizeof(swan_ir_default_passes[0])));
+ assert(swan_ir_verify(&module,error,sizeof(error)));
+ swan_ir_destroy(&module);
+}
 static void check_transitive_copy_propagation(void){
  SwanIRModule module={0};SwanIRType params[]={SWAN_IR_I1,SWAN_IR_I64};
  SwanIRFunction *fn=swan_ir_add_function(&module,"copy_chain",SWAN_IR_I64,params,2);assert(fn);
@@ -224,6 +244,7 @@ int main(void){
  assert(hoisted_product&&hoisted_sum&&!remains_product&&!remains_sum);
  swan_ir_destroy(&licm);
 
+ check_optimizer_budget();
  check_trapping_operand_is_preserved();
  check_unreachable_block_cleanup();
  check_transitive_copy_propagation();
@@ -232,6 +253,6 @@ int main(void){
  check_or_all_ones(SWAN_IR_I16,false);check_or_all_ones(SWAN_IR_I16,true);
  check_or_all_ones(SWAN_IR_I32,false);check_or_all_ones(SWAN_IR_I32,true);
  check_or_all_ones(SWAN_IR_I64,false);check_or_all_ones(SWAN_IR_I64,true);
- puts("PASS: constant folding, CFG simplification, algebraic identities, copy propagation, dominance-aware CSE, LICM, DCE, and all-width OR identities");
+ puts("PASS: bounded fixed-point optimization, pass accounting, constant folding, CFG simplification, algebraic identities, copy propagation, dominance-aware CSE, LICM, DCE, and all-width OR identities");
  return 0;
 }
