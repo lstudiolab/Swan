@@ -1,0 +1,9 @@
+#ifndef SWAN_SIL_OWNERSHIP_H
+#define SWAN_SIL_OWNERSHIP_H
+#include "SILTypes.h"
+typedef enum {
+ SWAN_SIL_OWNERSHIP_NONE, SWAN_SIL_OWNED,
+ SWAN_SIL_GUARANTEED, SWAN_SIL_UNOWNED
+} SwanSILOwnership;
+
+#endif
