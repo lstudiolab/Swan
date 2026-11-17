@@ -44,7 +44,7 @@ The compatibility path is intentional. A construct supported by the x86-64 front
 
 ### Implemented typed-IR optimization
 
-The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 individual pass executions) and performs width-aware constant folding, constant-select folding, CFG and constant-branch simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, post-hoisting CSE, and dead-code elimination. DCE propagates liveness through a value worklist. IR verification runs before optimization, after individual transformations, and after final cleanup. These passes apply to the typed-IR path; the AST compatibility backend has separate optimizations.
+The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 individual pass executions) and performs width-aware constant folding, constant-select folding, CFG and constant-branch simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, post-hoisting CSE, and dead-code elimination. DCE propagates liveness through a value worklist. IR verification runs before optimization and after final cleanup; debug builds additionally verify every pass boundary. These passes apply to the typed-IR path; the AST compatibility backend has separate optimizations.
 
 ### SVM compiler core
 
@@ -83,17 +83,22 @@ Build an executable:
 ./hello
 ```
 
-Emit x86-64 assembly:
+Emit x86-64 assembly for one source:
 
 ```sh
-./build/swancc examples/hello.swan --emit-asm -o hello.s
+./build/swanc examples/hello.swan --emit-asm -o hello.s
 ```
 
-Emit one assembly file per Swan source in a multi-file project:
+Emit one target artifact per Swan source in a multi-file project. The extension follows the selected backend (`.s`, `.wasm`, or `.ll`):
 
 ```sh
-./build/swan build Sources/ --emit-asm -o build/assembly
+./build/swanc build Sources/ --emit-asm -o build/assembly
+./build/swanc build Sources/ --target aarch64 --emit-asm -o build/aarch64
+./build/swanc build Sources/ --target wasm32 --emit-asm -o build/wasm
+./build/swanc build Sources/ --target-triple aarch64-unknown-linux-gnu --emit-llvm -o build/llvm-ir
 ```
+
+Native x86-64 `build` also assembles one object per Swan source and links them into one executable. Per-source cross-target emission creates independent artifacts with external references; combine them with a compatible target linker where that target supports linking. A multi-file cross-target `build` still emits the backend's project-level artifact.
 
 Each source file is parsed independently, and native x86-64 builds compile separate objects before linking the project. Cross-target backends still use a project-wide IR artifact.
 
