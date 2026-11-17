@@ -27,7 +27,7 @@ are excluded and measurement order rotates between languages.
 ```sh
 sh build.sh
 GOOSE_BIN=/path/to/goose python3 benchmarks/compile_speed.py \
-  --repeats 5 --warmups 1 --functions 256 --operations 64
+  --repeats 5 --warmups 1 --functions 384 --operations 96
 ```
 
 The Swan compiler defaults to `build/swan`. Override it with `--swan` or
