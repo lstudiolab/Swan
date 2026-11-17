@@ -67,7 +67,8 @@ static inline SwanHttpStatus swan_http_parse_request(
     const unsigned char *p = (const unsigned char *)input;
     if (!header_limit) header_limit = SWAN_HTTP_HEADER_LIMIT;
     if (!body_limit) body_limit = SWAN_HTTP_BODY_LIMIT;
-    if (length > header_limit && length - header_limit > body_limit) return SWAN_HTTP_TOO_LARGE;
+    if (header_limit > SIZE_MAX - body_limit) return SWAN_HTTP_TOO_LARGE;
+    if (length > header_limit + body_limit) return SWAN_HTTP_TOO_LARGE;
 
     size_t line = swan_http_crlf(p, length, 0);
     if (line == SIZE_MAX) return length >= header_limit ? SWAN_HTTP_TOO_LARGE : SWAN_HTTP_INCOMPLETE;
