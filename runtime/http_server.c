@@ -1,4 +1,6 @@
+#ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
+#endif
 #include "http_server.h"
 #include "json_abi.h"
 #include "thread_pool.h"
