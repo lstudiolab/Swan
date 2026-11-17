@@ -1,6 +1,6 @@
 # Swan-authored backwards liveness and value-demand analysis.
 # Workspace layout: live[0..255], keep[256..511].
-fn sil_demand(state: u32_array, count: int, workspace: u32_array) -> int:
+func sil_demand(state: u32_array, count: int, workspace: u32_array) -> int:
     if count < 1 or count > 256
         return -1
     # Clear liveness and keep flags when a caller reuses its workspace.
