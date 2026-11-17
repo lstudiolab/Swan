@@ -20,7 +20,7 @@ static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module
     /* SIL currently serializes source-level function names. Until its symbol
        table consumes the module linker identities, imported programs use the
        typed IR frontend directly rather than mixing two symbol namespaces. */
-    if(!program->module_count){
+    if(!program->module_count&&program->codegen_source_index<0){
         SwanSILResult sil_result=swan_sil_try_irgen_program(program,module,error);
         if(sil_result==SWAN_SIL_LOWERED)return true;
         if(sil_result==SWAN_SIL_FAILED)return false;
@@ -133,7 +133,7 @@ static inline bool swan_codegen(Program *program, Text *output,
         swan_error(error, NULL, "requested code-generation backend is not implemented");
         return false;
     }
-    if(program->codegen_source_index<0&&!swan_program_requires_ast_compatibility(program)){
+    if(!swan_program_requires_ast_compatibility(program)){
         SwanIRModule module={0};
         Text ir_output={0};
         SwanError ir_error={0};
