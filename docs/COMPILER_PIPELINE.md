@@ -43,7 +43,7 @@ project inputs
 
 The SIL route is optional per function. The bridge starts with a complete general typed-IR module and substitutes SIL-lowered functions only when the narrow SIL subset accepts them. Unsupported SIL constructs do not force a failure when the general IR path supports them.
 
-The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Native x86-64 project builds keep each source file as a separate assembly/object translation unit. Until imported-module symbol identities are fully supported by per-file typed-IR lowering, multi-source x86-64 builds use the AST compatibility backend for each translation unit. Cross-target backends use a project-wide typed-IR module and do not inherit AST-only features.
+The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Native x86-64 project builds keep each source file as a separate assembly/object translation unit. Until imported-module symbol identities are fully supported by per-file typed-IR lowering, multi-source x86-64 builds use the AST compatibility backend for each translation unit. For `--emit-asm` and `--emit-llvm`, the driver selects each source translation unit and emits one corresponding target artifact (`.s`, `.wasm`, or `.ll`) per source file across the supported backends. These cross-target emission artifacts retain external references and must be combined by a compatible target linker where one exists. Cross-target `build` still emits the backend's project-level artifact.
 
 ## Typed IR optimization
 
