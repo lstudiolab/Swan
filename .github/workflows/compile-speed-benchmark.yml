@@ -1,0 +1,99 @@
+name: Heavy compilation speed comparison
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmarks/compile_speed.py'
+      - 'benchmarks/COMPILATION.md'
+      - 'build.sh'
+      - 'compiler/**'
+      - '.github/workflows/compile-speed-benchmark.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: compile-speed-benchmark-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  compile-speed:
+    name: Goose, Swan, Rust, C++, C and ASM
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - name: Check out Swan
+        uses: actions/checkout@v4
+        with:
+          path: swan
+
+      - name: Check out Goose
+        uses: actions/checkout@v4
+        with:
+          repository: aardappel/goose
+          path: goose
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install native build tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake python3 time
+
+      - name: Build Swan compiler
+        working-directory: swan
+        run: sh build.sh
+
+      - name: Build Goose compiler
+        run: |
+          cmake -S goose -B goose/build -DCMAKE_BUILD_TYPE=Release
+          cmake --build goose/build --parallel 2
+          test -x goose/build/goose
+
+      - name: Record runner and compiler revisions
+        run: |
+          {
+            echo "## Benchmark environment"
+            echo "- Runner: ubuntu-24.04"
+            echo "- Swan commit: `$(git -C swan rev-parse HEAD)`"
+            echo "- Goose commit: `$(git -C goose rev-parse HEAD)`"
+            echo "- C compiler: `$(cc --version | head -n 1)`"
+            echo "- C++ compiler: `$(c++ --version | head -n 1)`"
+            echo "- Rust: `$(rustc --version)`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Run heavy compilation benchmark
+        working-directory: swan
+        env:
+          SWAN_BIN: ${{ github.workspace }}/swan/build/swan
+          GOOSE_BIN: ${{ github.workspace }}/goose/build/goose
+        run: |
+          python3 benchmarks/compile_speed.py             --repeats 5             --warmups 1             --functions 384             --operations 96             --output benchmark-results/compile-speed.md
+
+      - name: Publish benchmark results to job summary
+        if: always()
+        working-directory: swan
+        run: |
+          if [ -f benchmark-results/compile-speed.md ]; then
+            cat benchmark-results/compile-speed.md >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Benchmark failed" >> "$GITHUB_STEP_SUMMARY"
+            echo "No report was produced. Inspect the build and benchmark logs above." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload detailed benchmark report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: heavy-compilation-speed-results
+          path: swan/benchmark-results/
+          if-no-files-found: warn
+          retention-days: 30
