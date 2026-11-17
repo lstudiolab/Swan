@@ -359,6 +359,7 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         }
     }
     memset(module,0,sizeof(*module));
+    module->allow_no_main=program->codegen_source_index>=0;
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
         Stmt *source=program->functions[i];
