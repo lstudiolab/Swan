@@ -148,21 +148,48 @@ static inline uint32_t swan_sil_expr(SwanSILModule *m,SwanSILFunction *f,const E
 static inline bool swan_sil_statements(SwanSILModule *m,SwanSILFunction *f,Stmt **body,size_t count) {
  for(size_t i=0;i<count;i++){
   Stmt *s=body[i];if(!s)continue;
+  if(f->blocks[f->current_block].terminated)break;
   if(s->kind==S_VARIABLE){
    SwanSILInstruction alloc={0};alloc.opcode=SWAN_SIL_ALLOC_STACK;alloc.type=SWAN_SIL_TYPE_ADDRESS;
    alloc.text=s->name;alloc.location=&s->token;uint32_t address=swan_sil_emit(m,f,alloc);
    uint32_t value=swan_sil_expr(m,f,s->value);
    if(value){SwanSILInstruction store={0};store.opcode=SWAN_SIL_STORE;store.type=SWAN_SIL_TYPE_TRIVIAL;store.operands[0]=address;store.operands[1]=value;store.operand_count=2;store.side_effecting=true;store.location=&s->token;if(!swan_sil_emit(m,f,store))return false;}
   }else if(s->kind==S_RETURN){
-   uint32_t value=swan_sil_expr(m,f,s->value);SwanSILInstruction ret={0};ret.opcode=SWAN_SIL_RETURN;ret.type=SWAN_SIL_TYPE_TRIVIAL;ret.side_effecting=true;ret.location=&s->token;if(value){ret.operands[0]=value;ret.operand_count=1;}if(!swan_sil_emit(m,f,ret))return false;
-  }else if(s->kind==S_IF||s->kind==S_WHILE){
-   uint32_t cond=swan_sil_expr(m,f,s->condition);SwanSILInstruction branch={0};branch.opcode=SWAN_SIL_COND_BRANCH;branch.type=SWAN_SIL_TYPE_TRIVIAL;branch.side_effecting=true;branch.location=&s->token;if(cond){branch.operands[0]=cond;branch.operand_count=1;}if(!swan_sil_emit(m,f,branch))return false;
-   if(!swan_sil_statements(m,f,s->body,s->body_count)||!swan_sil_statements(m,f,s->alternate,s->alt_count))return false;
+   uint32_t value=swan_sil_expr(m,f,s->value);SwanSILInstruction ret={0};ret.opcode=SWAN_SIL_RETURN;ret.type=SWAN_SIL_TYPE_TRIVIAL;ret.side_effecting=true;ret.terminates_block=true;ret.location=&s->token;if(value){ret.operands[0]=value;ret.operand_count=1;}if(!swan_sil_emit(m,f,ret))return false;
+  }else if(s->kind==S_IF){
+   uint32_t condition=swan_sil_expr(m,f,s->condition);
+   uint32_t then_block=swan_sil_add_block(f),else_block=swan_sil_add_block(f),merge_block=swan_sil_add_block(f);
+   if(!condition||then_block==UINT32_MAX||else_block==UINT32_MAX||merge_block==UINT32_MAX||
+      !swan_sil_cond_branch(m,f,condition,then_block,else_block,&s->token))return false;
+   f->current_block=then_block;
+   if(!swan_sil_statements(m,f,s->body,s->body_count))return false;
+   if(!f->blocks[f->current_block].terminated&&!swan_sil_branch(m,f,merge_block,&s->token))return false;
+   f->current_block=else_block;
+   if(!swan_sil_statements(m,f,s->alternate,s->alt_count))return false;
+   if(!f->blocks[f->current_block].terminated&&!swan_sil_branch(m,f,merge_block,&s->token))return false;
+   f->current_block=merge_block;
+  }else if(s->kind==S_WHILE){
+   uint32_t condition_block=swan_sil_add_block(f),body_block=swan_sil_add_block(f),exit_block=swan_sil_add_block(f);
+   if(condition_block==UINT32_MAX||body_block==UINT32_MAX||exit_block==UINT32_MAX||
+      !swan_sil_branch(m,f,condition_block,&s->token))return false;
+   f->current_block=condition_block;
+   uint32_t condition=swan_sil_expr(m,f,s->condition);
+   if(!condition||!swan_sil_cond_branch(m,f,condition,body_block,exit_block,&s->token))return false;
+   if(!swan_sil_reserve((void**)&f->loops,&f->loop_capacity,f->loop_count+1,sizeof(*f->loops)))return false;
+   f->loops[f->loop_count++]=(SwanSILLoopTarget){exit_block,condition_block};
+   f->current_block=body_block;
+   if(!swan_sil_statements(m,f,s->body,s->body_count))return false;
+   if(!f->blocks[f->current_block].terminated&&!swan_sil_branch(m,f,condition_block,&s->token))return false;
+   f->loop_count--;
+   f->current_block=exit_block;
   }else if(s->kind==S_LOG){
    uint32_t value=swan_sil_expr(m,f,s->value);SwanSILInstruction log={0};log.opcode=SWAN_SIL_LOG;log.type=SWAN_SIL_TYPE_TRIVIAL;log.side_effecting=true;log.location=&s->token;if(value){log.operands[0]=value;log.operand_count=1;}if(!swan_sil_emit(m,f,log))return false;
   }else if(s->kind==S_EXPR){(void)swan_sil_expr(m,f,s->value);}
-  else if(s->kind==S_PASS||s->kind==S_BREAK||s->kind==S_CONTINUE){
-   SwanSILInstruction marker={0};marker.opcode=SWAN_SIL_BRANCH;marker.type=SWAN_SIL_TYPE_TRIVIAL;marker.side_effecting=true;marker.location=&s->token;if(!swan_sil_emit(m,f,marker))return false;
+  else if(s->kind==S_BREAK||s->kind==S_CONTINUE){
+   if(!f->loop_count)return false;
+   SwanSILLoopTarget loop=f->loops[f->loop_count-1];
+   uint32_t target=s->kind==S_BREAK?loop.break_block:loop.continue_block;
+   if(!swan_sil_branch(m,f,target,&s->token))return false;
   }
  }
  return true;
