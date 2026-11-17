@@ -79,6 +79,25 @@ static inline bool swan_json_fail(SwanJsonDocument *doc, size_t offset,
     return false;
 }
 
+/* Reserve token storage before parsing to avoid repeated growth reallocations.
+ * Existing tokens are retained; parse_reuse resets the count, not capacity. */
+static inline bool swan_json_document_reserve_tokens(SwanJsonDocument *doc,
+                                                       size_t requested) {
+    if (!doc) return false;
+    if (requested > doc->limits.max_tokens)
+        return swan_json_fail(doc, doc->input_length, "token limit exceeded");
+    if (requested <= doc->token_capacity) return true;
+    if (requested > SIZE_MAX / sizeof(*doc->tokens))
+        return swan_json_fail(doc, doc->input_length, "token allocation overflow");
+    SwanJsonToken *tokens = (SwanJsonToken *)realloc(
+        doc->tokens, requested * sizeof(*doc->tokens));
+    if (!tokens)
+        return swan_json_fail(doc, doc->input_length, "out of memory");
+    doc->tokens = tokens;
+    doc->token_capacity = requested;
+    return true;
+}
+
 static inline bool swan_json_reserve_tokens(SwanJsonDocument *doc) {
     if (doc->token_count >= doc->limits.max_tokens)
         return swan_json_fail(doc, doc->input_length, "token limit exceeded");
@@ -86,14 +105,9 @@ static inline bool swan_json_reserve_tokens(SwanJsonDocument *doc) {
     size_t next = doc->token_capacity ? doc->token_capacity * 2 : 64;
     if (next < doc->token_capacity || next > doc->limits.max_tokens)
         next = doc->limits.max_tokens;
-    if (next <= doc->token_capacity ||
-        next > SIZE_MAX / sizeof(*doc->tokens))
+    if (next <= doc->token_capacity)
         return swan_json_fail(doc, doc->input_length, "token allocation overflow");
-    void *p = realloc(doc->tokens, next * sizeof(*doc->tokens));
-    if (!p) return swan_json_fail(doc, doc->input_length, "out of memory");
-    doc->tokens = (SwanJsonToken *)p;
-    doc->token_capacity = next;
-    return true;
+    return swan_json_document_reserve_tokens(doc, next);
 }
 
 static inline size_t swan_json_add_token(SwanJsonDocument *doc,
