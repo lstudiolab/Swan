@@ -44,7 +44,7 @@ The compatibility path is intentional. A construct supported by the x86-64 front
 
 ### Implemented typed-IR optimization
 
-The optimizer performs width-aware constant folding, constant-select folding, CFG and constant-branch simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, post-hoisting CSE, and dead-code elimination. DCE propagates liveness through a value worklist. IR verification runs before optimization, after individual transformations, and after final cleanup. These passes apply to the typed-IR path; the AST compatibility backend has separate optimizations.
+The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 individual pass executions) and performs width-aware constant folding, constant-select folding, CFG and constant-branch simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, post-hoisting CSE, and dead-code elimination. DCE propagates liveness through a value worklist. IR verification runs before optimization, after individual transformations, and after final cleanup. These passes apply to the typed-IR path; the AST compatibility backend has separate optimizations.
 
 ### SVM compiler core
 
