@@ -32,29 +32,6 @@ static bool swan_collect_directory(const char *directory,const char ***swan,size
  }
  globfree(&matches);return true;
 }
-static char *swan_read_sources(const char *const *paths,size_t count){
- char *combined=NULL;size_t used=0,capacity=0;
- for(size_t i=0;i<count;i++){
-  char *part=swan_read_file(paths[i]);if(!part){free(combined);return NULL;}
-  size_t n=strlen(part);
-  if(n>SIZE_MAX-used-2){free(part);free(combined);errno=EOVERFLOW;return NULL;}
-  size_t need=used+n+2;
-  if(need>capacity){
-   size_t next_capacity=capacity?capacity:4096;
-   while(next_capacity<need){
-    if(next_capacity>SIZE_MAX/2){next_capacity=need;break;}
-    next_capacity*=2;
-   }
-   char *next=realloc(combined,next_capacity);
-   if(!next){free(part);free(combined);return NULL;}
-   combined=next;capacity=next_capacity;
-  }
-  memcpy(combined+used,part,n);used+=n;combined[used++]='\n';combined[used]=0;
-  free(part);
- }
- if(!combined)combined=calloc(1,1);
- return combined;
-}
 static bool swan_append_c_assembly(FILE *output,const char *const *sources,size_t count){
  for(size_t i=0;i<count;i++){
   char temp[]="/tmp/swanc-c-XXXXXX";int fd=mkstemp(temp);if(fd<0)return false;
@@ -150,21 +127,37 @@ static int swan_run(int argc,char **argv){
  if(emit_asm&&emit_llvm){fprintf(stderr,"swan: choose either --emit-asm or --emit-llvm\n");return 2;}
  if(emit_asm)mode=SWAN_EMIT;else if(emit_llvm)mode=SWAN_EMIT_LLVM;
  swan_profile_reset();
- uint64_t stage=swan_profile_start();
- char *source=swan_read_sources(swan_inputs,swan_input_count);
- swan_profile_end(SWAN_PROFILE_READ,stage);if(!source){perror(input);return 1;}
  if(c_input_count&&target->architecture!=SWAN_ARCH_X86_64){
-  fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\n");free(source);return 2;
+  fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\n");return 2;
  }
- SwanError err={0};TokenStream ts;
- stage=swan_profile_start();
- if(!swan_lex(source,&ts,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);free(source);return 1;}
- swan_profile_end(SWAN_PROFILE_LEX,stage);
- Program p={0};p.codegen_module_index=-1;p.bundle_imports=!lazy_imports;
- stage=swan_profile_start();
- if(!swan_parse(&ts,&p,&err)){fprintf(stderr,"swan:%u:%u: %s\n",err.line,err.col,err.message);free(ts.items);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
- swan_profile_end(SWAN_PROFILE_PARSE,stage);
- free(ts.items);p.source_function_count=p.count;
+ SwanError err={0};TokenStream ts={0};char *source=NULL;
+ Program p={0};p.codegen_module_index=-1;p.codegen_source_index=-1;p.bundle_imports=!lazy_imports;
+ uint64_t stage=swan_profile_start();
+ for(size_t source_index=0;source_index<swan_input_count;source_index++){
+  source=swan_read_file(swan_inputs[source_index]);
+  if(!source){perror(swan_inputs[source_index]);swan_program_destroy(&p);return 1;}
+  memset(&ts,0,sizeof(ts));
+  stage=swan_profile_start();
+  if(!swan_lex(source,&ts,&err)){
+   fprintf(stderr,"swan:%s:%u:%u: %s\n",swan_inputs[source_index],err.line,err.col,err.message);
+   free(ts.items);free(ts.text_storage);free(source);swan_program_destroy(&p);return 1;
+  }
+  swan_profile_end(SWAN_PROFILE_LEX,stage);
+  if(!swan_program_add_source(&p,swan_inputs[source_index],source,ts.text_storage)){
+   fprintf(stderr,"swan: out of memory retaining source file '%s'\n",swan_inputs[source_index]);
+   free(ts.items);free(ts.text_storage);free(source);swan_program_destroy(&p);return 1;
+  }
+  source=NULL;ts.text_storage=NULL;p.current_source_index=source_index;
+  stage=swan_profile_start();
+  if(!swan_parse(&ts,&p,&err)){
+   fprintf(stderr,"swan:%s:%u:%u: %s\n",swan_inputs[source_index],err.line,err.col,err.message);
+   free(ts.items);swan_program_destroy(&p);return 1;
+  }
+  swan_profile_end(SWAN_PROFILE_PARSE,stage);
+  free(ts.items);ts.items=NULL;
+ }
+ swan_profile_end(SWAN_PROFILE_READ,stage);
+ p.source_function_count=p.count;
  if(!swan_import_c_headers(&p,&err)){fprintf(stderr,"swan: %s\n",err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  char **module_sources=NULL,**module_texts=NULL;size_t module_count=0,module_source_capacity=0,module_text_capacity=0;
  stage=swan_profile_start();
