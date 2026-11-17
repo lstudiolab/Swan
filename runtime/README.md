@@ -6,8 +6,9 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
 
 - `bytes.h`: overflow-checked reusable byte buffer with geometric growth,
   append (including self-append), resize, clear, and deterministic destruction.
-- `json.h`: bounded zero-copy-token JSON parser and compact/pretty encoder.
-  The low-level document API borrows its input buffer.
+- `json.h`: bounded JSON parser and compact/pretty encoder. The low-level
+  document API borrows its input buffer and supports caller-owned token storage
+  for allocation-free parsing; fixed buffers fail explicitly when exhausted.
 - `json_abi.h` / `json_abi.c`: owned-input opaque document handles, root-key
   integer lookup, key existence, compact/pretty serialization, and parse errors.
   The handle reuses token and output capacity across repeated parses.
