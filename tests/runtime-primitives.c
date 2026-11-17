@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdatomic.h>
 #include <string.h>
+#include <sched.h>
 
 static atomic_size_t completed;
 
@@ -29,7 +30,7 @@ int main(void) {
     atomic_init(&completed, 0);
     assert(swan_thread_pool_init(&pool, 4, 256));
     for (size_t i = 0; i < 1000; i++) {
-        while (!swan_thread_pool_submit(&pool, count_task, NULL)) { }
+        while (!swan_thread_pool_submit(&pool, count_task, NULL)) sched_yield();
     }
     swan_thread_pool_shutdown(&pool, true);
     assert(atomic_load_explicit(&completed, memory_order_relaxed) == 1000);
