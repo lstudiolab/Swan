@@ -65,7 +65,10 @@ static inline bool swan_program_add_source(Program *p,const char *path,char *tex
     !swan_reserve_array((void**)&p->source_files,&p->source_capacity,
                         p->source_count+1,sizeof(*p->source_files)))return false;
  SwanSourceFile *source=&p->source_files[p->source_count++];
- source->path=strdup(path);source->text=text;source->token_storage=token_storage;
+ size_t path_length=strlen(path);
+ source->path=malloc(path_length+1);
+ if(source->path)memcpy(source->path,path,path_length+1);
+ source->text=text;source->token_storage=token_storage;
  if(!source->path){p->source_count--;return false;}
  return true;
 }
