@@ -124,6 +124,7 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
                        target->architecture==SWAN_ARCH_WASM64?".wasm":
                        target->architecture==SWAN_ARCH_LLVM&&mode==SWAN_EMIT_LLVM?".ll":".s";
  program->codegen_source_index=-1;
+ program->codegen_include_external_functions=target->architecture!=SWAN_ARCH_WASM32&&target->architecture!=SWAN_ARCH_WASM64;
  program->codegen_force_ast=target->architecture==SWAN_ARCH_X86_64&&
                             swan_program_requires_ast_compatibility(program);
  for(size_t i=0;i<program->source_count;i++){
@@ -167,7 +168,7 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
   free(generated.data);
   if(!ok){swan_error(error,NULL,"cannot write translation unit output '%s'",path);goto fail;}
  }
- program->codegen_source_index=-1;program->codegen_force_ast=false;
+ program->codegen_source_index=-1;program->codegen_force_ast=false;program->codegen_include_external_functions=false;
  for(size_t i=0;i<c_count;i++){
   char path[4096];
   int n=snprintf(path,sizeof(path),"%s/native_%zu.s",directory,i);
@@ -179,7 +180,7 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
  }
  return true;
 fail:
- program->codegen_source_index=-1;program->codegen_force_ast=false;
+ program->codegen_source_index=-1;program->codegen_force_ast=false;program->codegen_include_external_functions=false;
  return false;
 }
 static bool swan_compile_project_objects(Program *program,char ***objects_out,
@@ -187,6 +188,7 @@ static bool swan_compile_project_objects(Program *program,char ***objects_out,
  if(!program||!objects_out||!object_count_out)return false;
  *objects_out=NULL;*object_count_out=0;
  program->codegen_source_index=-1;
+ program->codegen_include_external_functions=true;
  program->codegen_force_ast=swan_program_requires_ast_compatibility(program);
  if(program->source_count>SIZE_MAX/sizeof(char*)){
   swan_error(error,NULL,"project object list size overflow");return false;
@@ -223,7 +225,7 @@ static bool swan_compile_project_objects(Program *program,char ***objects_out,
   memcpy(objects[i],object_path,sizeof(object_path));
   (*object_count_out)++;
  }
- *objects_out=objects;program->codegen_source_index=-1;program->codegen_force_ast=false;return true;
+ *objects_out=objects;program->codegen_source_index=-1;program->codegen_force_ast=false;program->codegen_include_external_functions=false;return true;
 fail:
  for(size_t i=0;i<program->source_count;i++){if(objects[i]){unlink(objects[i]);free(objects[i]);}}
  free(objects);return false;
