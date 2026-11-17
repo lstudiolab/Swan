@@ -307,7 +307,8 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
                     if(memory){SwanIRInst store={0};store.op=SWAN_IR_STORE;store.type=SWAN_IR_VOID;store.a=value;store.b=init;if(!swan_irgen_emit_void(g,store))return false;}else value=init;
                 }else if(!memory)return swan_irgen_fail(g,&s->token,"immutable local requires an initializer");
                 if(type==SWAN_IR_VOID)return swan_irgen_fail(g,&s->token,"unsupported local variable type");
-                if(!swan_irgen_add_local(g,(SwanIRLocal){s->name,value,type,memory}))return false;break;
+                if(!swan_irgen_add_local(g,(SwanIRLocal){s->name,value,type,memory}))return false;
+                break;
             }
             case S_RETURN:{
                 uint32_t value=s->value?swan_irgen_expr_as(g,s->value,g->function->return_type):0;if(s->value&&!value)return false;
@@ -362,7 +363,9 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         bool valid=true;for(size_t p=0;p<source->param_count;p++){params[p]=swan_irgen_type(source->param_types?source->param_types[p]:NULL);if(params[p]==SWAN_IR_VOID){swan_error(error,&source->token,"unsupported or missing parameter type");valid=false;break;}}
         SwanIRType ret=swan_irgen_type(source->type);
         SwanIRFunction *created=valid?swan_ir_add_function(module,source->link_name?source->link_name:source->name,ret,params,source->param_count):NULL;free(params);
-        if(!valid)goto fail;if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}created->external=source->external;
+        if(!valid)goto fail;
+        if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}
+        created->external=source->external;
     }
     if(!module->function_count){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
     SwanIRGen g={0};
