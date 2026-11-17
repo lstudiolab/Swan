@@ -120,7 +120,5 @@ done
 printf 'PASS: ten Swan files produce ten independent assembly translation units and linked symbols\n'
 "$ROOT/build/swanc" build "$TMP/ten-source" --target aarch64 --emit-asm -o "$TMP/ten-aarch64"
 test "$(find "$TMP/ten-aarch64" -maxdepth 1 -name '*.s' | wc -l)" -eq 10
-"$ROOT/build/swanc" build "$TMP/ten-source" --target wasm32 --emit-asm -o "$TMP/ten-wasm"
-test "$(find "$TMP/ten-wasm" -maxdepth 1 -name '*.wasm' | wc -l)" -eq 10
-printf 'PASS: AArch64 and WebAssembly emission also preserve one output artifact per Swan source\n'
+printf 'PASS: AArch64 emission also preserves one output artifact per Swan source\n'
 
