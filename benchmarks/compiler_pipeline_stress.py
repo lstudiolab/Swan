@@ -15,6 +15,7 @@ import argparse
 import pathlib
 import platform
 import re
+import shutil
 import statistics
 import subprocess
 import tempfile
@@ -23,6 +24,7 @@ import time
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 HEADER = "Swan compiler pipeline profile (seconds)"
+RSS_MARKER = re.compile(r"^__SWAN_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
 PROFILE_LINE = re.compile(
     r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*[0-9]+(?:\.[0-9]+)?%\))?\s*$"
 )
@@ -31,7 +33,7 @@ STAGES = (
     "Semantic analysis", "Reachability analysis", "IR generation",
     "IR optimization", "Target code generation",
     "AST fallback code generation", "Assembly output", "Native linking",
-    "Program execution", "Total wall time", "Benchmark process wall time",
+    "Program execution", "Total wall time", "Benchmark process wall time", "Peak compiler RSS",
 )
 
 
@@ -132,7 +134,11 @@ def parse_profile(stderr: str) -> dict[str, float]:
 
 def compile_once(compiler: pathlib.Path, source: pathlib.Path,
                  output: pathlib.Path) -> dict[str, float]:
-    command = [str(compiler), "build", "--profile", str(source), "-o", str(output)]
+    time_bin = pathlib.Path("/usr/bin/time")
+    if not time_bin.is_file():
+        raise RuntimeError("GNU time is required to measure peak compiler RSS")
+    command = [str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
+               str(compiler), "build", "--profile", str(source), "-o", str(output)]
     start = time.perf_counter()
     proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
     external = time.perf_counter() - start
@@ -144,6 +150,10 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     if not output.is_file() or output.stat().st_size == 0:
         raise RuntimeError(f"{source.name}: compiler produced no executable")
     values = parse_profile(proc.stderr)
+    rss = RSS_MARKER.search(proc.stderr)
+    if not rss:
+        raise RuntimeError("GNU time did not report peak compiler RSS")
+    values["Peak compiler RSS"] = float(rss.group(1))
     values["Benchmark process wall time"] = external
     return values
 
@@ -180,7 +190,7 @@ def main() -> None:
     print(f"Compiler: {compiler}")
     print(f"Statistic: median of {args.repeats} measured runs; "
           f"{args.warmups} warm-up run(s)")
-    print("Unit: seconds (lower is faster)")
+    print("Unit: seconds (lower is faster); peak compiler RSS is KiB (lower is smaller)")
     print("Workloads are generated afresh for each benchmark invocation.")
     print("IR generation includes SIL bridging and typed-IR fallback.")
     for name, samples in results.items():
@@ -189,7 +199,10 @@ def main() -> None:
         for stage in STAGES:
             if stage in keys:
                 median = statistics.median(s.get(stage, 0.0) for s in samples)
-                print(f"{stage:34s} {median:.9f} seconds")
+                if stage == "Peak compiler RSS":
+                    print(f"{stage:34s} {median:.0f} KiB")
+                else:
+                    print(f"{stage:34s} {median:.9f} seconds")
 
 
 if __name__ == "__main__":
