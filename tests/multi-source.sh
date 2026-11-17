@@ -64,7 +64,7 @@ grep -F "$TMP/bad-name.swan:" "$TMP/name-diagnostic" >/dev/null
 cat > "$TMP/warning.swan" <<'SWAN'
 func unused_helper() -> i64:
     return 7
-func main() -> i64:
+func main() -> int:
     return 0
 SWAN
 "$ROOT/build/swanc" build "$TMP/warning.swan" -o "$TMP/warning" 2>"$TMP/warning-diagnostic"
