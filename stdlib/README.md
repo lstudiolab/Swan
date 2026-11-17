@@ -78,7 +78,7 @@ The current language/backend subset is not yet sufficient to implement all Swift
 - File and directory I/O, processes, environment access, networking, and sockets.
 - CSV, Base64, regular expressions, general-purpose string operations, and a full typed JSON DOM/streaming API.
 - Safe pointers, allocators, ownership/borrowing, and memory layout APIs.
-- Tasks, async sequences, actors, synchronization, and cancellation.
+- Tasks, async sequences, actors, cancellation, and a language-level scheduler. The POSIX C worker-pool primitive is not Swan async.
 - Reflection, key paths, runtime metadata, and serialization protocols.
 - Graphics, audio, physics, and UI frameworks.
 
