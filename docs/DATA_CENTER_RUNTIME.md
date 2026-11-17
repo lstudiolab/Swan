@@ -1,6 +1,6 @@
 # Swan Data-Center Runtime and Backend Contract
 
-**Status:** Architecture and implementation contract. This document does not claim that the listed runtime APIs are implemented.
+**Status:** Runtime capability snapshot and implementation contract. The table distinguishes working components from their explicit boundaries.
 
 ## Current implementation status
 
@@ -14,7 +14,7 @@ suite:
 | JSON output | Compact and pretty serialization of parsed documents | Re-emits parsed source token values; no general typed writer yet |
 | Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
 | Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Swan task scheduler |
-| HTTP server | Bounded HTTP/1.1 JSON echo server, content-length framing, 503 queue backpressure, concurrent workers, byte/request counters | One request per connection; no chunked encoding, keep-alive, TLS, or custom Swan handler |\n| HTTP JSON server | Bounded POSIX HTTP/1.1 JSON echo/health server, worker-pool dispatch, queue backpressure, body limits, socket timeouts, counters | JSON-only fixed handler; one request per connection; no TLS, chunked transfer, keep-alive, or user-defined Swan route callbacks |\n| HTTP/1 parser | Bounded HTTP/1.0/1.1 request-line/header parser, Content-Length framing, case-insensitive header lookup, safe response framing | C API only; no socket server, chunked transfer, keep-alive, TLS, or Swan-level request handler |
+| HTTP server | Bounded HTTP/1.1 JSON echo server, content-length framing, 503 queue backpressure, concurrent workers, byte/request counters | One request per connection; no chunked encoding, keep-alive, TLS, or custom Swan handler |\n| HTTP JSON server | Bounded POSIX HTTP/1.1 JSON echo/health server, worker-pool dispatch, queue backpressure, body limits, socket timeouts, counters | JSON-only fixed handler; one request per connection; no TLS, chunked transfer, keep-alive, or user-defined Swan route callbacks |\n| HTTP/1 parser | Bounded HTTP/1.0/1.1 request-line/header parser, Content-Length framing, case-insensitive header lookup, safe response framing | C API only; chunked transfer and keep-alive are not supported |
 | String FFI | NUL-terminated literals passed to imported C pointer parameters | x86-64 AST compatibility backend only |
 
 TLS, chunked transfer, generic route dispatch, SQL drivers, streaming JSONL, generic dynamic collections,
