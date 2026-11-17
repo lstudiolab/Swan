@@ -10,7 +10,7 @@ static inline bool eat(Parser *p,TokenKind k){if(!is(p,k))return false;take(p);r
 static inline bool need(Parser *p,TokenKind k,const char *message){if(eat(p,k))return true;swan_error(p->err,pk(p),"%s",message);p->failed=true;return false;}
 static inline void separators(Parser *p){while(eat(p,T_NEWLINE)||eat(p,T_SEMI)){}}
 static inline Expr *new_expr(Parser *p,ExprKind k,Token t){Expr *e=swan_arena_alloc(p->program,sizeof(*e));if(!e){swan_error(p->err,&t,"out of memory allocating AST expression");p->failed=true;return NULL;}e->kind=k;e->token=t;return e;}
-static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=swan_arena_alloc(p->program,sizeof(*s));if(!s){swan_error(p->err,&t,"out of memory allocating AST statement");p->failed=true;return NULL;}s->kind=k;s->token=t;return s;}
+static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=swan_arena_alloc(p->program,sizeof(*s));if(!s){swan_error(p->err,&t,"out of memory allocating AST statement");p->failed=true;return NULL;}s->kind=k;s->token=t;s->source_index=p->program->current_source_index;return s;}
 static inline bool swan_type_token(const Token *t){return t&&(t->kind==T_IDENT||t->kind==T_BOOL_TYPE||(t->kind==T_INT&&t->text&&!strcmp(t->text,"int")));}
 static inline int precedence(TokenKind k){switch(k){case T_ASSIGN:return 1;case T_OR:return 2;case T_AND:return 3;case T_EQ:case T_NE:return 4;case T_LT:case T_GT:case T_LE:case T_GE:return 5;case T_PLUS:case T_MINUS:return 6;case T_STAR:case T_SLASH:case T_FLOORDIV:case T_PERCENT:return 7;default:return 0;}}
 static inline Expr *expression(Parser *p,int min);
