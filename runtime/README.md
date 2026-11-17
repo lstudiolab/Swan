@@ -4,6 +4,9 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
 
 ## Available
 
+- `arena.h`: fixed-capacity, caller-owned bump arena with aligned allocation,
+  overflow-safe bounds checks, zeroed allocation, marks, rewind, and reset.
+  It performs no heap allocation and never silently grows its backing storage.
 - `bytes.h`: overflow-checked reusable byte buffer with geometric growth,
   append (including self-append), resize, clear, and deterministic destruction.
   Caller-owned fixed storage is also supported; it never falls back to heap growth.
