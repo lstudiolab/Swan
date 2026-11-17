@@ -333,7 +333,9 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
     return true;
 }
 static inline bool swan_irgen_include_function(const Program *program,size_t index){
-    return !program->reachability_computed||program->function_reachable[index];
+    return !program->reachability_computed||program->function_reachable[index]||
+        (program->codegen_source_index>=0&&
+         program->functions[index]->source_index!=(size_t)program->codegen_source_index);
 }
 static inline bool swan_irgen_program(Program *program,SwanIRModule *module,SwanError *error) {
     if(error)memset(error,0,sizeof(*error));
@@ -365,13 +367,17 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         SwanIRFunction *created=valid?swan_ir_add_function(module,source->link_name?source->link_name:source->name,ret,params,source->param_count):NULL;free(params);
         if(!valid)goto fail;
         if(!created){swan_error(error,&source->token,"out of memory creating IR function");goto fail;}
-        created->external=source->external;
+        created->external=source->external||(program->codegen_source_index>=0&&
+            source->source_index!=(size_t)program->codegen_source_index);
     }
     if(!module->function_count){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
     SwanIRGen g={0};
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
-        Stmt *source=program->functions[i];if(source->external)continue;SwanIRFunction *fn=NULL;
+        Stmt *source=program->functions[i];
+        if(source->external||(program->codegen_source_index>=0&&
+           source->source_index!=(size_t)program->codegen_source_index))continue;
+        SwanIRFunction *fn=NULL;
         for(size_t fi=0;fi<module->function_count;fi++)if(!strcmp(module->functions[fi].name,source->link_name?source->link_name:source->name)){fn=&module->functions[fi];break;}
         if(!fn){swan_error(error,&source->token,"internal IR function mapping failure");goto fail;}
         SwanIRBlock *entry=swan_ir_add_block(fn,"entry");if(!entry){swan_error(error,&source->token,"out of memory creating entry block");goto fail;}
