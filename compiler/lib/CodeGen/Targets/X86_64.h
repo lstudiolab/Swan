@@ -945,6 +945,58 @@ static inline void samc_assign_stack_arrays(Locals *l){
  }
  l->array_storage_bytes=total;
 }
+static inline bool samc_is_array_constructor(const Expr *e){
+ if(!e||e->kind!=E_CALL||!e->left||e->left->kind!=E_NAME)return false;
+ const char *name=e->left->token.text;
+ return !strcmp(name,"array")||!strcmp(name,"array_u32")||
+        !strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked");
+}
+static inline bool samc_expr_has_array_constructor(const Expr *e){
+ if(!e)return false;
+ if(samc_is_array_constructor(e))return true;
+ if(samc_expr_has_array_constructor(e->left)||samc_expr_has_array_constructor(e->right))return true;
+ for(size_t i=0;i<e->argc;i++)if(samc_expr_has_array_constructor(e->args[i]))return true;
+ return false;
+}
+static inline bool samc_validate_no_heap_block(Stmt **body,size_t count,Locals *locals,SwanError *error){
+ for(size_t i=0;i<count;i++){
+  Stmt *statement=body[i];if(!statement)continue;
+  bool array_initializer=statement->kind==S_VARIABLE&&samc_is_array_constructor(statement->value);
+  if(array_initializer){
+   Local *local=local_find(locals,statement->name);
+   if(!local||!local->stack_array){
+    swan_error(error,&statement->token,
+      "no-heap mode cannot place array '%s' in bounded stack storage; use a smaller fixed-size non-escaping array",
+      statement->name?statement->name:"<unnamed>");
+    return false;
+   }
+   for(size_t a=0;a<statement->value->argc;a++)
+    if(samc_expr_has_array_constructor(statement->value->args[a])){
+     swan_error(error,&statement->value->token,"nested array allocation is not allowed in no-heap mode");return false;
+    }
+  }else if(samc_expr_has_array_constructor(statement->value)||
+           samc_expr_has_array_constructor(statement->condition)){
+   swan_error(error,&statement->token,
+      "no-heap mode requires every array allocation to initialize a stack-promoted local variable");
+   return false;
+  }
+  if(!samc_validate_no_heap_block(statement->body,statement->body_count,locals,error)||
+     !samc_validate_no_heap_block(statement->alternate,statement->alt_count,locals,error))return false;
+ }
+ return true;
+}
+static inline bool samc_validate_no_heap(Stmt *function,Locals *locals,SwanError *error){
+ for(size_t i=0;i<locals->count;i++){
+  Local *local=&locals->items[i];
+  if(local->array_u32&&!local->stack_array&&
+     !(local->samc_escaped&&!local->array_length_known)){
+   swan_error(error,&function->token,
+      "no-heap mode cannot prove stack storage for array '%s'",local->name);
+   return false;
+  }
+ }
+ return samc_validate_no_heap_block(function->body,function->body_count,locals,error);
+}
 static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array)return true;}return false;}
 static inline bool samc_expr_uses_owned_array(Expr *e,Locals *l){if(!e)return false;if(e->kind==E_NAME){Local *v=local_find(l,e->token.text);return v&&v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array;}if(samc_expr_uses_owned_array(e->left,l)||samc_expr_uses_owned_array(e->right,l))return true;for(size_t i=0;i<e->argc;i++)if(samc_expr_uses_owned_array(e->args[i],l))return true;return false;}
 /* Zero-initialize owned heap handles before any branch can bypass their
