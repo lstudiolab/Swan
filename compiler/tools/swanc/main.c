@@ -257,7 +257,7 @@ static void swan_release_cli_inputs(const char **swan_inputs,size_t swan_count,
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  Multi-file --emit-asm/--emit-llvm writes one target artifact per Swan source into the -o directory.\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  Multi-file --emit-asm/--emit-llvm writes one target artifact per Swan source into the -o directory.\n",SWAN_VERSION);return 0;}
  SwanDriverMode mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
@@ -292,7 +292,7 @@ static int swan_run(int argc,char **argv){
  const char *output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
- bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false;size_t compile_jobs=1;
+ bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false;size_t compile_jobs=1;
  const char *target_features[32];size_t target_feature_count=0;const char *target_cpu=NULL;
  SwanTarget custom_target={0};const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
@@ -301,6 +301,7 @@ static int swan_run(int argc,char **argv){
   else if(!strcmp(argv[i],"--emit-asm"))emit_asm=true;
   else if(!strcmp(argv[i],"--emit-llvm"))emit_llvm=true;
   else if(!strcmp(argv[i],"--lazy-imports"))lazy_imports=true;
+  else if(!strcmp(argv[i],"--no-heap"))no_heap=true;
   else if(!strcmp(argv[i],"--target-triple")&&i+1<argc){
    const char *triple=argv[++i];size_t n=strlen(triple);
    if(!n||n>=256){fprintf(stderr,"swan: target triple must be 1-255 characters\n");SWAN_RETURN(2);}
@@ -340,12 +341,14 @@ static int swan_run(int argc,char **argv){
  if(emit_llvm&&target->architecture!=SWAN_ARCH_LLVM){fprintf(stderr,"swan: --emit-llvm requires --target-triple\n");SWAN_RETURN(2);}
  if(emit_asm&&emit_llvm){fprintf(stderr,"swan: choose either --emit-asm or --emit-llvm\n");SWAN_RETURN(2);}
  if(emit_asm)mode=SWAN_EMIT;else if(emit_llvm)mode=SWAN_EMIT_LLVM;
+ if(no_heap&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: --no-heap is currently supported only by the native x86-64 backend\\n");SWAN_RETURN(2);}
+ if(no_heap&&lazy_imports){fprintf(stderr,"swan: --no-heap cannot be combined with runtime-lazy imports\\n");SWAN_RETURN(2);}
  swan_profile_reset();
  if(c_input_count&&target->architecture!=SWAN_ARCH_X86_64){
   fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\n");SWAN_RETURN(2);
  }
  SwanError err={0};TokenStream ts={0};char *source=NULL;
- Program p={0};p.codegen_module_index=-1;p.codegen_source_index=-1;p.bundle_imports=!lazy_imports;
+ Program p={0};p.codegen_module_index=-1;p.codegen_source_index=-1;p.bundle_imports=!lazy_imports;p.no_heap=no_heap;
  uint64_t stage=0;
  for(size_t source_index=0;source_index<swan_input_count;source_index++){
   stage=swan_profile_start();
