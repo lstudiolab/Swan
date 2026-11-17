@@ -30,7 +30,6 @@ static inline void swan_bytes_destroy(SwanByteBuffer *buffer) {
 static inline bool swan_bytes_reserve(SwanByteBuffer *buffer, size_t capacity) {
     if (!buffer) return false;
     if (capacity <= buffer->capacity) return true;
-    if (capacity > SIZE_MAX) return false;
     size_t next = buffer->capacity ? buffer->capacity : 64;
     while (next < capacity) {
         if (next > SIZE_MAX / 2) { next = capacity; break; }
@@ -45,8 +44,7 @@ static inline bool swan_bytes_reserve(SwanByteBuffer *buffer, size_t capacity) {
 
 static inline bool swan_bytes_resize(SwanByteBuffer *buffer, size_t length,
                                       unsigned char fill) {
-    if (!buffer || length == SIZE_MAX ||
-        !swan_bytes_reserve(buffer, length)) return false;
+    if (!buffer || !swan_bytes_reserve(buffer, length)) return false;
     if (length > buffer->length)
         memset(buffer->data + buffer->length, fill, length - buffer->length);
     buffer->length = length;
