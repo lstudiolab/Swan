@@ -14,8 +14,8 @@ recursive fn render(node: json::Node&, out: u8[>..]&) {
             else { json::format_number(out, n.v); }
         },
         Str s => json::format_string(out, s.s),
-        Arr &a => render_children(a.first, false, out, '[', ']'),
-        Obj &o => render_children(o.first, true, out, '{', '}'),
+        Arr a => render_children(a.first, false, out, '[', ']'),
+        Obj o => render_children(o.first, true, out, '{', '}'),
     }
 }
 
