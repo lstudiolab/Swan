@@ -21,7 +21,7 @@ typedef struct {
  size_t *module_starts,*module_ends; size_t module_starts_capacity,module_ends_capacity;
  const char **module_names;
  bool *function_reachable;
- bool reachability_computed,bundle_imports,codegen_force_ast;
+ bool reachability_computed,bundle_imports,codegen_force_ast,codegen_include_external_functions;
  int codegen_module_index,codegen_source_index;
  SwanWarning *warnings; size_t warning_count,warning_capacity,warnings_dropped;
 } Program;
