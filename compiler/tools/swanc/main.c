@@ -210,7 +210,7 @@ static int swan_run(int argc,char **argv){
   }
  }
  if(!swan_input_count){fprintf(stderr,"swanc: source directory contains no .swan files\n");return 2;}
- const char *input=swan_inputs[0],*output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
+ const char *output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
  bool emit_asm=false,emit_llvm=false,lazy_imports=false,warnings_as_errors=false;size_t compile_jobs=1;const char **link_args=NULL;size_t link_arg_count=0,link_arg_capacity=0;
