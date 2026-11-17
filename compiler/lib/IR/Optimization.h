@@ -701,7 +701,9 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,boo
                 if(in->result&&in->result<count)definitions[in->result]=in;
                 if(in->op==SWAN_IR_CONST&&in->type!=SWAN_IR_PTR){
                     unsigned bits=swan_ir_integer_bits(in->type);
-                    in->immediate=swan_ir_signed_value((uint64_t)in->immediate&swan_ir_width_mask(bits),bits);
+                    int64_t normalized=swan_ir_signed_value((uint64_t)in->immediate&swan_ir_width_mask(bits),bits);
+                    if(normalized!=in->immediate)changed=true;
+                    in->immediate=normalized;
                 }
             }
             for(uint32_t id=(uint32_t)fn->parameter_count+1;id<fn->next_value;id++){
@@ -717,6 +719,7 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,boo
             }
             free(known);free(values);free(definitions);
         }
+        if(changed_out)*changed_out=changed;
         return swan_ir_verify_pass_result(module,error,cap);
     }
     if(pass==SWAN_IR_PASS_CFG_SIMPLIFY){if(!swan_ir_cfg_simplify(module,&changed,error,cap))return false;if(changed_out)*changed_out=changed;return swan_ir_verify_pass_result(module,error,cap);}
