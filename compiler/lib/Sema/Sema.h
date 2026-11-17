@@ -6,7 +6,9 @@ typedef struct { SwanSymbol *items; size_t count,capacity; size_t *buckets,bucke
 static inline unsigned swan_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline bool swan_symbols_rehash(SwanSymbols *s,size_t wanted){
  size_t count=16;while(count<wanted){if(count>SIZE_MAX/2)return false;count*=2;}
- if(count>SIZE_MAX/sizeof(*s->buckets))return false;size_t *buckets=malloc(count*sizeof(*buckets));if(!buckets)return false;
+ if(count>SIZE_MAX/sizeof(*s->buckets))return false;
+ size_t *buckets=malloc(count*sizeof(*buckets));
+ if(!buckets)return false;
  for(size_t i=0;i<count;i++)buckets[i]=SIZE_MAX;
  for(size_t i=0;i<s->count;i++){size_t b=swan_name_hash(s->items[i].name)&(count-1);s->items[i].previous=buckets[b];buckets[b]=i;}
  free(s->buckets);s->buckets=buckets;s->bucket_count=count;return true;
@@ -21,7 +23,8 @@ static inline Stmt *swan_find_function(Program *p,const char *name){
   for(size_t n=p->function_buckets[b];n!=SIZE_MAX;n=p->function_next[n]){
    Stmt *fn=p->functions[n];if(strcmp(fn->name,name))continue;
    if(!fn->imported){local=fn;break;}
-   if(imported)return NULL;imported=fn;
+   if(imported)return NULL;
+   imported=fn;
   }
  }else{
   for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(strcmp(fn->name,name))continue;if(!fn->imported){local=fn;break;}if(imported)return NULL;imported=fn;}
@@ -50,8 +53,12 @@ static inline bool swan_function_name_ambiguous(Program *p,const char *name){
  bool found=false;for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(fn->imported&&!strcmp(fn->name,name)){if(found)return true;found=true;}}return false;
 }
 static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *index){
- if(!s->bucket_count)return false;size_t b=swan_name_hash(name)&(s->bucket_count-1);
- for(size_t n=s->buckets[b];n!=SIZE_MAX;n=s->items[n].previous)if(!strcmp(s->items[n].name,name)){if(index)*index=n;return true;}return false;
+ if(!s->bucket_count)return false;
+ size_t b=swan_name_hash(name)&(s->bucket_count-1);
+ for(size_t n=s->buckets[b];n!=SIZE_MAX;n=s->items[n].previous){
+  if(!strcmp(s->items[n].name,name)){if(index)*index=n;return true;}
+ }
+ return false;
 }
 static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array,bool manual,bool checked){
  if(s->count==SIZE_MAX||!swan_reserve_array((void**)&s->items,&s->capacity,s->count+1,sizeof(*s->items)))return false;
@@ -311,7 +318,8 @@ static inline bool swan_validate_local_names(Stmt **body,size_t count,const char
 }
 
 static inline bool swan_semantic_check(Program *p,SwanError *err){
- if(err)memset(err,0,sizeof(*err));if(!p){swan_error(err,NULL,"semantic analysis requires a program");return false;}
+ if(err)memset(err,0,sizeof(*err));
+ if(!p){swan_error(err,NULL,"semantic analysis requires a program");return false;}
  for(size_t i=0;i<p->count;i++){Stmt *fn=p->functions[i];if(!fn||!fn->name||!fn->name[0]){swan_error(err,fn?&fn->token:NULL,"program contains an invalid function declaration");return false;}if(fn->param_count&&!fn->params){swan_error(err,&fn->token,"function '%s' has invalid parameter storage",fn->name);return false;}}
  if(p->count>SIZE_MAX/2){swan_error(err,NULL,"function index size overflow");return false;}size_t bucket_count=16;
  while(bucket_count<p->count*2){if(bucket_count>SIZE_MAX/2){swan_error(err,NULL,"function index size overflow");return false;}bucket_count*=2;}
@@ -360,7 +368,8 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
    if(!swan_reserve_array((void**)&local_names,&local_name_capacity,local_name_count+1,sizeof(*local_names))){swan_error(err,&fn->token,"out of memory validating parameters");ok=false;break;}local_names[local_name_count++]=fn->params[a];
   }
   if(ok)ok=swan_validate_local_names(fn->body,fn->body_count,&local_names,&local_name_count,&local_name_capacity,err);
-  if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);free(local_names);
+  if(ok)ok=swan_check_block(p,fn->body,fn->body_count,&symbols,err,0);
+  free(local_names);
  }
  swan_symbols_destroy(&symbols);return ok;
 }
