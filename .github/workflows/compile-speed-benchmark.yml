@@ -63,11 +63,11 @@ jobs:
           {
             echo "## Benchmark environment"
             echo "- Runner: ubuntu-24.04"
-            echo "- Swan commit: `$(git -C swan rev-parse HEAD)`"
-            echo "- Goose commit: `$(git -C goose rev-parse HEAD)`"
-            echo "- C compiler: `$(cc --version | head -n 1)`"
-            echo "- C++ compiler: `$(c++ --version | head -n 1)`"
-            echo "- Rust: `$(rustc --version)`"
+            echo "- Swan commit: $(git -C swan rev-parse HEAD)"
+            echo "- Goose commit: $(git -C goose rev-parse HEAD)"
+            echo "- C compiler: $(cc --version | head -n 1)"
+            echo "- C++ compiler: $(c++ --version | head -n 1)"
+            echo "- Rust: $(rustc --version)"
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run heavy compilation benchmark
