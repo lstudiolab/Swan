@@ -10,9 +10,9 @@ recursive fn render(node: json::Node&, out: u8[>..]&) {
         Bool b => json::format_bool(out, b.v),
         Int n => json::format_int(out, n.v),
         Num n => json::format_number(out, n.v),
-        Str s => json::format_string(out, s.s),
+        Str &s => json::format_string(out, s.s),
         Arr a => render_children(node.first, false, out, '[', ']'),
-        Obj o => render_children(o.first, true, out, '{', '}'),
+        Obj &o => render_children(node.first, true, out, '{', '}'),
     }
 }
 
