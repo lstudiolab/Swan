@@ -10,7 +10,7 @@ suite:
 | Component | Implemented surface | Boundary |
 |---|---|---|
 | Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |
-| JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; i64 and finite f64 accessors; caller-controlled token preallocation and reuse; original token spans remain available for exact-decimal handling |
+| JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; i64 and finite f64 accessors; caller-controlled token preallocation, caller-owned fixed-capacity storage for zero-heap parsing, and reuse; original token spans remain available for exact-decimal handling |
 | JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point writer values and a typed Swan DOM remain open |
 | Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
 | JSON writer | Swan-importable C ABI for nested objects/arrays, escaped UTF-8 strings, i64, booleans, and null | C ABI only; one root value, max depth 128; no float writer or typed DTO generation |
@@ -87,7 +87,7 @@ JSON is a core backend workload. Implement both a DOM-style API for convenient a
 
 - No per-character heap allocation.
 - No allocation for parser bookkeeping proportional to input bytes when token count is sufficient.
-- Reuse caller-provided buffers for repeated request/response workloads. Allow token capacity to be reserved before parsing when request-size profiles are known, avoiding geometric growth reallocations.
+- Reuse caller-provided buffers for repeated request/response workloads. Allow token capacity to be reserved before parsing when request-size profiles are known, avoiding geometric growth reallocations. Callers may instead attach fixed-capacity token storage; parsing then performs no token-heap allocation and fails explicitly when the supplied capacity is exhausted.
 - Benchmark parse-only, encode-only, parse+encode, nested objects, large arrays, escaped strings, and streaming JSONL separately.
 - Validate output by reparsing and comparing canonical test data; benchmark checksums must match.
 
