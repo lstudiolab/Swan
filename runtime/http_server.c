@@ -36,6 +36,7 @@ struct SwanHttpServer {
     SwanThreadPool pool;
     atomic_bool stopping;
     atomic_bool running;
+    atomic_bool started;
     atomic_int_fast64_t completed;
     atomic_int_fast64_t rejected;
     atomic_int_fast64_t input_bytes;
@@ -347,6 +348,7 @@ void *swan_http_json_server_create(int64_t port, int64_t workers,
     server->port = ntohs(address.sin_port);
     atomic_init(&server->stopping, false);
     atomic_init(&server->running, false);
+    atomic_init(&server->started, false);
     atomic_init(&server->completed, 0);
     atomic_init(&server->rejected, 0);
     atomic_init(&server->input_bytes, 0);
@@ -364,8 +366,9 @@ int32_t swan_http_json_server_run(void *value) {
     SwanHttpServer *server = (SwanHttpServer *)value;
     if (!server) return -1;
     bool expected = false;
-    if (!atomic_compare_exchange_strong(&server->running, &expected, true))
+    if (!atomic_compare_exchange_strong(&server->started, &expected, true))
         return -1;
+    atomic_store_explicit(&server->running, true, memory_order_relaxed);
     while (!atomic_load_explicit(&server->stopping, memory_order_relaxed)) {
         int fd = accept(server->listen_fd, NULL, NULL);
         if (fd < 0) {
