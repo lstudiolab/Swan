@@ -24,8 +24,8 @@ func main():
 SWAN
 "$SWAN" build "$TMP/used.swan" --lazy-imports -o "$TMP/used"
 test -f "$TMP/used.modules/foundation.so"
-nm -D --defined-only "$TMP/used.modules/foundation.so" | grep -q 'swan_fn_abs_int'
-if nm -D --defined-only "$TMP/used.modules/foundation.so" | grep -q 'swan_fn_cube_int'; then
+nm -D --defined-only "$TMP/used.modules/foundation.so" | grep -q 'swan_fn___swan_module_0_abs_int'
+if nm -D --defined-only "$TMP/used.modules/foundation.so" | grep -q 'swan_fn___swan_module_0_cube_int'; then
     echo "unused Foundation function was not tree-shaken" >&2
     exit 1
 fi
