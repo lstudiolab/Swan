@@ -137,7 +137,7 @@ A directory or explicit source list denotes one logical program, not a sequence 
 - Imported modules are deduplicated by canonical module identity and loaded once per compilation.
 - Parallel frontend work is permitted only for independent files and must merge results deterministically. Shared mutable compiler state must not be accessed concurrently without a defined synchronization/ownership model.
 
-The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. Native x86-64 project builds and assembly emission produce one translation unit per Swan source file. Other target backends still use the project-wide IR module and have not yet been split into per-source object emission. Source identity is retained on declarations; full file-aware diagnostics and source-range remapping remain in progress.
+The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. Native x86-64 project builds produce one object per Swan source file before linking. Explicit emission produces one target artifact per source across x86-64, AArch64, ARMv7, RISC-V64, WebAssembly, and LLVM IR/assembly. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
 
 ### 4.2 Phase contracts
 
