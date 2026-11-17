@@ -495,6 +495,37 @@ static inline bool swan_json_as_i64(const SwanJsonDocument *doc,
     return true;
 }
 
+/* Convert a JSON number to double without accepting partial parses or
+ * overflowing/underflowing the host representation. JSON itself permits
+ * exponent and fractional forms; callers needing exact decimal arithmetic
+ * should retain the original token text instead. */
+static inline bool swan_json_as_f64(const SwanJsonDocument *doc,
+                                     size_t token, double *value) {
+    const char *text;
+    size_t length;
+    if (!value || !swan_json_token_text(doc, token, &text, &length) ||
+        !length || length >= 128) return false;
+    char tmp[128];
+    memcpy(tmp, text, length);
+    tmp[length] = 0;
+    errno = 0;
+    char *end = NULL;
+    double parsed = strtod(tmp, &end);
+    if (errno == ERANGE || end != tmp + length || !isfinite(parsed))
+        return false;
+    *value = parsed;
+    return true;
+}
+
+static inline bool swan_json_as_bool(const SwanJsonDocument *doc,
+                                      size_t token, bool *value) {
+    if (!doc || !value || token >= doc->token_count) return false;
+    SwanJsonKind kind = doc->tokens[token].kind;
+    if (kind != SWAN_JSON_TRUE && kind != SWAN_JSON_FALSE) return false;
+    *value = kind == SWAN_JSON_TRUE;
+    return true;
+}
+
 static inline bool swan_json_buffer_reserve(SwanJsonBuffer *b, size_t extra) {
     if (!b || b->length == SIZE_MAX || extra > SIZE_MAX - b->length - 1) return false;
     size_t need = b->length + extra + 1;
