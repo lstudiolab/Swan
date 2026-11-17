@@ -4,7 +4,7 @@
 # Operations: const=1, add=2, sub=3, mul=4, sdiv=5, srem=6,
 # icmp_eq=7, icmp_slt=8, copy=9, return=10, parameter=11.
 
-fn sil_emit_param(state: u32_array, count: int, packed: int) -> int:
+func sil_emit_param(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
     let destination = packed / 1048576
@@ -18,7 +18,7 @@ fn sil_emit_param(state: u32_array, count: int, packed: int) -> int:
     state[base + 4] = parameter
     return count + 1
 
-fn sil_emit_const(state: u32_array, count: int, packed: int) -> int:
+func sil_emit_const(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
     let destination = packed / 1048576
@@ -32,7 +32,7 @@ fn sil_emit_const(state: u32_array, count: int, packed: int) -> int:
     state[base + 4] = value
     return count + 1
 
-fn sil_emit_binary(state: u32_array, count: int, packed: int) -> int:
+func sil_emit_binary(state: u32_array, count: int, packed: int) -> int:
     if count < 0 or count >= 256
         return -1
     let opcode = packed / 16777216
@@ -47,7 +47,7 @@ fn sil_emit_binary(state: u32_array, count: int, packed: int) -> int:
     state[base + 4] = 0
     return count + 1
 
-fn sil_emit_return(state: u32_array, count: int, value: int) -> int:
+func sil_emit_return(state: u32_array, count: int, value: int) -> int:
     if count < 0 or count >= 256
         return -1
     let base = count * 5
