@@ -60,7 +60,26 @@ if "$ROOT/build/swanc" build "$TMP/bad-name.swan" -o "$TMP/invalid-name" 2>"$TMP
 fi
 grep -F "$TMP/bad-name.swan:" "$TMP/name-diagnostic" >/dev/null
 
-printf 'PASS: per-file source buffers, source-aware semantic diagnostics, and separate assembly/object outputs\n'
+mkdir -p "$TMP/cross"
+cat > "$TMP/cross/01_helper.swan" <<'SWAN'
+export func cross_value() -> i64:
+    return 42
+SWAN
+cat > "$TMP/cross/02_main.swan" <<'SWAN'
+func main() -> i64:
+    return cross_value() - 42
+SWAN
+"$ROOT/build/swanc" build "$TMP/cross" --target aarch64 --emit-asm -o "$TMP/aarch64"
+test -f "$TMP/aarch64/01_helper.s"
+test -f "$TMP/aarch64/02_main.s"
+"$ROOT/build/swanc" build "$TMP/cross" --target wasm32 --emit-asm -o "$TMP/wasm"
+test -f "$TMP/wasm/01_helper.wasm"
+test -f "$TMP/wasm/02_main.wasm"
+"$ROOT/build/swanc" build "$TMP/cross" --target-triple aarch64-apple-macosx14.0.0 --emit-llvm -o "$TMP/llvm"
+test -f "$TMP/llvm/01_helper.ll"
+test -f "$TMP/llvm/02_main.ll"
+
+printf 'PASS: per-file source buffers, source-aware diagnostics, and per-source artifacts on x86-64, AArch64, WASM and LLVM\n'
 
 
 # Ten Swan source files must remain ten independent assembly translation units.
