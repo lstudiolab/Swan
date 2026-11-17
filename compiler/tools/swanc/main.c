@@ -126,7 +126,7 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
  program->codegen_source_index=-1;
  program->codegen_include_external_functions=target->architecture!=SWAN_ARCH_WASM32&&target->architecture!=SWAN_ARCH_WASM64;
  program->codegen_force_ast=target->architecture==SWAN_ARCH_X86_64&&
-                            swan_program_requires_ast_compatibility(program);
+                            (program->no_heap||swan_program_requires_ast_compatibility(program));
  for(size_t i=0;i<program->source_count;i++){
   if(i>(size_t)INT_MAX){swan_error(error,NULL,"source index exceeds code-generation representation");goto fail;}
   char path[4096];
@@ -189,7 +189,7 @@ static bool swan_compile_project_objects(Program *program,char ***objects_out,
  *objects_out=NULL;*object_count_out=0;
  program->codegen_source_index=-1;
  program->codegen_include_external_functions=true;
- program->codegen_force_ast=swan_program_requires_ast_compatibility(program);
+ program->codegen_force_ast=program->no_heap||swan_program_requires_ast_compatibility(program);
  if(program->source_count>SIZE_MAX/sizeof(char*)){
   swan_error(error,NULL,"project object list size overflow");return false;
  }
