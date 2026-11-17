@@ -30,8 +30,15 @@ static const char *const swan_profile_names[SWAN_PROFILE_COUNT]={
 static bool swan_profile_enabled=false;
 static uint64_t swan_profile_ns[SWAN_PROFILE_COUNT];
 static struct timespec swan_profile_total_start;
+static inline bool swan_profile_time(struct timespec *t){
+#ifdef CLOCK_MONOTONIC
+ return clock_gettime(CLOCK_MONOTONIC,t)==0;
+#else
+ return timespec_get(t,TIME_UTC)==TIME_UTC;
+#endif
+}
 static inline uint64_t swan_profile_clock(void){
- struct timespec t;if(clock_gettime(CLOCK_MONOTONIC,&t)!=0)return 0;
+ struct timespec t;if(!swan_profile_time(&t))return 0;
  return (uint64_t)t.tv_sec*UINT64_C(1000000000)+(uint64_t)t.tv_nsec;
 }
 static inline uint64_t swan_profile_start(void){return swan_profile_enabled?swan_profile_clock():0;}
@@ -40,7 +47,7 @@ static inline void swan_profile_end(SwanProfileStage stage,uint64_t start){
 }
 static inline void swan_profile_reset(void){
  memset(swan_profile_ns,0,sizeof(swan_profile_ns));
- if(clock_gettime(CLOCK_MONOTONIC,&swan_profile_total_start)!=0)memset(&swan_profile_total_start,0,sizeof(swan_profile_total_start));
+ if(!swan_profile_time(&swan_profile_total_start))memset(&swan_profile_total_start,0,sizeof(swan_profile_total_start));
 }
 static inline void swan_profile_print(void){
  if(!swan_profile_enabled)return;
