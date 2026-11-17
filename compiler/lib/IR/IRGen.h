@@ -333,9 +333,12 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
     return true;
 }
 static inline bool swan_irgen_include_function(const Program *program,size_t index){
-    return !program->reachability_computed||program->function_reachable[index]||
-        (program->codegen_source_index>=0&&
-         program->functions[index]->source_index!=(size_t)program->codegen_source_index);
+    if(program->codegen_source_index<0)
+        return !program->reachability_computed||program->function_reachable[index];
+    const Stmt *function=program->functions[index];
+    if(function->source_index==(size_t)program->codegen_source_index)
+        return !program->reachability_computed||program->function_reachable[index]||function->exported;
+    return program->codegen_include_external_functions;
 }
 static inline bool swan_irgen_program(Program *program,SwanIRModule *module,SwanError *error) {
     if(error)memset(error,0,sizeof(*error));
