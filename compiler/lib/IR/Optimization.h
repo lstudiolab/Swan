@@ -737,20 +737,33 @@ static inline bool swan_ir_run_pass(SwanIRModule *module,SwanIRPassKind pass,boo
     return false;
 }
 #define SWAN_IR_MAX_OPTIMIZATION_PASSES 350u
-static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t cap) {
+typedef struct {
+    size_t passes_executed;
+    size_t rounds;
+    bool converged;
+} SwanIROptStats;
+
+static inline bool swan_ir_optimize_with_stats(SwanIRModule *module,
+    SwanIROptStats *stats,char *error,size_t cap) {
+    if(stats)memset(stats,0,sizeof(*stats));
     if(!swan_ir_verify(module,error,cap))return false;
     const size_t pass_count=sizeof(swan_ir_default_passes)/sizeof(swan_ir_default_passes[0]);
-    size_t executed=0;
+    size_t executed=0,rounds=0;
     bool converged=false;
     while(executed<SWAN_IR_MAX_OPTIMIZATION_PASSES){
         bool round_changed=false;
+        rounds++;
         for(size_t i=0;i<pass_count&&executed<SWAN_IR_MAX_OPTIMIZATION_PASSES;i++,executed++){
             bool changed=false;
-            if(!swan_ir_run_pass(module,swan_ir_default_passes[i].kind,&changed,error,cap))return false;
+            if(!swan_ir_run_pass(module,swan_ir_default_passes[i].kind,&changed,error,cap)){
+                if(stats){stats->passes_executed=executed+1;stats->rounds=rounds;}
+                return false;
+            }
             round_changed=round_changed||changed;
         }
         if(!round_changed){converged=true;break;}
     }
+    if(stats){stats->passes_executed=executed;stats->rounds=rounds;stats->converged=converged;}
     if(!converged){
         if(error&&cap)snprintf(error,cap,"optimization did not converge within %u pass executions",SWAN_IR_MAX_OPTIMIZATION_PASSES);
         return false;
@@ -771,5 +784,9 @@ static inline bool swan_ir_optimize(SwanIRModule *module, char *error, size_t ca
         }
     }
     return swan_ir_verify(module,error,cap);
+}
+
+static inline bool swan_ir_optimize(SwanIRModule *module,char *error,size_t cap) {
+    return swan_ir_optimize_with_stats(module,NULL,error,cap);
 }
 #endif
