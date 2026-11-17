@@ -24,7 +24,7 @@ early-return cleanup, branch-local initialization, and escaped arrays.
 - Swan does not have a complete borrow checker or general ownership type system.
 - Arbitrary pointers and owned general-purpose strings are not yet native Swan
   value types.
-- Dynamic arrays can allocate from the heap. Swan is not a zero-heap language.
+- Dynamic arrays can allocate from the heap. Swan is not globally a zero-heap language. The opt-in `--no-heap` mode currently constrains Swan-managed array allocations on native x86-64 only; it does not constrain allocations performed inside imported C code.
 - The automatic lifetime analysis described above is currently specific to the
   native x86-64 compatibility backend; it is not a cross-target ownership model.
 - The compiler cannot safely repair arbitrary use-after-free, data races, invalid
@@ -41,9 +41,9 @@ model is:
 3. Make ownership transfer and borrowing explicit in semantic analysis.
 4. Insert deterministic cleanup on every control-flow exit.
 5. Reject programs whose lifetime or aliasing rules cannot be proven safe.
-6. Offer a no-heap profile only when every allocation can be statically bounded;
-   it must diagnose unsupported dynamic allocation rather than silently falling
-   back to the heap.
+6. Extend `--no-heap` beyond the current native x86-64 array subset only when
+   every allocation on the target can be statically bounded; unsupported dynamic
+   allocation must produce a diagnostic rather than silently falling back to the heap.
 
 Aviation, banking, medical, and other safety-critical deployments require a
 separate qualification effort: deterministic allocation, concurrency and
