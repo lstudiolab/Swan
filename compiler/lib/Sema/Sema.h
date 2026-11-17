@@ -230,6 +230,7 @@ static inline void swan_warning_add(Program *program,const Token *token,const ch
  SwanWarning *warning=&program->warnings[program->warning_count++];
  warning->line=token?token->line:0;
  warning->col=token?token->col:0;
+ warning->source_name=token?token->source_name:NULL;
  va_list args;
  va_start(args,format);
  vsnprintf(warning->message,sizeof(warning->message),format,args);
@@ -299,7 +300,9 @@ static inline void swan_collect_warnings(Program *program){
 static inline size_t swan_print_warnings(const Program *program){
  for(size_t i=0;i<program->warning_count;i++){
   const SwanWarning *warning=&program->warnings[i];
-  if(warning->line&&warning->col)
+  if(warning->source_name&&warning->line&&warning->col)
+   fprintf(stderr,"swan:%s:%u:%u: warning: %s\n",warning->source_name,warning->line,warning->col,warning->message);
+  else if(warning->line&&warning->col)
    fprintf(stderr,"swan:%u:%u: warning: %s\n",warning->line,warning->col,warning->message);
   else fprintf(stderr,"swan: warning: %s\n",warning->message);
  }
