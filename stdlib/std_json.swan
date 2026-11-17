@@ -18,6 +18,9 @@ func json_has_key(document: int, key: int) -> int:
 func json_compact(document: int) -> int:
     return swan_json_compact(document)
 
+func json_compact_length(document: int) -> int:
+    return swan_json_compact_length(document)
+
 func json_pretty(document: int) -> int:
     return swan_json_pretty(document)
 
