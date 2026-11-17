@@ -1,6 +1,6 @@
 # Swan-authored structural and typed SSA verifier.
 # Workspace: defined values [0..255], value types [256..511].
-fn sil_check_constant(state: u32_array, workspace: u32_array, index: int) -> int:
+func sil_check_constant(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let value_type = state[base] / 16
     let destination = state[base + 1]
@@ -12,7 +12,7 @@ fn sil_check_constant(state: u32_array, workspace: u32_array, index: int) -> int
     workspace[256 + destination] = value_type
     return 1
 
-fn sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> int:
+func sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let value_type = state[base] / 16
     let destination = state[base + 1]
@@ -29,7 +29,7 @@ fn sil_check_parameter(state: u32_array, workspace: u32_array, index: int) -> in
     workspace[256 + destination] = value_type
     return 1
 
-fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
+func sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let encoded = state[base]
     let opcode = encoded % 16
@@ -53,7 +53,7 @@ fn sil_check_binary(state: u32_array, workspace: u32_array, index: int) -> int:
     workspace[256 + destination] = value_type
     return 1
 
-fn sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
+func sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
     let base = index * 5
     let value_type = state[base] / 16
     let destination = state[base + 1]
@@ -66,7 +66,7 @@ fn sil_check_copy(state: u32_array, workspace: u32_array, index: int) -> int:
     workspace[256 + destination] = value_type
     return 1
 
-fn sil_check_return(state: u32_array, workspace: u32_array, index: int, count: int) -> int:
+func sil_check_return(state: u32_array, workspace: u32_array, index: int, count: int) -> int:
     let base = index * 5
     let left = state[base + 2]
     if index != count - 1 or left <= 0 or left >= 256
@@ -75,7 +75,7 @@ fn sil_check_return(state: u32_array, workspace: u32_array, index: int, count: i
         return -14
     return 2
 
-fn sil_verify(state: u32_array, count: int) -> int:
+func sil_verify(state: u32_array, count: int) -> int:
     if count < 1 or count > 256
         return -1
     let workspace = array_unchecked(512)
