@@ -1,5 +1,6 @@
 #!/usr/bin/env sh
 set -eu
+set -x
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/test/lazy-imports"
