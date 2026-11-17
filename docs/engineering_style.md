@@ -130,3 +130,20 @@ For architectural work, prefer incremental replacements behind stable contracts:
 8. Canonical root driver and removal of compatibility-only entry points.
 
 A subsystem is complete only when its implementation, tests, diagnostics, and documentation agree.
+
+
+## Documentation voice
+
+Swan documentation uses a restrained, product-focused editorial voice. Write for the person completing a task, not for the author explaining the implementation.
+
+- Lead with the result or the decision the reader needs to make.
+- Use short, direct sentences and active voice.
+- Prefer familiar words; introduce technical terms only when they improve precision.
+- Use sentence case for headings and concise labels for tables and commands.
+- Put prerequisites before steps. Put warnings beside the action they affect.
+- Separate shipped behavior from limitations, planned work, and examples.
+- Avoid promotional claims, exaggerated adjectives, filler, and repeated explanations.
+- Use consistent command names, file paths, capitalization, and terminology throughout the guide.
+- Keep examples minimal, complete, and runnable. Explain expected output when it helps verify success.
+
+The goal is clarity, restraint, and consistency. Do not imitate another company's wording or claim its authorship.
