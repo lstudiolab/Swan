@@ -98,8 +98,22 @@ static char *swan_http_header_end(char *data, size_t length) {
     return NULL;
 }
 
-static int swan_http_parse_content_length(char *headers, size_t *content_length) {
+static bool swan_http_header_token_char(unsigned char c) {
+    if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ||
+        (c >= 'a' && c <= 'z')) return true;
+    switch (c) {
+        case '!': case '#': case '$': case '%': case '&': case 39:
+        case '*': case '+': case '-': case '.': case '^': case '_':
+        case 96: case '|': case '~': return true;
+        default: return false;
+    }
+}
+
+static int swan_http_parse_content_length(char *headers,
+                                           size_t *content_length,
+                                           bool *host_found) {
     bool found = false;
+    size_t header_count = 0;
     char *line = strstr(headers, "\r\n");
     if (!line) return -1;
     line += 2;
@@ -107,12 +121,25 @@ static int swan_http_parse_content_length(char *headers, size_t *content_length)
         char *end = strstr(line, "\r\n");
         if (!end) return -1;
         if (end == line) break;
+        if (++header_count > 64) return -1;
         *end = 0;
         char *colon = strchr(line, ':');
-        if (!colon) return -1;
+        if (!colon || colon == line) return -1;
+        for (char *p = line; p < colon; p++)
+            if (!swan_http_header_token_char((unsigned char)*p)) return -1;
         *colon++ = 0;
         while (*colon == ' ' || *colon == '\t') colon++;
-        if (!strcasecmp(line, "Content-Length")) {
+        char *value_end = colon + strlen(colon);
+        while (value_end > colon &&
+               (value_end[-1] == ' ' || value_end[-1] == '\t'))
+            *--value_end = 0;
+        for (char *p = colon; *p; p++)
+            if (((unsigned char)*p < 32 && *p != '\t') ||
+                (unsigned char)*p == 127) return -1;
+        if (!strcasecmp(line, "Host")) {
+            if (!*colon || *host_found) return -1;
+            *host_found = true;
+        } else if (!strcasecmp(line, "Content-Length")) {
             if (found || !*colon) return -1;
             found = true;
             size_t value = 0;
@@ -130,7 +157,6 @@ static int swan_http_parse_content_length(char *headers, size_t *content_length)
     }
     return found ? 1 : 0;
 }
-
 static void swan_http_process_client(void *context) {
     SwanHttpClient *client = (SwanHttpClient *)context;
     SwanHttpServer *server = client->server;
@@ -164,15 +190,40 @@ static void swan_http_process_client(void *context) {
     /* Keep the final CRLF intact for the header parser. */
 
     char method[16], target[2048], version[16];
-    if (sscanf(headers, "%15s %2047s %15s", method, target, version) != 3 ||
-        strncmp(version, "HTTP/1.", 7) != 0) {
+    int request_line_bytes = 0;
+    char *request_line_end = strstr(headers, "\r\n");
+    if (!request_line_end ||
+        sscanf(headers, "%15s %2047s %15s%n", method, target, version,
+               &request_line_bytes) != 3 ||
+        headers + request_line_bytes != request_line_end ||
+        (strcmp(version, "HTTP/1.0") && strcmp(version, "HTTP/1.1")) ||
+        target[0] != '/') {
         swan_http_reply_text(fd, 400, "{\"error\":\"bad_request_line\"}");
         close(fd);
         return;
     }
+    for (const unsigned char *p = (const unsigned char *)method; *p; p++)
+        if (!swan_http_header_token_char(*p)) {
+            swan_http_reply_text(fd, 400, "{\"error\":\"bad_method\"}");
+            close(fd);
+            return;
+        }
+    for (const unsigned char *p = (const unsigned char *)target; *p; p++)
+        if (*p <= 32 || *p == 127) {
+            swan_http_reply_text(fd, 400, "{\"error\":\"bad_target\"}");
+            close(fd);
+            return;
+        }
 
+    bool host_found = false;
     size_t body_length = 0;
-    int length_status = swan_http_parse_content_length(headers, &body_length);
+    int length_status = swan_http_parse_content_length(headers, &body_length,
+                                                        &host_found);
+    if (!strcmp(version, "HTTP/1.1") && !host_found) {
+        swan_http_reply_text(fd, 400, "{\"error\":\"missing_host\"}");
+        close(fd);
+        return;
+    }
     if (length_status == -2) {
         swan_http_reply_text(fd, 501, "{\"error\":\"chunked_not_supported\"}");
         close(fd);
