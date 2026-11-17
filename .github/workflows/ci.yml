@@ -45,3 +45,14 @@ jobs:
         run: sh tests/multi-source.sh
       - name: Verify compiler version
         run: ./build/swanc --version
+
+  memory-safety:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build compiler with AddressSanitizer and UndefinedBehaviorSanitizer
+        run: SWAN_SANITIZE=1 sh build.sh
+      - name: Exercise C ABI, JSON handles, and native linking
+        run: sh tests/ffi.sh
+      - name: Exercise independent source translation units
+        run: sh tests/multi-source.sh
