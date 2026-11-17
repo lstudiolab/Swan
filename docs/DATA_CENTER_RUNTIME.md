@@ -13,6 +13,7 @@ suite:
 | JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; numeric accessor currently signed i64 |
 | JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point values and a typed Swan DOM remain open |
 | Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
+| JSON writer | Swan-importable C ABI for nested objects/arrays, escaped UTF-8 strings, i64, booleans, and null | C ABI only; one root value, max depth 128; no float or typed DTO generation |
 | Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Swan task scheduler |
 | HTTP JSON server | Bounded POSIX HTTP/1.1 JSON echo/health server, worker-pool dispatch, queue backpressure, body limits, socket timeouts, counters | JSON-only fixed handler; one request per connection; no TLS, chunked transfer, keep-alive, or user-defined Swan route callbacks |
 | HTTP/1 parser | Bounded HTTP/1.0/1.1 request-line/header parser, Content-Length framing, case-insensitive header lookup, safe response framing | C API only; chunked transfer and keep-alive are not supported |
