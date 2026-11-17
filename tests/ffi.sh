@@ -27,10 +27,10 @@ C
 
 cat > "$TMP/ffi.swan" <<SWAN
 import C "$TMP/c_api.h"
-fn sil_identity(value: i64) -> i64:
+func sil_identity(value: i64) -> i64:
     return value
 
-fn main() -> i32:
+func main() -> i32:
     swan_c_noop(7)
     swan_c_add(sil_identity(19), 23)
     if swan_c_identity(42) != 42:
@@ -59,8 +59,8 @@ grep -q 'call swan_c_double' "$TMP/ffi.s"
 printf 'PASS: imported C symbols preserved in native assembly\n'
 
 cat > "$TMP/missing.swan" <<'SWAN'
-external fn swan_missing(value: i64) -> i64
-fn main() -> int:
+external func swan_missing(value: i64) -> i64
+func main() -> int:
     return swan_missing(1)
 SWAN
 if "$SWAN" build "$TMP/missing.swan" -o "$TMP/missing" >"$TMP/missing.out" 2>&1; then
