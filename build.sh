@@ -2,10 +2,14 @@
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 CC=${CC:-cc}
+SANITIZER_FLAGS=""
+if [ "${SWAN_SANITIZE:-0}" = "1" ]; then
+    SANITIZER_FLAGS="-O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer"
+fi
 mkdir -p "$ROOT/build"
 
 # Bootstrap the C11 host without linking the not-yet-built Swan SIL object.
-"$CC" -std=c11 -O2 -DNDEBUG -DSWAN_USE_MONOTONIC_CLOCK -Wall -Wextra -Wpedantic -Werror=implicit-function-declaration -Werror=return-type -Werror=incompatible-pointer-types -DSWAN_SIL_BOOTSTRAP \
+"$CC" -std=c11 -O2 -DNDEBUG $SANITIZER_FLAGS -DSWAN_USE_MONOTONIC_CLOCK -Wall -Wextra -Wpedantic -Werror=implicit-function-declaration -Werror=return-type -Werror=incompatible-pointer-types -DSWAN_SIL_BOOTSTRAP \
     -I"$ROOT/compiler/include" "$ROOT/compiler/tools/swanc/main.c" -o "$ROOT/build/swan-bootstrap"
 
 # Compile the SIL passes from Swan source as one native object.
