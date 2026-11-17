@@ -77,7 +77,7 @@ typedef struct { TokenKind kind; const char *text; unsigned line,col; const char
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
 typedef struct { char message[1024]; unsigned line,col; const char *source_name; } SwanError;
-typedef struct { char message[256]; unsigned line,col; } SwanWarning;
+typedef struct { char message[256]; unsigned line,col; const char *source_name; } SwanWarning;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
  if(!e)return;
  va_list ap;
