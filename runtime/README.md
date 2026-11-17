@@ -29,7 +29,6 @@ The full `sh test.sh` suite includes both test runners.
 The `std_json` source module is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
 
 HTTP/TCP/TLS, socket lifecycle, a complete request/response API, cancellation,
-structured task scopes, and Swan-level JSON values are not implemented by
-these primitives. Do not use the C worker pool as evidence that Swan async
-semantics exist. The next compiler integration work is a length-aware string
-and byte-span ABI, followed by opaque runtime handles and aggregate layout.
+structured task scopes, streaming JSON/JSONL, typed JSON values, and a Swan-level
+async scheduler are not implemented. Do not use the C worker pool as evidence
+that Swan async semantics exist.
