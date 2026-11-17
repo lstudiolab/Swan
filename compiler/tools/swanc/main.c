@@ -422,6 +422,34 @@ static int swan_run(int argc,char **argv){
   free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return result;
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);return 2;}
+ if(!has_lazy&&p.source_count>1&&target->architecture==SWAN_ARCH_X86_64){
+  if(mode==SWAN_EMIT){
+   const char *directory=output?output:"asm";
+   bool emitted=swan_emit_project_sources(&p,directory,c_inputs,c_input_count,&err);
+   if(!emitted)fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"failed to emit per-source assembly");
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
+   return emitted?0:1;
+  }
+  char executable[1024];bool temporary=output==NULL;int name_length;
+  if(output)name_length=snprintf(executable,sizeof(executable),"%s",output);
+  else if(mode==SWAN_BUILD)name_length=snprintf(executable,sizeof(executable),"a.out");
+  else name_length=snprintf(executable,sizeof(executable),"/tmp/swan-run-%ld",(long)getpid());
+  if(name_length<0||(size_t)name_length>=sizeof(executable)){
+   fprintf(stderr,"swan: output path is too long\n");
+   swan_release_modules(module_sources,module_texts,module_count);swan_program_destroy(&p);return 1;
+  }
+  char **objects=NULL;size_t object_count=0;
+  bool compiled_objects=swan_compile_project_objects(&p,&objects,&object_count,&err);
+  int result=compiled_objects?swan_link_project_objects(objects,object_count,c_inputs,c_input_count,link_args,link_arg_count,executable):1;
+  if(!compiled_objects)fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"failed to compile project translation units");
+  if(objects){for(size_t i=0;i<object_count;i++){if(objects[i]){unlink(objects[i]);free(objects[i]);}}free(objects);}
+  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
+  if(result!=0){if(temporary&&mode!=SWAN_BUILD)unlink(executable);return result<0?1:result;}
+  if(mode==SWAN_BUILD)return 0;
+  char *run_args[]={executable,NULL};result=swan_exec(run_args,false);
+  if(temporary)unlink(executable);
+  return result<0?1:result;
+ }
  char exe[1024];bool temporary_output=output==NULL;int exe_len;
  if(output)exe_len=snprintf(exe,sizeof(exe),"%s",output);
  else if(mode==SWAN_BUILD)exe_len=snprintf(exe,sizeof(exe),"a.out");
