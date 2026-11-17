@@ -15,11 +15,12 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
  if(!swan_ir_verify(m,error,cap))return false;
  for(size_t f=0;f<m->function_count;f++){
   const SwanIRFunction *fn=&m->functions[f];
-  if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I1&&fn->return_type!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower function '%s': return type is %s (supported: i1, i64, void)",fn->name,swan_ir_type_name(fn->return_type));return false;}
-  for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I1&&fn->parameter_types[p]!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower parameter %zu of '%s': type is %s (supported: i1, i64)",p,fn->name,swan_ir_type_name(fn->parameter_types[p]));return false;}
+  if(fn->return_type!=SWAN_IR_VOID&&fn->return_type!=SWAN_IR_I1&&fn->return_type!=SWAN_IR_I32&&fn->return_type!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower function '%s': return type is %s (supported: i1, i32 constants/pass-through, i64, void)",fn->name,swan_ir_type_name(fn->return_type));return false;}
+  for(size_t p=0;p<fn->parameter_count;p++)if(fn->parameter_types[p]!=SWAN_IR_I1&&fn->parameter_types[p]!=SWAN_IR_I32&&fn->parameter_types[p]!=SWAN_IR_I64){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower parameter %zu of '%s': type is %s (supported: i1, i32 pass-through, i64)",p,fn->name,swan_ir_type_name(fn->parameter_types[p]));return false;}
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
-   if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower instruction %zu in block %zu of '%s': type is %s",i,b,fn->name,swan_ir_type_name(in->type));return false;}
+   if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower instruction %zu in block %zu of '%s': type is %s",i,b,fn->name,swan_ir_type_name(in->type));return false;}
+   if(in->type==SWAN_IR_I32&&in->op!=SWAN_IR_CONST&&in->op!=SWAN_IR_CALL){if(error&&cap)snprintf(error,cap,"AArch64 backend currently supports i32 constants and call pass-through only; instruction %zu in block %zu of '%s' is %d",i,b,fn->name,(int)in->op);return false;}
   }
  }
  for(size_t f=0;f<m->function_count;f++){
