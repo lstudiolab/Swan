@@ -67,64 +67,117 @@ static const char *swan_source_basename(const char *path){
  return base?base+1:path;
 }
 static bool swan_source_output_path(char *out,size_t capacity,const char *directory,
-                                    const char *source_path){
+                                    const char *source_path,const char *extension){
  const char *base=swan_source_basename(source_path);
  size_t length=strlen(base);
  if(length>=5&&!strcmp(base+length-5,".swan"))length-=5;
  if(length>(size_t)INT_MAX)return false;
- int n=snprintf(out,capacity,"%s/%.*s.s",directory,(int)length,base);
+ int n=snprintf(out,capacity,"%s/%.*s%s",directory,(int)length,base,extension);
  if(n<0||(size_t)n>=capacity)return false;
  return true;
 }
+static bool swan_write_llvm_assembly(const SwanTarget *target,const char *target_cpu,
+                                     const char *const *features,size_t feature_count,
+                                     const SwanSVMOutput *generated,const char *path){
+ char temp[]="/tmp/swan-llvm-tu-XXXXXX";
+ int fd=mkstemp(temp);if(fd<0)return false;
+ size_t offset=0;bool written=true;
+ while(offset<generated->length){
+  ssize_t n=write(fd,generated->data+offset,generated->length-offset);
+  if(n<0){if(errno==EINTR)continue;written=false;break;}
+  if(!n){written=false;break;}
+  offset+=(size_t)n;
+ }
+ if(close(fd)!=0)written=false;
+ if(!written){unlink(temp);return false;}
+ char *args[180];size_t count=0;
+ args[count++]="clang";
+ char target_arg[280];int target_len=snprintf(target_arg,sizeof(target_arg),"--target=%s",target->triple);
+ if(target_len<0||(size_t)target_len>=sizeof(target_arg)){unlink(temp);return false;}
+ args[count++]=target_arg;
+ char cpu_arg[160];
+ if(target_cpu){
+  int cpu_len=snprintf(cpu_arg,sizeof(cpu_arg),"-mcpu=%s",target_cpu);
+  if(cpu_len<0||(size_t)cpu_len>=sizeof(cpu_arg)){unlink(temp);return false;}
+  args[count++]=cpu_arg;
+ }
+ for(size_t i=0;i<feature_count;i++){
+  if(count+5>=sizeof(args)/sizeof(args[0])){unlink(temp);return false;}
+  args[count++]="-Xclang";args[count++]="-target-feature";
+  args[count++]="-Xclang";args[count++]=(char*)features[i];
+ }
+ args[count++]="-S";args[count++]="-x";args[count++]="ir";
+ args[count++]=temp;args[count++]="-o";args[count++]=(char*)path;args[count]=NULL;
+ int result=swan_exec(args,true);unlink(temp);return result==0;
+}
 static bool swan_emit_project_sources(Program *program,const char *directory,
+                                      const SwanTarget *target,int mode,
+                                      const char *target_cpu,
+                                      const char *const *features,size_t feature_count,
                                       const char *const *c_inputs,size_t c_count,
                                       SwanError *error){
  if(!swan_make_output_dir(directory))return false;
+ const char *extension=target->architecture==SWAN_ARCH_WASM32||
+                       target->architecture==SWAN_ARCH_WASM64?".wasm":
+                       target->architecture==SWAN_ARCH_LLVM&&mode==SWAN_EMIT_LLVM?".ll":".s";
  program->codegen_source_index=-1;
- program->codegen_force_ast=swan_program_requires_ast_compatibility(program);
+ program->codegen_force_ast=target->architecture==SWAN_ARCH_X86_64&&
+                            swan_program_requires_ast_compatibility(program);
  for(size_t i=0;i<program->source_count;i++){
-  if(i>(size_t)INT_MAX){swan_error(error,NULL,"source index exceeds code-generation representation");return false;}
+  if(i>(size_t)INT_MAX){swan_error(error,NULL,"source index exceeds code-generation representation");goto fail;}
   char path[4096];
   if(!swan_source_output_path(path,sizeof(path),directory,
-                              program->source_files[i].path)){
-   swan_error(error,NULL,"assembly output path is too long for '%s'",program->source_files[i].path);return false;
+                              program->source_files[i].path,extension)){
+   swan_error(error,NULL,"source output path is too long for '%s'",program->source_files[i].path);goto fail;
   }
   for(size_t prior=0;prior<i;prior++){
    char previous[4096];
    if(!swan_source_output_path(previous,sizeof(previous),directory,
-                               program->source_files[prior].path))return false;
+                               program->source_files[prior].path,extension))goto fail;
    if(!strcmp(path,previous)){
     char unique[4096];
     const char *base=swan_source_basename(program->source_files[i].path);
     size_t length=strlen(base);if(length>=5&&!strcmp(base+length-5,".swan"))length-=5;
-    int n=snprintf(unique,sizeof(unique),"%s/%.*s_%zu.s",directory,(int)length,base,i);
-    if(n<0||(size_t)n>=sizeof(unique))return false;
+    if(length>(size_t)INT_MAX)goto fail;
+    int n=snprintf(unique,sizeof(unique),"%s/%.*s_%zu%s",directory,(int)length,base,i,extension);
+    if(n<0||(size_t)n>=sizeof(unique))goto fail;
     snprintf(path,sizeof(path),"%s",unique);break;
    }
   }
   program->codegen_source_index=(int)i;
   SwanSVMOutput generated={0};
-  if(!swan_svm_codegen(program,swan_target_find("x86_64"),&generated,error)){
-   program->codegen_source_index=-1;return false;
+  if(!swan_svm_codegen(program,target,&generated,error))goto fail;
+  bool ok=false;
+  if(generated.kind==SWAN_SVM_OUTPUT_WASM||
+     (generated.kind==SWAN_SVM_OUTPUT_LLVM_IR&&mode==SWAN_EMIT_LLVM)){
+   FILE *file=fopen(path,"wb");
+   ok=file&&fwrite(generated.data,1,generated.length,file)==generated.length;
+   if(file&&fclose(file)!=0)ok=false;
+  }else if(generated.kind==SWAN_SVM_OUTPUT_LLVM_IR){
+   ok=swan_write_llvm_assembly(target,target_cpu,features,feature_count,&generated,path);
+  }else{
+   Text assembly={.data=generated.data,.len=generated.length};
+   FILE *file=fopen(path,"wb");
+   ok=file&&swan_emit_assembly(file,&assembly);
+   if(file&&fclose(file)!=0)ok=false;
   }
-  Text assembly={.data=generated.data,.len=generated.length};
-  FILE *file=fopen(path,"wb");
-  bool ok=file&&swan_emit_assembly(file,&assembly);
-  if(file&&fclose(file)!=0)ok=false;
-  free(assembly.data);
-  if(!ok){program->codegen_source_index=-1;swan_error(error,NULL,"cannot write source assembly '%s'",path);return false;}
+  free(generated.data);
+  if(!ok){swan_error(error,NULL,"cannot write translation unit output '%s'",path);goto fail;}
  }
- program->codegen_source_index=-1;
+ program->codegen_source_index=-1;program->codegen_force_ast=false;
  for(size_t i=0;i<c_count;i++){
   char path[4096];
   int n=snprintf(path,sizeof(path),"%s/native_%zu.s",directory,i);
-  if(n<0||(size_t)n>=sizeof(path))return false;
+  if(n<0||(size_t)n>=sizeof(path))goto fail;
   FILE *file=fopen(path,"wb");
   bool ok=file&&swan_append_c_assembly(file,&c_inputs[i],1);
   if(file&&fclose(file)!=0)ok=false;
-  if(!ok){swan_error(error,NULL,"cannot write C source assembly '%s'",path);return false;}
+  if(!ok){swan_error(error,NULL,"cannot write C source assembly '%s'",path);goto fail;}
  }
  return true;
+fail:
+ program->codegen_source_index=-1;program->codegen_force_ast=false;
+ return false;
 }
 static bool swan_compile_project_objects(Program *program,char ***objects_out,
                                          size_t *object_count_out,SwanError *error){
