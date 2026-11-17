@@ -80,6 +80,8 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
                                       const char *const *c_inputs,size_t c_count,
                                       SwanError *error){
  if(!swan_make_output_dir(directory))return false;
+ program->codegen_source_index=-1;
+ program->codegen_force_ast=swan_program_requires_ast_compatibility(program);
  for(size_t i=0;i<program->source_count;i++){
   if(i>(size_t)INT_MAX){swan_error(error,NULL,"source index exceeds code-generation representation");return false;}
   char path[4096];
@@ -128,6 +130,8 @@ static bool swan_compile_project_objects(Program *program,char ***objects_out,
                                          size_t *object_count_out,SwanError *error){
  if(!program||!objects_out||!object_count_out)return false;
  *objects_out=NULL;*object_count_out=0;
+ program->codegen_source_index=-1;
+ program->codegen_force_ast=swan_program_requires_ast_compatibility(program);
  if(program->source_count>SIZE_MAX/sizeof(char*)){
   swan_error(error,NULL,"project object list size overflow");return false;
  }
@@ -163,7 +167,7 @@ static bool swan_compile_project_objects(Program *program,char ***objects_out,
   memcpy(objects[i],object_path,sizeof(object_path));
   (*object_count_out)++;
  }
- *objects_out=objects;return true;
+ *objects_out=objects;program->codegen_source_index=-1;program->codegen_force_ast=false;return true;
 fail:
  for(size_t i=0;i<program->source_count;i++){if(objects[i]){unlink(objects[i]);free(objects[i]);}}
  free(objects);return false;
