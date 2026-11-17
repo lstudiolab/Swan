@@ -91,8 +91,8 @@ Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not
 The repository currently has a C11 compiler driver, header-oriented implementation, a typed SSA IR, verifier and optimizer, a narrow Swan-authored SIL bridge, and Swan-owned emitters for several target families. It is not yet fully compliant with the normative contract:
 
 - the root `main.c` is a compatibility include of `compiler/tools/swanc/main.c`;
-- multiple source buffers are currently concatenated before lexing, so exact per-file source provenance remains a migration item;
-- SIL supports a narrow scalar straight-line subset and falls back to general typed-IR lowering for other constructs;
+- source files are lexed and parsed independently and retain stable source paths; native x86-64 project builds emit one assembly/object translation unit per source file, while cross-target backends still consume a project-wide IR module;
+- SIL supports a narrow scalar straight-line subset and falls back to general typed-IR lowering for other constructs; multi-source native projects deliberately retain the AST compatibility backend until imported-module symbol identities are fully supported by per-file IR lowering;
 - backend and object/link orchestration remains target-specific in the driver;
 - native assembly/object production still uses external toolchain components;
 - the optional LLVM bridge remains available for explicit target triples;
