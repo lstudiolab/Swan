@@ -1,8 +1,6 @@
 # Swan native runtime components
 
-This directory contains the first C11/POSIX runtime primitives. These are real
-native implementations with direct C tests; they are not yet exposed as Swan
-source-level standard-library modules.
+This directory contains the first C11/POSIX runtime primitives. They have direct C tests; the JSON handle API is also exposed to Swan through the x86-64 C ABI.
 
 ## Available
 
