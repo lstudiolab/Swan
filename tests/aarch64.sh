@@ -5,9 +5,9 @@ BIN="$ROOT/build/swan"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
 cat > "$TMP/main.swan" <<'SWAN'
-fn sum9(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int) -> int:
+func sum9(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int) -> int:
     return i / 3 + i % 3
-fn main(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int) -> int:
+func main(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int, i: int) -> int:
     return sum9(a, b, c, d, e, f, g, h, i)
 SWAN
 "$BIN" build "$TMP/main.swan" --target aarch64 --emit-asm -o "$TMP/main.s"
