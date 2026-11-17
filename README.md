@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan
 
 Swan is a compiled programming language. Its production compiler, `swanc`, is implemented in C11 and owns the lexer, parser, semantic analysis, typed IR, optimizer, SVM pipeline, and native/cross-target backends. Swan source is compiled ahead of execution; it is not interpreted.
@@ -6,11 +8,11 @@ Licensed under Apache-2.0.
 
 ## Compiler system contract
 
-The production architecture is specified in [docs/COMPILER_SYSTEM.md](docs/COMPILER_SYSTEM.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/ENGINEERING_STYLE.md](docs/ENGINEERING_STYLE.md). It defines Swan as an AOT compiler with a Swan-owned SVM typed-IR pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
+The production architecture is specified in [docs/compiler_system.md](docs/compiler_system.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/engineering_style.md](docs/engineering_style.md). It defines Swan as an AOT compiler with a Swan-owned SVM typed-IR pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
 
 ## Language guide
 
-The programmer-facing syntax, coding conventions, complete reserved-keyword list, operator precedence, standard library, and current feature boundaries are documented in [docs/LANGUAGE_GUIDE.md](docs/LANGUAGE_GUIDE.md).
+The programmer-facing syntax, coding conventions, complete reserved-keyword list, operator precedence, standard library, and current feature boundaries are documented in [docs/language_guide.md](docs/language_guide.md).
 
 ## Current compiler
 
@@ -58,7 +60,7 @@ SVM is the target-independent compilation engine, not a CPU target and not an in
 
 The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target executes the IR through an interpreter loop.
 
-The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/SVM_ARCHITECTURE.md).
+The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/svm_architecture.md).
 
 ### Fail-fast behavior
 
@@ -287,7 +289,7 @@ func main() -> int:
     return 0
 ```
 
-`!printin >> expression` is Swan's namespaced output intrinsic. Other `!name(...)` calls resolve to ordinary functions in explicitly imported Swan modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use the `!` prefix. See [the standard-library reference](stdlib/README.md) and [the language guide](docs/LANGUAGE_GUIDE.md#121-the-!-standard-library-prefix) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
+`!printin >> expression` is Swan's namespaced output intrinsic. Other `!name(...)` calls resolve to ordinary functions in explicitly imported Swan modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use the `!` prefix. See [the standard-library reference](stdlib/readme.md) and [the language guide](docs/language_guide.md#121-the-!-standard-library-prefix) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
 
 ## Low-resource compilation
 
@@ -298,11 +300,11 @@ The compiler driver currently runs its compilation phases sequentially and does 
 ./build/swanc build src/ --jobs 1 -o app
 ```
 
-Values above one are rejected until bounded parallel compilation is implemented. External toolchains and linkers are separate processes and may have their own resource behavior. See [Low-Resource Compilation](docs/LOW_RESOURCE_COMPILATION.md).
+Values above one are rejected until bounded parallel compilation is implemented. External toolchains and linkers are separate processes and may have their own resource behavior. See [Low-Resource Compilation](docs/low_resource_compilation.md).
 
 ## Data-center and backend runtime roadmap
 
-Swan's planned backend runtime, JSON engine, SQL interface, concurrency model, networking stack, memory model, and performance acceptance gates are specified in [Data-Center Runtime and Backend Contract](docs/DATA_CENTER_RUNTIME.md). This is an implementation roadmap, not a claim that those APIs already exist. The current standard library does not yet provide production JSON, SQL, networking, or concurrency support. Features will be marked implemented only after end-to-end compiler, runtime, backend, and integration tests pass.
+Swan's planned backend runtime, JSON engine, SQL interface, concurrency model, networking stack, memory model, and performance acceptance gates are specified in [Data-Center Runtime and Backend Contract](docs/data_center_runtime.md). This is an implementation roadmap, not a claim that those APIs already exist. The current standard library does not yet provide production JSON, SQL, networking, or concurrency support. Features will be marked implemented only after end-to-end compiler, runtime, backend, and integration tests pass.
 
 ## C header interoperability
 
@@ -352,7 +354,7 @@ The benchmark warms up and reports median timings across compiler stages for its
 
 The repository also includes runtime comparison workloads, including `benchmarks/binary_search.py`. Run benchmarks on controlled hardware and compare checksums before comparing speed. Do not infer that Swan is faster than another compiler from compilation time alone.
 
-For a heavy compile-time comparison across Goose, Swan, Rust, C++, C, and x86-64 assembly, see [the six-toolchain compilation benchmark](benchmarks/COMPILATION.md). It generates large workloads and reports median compile-plus-link time and peak compiler memory.
+For a heavy compile-time comparison across Goose, Swan, Rust, C++, C, and x86-64 assembly, see [the six-toolchain compilation benchmark](benchmarks/compilation.md). It generates large workloads and reports median compile-plus-link time and peak compiler memory.
 
 ## Tests
 

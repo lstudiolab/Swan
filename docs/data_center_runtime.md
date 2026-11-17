@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Data-Center Runtime and Backend Contract
 
 **Status:** Runtime capability snapshot and implementation contract. The table distinguishes working components from their explicit boundaries.
@@ -63,7 +65,7 @@ The runtime should be small and separable:
 
 The runtime must not require every application to start a scheduler or initialize a database subsystem. Each subsystem should initialize lazily or through explicit application setup.
 
-## JSON design
+## Json design
 
 JSON is a core backend workload. Implement both a DOM-style API for convenient access and a streaming API for large payloads.
 
@@ -109,7 +111,7 @@ func main() -> int:
 
 The final API should use typed structures and direct property access after struct/member semantics exist. Avoid forcing applications to manually traverse untyped key/value trees for common request DTOs.
 
-## SQL and database design
+## Sql and database design
 
 Provide a shared database contract with separately maintained drivers. Initial driver order:
 

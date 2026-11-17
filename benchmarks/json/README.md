@@ -1,3 +1,5 @@
+<p align="center"><img src="../../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # JSON runtime benchmark
 
 Run from the repository root after installing Go, Rust/Cargo, and Goose:

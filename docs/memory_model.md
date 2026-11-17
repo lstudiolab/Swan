@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Memory Model
 
 ## Current guarantees

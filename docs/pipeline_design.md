@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Compiler Pipeline Design
 
 ## Implemented pipeline
@@ -42,7 +44,7 @@ The x86-64 AST compatibility route remains for implemented features not yet repr
 | Emitter | Assembly buffer | Output stream | Serialize output without semantic changes |
 | Linker | Assembly/object and toolchain | Object/executable | Invoke platform tools and report failures without masking diagnostics |
 
-## Typed IR and verifier
+## Typed Ir and verifier
 
 SVM IR uses function-local SSA value IDs, typed instructions, basic blocks, explicit terminators, and PHI incoming edges. The verifier checks definition uniqueness, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage and types, operand types, and call signatures.
 

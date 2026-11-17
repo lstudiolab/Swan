@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Engineering Roadmap
 
 This roadmap records the current production compiler and the remaining engineering work. Planned capabilities are not claims of completed support.

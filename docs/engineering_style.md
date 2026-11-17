@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Compiler Engineering Style
 
 This guide adapts the engineering qualities associated with Apple's compiler and systems codebases to Swan's C11 implementation. It is a design standard, not a claim that Swan is written by or endorsed by Apple. Do not copy proprietary source code or imitate superficial syntax at the expense of C correctness.
@@ -78,7 +80,7 @@ The source tree follows subsystem boundaries rather than historical implementati
 
 The executable entry point coordinates the driver. Subsystems do not invoke one another through command-line processes or hidden global state except at explicitly documented platform-tool boundaries.
 
-## 6. IR and optimization quality
+## 6. Ir and optimization quality
 
 - Every IR opcode has documented operand count, operand types, result type, side effects, memory behavior, and legal terminator context.
 - Every builder validates ownership, ranges, and operand storage before mutation.

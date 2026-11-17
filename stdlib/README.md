@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Standard Library
 
 The standard library is implemented in Swan source under `stdlib/`. Import it explicitly, then use the `!` prefix for standard-library functions:
@@ -70,7 +72,7 @@ implemented.
 
 ## Backend runtime development order
 
-The data-center runtime is being developed in dependency order: strings/bytes and aggregate layout; typed dynamic collections and deterministic cleanup; runtime ABI and I/O; JSON parsing/encoding and streaming; SQL drivers and connection pools; then HTTP services and scalable concurrency. See [the data-center runtime contract](../docs/DATA_CENTER_RUNTIME.md) for API requirements, security constraints, benchmarks, and acceptance gates. These modules must not be represented by stub functions or advertised as available before their complete implementations and tests exist.
+The data-center runtime is being developed in dependency order: strings/bytes and aggregate layout; typed dynamic collections and deterministic cleanup; runtime ABI and I/O; JSON parsing/encoding and streaming; SQL drivers and connection pools; then HTTP services and scalable concurrency. See [the data-center runtime contract](../docs/data_center_runtime.md) for API requirements, security constraints, benchmarks, and acceptance gates. These modules must not be represented by stub functions or advertised as available before their complete implementations and tests exist.
 
 ## Compatibility and correctness boundaries
 

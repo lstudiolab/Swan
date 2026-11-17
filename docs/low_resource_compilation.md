@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Low-Resource and Single-Worker Compilation
 
 **Status:** Current behavior and CLI contract.
@@ -17,7 +19,7 @@ The current `swanc` driver is single-worker and sequential:
 
 The external C toolchain and system linker are separate processes and may have their own resource behavior. Swan's single-worker guarantee applies to Swan compiler orchestration, not to every third-party tool or the operating system.
 
-## CLI contract
+## Cli contract
 
 Use either:
 

@@ -1,6 +1,8 @@
-# SVM Compiler Architecture
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
 
-The normative compiler design is defined in [COMPILER_SYSTEM.md](COMPILER_SYSTEM.md). This document summarizes SVM's role and current implementation boundary.
+# Svm Compiler Architecture
+
+The normative compiler design is defined in [COMPILER_SYSTEM.md](compiler_system.md). This document summarizes SVM's role and current implementation boundary.
 
 ## Definition
 
@@ -44,7 +46,7 @@ WebAssembly is a separate AOT output target. It is not a native executable and r
 
 Each phase has explicit invariants and must fail with a diagnostic when its input violates them. An unsupported source construct, IR operation, target feature, ABI form, or relocation must never become a placeholder or silently run through an interpreter.
 
-## IR contract
+## Ir contract
 
 SVM IR is typed SSA. The verifier is responsible for at least:
 
@@ -73,7 +75,7 @@ A backend is not considered production-complete merely because it emits assembly
 
 Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not part of the intended production architecture. The existing optional LLVM bridge is transitional compatibility code; it must not be used as the native SVM implementation and must not be removed until replacement target coverage and migration tests exist.
 
-## AOT and performance rules
+## Aot and performance rules
 
 1. No interpreter dispatch loop, VM, or bytecode execution path in production.
 2. `run` builds a host-native executable and launches it as a separate process.
@@ -94,4 +96,4 @@ The repository has a single C11 production compiler, a header-oriented implement
 - the optional LLVM bridge remains available for explicit target triples;
 - target source coverage and ABI completeness are unequal.
 
-See the migration sequence in [COMPILER_SYSTEM.md](COMPILER_SYSTEM.md). Do not describe a transitional feature as complete until its end-to-end tests establish that claim.
+See the migration sequence in [COMPILER_SYSTEM.md](compiler_system.md). Do not describe a transitional feature as complete until its end-to-end tests establish that claim.

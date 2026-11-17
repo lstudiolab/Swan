@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Compiler Implementation Audit
 
 This document records the implementation boundary visible in the production source tree. Syntax, semantic checking, lowering, and target support are separate milestones.

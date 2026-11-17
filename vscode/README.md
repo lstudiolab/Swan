@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan for Visual Studio Code
 
 This extension adds basic editor support for Swan source files.

@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Compiler Architecture
 
 ## Production compiler
@@ -42,7 +44,7 @@ The x86-64 AST compatibility backend remains for supported language features not
 | `CodeGen/Targets/` | Swan-owned target-specific lowering and emission |
 | `Basic/Linker.h` / `Serialization/AssemblyEmitter.h` | Platform linker invocation and assembly serialization |
 
-## Typed IR
+## Typed Ir
 
 Typed IR is target-independent SSA with function-local value IDs, basic blocks, explicit terminators, typed instructions, and PHI incoming edges. The IR model represents scalar integer and floating-point types, booleans, pointers, arithmetic, comparisons, select, PHI, alloca/load/store, and calls.
 
@@ -80,4 +82,4 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 6. Describe parser, semantic, IR, and backend support separately.
 7. Treat performance as unproven until measured on reproducible workloads.
 
-See [SVM Compiler Architecture](SVM_ARCHITECTURE.md) for the target-independent compiler design and performance requirements.
+See [SVM Compiler Architecture](svm_architecture.md) for the target-independent compiler design and performance requirements.

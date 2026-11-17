@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # The Swan Programming Language
 ## Language Guide and Reference
 
@@ -887,6 +889,6 @@ A language feature is complete only when the lexer, parser, semantic analysis, I
 
 For compiler architecture and implementation requirements, see:
 
-- [Compiler System Contract](COMPILER_SYSTEM.md)
-- [Compiler Engineering Style](ENGINEERING_STYLE.md)
-- [SVM Compiler Architecture](SVM_ARCHITECTURE.md)
+- [Compiler System Contract](compiler_system.md)
+- [Compiler Engineering Style](engineering_style.md)
+- [SVM Compiler Architecture](svm_architecture.md)

@@ -1,10 +1,12 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Compiler System Contract
 
 Status: normative architecture and implementation contract.
 
 This document defines the intended production compiler. Code, tests, command-line behavior, and future backend work must converge on this contract. Existing compatibility paths are transitional implementation details; they do not redefine the architecture.
 
-Implementation conventions for C11 ownership, naming, formatting, diagnostics, header boundaries, and review are specified in [ENGINEERING_STYLE.md](ENGINEERING_STYLE.md). The system contract defines what the compiler must do; the engineering guide defines how its implementation should be structured and reviewed.
+Implementation conventions for C11 ownership, naming, formatting, diagnostics, header boundaries, and review are specified in [ENGINEERING_STYLE.md](engineering_style.md). The system contract defines what the compiler must do; the engineering guide defines how its implementation should be structured and reviewed.
 
 ## 1. Non-negotiable execution model
 
@@ -158,7 +160,7 @@ A phase must not continue after a failed prerequisite. Errors must carry a sourc
 
 Warnings are non-fatal by default and must identify suspicious but not provably invalid source constructs. The driver may promote warnings to errors with `--warnings-as-errors`; when promoted, compilation stops before code generation and must not leave a newly generated output artifact. Warning checks must avoid claiming certainty where control-flow or alias information is incomplete.
 
-## 5. SVM responsibilities
+## 5. Svm responsibilities
 
 SVM is the compiler's single target-independent typed SSA representation. The production compiler lowers supported source constructs directly from the checked AST into SVM. It owns IR construction, structural and type verification, optimization pass management, and the verified representation passed to target backends.
 

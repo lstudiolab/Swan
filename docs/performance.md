@@ -1,3 +1,5 @@
+<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+
 # Swan Compiler and Runtime Performance
 
 This document records optimizations present in the implementation. It does not claim a speed ranking over C, Rust, Goose, or other languages. Performance claims require reproducible measurements on identical workloads.
@@ -20,7 +22,7 @@ Swan reduces frontend and code-generation overhead with:
 
 These are implementation techniques; their individual speedups have not been stated without controlled measurements.
 
-## Typed-IR optimization
+## Typed-Ir optimization
 
 The typed-IR optimizer currently performs:
 
