@@ -2,6 +2,8 @@ import C "runtime/json_abi.h"
 
 func main() -> int:
     let payload = "{\"id\":42,\"workers\":128,\"enabled\":true,\"service\":\"swan\",\"items\":[1,2,3,4,5],\"meta\":{\"region\":\"ap-southeast-1\",\"version\":1}}"
+    let id_key = "id"
+    let workers_key = "workers"
     let document = swan_json_create(64)
     if document == 0:
         return 1
@@ -10,19 +12,21 @@ func main() -> int:
     var checksum = 0
     var bytes = 0
     while request < 100000:
-        if swan_json_parse_text(document, payload) != 1:
-            swan_json_close(document)
+        let parsed = swan_json_parse_text(document, payload)
+        if parsed != 1:
             return 2
-        let id = swan_json_get_i64(document, "id", -1)
-        let workers = swan_json_get_i64(document, "workers", -1)
-        if id != 42 or workers != 128:
-            swan_json_close(document)
+        let id = swan_json_get_i64(document, id_key, -1)
+        let workers = swan_json_get_i64(document, workers_key, -1)
+        if id != 42:
             return 3
+        if workers != 128:
+            return 4
         let encoded_length = swan_json_compact_length(document)
         let input_length = swan_json_input_length(document)
-        if encoded_length <= 0 or input_length <= 0:
-            swan_json_close(document)
-            return 4
+        if encoded_length <= 0:
+            return 5
+        if input_length <= 0:
+            return 6
         checksum = checksum + id + workers
         bytes = bytes + input_length + encoded_length
         request = request + 1
