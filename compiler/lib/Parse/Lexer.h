@@ -182,4 +182,8 @@ static inline bool swan_lex(const char *src,TokenStream *ts,SwanError *err) {
  while(depth>1){depth--;if(!swan_emit(ts,T_DEDENT,"",0,line,col,err))return false;}
  return swan_emit(ts,T_EOF,"",0,line,col,err);
 }
+static inline void swan_token_stream_set_source_name(TokenStream *stream,const char *path){
+ if(!stream||!path)return;
+ for(size_t i=0;i<stream->count;i++)stream->items[i].source_name=path;
+}
 #endif
