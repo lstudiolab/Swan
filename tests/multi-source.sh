@@ -34,4 +34,14 @@ grep -q 'swan_answer' "$TMP/project.asm"
 grep -q 'c_answer' "$TMP/project.asm"
 grep -q 'main' "$TMP/project.asm"
 
-printf 'PASS: directory-wide Swan compilation and C sources bundled into one assembly file\n'
+cat > "$TMP/bad.swan" <<'SWAN'
+func main() -> int:
+    return (
+SWAN
+if "$ROOT/build/swanc" build "$TMP/bad.swan" -o "$TMP/invalid" 2>"$TMP/diagnostic"; then
+    echo "expected malformed source to fail" >&2
+    exit 1
+fi
+grep -F "$TMP/bad.swan:" "$TMP/diagnostic" >/dev/null
+
+printf 'PASS: independent per-file lexing/parsing with project-wide semantic analysis and C linking\n'
