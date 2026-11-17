@@ -44,7 +44,7 @@ struct SwanIRFunction {
  uint32_t next_value; SwanIRType *value_types; size_t value_type_capacity;
  SwanIRValueLocation *value_locations; size_t value_location_capacity;
 };
-typedef struct { SwanIRFunction *functions; size_t function_count, function_capacity; char **owned_strings; size_t owned_string_count, owned_string_capacity; } SwanIRModule;
+typedef struct { SwanIRFunction *functions; size_t function_count, function_capacity; char **owned_strings; size_t owned_string_count, owned_string_capacity; bool allow_no_main; } SwanIRModule;
 
 static inline const char *swan_ir_type_name(SwanIRType t) {
  static const char *names[]={"void","i1","i8","i16","i32","i64","f32","f64","ptr"};
