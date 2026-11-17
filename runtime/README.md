@@ -1,6 +1,6 @@
 # Swan native runtime components
 
-This directory contains the first C11/POSIX runtime primitives. They have direct C tests; the JSON handle API is also exposed to Swan through the x86-64 C ABI.
+This directory contains the first C11/POSIX runtime primitives. They have direct C tests; the JSON handle API is exposed to Swan through `import C` and the x86-64 C ABI.
 
 ## Available
 
@@ -26,7 +26,7 @@ The full `sh test.sh` suite includes both test runners.
 
 ## Not yet available
 
-The `std_json` source module is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
+The JSON C ABI is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
 
 HTTP/TCP/TLS, socket lifecycle, a complete request/response API, cancellation,
 structured task scopes, streaming JSON/JSONL, typed JSON values, and a Swan-level
