@@ -9,7 +9,7 @@ cat > "$TMP/json.swan" <<'SWAN'
 import std_json
 
 func main() -> int:
-    let document = !json_create()
+    let document = !json_create(64)
     if document == 0:
         return 1
     if !json_parse(document, "{\"workers\":128,\"enabled\":true}") != 1:
