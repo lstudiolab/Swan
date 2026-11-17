@@ -153,6 +153,11 @@ static inline bool swan_codegen(Program *program, Text *output,
         *output=ir_output;
         return true;
     }
+    /* The AST compatibility backend also passes through SIL; it is not an escape hatch. */
+    uint64_t sil_stage=swan_profile_start();
+    bool sil_ready=swan_sil_prepare_program(program,error);
+    swan_profile_end(SWAN_PROFILE_SIL,sil_stage);
+    if(!sil_ready)return false;
     uint64_t stage=swan_profile_start();
     bool generated=swan_codegen_x86_64(program,output,error);
     swan_profile_end(SWAN_PROFILE_AST_CODEGEN,stage);
