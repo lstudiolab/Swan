@@ -9,11 +9,11 @@ static bool swan_has_suffix(const char *path,const char *suffix){
 static void swan_print_diagnostic(const char *prefix,const SwanError *error){
  if(!error)return;
  if(error->source_name&&error->line)
-  fprintf(stderr,"%s:%s:%u:%u: %s\\n",prefix,error->source_name,error->line,error->col,error->message);
+  fprintf(stderr,"%s:%s:%u:%u: %s\n",prefix,error->source_name,error->line,error->col,error->message);
  else if(error->line)
-  fprintf(stderr,"%s:%u:%u: %s\\n",prefix,error->line,error->col,error->message);
+  fprintf(stderr,"%s:%u:%u: %s\n",prefix,error->line,error->col,error->message);
  else
-  fprintf(stderr,"%s: %s\\n",prefix,error->message);
+  fprintf(stderr,"%s: %s\n",prefix,error->message);
 }
 static bool swan_append_input(const char ***items,size_t *count,size_t *capacity,const char *path){
  if(!items||!count||!capacity||!path||*count==SIZE_MAX||
