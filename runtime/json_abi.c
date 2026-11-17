@@ -16,11 +16,21 @@ SwanJsonHandle *swan_json_create(int64_t initial_token_capacity) {
     if (!handle) return NULL;
     swan_json_document_init(&handle->document);
     if (initial_token_capacity > 0 &&
-        (uint64_t)initial_token_capacity <= handle->document.limits.max_tokens &&
-        !swan_json_reserve_tokens(&handle->document)) {
-        swan_json_document_destroy(&handle->document);
-        free(handle);
-        return NULL;
+        (uint64_t)initial_token_capacity <= handle->document.limits.max_tokens) {
+        size_t capacity = (size_t)initial_token_capacity;
+        if (capacity > SIZE_MAX / sizeof(*handle->document.tokens)) {
+            swan_json_document_destroy(&handle->document);
+            free(handle);
+            return NULL;
+        }
+        handle->document.tokens = (SwanJsonToken *)malloc(
+            capacity * sizeof(*handle->document.tokens));
+        if (!handle->document.tokens) {
+            swan_json_document_destroy(&handle->document);
+            free(handle);
+            return NULL;
+        }
+        handle->document.token_capacity = capacity;
     }
     return handle;
 }
