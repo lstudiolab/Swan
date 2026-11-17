@@ -15,6 +15,7 @@ typedef struct {
     unsigned char *data;
     size_t length;
     size_t capacity;
+    bool owns_data;
 } SwanByteBuffer;
 
 static inline void swan_bytes_init(SwanByteBuffer *buffer) {
@@ -23,13 +24,27 @@ static inline void swan_bytes_init(SwanByteBuffer *buffer) {
 
 static inline void swan_bytes_destroy(SwanByteBuffer *buffer) {
     if (!buffer) return;
-    free(buffer->data);
+    if (buffer->owns_data) free(buffer->data);
     memset(buffer, 0, sizeof(*buffer));
+}
+
+/* Attach caller-owned storage. The caller must keep it alive until the
+ * buffer is destroyed or reinitialized. Capacity exhaustion never allocates. */
+static inline bool swan_bytes_use_storage(SwanByteBuffer *buffer,
+                                           unsigned char *storage,
+                                           size_t capacity) {
+    if (!buffer || !storage || !capacity || buffer->length != 0) return false;
+    if (buffer->owns_data) free(buffer->data);
+    buffer->data = storage;
+    buffer->capacity = capacity;
+    buffer->owns_data = false;
+    return true;
 }
 
 static inline bool swan_bytes_reserve(SwanByteBuffer *buffer, size_t capacity) {
     if (!buffer) return false;
     if (capacity <= buffer->capacity) return true;
+    if (buffer->data && !buffer->owns_data) return false;
     size_t next = buffer->capacity ? buffer->capacity : 64;
     while (next < capacity) {
         if (next > SIZE_MAX / 2) { next = capacity; break; }
@@ -39,6 +54,7 @@ static inline bool swan_bytes_reserve(SwanByteBuffer *buffer, size_t capacity) {
     if (!memory) return false;
     buffer->data = (unsigned char *)memory;
     buffer->capacity = next;
+    buffer->owns_data = true;
     return true;
 }
 
