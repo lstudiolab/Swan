@@ -49,7 +49,7 @@ The report includes source read, lexing, parsing, imports, semantic analysis, re
 
 The `Swan Compiler Pipeline Benchmark` workflow runs on compiler/benchmark changes to `main` and can also be started manually. It builds the production compiler directly, measures build time, and benchmarks generated frontend-, call-graph-, expression-, control-flow-, and runtime-heavy workloads.
 
-Each workload uses warmups and repeated measurements. The report includes median stage durations, end-to-end wall time, peak compiler RSS, per-header C frontend attribution from Clang `-ftime-trace`, host metadata, CSV, JSON, and Markdown output. GitHub Actions publishes the Markdown report in the run summary and uploads the raw reports as an artifact.
+Each workload uses warmups and repeated measurements. The report includes median stage durations, end-to-end wall time, compile-only peak compiler RSS (measured with --emit-asm to exclude native linking), per-header C frontend attribution from Clang `-ftime-trace`, host metadata, CSV, JSON, and Markdown output. GitHub Actions publishes the Markdown report in the run summary and uploads the raw reports as an artifact.
 
 Run the same benchmark locally:
 

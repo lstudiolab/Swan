@@ -40,7 +40,7 @@ STAGES = (
     "IR pass: copy propagation", "IR pass: common-subexpression elimination",
     "IR pass: loop-invariant code motion", "IR pass: dead-code elimination",
     "Total wall time", "Benchmark process wall time", "Program runtime",
-    "Peak compiler RSS",
+    "Compile-only wall time", "Peak compiler RSS",
 )
 
 
@@ -112,26 +112,44 @@ def parse_profile(stderr: str) -> dict[str, float]:
 
 def compile_once(compiler: pathlib.Path, source: pathlib.Path,
                  output: pathlib.Path) -> dict[str, float]:
-    time_bin = pathlib.Path("/usr/bin/time")
-    if not time_bin.is_file():
-        raise RuntimeError("GNU time is required for peak compiler RSS measurement")
-    command = [
-        str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
-        str(compiler), "build", "--profile", str(source), "-o", str(output),
-    ]
     start = time.perf_counter()
-    proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    proc = subprocess.run(
+        [str(compiler), "build", "--profile", str(source), "-o", str(output)],
+        cwd=ROOT, text=True, capture_output=True,
+    )
     elapsed = time.perf_counter() - start
     if proc.returncode:
         raise RuntimeError(f"{source.name} compile failed:\n{proc.stderr[-12000:]}")
     if not output.is_file() or output.stat().st_size == 0:
         raise RuntimeError(f"{source.name}: compiler produced no executable")
     values = parse_profile(proc.stderr)
-    rss = RSS_MARKER.search(proc.stderr)
-    if not rss:
-        raise RuntimeError("GNU time did not report peak compiler RSS")
-    values["Peak compiler RSS"] = float(rss.group(1))
     values["Benchmark process wall time"] = elapsed
+
+    # Measure the compiler without including the native assembler/linker.
+    time_bin = pathlib.Path("/usr/bin/time")
+    if not time_bin.is_file():
+        raise RuntimeError("GNU time is required for peak compiler RSS measurement")
+    assembly = output.with_suffix(".s")
+    command = [
+        str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
+        str(compiler), "build", "--profile", str(source), "--emit-asm",
+        "-o", str(assembly),
+    ]
+    compile_only_start = time.perf_counter()
+    compile_only = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
+    compile_only_elapsed = time.perf_counter() - compile_only_start
+    if compile_only.returncode:
+        raise RuntimeError(
+            f"{source.name} compile-only run failed:\n{compile_only.stderr[-12000:]}"
+        )
+    if not assembly.is_file() or assembly.stat().st_size == 0:
+        raise RuntimeError(f"{source.name}: compile-only mode produced no assembly")
+    rss = RSS_MARKER.search(compile_only.stderr)
+    if not rss:
+        raise RuntimeError("GNU time did not report compile-only peak RSS")
+    values["Compile-only wall time"] = compile_only_elapsed
+    values["Peak compiler RSS"] = float(rss.group(1))
+
     run_start = time.perf_counter()
     executed = subprocess.run([str(output)], cwd=ROOT, stdout=subprocess.DEVNULL,
                               stderr=subprocess.PIPE, check=False)
@@ -139,7 +157,6 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     if executed.returncode < 0:
         raise RuntimeError(f"{source.name}: program terminated by signal {-executed.returncode}")
     return values
-
 
 def profile_compiler_files(directory: pathlib.Path) -> list[dict[str, object]]:
     clang = shutil.which("clang")
@@ -189,7 +206,7 @@ def write_reports(results: dict[str, list[dict[str, float]]],
     output_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "host": platform.platform(),
-        "unit": "seconds; peak compiler RSS is KiB",
+        "unit": "seconds; compile-only peak compiler RSS is KiB",
         "workloads": {},
         "compiler_files": file_rows,
     }
@@ -211,7 +228,7 @@ def write_reports(results: dict[str, list[dict[str, float]]],
     lines = [
         "# Swan compiler pipeline benchmark", "",
         f"- Host: {summary['host']}",
-        "- Stage unit: seconds (lower is faster); peak compiler RSS: KiB (lower is smaller)",
+        "- Stage unit: seconds (lower is faster); compile-only peak compiler RSS: KiB (lower is smaller)",
         "- Statistic: median of measured runs",
         "",
         "## Compilation stages and runtime", "",
@@ -223,7 +240,7 @@ def write_reports(results: dict[str, list[dict[str, float]]],
             unit = "KiB" if metric == "Peak compiler RSS" else "s"
             display = f"{value:.0f}" if unit == "KiB" else f"{value:.9f}"
             lines.append(f"| {name} | {metric} | {display} | {unit} |")
-    lines += ["", "> IR verification and per-pass rows are inclusive substage timings. They overlap with IR generation/optimization totals and must not be added to the parent-stage totals.", "", "## Compiler source-file frontend cost", "",
+    lines += ["", "> IR verification and per-pass rows are inclusive substage timings. They overlap with IR generation/optimization totals and must not be added to the parent-stage totals. Peak compiler RSS is measured in --emit-asm mode to exclude the external native linker.", "", "## Compiler source-file frontend cost", "",
               "| File | Compile seconds | Share of traced file time |",
               "|---|---:|---:|"]
     for row in file_rows:
@@ -261,7 +278,7 @@ def main() -> None:
     print("Swan compiler pipeline benchmark")
     print(f"Host: {platform.platform()} / {platform.machine()}")
     print(f"Compiler: {compiler}")
-    print(f"Median of {args.repeats} runs; {args.warmups} warmups; seconds")
+    print(f"Median of {args.repeats} runs; {args.warmups} warmups; stage times in seconds, RSS in KiB")
     for name, samples in results.items():
         print(f"\n[{name}]")
         for stage in STAGES:
