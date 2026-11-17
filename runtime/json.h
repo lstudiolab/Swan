@@ -44,6 +44,7 @@ typedef struct {
     size_t input_length;
     SwanJsonToken *tokens;
     size_t token_count, token_capacity;
+    bool owns_tokens;
     SwanJsonLimits limits;
     size_t error_offset;
     char error[128];
@@ -66,7 +67,7 @@ static inline void swan_json_document_init(SwanJsonDocument *doc) {
 
 static inline void swan_json_document_destroy(SwanJsonDocument *doc) {
     if (!doc) return;
-    free(doc->tokens);
+    if (doc->owns_tokens) free(doc->tokens);
     memset(doc, 0, sizeof(*doc));
 }
 
@@ -79,6 +80,21 @@ static inline bool swan_json_fail(SwanJsonDocument *doc, size_t offset,
     return false;
 }
 
+/* Attach caller-owned token storage for allocation-free parsing. The storage
+ * must remain alive until it is detached or the document is destroyed. When
+ * the capacity is exhausted, parsing fails instead of falling back to heap. */
+static inline bool swan_json_document_use_token_storage(
+    SwanJsonDocument *doc, SwanJsonToken *storage, size_t capacity) {
+    if (!doc || !storage || !capacity || doc->token_count != 0 ||
+        capacity < doc->token_capacity)
+        return false;
+    if (doc->owns_tokens) free(doc->tokens);
+    doc->tokens = storage;
+    doc->token_capacity = capacity;
+    doc->owns_tokens = false;
+    return true;
+}
+
 /* Reserve token storage before parsing to avoid repeated growth reallocations.
  * Existing tokens are retained; parse_reuse resets the count, not capacity. */
 static inline bool swan_json_document_reserve_tokens(SwanJsonDocument *doc,
@@ -87,6 +103,8 @@ static inline bool swan_json_document_reserve_tokens(SwanJsonDocument *doc,
     if (requested > doc->limits.max_tokens)
         return swan_json_fail(doc, doc->input_length, "token limit exceeded");
     if (requested <= doc->token_capacity) return true;
+    if (doc->tokens && !doc->owns_tokens)
+        return swan_json_fail(doc, doc->input_length, "caller token buffer exhausted");
     if (requested > SIZE_MAX / sizeof(*doc->tokens))
         return swan_json_fail(doc, doc->input_length, "token allocation overflow");
     SwanJsonToken *tokens = (SwanJsonToken *)realloc(
@@ -95,6 +113,7 @@ static inline bool swan_json_document_reserve_tokens(SwanJsonDocument *doc,
         return swan_json_fail(doc, doc->input_length, "out of memory");
     doc->tokens = tokens;
     doc->token_capacity = requested;
+    doc->owns_tokens = true;
     return true;
 }
 
