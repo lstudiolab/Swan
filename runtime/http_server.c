@@ -159,7 +159,7 @@ static void swan_http_process_client(void *context) {
     size_t header_length = (size_t)(separator - headers);
     size_t body_offset = header_length + 4;
     size_t already_read = used - body_offset;
-    *separator = 0;
+    /* Keep the final CRLF intact for the header parser. */
 
     char method[16], target[2048], version[16];
     if (sscanf(headers, "%15s %2047s %15s", method, target, version) != 3 ||
