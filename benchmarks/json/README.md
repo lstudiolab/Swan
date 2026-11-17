@@ -15,7 +15,7 @@ parse the request, validate `id` and `workers`, then compact-encode the parsed
 document. Seven timed runs rotate implementation order. Every run must produce
 the same checksum and input-plus-output byte count or the benchmark aborts.
 
-- **Swan:** `std_json` calls the Swan C11 JSON runtime through the x86-64 C ABI.
+- **Swan:** the Swan source imports `runtime/json_abi.h` and calls the C11 JSON runtime through the x86-64 C ABI.
   It reuses one document handle and its token/output capacities across requests.
 - **Go:** `encoding/json` into a typed struct and back to JSON.
 - **Goose:** its standard-library JSON DOM parser and JSON writer.
