@@ -15,8 +15,8 @@ parse the request, validate `id` and `workers`, then compact-encode the parsed
 document. Seven timed runs rotate implementation order. Every run must produce
 the same checksum and input-plus-output byte count or the benchmark aborts.
 
-- **Swan:** the Swan source imports `runtime/json_abi.h` and calls the C11 JSON runtime through the x86-64 C ABI.
-  It reuses one document handle and its token/output capacities across requests.
+- **Swan:** the Swan source calls a C11 JSON runtime driver through the x86-64 C ABI.
+  The driver reuses one document handle and its token/output capacities; its hot loop runs in C, so this isolates runtime throughput and excludes Swan loop/FFI-call overhead.
 - **Go:** `encoding/json` into a typed struct and back to JSON.
 - **Goose:** its standard-library JSON DOM parser and JSON writer.
 - **Rust:** `serde_json` with insertion-order preservation.
