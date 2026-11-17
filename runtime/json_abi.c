@@ -11,25 +11,45 @@ struct SwanJsonHandle {
     char error[128];
 };
 
-SwanJsonHandle *swan_json_open(const char *input) {
-    if (!input) return NULL;
-    size_t length = strlen(input);
-    if (length == SIZE_MAX) return NULL;
+SwanJsonHandle *swan_json_create(void) {
     SwanJsonHandle *handle = (SwanJsonHandle *)calloc(1, sizeof(*handle));
     if (!handle) return NULL;
-    handle->input = (char *)malloc(length + 1);
-    if (!handle->input) {
-        free(handle);
-        return NULL;
-    }
-    memcpy(handle->input, input, length + 1);
     swan_json_document_init(&handle->document);
-    if (!swan_json_parse(&handle->document, handle->input, length)) {
+    return handle;
+}
+
+int32_t swan_json_parse_text(SwanJsonHandle *handle, const char *input) {
+    if (!handle || !input) return 0;
+    size_t length = strlen(input);
+    if (length == SIZE_MAX) return 0;
+    char *next = (char *)realloc(handle->input, length + 1);
+    if (!next) {
+        snprintf(handle->error, sizeof(handle->error), "out of memory");
+        return 0;
+    }
+    handle->input = next;
+    memcpy(handle->input, input, length + 1);
+    bool ok = swan_json_parse_reuse(&handle->document, handle->input, length);
+    handle->error[0] = 0;
+    if (!ok) {
         snprintf(handle->error, sizeof(handle->error), "%s",
                  handle->document.error[0] ? handle->document.error :
                  "invalid JSON");
-        return handle;
+        return 0;
     }
+    handle->compact.length = 0;
+    handle->pretty.length = 0;
+    return 1;
+}
+
+int64_t swan_json_input_length(SwanJsonHandle *handle) {
+    return handle && !handle->error[0] ? (int64_t)handle->document.input_length : -1;
+}
+
+SwanJsonHandle *swan_json_open(const char *input) {
+    SwanJsonHandle *handle = swan_json_create();
+    if (!handle) return NULL;
+    (void)swan_json_parse_text(handle, input);
     return handle;
 }
 
