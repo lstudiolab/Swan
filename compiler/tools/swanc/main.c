@@ -58,7 +58,7 @@ static const char *swan_source_basename(const char *path){
  return base?base+1:path;
 }
 static bool swan_source_output_path(char *out,size_t capacity,const char *directory,
-                                    const char *source_path,size_t index){
+                                    const char *source_path){
  const char *base=swan_source_basename(source_path);
  size_t length=strlen(base);
  if(length>=5&&!strcmp(base+length-5,".swan"))length-=5;
@@ -74,13 +74,13 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
   if(i>(size_t)INT_MAX){swan_error(error,NULL,"source index exceeds code-generation representation");return false;}
   char path[4096];
   if(!swan_source_output_path(path,sizeof(path),directory,
-                              program->source_files[i].path,i)){
+                              program->source_files[i].path)){
    swan_error(error,NULL,"assembly output path is too long for '%s'",program->source_files[i].path);return false;
   }
   for(size_t prior=0;prior<i;prior++){
    char previous[4096];
    if(!swan_source_output_path(previous,sizeof(previous),directory,
-                               program->source_files[prior].path,prior))return false;
+                               program->source_files[prior].path))return false;
    if(!strcmp(path,previous)){
     char unique[4096];
     const char *base=swan_source_basename(program->source_files[i].path);
