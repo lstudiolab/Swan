@@ -9,7 +9,8 @@ extern "C" {
 
 typedef struct SwanJsonHandle SwanJsonHandle;
 
-/* The handle owns a copy of input. A null return indicates invalid JSON or OOM. */
+/* The handle owns a copy of input. Null means invalid input or OOM; a non-null
+   handle with a non-empty error reports a parse failure. */
 SwanJsonHandle *swan_json_open(const char *input);
 int64_t swan_json_get_i64(SwanJsonHandle *document, const char *key,
                           int64_t fallback);
