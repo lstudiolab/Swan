@@ -31,8 +31,8 @@ static bool swan_json_writer_fail(SwanJsonWriter *writer, const char *message) {
 
 static bool swan_json_writer_raw(SwanJsonWriter *writer,
                                  const char *data, size_t length) {
-    if (!writer || writer->failed ||
-        !swan_json_buffer_append(&writer->output, data, length))
+    if (!writer || writer->failed) return false;
+    if (!swan_json_buffer_append(&writer->output, data, length))
         return swan_json_writer_fail(writer, "JSON writer allocation failed");
     return true;
 }
