@@ -1,7 +1,15 @@
 # Swan JSON module
-# The C runtime provides storage and parsing; the public Swan surface keeps
-# document handles opaque and uses the existing integer ABI representation.
-import C "runtime/json_abi.h"
+# Opaque document and string pointers use the x86-64 integer-register ABI.
+external func swan_json_create(initial_token_capacity: int) -> int
+external func swan_json_parse_text(document: int, input: int) -> int
+external func swan_json_input_length(document: int) -> int
+external func swan_json_get_i64(document: int, key: int, fallback: int) -> int
+external func swan_json_has_key(document: int, key: int) -> int
+external func swan_json_compact(document: int) -> int
+external func swan_json_compact_length(document: int) -> int
+external func swan_json_pretty(document: int) -> int
+external func swan_json_error(document: int) -> int
+external func swan_json_close(document: int)
 
 func json_create(initial_token_capacity: int) -> int:
     return swan_json_create(initial_token_capacity)
