@@ -67,6 +67,17 @@ The semantic checker, IR verifier, and code generators validate the constructs t
 
 Compilation is phase-gated: a failed read, lex, parse, import, semantic, IR verification, optimization, code-generation, assembly, or link step returns a non-zero status and prevents later phases from running. The compiler also emits non-fatal semantic warnings for suspicious constructs such as self-assignment, literal division by zero, constant conditions, potentially non-terminating constant-true loops, and source functions unreachable from `main`. Use `--warnings-as-errors` to stop before code generation whenever any warning is reported. Warnings are conservative bug indicators, not proof that the program is incorrect.
 
+## Automatic memory management
+
+The current x86-64 array backend performs conservative static array memory cleanup:
+
+- Small, non-escaping arrays can be placed in the function's stack frame.
+- Heap-backed arrays are released after their final proven use.
+- Arrays that escape through returns, calls, or aliases are not freed early.
+- Cleanup is emitted on normal exits and early returns, with control-flow checks that avoid freeing arrays whose declaration path did not execute.
+
+This is not yet a general garbage collector, ownership type system, or borrow checker for arbitrary pointers and aggregates. When escape/liveness cannot be proven, the compiler preserves the allocation rather than guessing. Invalid programs remain compile errors; generated assembly is never rewritten to conceal a source-level correctness or memory-safety error.
+
 ## Build and run
 
 Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available through `cc`.
