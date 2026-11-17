@@ -3,6 +3,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+typedef struct SwanJsonHandle SwanJsonHandle;
+
 struct SwanJsonHandle {
     SwanJsonDocument document;
     char *input;
