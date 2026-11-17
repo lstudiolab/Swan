@@ -53,11 +53,13 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
  switch(n) {
  case 2:
   if(!memcmp(s,"if",2))return T_IF;
+  if(!memcmp(s,"or",2))return T_OR;
   if(!memcmp(s,"as",2))return T_AS;
   break;
  case 3:
   if(!memcmp(s,"let",3))return T_LET;
   if(!memcmp(s,"var",3))return T_VAR;
+  if(!memcmp(s,"and",3))return T_AND;
   break;
  case 4:
   if(!memcmp(s,"func",4))return T_FN;
