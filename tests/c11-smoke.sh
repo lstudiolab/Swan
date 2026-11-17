@@ -5,7 +5,7 @@ SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/c11-tests"
 mkdir -p "$TMP"
 cat > "$TMP/hello.swan" <<'SWAN'
-fn main():
+func main():
     !printin >> "Hello from Swan C";
     return 0
 SWAN
@@ -14,7 +14,7 @@ cc -x assembler "$TMP/hello.s" -o "$TMP/hello"
 test "$("$TMP/hello")" = "Hello from Swan C"
 printf 'PASS: C11 frontend emits native x86-64 assembly and string output\n'
 cat > "$TMP/log-operator.swan" <<'SWAN'
-fn main():
+func main():
     !printin >> "Hello, World!";
     return 0
 SWAN
@@ -23,7 +23,7 @@ cc -x assembler "$TMP/log-operator.s" -o "$TMP/log-operator"
 test "$("$TMP/log-operator")" = "Hello, World!"
 printf 'PASS: !printin standard-library output\n'
 cat > "$TMP/arithmetic.swan" <<'SWAN'
-fn main():
+func main():
     let a: int = 40
     var b: int = 2
     b = b + 1
@@ -35,7 +35,7 @@ cc -x assembler "$TMP/arithmetic.s" -o "$TMP/arithmetic"
 test "$("$TMP/arithmetic")" = "43"
 printf 'PASS: typed locals, mutation, and arithmetic lowering\n'
 cat > "$TMP/remainder.swan" <<'SWAN'
-fn main():
+func main():
     !printin >> 195 % 97;
     !printin >> 194 % 97;
     !printin >> 9223372036854775807 % 97;
@@ -56,9 +56,9 @@ test "$("$TMP/remainder")" = "1
 0"
 printf 'PASS: signed constant remainder lowering\n'
 cat > "$TMP/calls.swan" <<'SWAN'
-fn add(a: int, b: int) -> int:
+func add(a: int, b: int) -> int:
     return a + b
-fn main():
+func main():
     !printin >> add(20, 22);
     return 0
 SWAN
@@ -67,7 +67,7 @@ cc -x assembler "$TMP/calls.s" -o "$TMP/calls"
 test "$("$TMP/calls")" = "42"
 printf 'PASS: function calls and System V argument registers\n'
 cat > "$TMP/control.swan" <<'SWAN'
-fn main():
+func main():
     var value: int = 0
     while value < 3
         if value == 1
@@ -84,7 +84,7 @@ test "$("$TMP/control")" = "0
 2"
 printf 'PASS: nested if/else and while control flow\n'
 cat > "$TMP/unroll.swan" <<'SWAN'
-fn main():
+func main():
     var i = 0
     var sum = 0
     while i < 10
@@ -99,7 +99,7 @@ test "$("$TMP/unroll")" = "45"
 printf 'PASS: loop condition and induction-variable fast paths preserve iteration counts\n'
 printf 'PASS: bottom-tested loop branches preserve iteration counts\n'
 cat > "$TMP/nested-loops.swan" <<'SWAN'
-fn main():
+func main():
     var i = 0
     var total = 0
     while i < 3
@@ -116,7 +116,7 @@ cc -x assembler "$TMP/nested-loops.s" -o "$TMP/nested-loops"
 test "$("$TMP/nested-loops")" = "12"
 printf 'PASS: nested bottom-tested loops\n'
 cat > "$TMP/invariant-hoist.swan" <<'SWAN'
-fn main():
+func main():
     var i = 0
     var total = 0
     while i < 3
@@ -142,7 +142,7 @@ actual=$("$TMP/invariant-hoist")
 if [ "$actual" != "2913" ]; then echo "FAIL: invariant-hoist expected 2913, got $actual" >&2; exit 1; fi
 printf 'PASS: loop-invariant arithmetic hoisting preserves results\n'
 cat > "$TMP/zero-loop.swan" <<'SWAN'
-fn main():
+func main():
     var i = 0
     var total = 0
     while i < 0
@@ -156,7 +156,7 @@ cc -x assembler "$TMP/zero-loop.s" -o "$TMP/zero-loop"
 test "$("$TMP/zero-loop")" = "0"
 printf 'PASS: bottom-tested loop zero-iteration guard\n'
 cat > "$TMP/loop-fallback.swan" <<'SWAN'
-fn main():
+func main():
     var i = 0
     var total = 0
     while i < 4
@@ -172,7 +172,7 @@ cc -x assembler "$TMP/loop-fallback.s" -o "$TMP/loop-fallback"
 test "$("$TMP/loop-fallback")" = "3"
 printf 'PASS: loops with noncanonical induction updates retain top-tested control flow\n'
 cat > "$TMP/unknown-name.swan" <<'SWAN'
-fn main():
+func main():
     !printin >> missing_name;
     return 0
 SWAN
@@ -182,7 +182,7 @@ if "$SWAN" "$TMP/unknown-name.swan" --emit-asm -o "$TMP/unknown-name.s"; then
 fi
 printf 'PASS: semantic name resolution rejects unknown variables\n'
 cat > "$TMP/immutable.swan" <<'SWAN'
-fn main():
+func main():
     let value = 1
     value = 2
     return 0
@@ -193,13 +193,13 @@ if "$SWAN" "$TMP/immutable.swan" --emit-asm -o "$TMP/immutable.s"; then
 fi
 printf 'PASS: semantic analysis enforces immutable bindings\n'
 cat > "$TMP/nested-calls.swan" <<'SWAN'
-fn base() -> int:
+func base() -> int:
     return 20
-fn add(a: int, b: int) -> int:
+func add(a: int, b: int) -> int:
     return a + b
-fn wrap(value: int) -> int:
+func wrap(value: int) -> int:
     return add(value, base())
-fn main():
+func main():
     !printin >> 1 + wrap(21);
     return 0
 SWAN
@@ -208,9 +208,9 @@ cc -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
 test "$("$TMP/nested-calls")" = "42"
 printf 'PASS: nested function calls preserve x86-64 ABI stack alignment\n'
 cat > "$TMP/call-hotpath.swan" <<'SWAN'
-fn transform(x: int) -> int:
+func transform(x: int) -> int:
     return (x * 31 + 7) % 97
-fn main():
+func main():
     var total = 0
     var i = 0
     while i < 8
@@ -245,9 +245,9 @@ if grep -B2 'call swan_fn_transform' "$TMP/call-hotpath.s" | grep -q 'push rax';
 fi
 printf 'PASS: leaf-call, register argument, accumulator, and parity fast paths\n'
 cat > "$TMP/leaf-registers.swan" <<'SWAN'
-fn leaf(a: int, b: int, c: int, d: int, e: int) -> int:
+func leaf(a: int, b: int, c: int, d: int, e: int) -> int:
     return (a + b) * (c + d) + e
-fn main():
+func main():
     !printin >> leaf(1, 2, 3, 4, 5);
     return 0
 SWAN
@@ -261,7 +261,7 @@ if grep -A12 '^swan_fn_leaf:' "$TMP/leaf-registers.s" | grep -Eq 'push rbp|mov Q
 fi
 printf 'PASS: leaf volatile-register allocation does not overlap backend scratch registers\n'
 cat > "$TMP/accumulator-side-effect.swan" <<'SWAN'
-fn main():
+func main():
     var total = 2
     total = total + (total = 5)
     !printin >> total;
@@ -272,7 +272,7 @@ cc -x assembler "$TMP/accumulator-side-effect.s" -o "$TMP/accumulator-side-effec
 test "$("$TMP/accumulator-side-effect")" = "7"
 printf 'PASS: accumulator optimization preserves assignment evaluation order\n'
 cat > "$TMP/local-operands.swan" <<'SWAN'
-fn main():
+func main():
     var left = 84
     var right = 7
     !printin >> left + right;
@@ -298,7 +298,7 @@ if grep -q 'push rax' "$TMP/local-operands.s"; then
 fi
 printf 'PASS: register/memory local operands avoid expression stack temporaries\n'
 cat > "$TMP/array-u32.swan" <<'SWAN'
-fn main():
+func main():
     let values = array_u32(4)
     values[0] = 4294967295
     values[1] = 42
@@ -318,7 +318,7 @@ test "$("$TMP/array-u32")" = "4294967295
 99"
 printf 'PASS: zero-initialized u32 arrays, indexed loads/stores, and unsigned value preservation\n'
 cat > "$TMP/array-midpoint.swan" <<'SWAN'
-fn main():
+func main():
     let values = array(8)
     var low = 0
     var high = 7
@@ -343,7 +343,7 @@ fi
 printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
 
 cat > "$TMP/unsafe-midpoint.swan" <<'SWAN'
-fn main():
+func main():
     let values = array(8)
     var low = 0
     var high = 7
@@ -363,7 +363,7 @@ fi
 printf 'PASS: midpoint bounds-check elimination rejects mutated bounds\n'
 
 cat > "$TMP/power-two-multiply.swan" <<'SWAN'
-fn main():
+func main():
     var value = 7
     var dividend = -43
     !printin >> value * 8;
@@ -399,7 +399,7 @@ fi
 printf 'PASS: signed power-of-two multiplication, division, and remainder lowering\n'
 
 cat > "$TMP/array-store-register.swan" <<'SWAN'
-fn main():
+func main():
     let values = array_unchecked(4)
     var index = 0
     var first = 11
@@ -423,7 +423,7 @@ test "$("$TMP/array-store-register")" = "308
 printf 'PASS: array stores preserve live allocated registers\n'
 
 cat > "$TMP/add-scratch-preservation.swan" <<'SWAN'
-fn main():
+func main():
     let a = 1
     let b = 2
     let c = 3
@@ -446,7 +446,7 @@ test "$("$TMP/add-scratch-preservation")" = "15"
 printf 'PASS: addition accumulators survive spilled-array and remainder scratch use\n'
 
 cat > "$TMP/heapsort.swan" <<'SWAN'
-fn main():
+func main():
     let values = array_u32_unchecked(10)
     values[0] = 91
     values[1] = 7
@@ -523,9 +523,9 @@ printf 'PASS: one-billion-element Swan sorting workload compiles and links\n'
 
 
 cat > "$TMP/volatile-preservation.swan" <<'SWAN'
-fn combine(a: int, b: int) -> int:
+func combine(a: int, b: int) -> int:
     return a + b
-fn main():
+func main():
     let a = 11
     let b = 22
     let c = 33
@@ -547,7 +547,7 @@ if ! grep -q 'push rdi' "$TMP/volatile-preservation.s" || ! grep -q 'pop rdi' "$
 fi
 printf 'PASS: callee-saved and volatile local preservation across calls\n'
 cat > "$TMP/constant-fold.swan" <<'SWAN'
-fn main():
+func main():
     !printin >> (6 * 7) + (9 - 2);
     return 0
 SWAN
@@ -561,7 +561,7 @@ if grep -Eq 'imul|add rax|sub rax' "$TMP/constant-fold.s"; then
 fi
 printf 'PASS: integer constant folding removes runtime arithmetic\n'
 cat > "$TMP/local-compare.swan" <<'SWAN'
-fn main():
+func main():
     var index = 0
     let limit = 5
     while index < limit
@@ -582,7 +582,7 @@ printf 'PASS: local-to-local loop comparisons avoid stack temporaries\n'
 printf 'PASS: C compiler version command\n'
 
 cat > "$TMP/compound-arithmetic.swan" <<'SWAN'
-fn main():
+func main():
     var value = 6
     var factor = 7
     value = value * factor
