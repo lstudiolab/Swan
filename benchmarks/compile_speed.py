@@ -98,7 +98,7 @@ def generate_sources(directory: pathlib.Path, functions: int,
         rust.append(f"    total = (total + workload_{i}({arg})) % 1000000007;")
 
     swan.extend(["    return 0", ""])
-    goose.extend(["    (void)total;", "}", ""])
+    goose.extend(["    print(total);", "}", ""])
     c.extend(["    return (int)(total == UINT64_MAX);", "}", ""])
     cpp.extend(["    return static_cast<int>(total == UINT64_MAX);", "}", ""])
     rust.extend(["    std::hint::black_box(total);", "}", ""])
