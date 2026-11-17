@@ -1205,7 +1205,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
     param->array_u32=true;param->array_unchecked=true;param->samc_escaped=true;
    }
   }
-  collect_locals(fn->body,fn->body_count,&l);if(l.failed){free(l.items);swan_error(err,&fn->token,"out of memory growing AST backend local table");return false;}samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);if(l.slots>INT32_MAX/8){free(l.items);swan_error(err,&fn->token,"AST backend stack frame exceeds signed displacement range");return false;}int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
+  collect_locals(fn->body,fn->body_count,&l);if(l.failed){free(l.items);swan_error(err,&fn->token,"out of memory growing AST backend local table");return false;}samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);if(p->no_heap&&!samc_validate_no_heap(fn,&l,err)){free(l.items);return false;}if(l.slots>INT32_MAX/8){free(l.items);swan_error(err,&fn->token,"AST backend stack frame exceeds signed displacement range");return false;}int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
   char sym[SWAN_MAX_TEXT+128];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported&&!fn->imported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->link_name?fn->link_name:fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
