@@ -164,9 +164,18 @@ static inline const SwanHttpHeader *swan_http_header(const SwanHttpRequest *r, c
     return NULL;
 }
 
+static inline bool swan_http_safe_field(const char *value) {
+    if (!value || !*value) return false;
+    for (const unsigned char *p = (const unsigned char *)value; *p; p++)
+        if (*p < 32 || *p == 127) return false;
+    return true;
+}
+
 static inline bool swan_http_response(SwanByteBuffer *out, unsigned status,
     const char *reason, const char *content_type, const void *body, size_t body_length) {
-    if (!out || !reason || !content_type || (!body && body_length)) return false;
+    if (!out || status < 100 || status > 599 ||
+        !swan_http_safe_field(reason) || !swan_http_safe_field(content_type) ||
+        (!body && body_length)) return false;
     char header[512];
     int n = snprintf(header, sizeof(header),
         "HTTP/1.1 %u %s\r\nContent-Type: %s\r\nContent-Length: %zu\r\nConnection: close\r\n\r\n",
