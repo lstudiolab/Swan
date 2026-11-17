@@ -48,6 +48,14 @@ jobs:
           install: base-devel gcc
 
       - name: Build Swan
+        if: '!matrix.windows'
+        run: |
+          sh build.sh
+          ./build/swanc --version
+
+      - name: Build Swan (Windows)
+        if: matrix.windows
+        shell: msys2 {0}
         run: |
           sh build.sh
           ./build/swanc --version
@@ -57,8 +65,13 @@ jobs:
         shell: msys2 {0}
         run: |
           mkdir -p dist/swan/bin
-          cp build/swanc.exe dist/swan/bin/swanc.exe
-          ldd build/swanc.exe | awk '{ for (i=1; i<=NF; i++) if ($i ~ /^\\/usr\\/bin\\/.*\\.dll$/) print $i }' | sort -u | while read -r dll; do
+          if [ -f build/swanc.exe ]; then
+            SWANC=build/swanc.exe
+          else
+            SWANC=build/swanc
+          fi
+          cp "$SWANC" dist/swan/bin/swanc.exe
+          ldd "$SWANC" | awk '{ for (i=1; i<=NF; i++) if (index($i, "/usr/bin/") == 1 && $i ~ /\\.dll$/) print $i }' | sort -u | while read -r dll; do
             cp "$dll" dist/swan/bin/
           done
           cat > dist/swan/README-WINDOWS.txt <<'EOF'
