@@ -20,6 +20,8 @@
 #include <unistd.h>
 #include <sys/wait.h>
 #include <sys/stat.h>
+#include <spawn.h>
+extern char **environ;
 
 static inline char *swan_read_file(const char *path){
  FILE *f=fopen(path,"rb");if(!f)return NULL;
@@ -91,8 +93,12 @@ static inline int swan_wait_child(pid_t pid){
  return 1;
 }
 static inline int swan_exec(char *const args[],bool search_path){
- pid_t pid=fork();if(pid<0)return -1;
- if(pid==0){if(search_path)execvp(args[0],args);else execv(args[0],args);perror(args[0]);_exit(127);}
+ if(!args||!args[0]){errno=EINVAL;return -1;}
+ pid_t pid=0;
+ int spawn_error=search_path
+     ?posix_spawnp(&pid,args[0],NULL,NULL,args,environ)
+     :posix_spawn(&pid,args[0],NULL,NULL,args,environ);
+ if(spawn_error){errno=spawn_error;return -1;}
  return swan_wait_child(pid);
 }
 
