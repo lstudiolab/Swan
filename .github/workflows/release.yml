@@ -82,8 +82,12 @@ jobs:
           executable linking. Install MSYS2 and run: pacman -S --needed gcc
           The MSYS2 runtime DLL is included beside swanc.exe.
           EOF
-          cd dist
-          7z a ../swan-windows-x86_64.zip swan
+      
+      - name: Archive Windows package
+        if: matrix.windows
+        shell: pwsh
+        run: |
+          Compress-Archive -Path dist/swan -DestinationPath swan-windows-x86_64.zip -Force
 
       - name: Package Linux and macOS binary
         if: '!matrix.windows'
