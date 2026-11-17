@@ -27,20 +27,25 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 DEFAULT_COMPILER = ROOT / "build" / "swan"
 HEADER = "Swan compiler pipeline profile (seconds)"
 RSS_MARKER = re.compile(r"^__SWAN_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
+PASS_COUNTS = re.compile(r"IR pass executions: ([0-9]+) \(rounds: ([0-9]+); maximum: 350\)")
 PROFILE_LINE = re.compile(
-    r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*[0-9]+(?:\.[0-9]+)?%\))?\s*$"
+    r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*([0-9]+(?:\.[0-9]+)?)%\))?\s*$"
 )
-STAGES = (
+PROFILE_STAGES = (
     "Source file read", "Lexing", "Parsing", "Import loading",
     "Semantic analysis", "Reachability analysis", "IR generation",
-    "IR optimization", "Target code generation",
-    "AST fallback code generation", "Assembly output", "Native linking",
-    "IR verification (inclusive)", "IR pass: constant folding",
-    "IR pass: CFG simplification", "IR pass: algebraic simplification",
-    "IR pass: copy propagation", "IR pass: common-subexpression elimination",
+    "IR optimization", "IR verification (inclusive)",
+    "IR pass: constant folding", "IR pass: CFG simplification",
+    "IR pass: algebraic simplification", "IR pass: copy propagation",
+    "IR pass: common-subexpression elimination",
     "IR pass: loop-invariant code motion", "IR pass: dead-code elimination",
+    "Target code generation", "AST fallback code generation",
+    "Assembly output", "Native linking", "Program execution",
+)
+STAGES = PROFILE_STAGES + tuple(f"{stage} share percent" for stage in PROFILE_STAGES) + (
     "Total wall time", "Benchmark process wall time", "Program runtime",
-    "Compile-only wall time", "Peak compiler RSS",
+    "Compile-only wall time", "Optimization pass executions",
+    "Optimization rounds", "Peak compiler RSS",
 )
 
 
@@ -104,7 +109,14 @@ def parse_profile(stderr: str) -> dict[str, float]:
     for line in stderr.splitlines():
         match = PROFILE_LINE.match(line)
         if match:
-            values[match.group(1).strip()] = float(match.group(2))
+            stage = match.group(1).strip()
+            values[stage] = float(match.group(2))
+            if match.group(3) is not None:
+                values[f"{stage} share percent"] = float(match.group(3))
+    counts = PASS_COUNTS.search(stderr)
+    if counts:
+        values["Optimization pass executions"] = float(counts.group(1))
+        values["Optimization rounds"] = float(counts.group(2))
     if "Total wall time" not in values:
         raise RuntimeError("Profile report omitted Total wall time.")
     return values
@@ -179,16 +191,43 @@ def profile_compiler_files(directory: pathlib.Path) -> list[dict[str, object]]:
     if not trace_files:
         raise RuntimeError("Clang completed but did not emit its -ftime-trace JSON.")
     data = json.loads(trace_files[0].read_text(encoding="utf-8"))
-    totals: dict[str, float] = defaultdict(float)
+    source_events: list[tuple[float, float, str | None]] = []
     for event in data.get("traceEvents", []):
-        if event.get("name") != "Source" or not isinstance(event.get("dur"), (int, float)):
+        if (event.get("name") != "Source"
+                or not isinstance(event.get("dur"), (int, float))
+                or not isinstance(event.get("ts"), (int, float))):
             continue
         detail = str(event.get("args", {}).get("detail", "")).replace("\\", "/")
         marker = "/compiler/"
-        if marker not in detail:
+        relative = None
+        if marker in detail:
+            relative = "compiler/" + detail.split(marker, 1)[1].split(":", 1)[0]
+        start = float(event["ts"])
+        source_events.append((start, start + float(event["dur"]), relative))
+
+    # Source events nest for included headers. Subtract nested intervals so
+    # parent headers are not charged for time spent parsing child headers.
+    totals: dict[str, float] = defaultdict(float)
+    for start, end, relative in source_events:
+        if relative is None:
             continue
-        relative = "compiler/" + detail.split(marker, 1)[1].split(":", 1)[0]
-        totals[relative] += float(event["dur"]) / 1_000_000.0
+        nested = sorted(
+            (child_start, child_end)
+            for child_start, child_end, _ in source_events
+            if child_start >= start and child_end <= end
+            and (child_start > start or child_end < end)
+        )
+        covered = 0.0
+        if nested:
+            union_start, union_end = nested[0]
+            for child_start, child_end in nested[1:]:
+                if child_start <= union_end:
+                    union_end = max(union_end, child_end)
+                else:
+                    covered += union_end - union_start
+                    union_start, union_end = child_start, child_end
+            covered += union_end - union_start
+        totals[relative] += max(0.0, end - start - covered) / 1_000_000.0
     rows = [{"file": name, "compile_seconds": seconds}
             for name, seconds in sorted(totals.items(), key=lambda item: item[1], reverse=True)]
     for row in rows:
@@ -206,7 +245,7 @@ def write_reports(results: dict[str, list[dict[str, float]]],
     output_dir.mkdir(parents=True, exist_ok=True)
     summary = {
         "host": platform.platform(),
-        "unit": "seconds; compile-only peak compiler RSS is KiB",
+        "unit": "mixed: seconds, percentages, optimizer counts, and KiB RSS",
         "workloads": {},
         "compiler_files": file_rows,
     }
@@ -220,28 +259,36 @@ def write_reports(results: dict[str, list[dict[str, float]]],
     )
     with (output_dir / "compiler-pipeline.csv").open("w", newline="", encoding="utf-8") as stream:
         writer = csv.writer(stream)
-        writer.writerow(["workload", "metric", "value", "unit"])
+        writer.writerow(["workload", "metric", "value", "unit", "share_percent"])
         for name, metrics in summary["workloads"].items():
-            writer.writerows([name, metric, f"{value:.9f}", "KiB" if metric == "Peak compiler RSS" else "seconds"] for metric, value in metrics.items())
+            for metric, value in metrics.items():
+                if metric.endswith(" share percent"):
+                    continue
+                unit = "KiB" if metric == "Peak compiler RSS" else "passes" if metric == "Optimization pass executions" else "rounds" if metric == "Optimization rounds" else "seconds"
+                writer.writerow([name, metric, f"{value:.9f}", unit, metrics.get(f"{metric} share percent", "")])
         for row in file_rows:
-            writer.writerow(["compiler-file", row["file"], f"{float(row['compile_seconds']):.9f}", "seconds"])
+            writer.writerow(["compiler-file", row["file"], f"{float(row['compile_seconds']):.9f}", "seconds", f"{float(row['share_percent']):.2f}"])
     lines = [
         "# Swan compiler pipeline benchmark", "",
         f"- Host: {summary['host']}",
-        "- Stage unit: seconds (lower is faster); compile-only peak compiler RSS: KiB (lower is smaller)",
+        "- Units: seconds for time, percentage of total for stage shares, counts for optimizer passes, KiB for peak RSS",
         "- Statistic: median of measured runs",
         "",
         "## Compilation stages and runtime", "",
-        "| Workload | Pipeline stage / metric | Median | Unit |",
-        "|---|---|---:|---|",
+        "| Workload | Pipeline stage / metric | Median | Share of total | Unit |",
+        "|---|---|---:|---:|---|",
     ]
     for name, metrics in summary["workloads"].items():
         for metric, value in metrics.items():
-            unit = "KiB" if metric == "Peak compiler RSS" else "s"
-            display = f"{value:.0f}" if unit == "KiB" else f"{value:.9f}"
-            lines.append(f"| {name} | {metric} | {display} | {unit} |")
-    lines += ["", "> IR verification and per-pass rows are inclusive substage timings. They overlap with IR generation/optimization totals and must not be added to the parent-stage totals. Peak compiler RSS is measured in --emit-asm mode to exclude the external native linker.", "", "## Compiler source-file frontend cost", "",
-              "| File | Compile seconds | Share of traced file time |",
+            if metric.endswith(" share percent"):
+                continue
+            unit = "KiB" if metric == "Peak compiler RSS" else "passes" if metric == "Optimization pass executions" else "rounds" if metric == "Optimization rounds" else "s"
+            display = f"{value:.0f}" if unit == "KiB" else f"{value:.2f}" if unit in ("passes", "rounds") else f"{value:.9f}"
+            share = metrics.get(f"{metric} share percent")
+            share_text = f"{share:.2f}%" if share is not None else "—"
+            lines.append(f"| {name} | {metric} | {display} | {share_text} | {unit} |")
+    lines += ["", "> IR verification and per-pass rows are inclusive substage timings. Their percentage shares overlap with parent stages and must not be added. Peak compiler RSS is measured in --emit-asm mode to exclude the external native linker. Clang header timings use exclusive source intervals, subtracting nested include events.", "", "## Compiler source-file frontend cost", "",
+              "| File | Exclusive Clang source time | Share of compiler-header time |",
               "|---|---:|---:|"]
     for row in file_rows:
         lines.append(f"| {row['file']} | {float(row['compile_seconds']):.9f} | "
@@ -282,9 +329,14 @@ def main() -> None:
     for name, samples in results.items():
         print(f"\n[{name}]")
         for stage in STAGES:
+            if stage.endswith(" share percent"):
+                continue
             if any(stage in sample for sample in samples):
                 value = statistics.median(sample[stage] for sample in samples if stage in sample)
-                print(f"{stage:34s} {value:.9f} seconds")
+                share = statistics.median(sample.get(f"{stage} share percent", 0.0) for sample in samples if stage in sample)
+                suffix = f" ({share:.2f}% of total)" if any(f"{stage} share percent" in sample for sample in samples) else ""
+                unit = "KiB" if stage == "Peak compiler RSS" else "passes" if stage == "Optimization pass executions" else "rounds" if stage == "Optimization rounds" else "seconds"
+                print(f"{stage:34s} {value:.3f} {unit}{suffix}")
     print("\n[slowest compiler files by Clang frontend trace]")
     for row in file_rows[1:11]:
         print(f"{row['file']:52s} {float(row['compile_seconds']):.9f} seconds "
