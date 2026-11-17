@@ -137,9 +137,16 @@ static inline bool swan_codegen_wasm_target(const SwanIRModule *m,SwanWasmBuffer
   if(ok&&fn->return_type!=SWAN_IR_VOID)ok=swan_wasm_byte(&type,swan_wasm_type_for(fn->return_type,memory64));
   ok=ok&&swan_wasm_u32(&func,(uint32_t)f);
  }
- size_t export_count=main_index<m->function_count?1u:0u;
+ size_t export_count=m->allow_no_main?m->function_count:1u;
  ok=ok&&swan_wasm_u32(&exports,(uint32_t)export_count);
- if(ok&&export_count)ok=swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)main_index);
+ if(ok&&m->allow_no_main){
+  for(size_t f=0;ok&&f<m->function_count;f++)
+   ok=swan_wasm_name(&exports,m->functions[f].name)&&
+      swan_wasm_byte(&exports,0)&&swan_wasm_u32(&exports,(uint32_t)f);
+ }else if(ok){
+  ok=swan_wasm_name(&exports,"main")&&swan_wasm_byte(&exports,0)&&
+     swan_wasm_u32(&exports,(uint32_t)main_index);
+ }
  if(alloca_total){
   uint64_t max_frame=0;
   for(size_t f=0;f<m->function_count;f++){size_t n=0;for(size_t b=0;b<m->functions[f].block_count;b++)for(size_t i=0;i<m->functions[f].blocks[b].instruction_count;i++)n+=m->functions[f].blocks[b].instructions[i].op==SWAN_IR_ALLOCA;if(n*8u+16u>max_frame)max_frame=n*8u+16u;}
