@@ -23,10 +23,10 @@ The SIL object is generated from Swan source and linked into the final compiler.
 ## User-program compilation
 
 ```text
-source file
-  -> read and validate UTF-8
-  -> lexer
-  -> indentation-aware parser / AST
+project inputs
+  -> deterministic source discovery
+  -> one source buffer, lexer and parser per file
+  -> shared project/module graph
   -> C-header declaration import
   -> Swan standard-library module loading
   -> semantic analysis
@@ -43,7 +43,7 @@ source file
 
 The SIL route is optional per function. The bridge starts with a complete general typed-IR module and substitutes SIL-lowered functions only when the narrow SIL subset accepts them. Unsupported SIL constructs do not force a failure when the general IR path supports them.
 
-The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Cross-target backends use typed IR and do not inherit these AST-only features.
+The x86-64 compatibility path remains necessary for supported constructs not yet lowered into IR, including current array/output and lazy-import behavior. Native x86-64 project builds keep each source file as a separate assembly/object translation unit. Until imported-module symbol identities are fully supported by per-file typed-IR lowering, multi-source x86-64 builds use the AST compatibility backend for each translation unit. Cross-target backends use a project-wide typed-IR module and do not inherit AST-only features.
 
 ## Typed IR optimization
 
