@@ -3,6 +3,7 @@
 #include "swan/target.h"
 #include "swan/codegen_x86_64.h"
 #include "swan/irgen.h"
+#include "../SIL/SIL.h"
 #include "swan/optimization.h"
 #include "swan/codegen_x86_64_ir.h"
 #include "swan/codegen_aarch64.h"
@@ -21,7 +22,12 @@ static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module
    that IR; they never interpret it at runtime. */
 static inline bool swan_svm_prepare_ir(Program *program,SwanIRModule *module,
                                        SwanError *error,char *detail,size_t cap){
+    /* Swift-style SIL is a mandatory checked and optimized high-level IR stage. */
     uint64_t stage=swan_profile_start();
+    bool sil_ready=swan_sil_prepare_program(program,error);
+    swan_profile_end(SWAN_PROFILE_SIL,stage);
+    if(!sil_ready)return false;
+    stage=swan_profile_start();
     bool lowered=swan_compile_ir_program(program,module,error);
     swan_profile_end(SWAN_PROFILE_IRGEN,stage);
     if(!lowered)return false;
@@ -147,6 +153,11 @@ static inline bool swan_codegen(Program *program, Text *output,
         *output=ir_output;
         return true;
     }
+    /* The AST compatibility backend also passes through SIL; it is not an escape hatch. */
+    uint64_t sil_stage=swan_profile_start();
+    bool sil_ready=swan_sil_prepare_program(program,error);
+    swan_profile_end(SWAN_PROFILE_SIL,sil_stage);
+    if(!sil_ready)return false;
     uint64_t stage=swan_profile_start();
     bool generated=swan_codegen_x86_64(program,output,error);
     swan_profile_end(SWAN_PROFILE_AST_CODEGEN,stage);

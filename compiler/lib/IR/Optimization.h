@@ -768,10 +768,11 @@ static inline bool swan_ir_optimize_with_stats(SwanIRModule *module,
     const size_t pass_count=sizeof(swan_ir_default_passes)/sizeof(swan_ir_default_passes[0]);
     size_t executed=0,rounds=0;
     bool converged=false;
-    while(executed<SWAN_IR_MAX_OPTIMIZATION_PASSES){
+    while(executed<SWAN_IR_MAX_OPTIMIZATION_PASSES&&swan_compiler_optimization_passes<SWAN_COMPILER_OPTIMIZATION_BUDGET){
         bool round_changed=false;
         rounds++;
-        for(size_t i=0;i<pass_count&&executed<SWAN_IR_MAX_OPTIMIZATION_PASSES;i++,executed++){
+        for(size_t i=0;i<pass_count&&executed<SWAN_IR_MAX_OPTIMIZATION_PASSES&&swan_compiler_optimization_passes<SWAN_COMPILER_OPTIMIZATION_BUDGET;i++,executed++){
+            if(!swan_optimizer_consume(1)){if(error&&cap)snprintf(error,cap,"compiler-wide optimization budget exhausted during SVM IR optimization");return false;}
             bool changed=false;
             if(!swan_ir_run_pass(module,swan_ir_default_passes[i].kind,&changed,error,cap)){
                 if(stats){stats->passes_executed=executed+1;stats->rounds=rounds;}
@@ -784,7 +785,7 @@ static inline bool swan_ir_optimize_with_stats(SwanIRModule *module,
     if(stats){stats->passes_executed=executed;stats->rounds=rounds;stats->converged=converged;}
     if(swan_profile_enabled){swan_profile_ir_pass_executions+=executed;swan_profile_ir_pass_rounds+=rounds;}
     if(!converged){
-        if(error&&cap)snprintf(error,cap,"optimization did not converge within %u pass executions",SWAN_IR_MAX_OPTIMIZATION_PASSES);
+        if(error&&cap)snprintf(error,cap,"optimization did not converge within the compiler-wide %u-pass budget",SWAN_COMPILER_OPTIMIZATION_BUDGET);
         return false;
     }
     /* Final verifier and derived-analysis rebuild are mandatory. */

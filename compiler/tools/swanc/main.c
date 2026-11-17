@@ -344,6 +344,7 @@ static int swan_run(int argc,char **argv){
  if(no_heap&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: --no-heap is currently supported only by the native x86-64 backend\\n");SWAN_RETURN(2);}
  if(no_heap&&lazy_imports){fprintf(stderr,"swan: --no-heap cannot be combined with runtime-lazy imports\\n");SWAN_RETURN(2);}
  swan_profile_reset();
+ swan_optimizer_reset();
  if(c_input_count&&target->architecture!=SWAN_ARCH_X86_64){
   fprintf(stderr,"swanc: C source assembly bundling is currently supported only for native x86_64\n");SWAN_RETURN(2);
  }
