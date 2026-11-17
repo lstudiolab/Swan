@@ -11,7 +11,8 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
   The ABI handle owns its input copy and reuses token/output capacity across parses.
   The parser validates UTF-8, JSON escapes, surrogate pairs, number grammar,
   delimiters, nesting depth, input size, and token count.
-- `http.h`: bounded HTTP/1.0 and HTTP/1.1 request parser, Content-Length framing, header lookup, and safe response framing. Chunked transfer encoding and socket-server lifecycle are not implemented.\n- `thread_pool.h`: bounded POSIX worker pool. Submission is nonblocking;
+- `http.h`: bounded HTTP/1.0 and HTTP/1.1 request parser, Content-Length framing, header lookup, and safe response framing. Chunked transfer encoding and socket-server lifecycle are not implemented.\n- `http_server.h` / `http_server.c`: bounded HTTP/1.1 JSON echo server using the worker pool. It supports one request per connection, content-length bodies, 503 queue backpressure, and request/byte counters. It does not support chunked transfer encoding, keep-alive, TLS, or custom Swan handlers.
+- `thread_pool.h`: bounded POSIX worker pool. Submission is nonblocking;
   a full queue reports backpressure. Shutdown can drain or discard queued work
   and always joins started workers.
 
