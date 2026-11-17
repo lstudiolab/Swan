@@ -8,35 +8,26 @@ recursive fn render(node: json::Node&, out: u8[>..]&) {
     match node.val {
         Null => out.append("null"),
         Bool b => json::format_bool(out, b.v),
-        Int n => json::format_int(out, n.v),
         Num n => json::format_number(out, n.v),
         Str s => json::format_string(out, s.s),
-        Arr a => {
-            out.push('[');
-            var child = node.first;
-            var index = 0;
-            while child {
-                if index > 0 { out.push(','); }
-                render(child, out);
-                child .= child.next;
-                index++;
-            }
-            out.push(']');
-        },
-        Obj o => {
-            out.push('{');
-            var child = node.first;
-            var index = 0;
-            while child {
-                if index > 0 { out.push(','); }
-                json::format_key(out, child.key);
-                render(child, out);
-                child .= child.next;
-                index++;
-            }
-            out.push('}');
-        },
+        Arr &a => render_children(a.first, false, out, '[', ']'),
+        Obj &o => render_children(o.first, true, out, '{', '}'),
     }
+}
+
+recursive fn render_children(first: json::Node?, keyed: bool,
+                             out: u8[>..]&, open: u8, close: u8) {
+    out.push(open);
+    var child = first;
+    var index = 0;
+    while child {
+        if index > 0 { out.push(','); }
+        if keyed { json::format_key(out, child.key); }
+        render(child, out);
+        child .= child.next;
+        index++;
+    }
+    out.push(close);
 }
 
 fn main() {
