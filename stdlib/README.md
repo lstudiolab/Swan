@@ -52,8 +52,8 @@ The current collection API operates on Swan's implemented `u32_array` type. Ever
 Source: `stdlib/std_json.swan`; implementation: `runtime/json.h` and
 `runtime/json_abi.c`.
 
-- `json_open`, `json_close`
-- `json_get_i64`, `json_has_key`
+- `json_create`, `json_parse`, `json_close`
+- `json_input_length`, `json_get_i64`, `json_has_key`
 - `json_compact`, `json_pretty`, `json_error`
 
 Import `std_json` and call these through the `!` namespace. This is an
