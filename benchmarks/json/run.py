@@ -28,8 +28,8 @@ def checked(command: list[str], cwd: pathlib.Path) -> subprocess.CompletedProces
     result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
     if result.returncode:
         raise RuntimeError(
-            f"build failed ({result.returncode}): {' '.join(command)}\\n"
-            f"stdout:\\n{result.stdout}\\nstderr:\\n{result.stderr}"
+            f"build failed ({result.returncode}): {' '.join(command)}\n"
+            f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
         )
     return result
 
