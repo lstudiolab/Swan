@@ -6,15 +6,20 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
 
 - `bytes.h`: overflow-checked reusable byte buffer with geometric growth,
   append (including self-append), resize, clear, and deterministic destruction.
-- `json.h`: bounded, zero-copy-token JSON parser and compact/pretty encoder. Its low-level document API borrows input; keep the source buffer alive until document destruction.
-- `json_writer.h` / `json_writer.c`: bounded-depth incremental object/array writer with escaped UTF-8 strings, i64, booleans, and null. It enforces one root value and object key/value order. Floating-point and typed-struct encoding are not exposed yet.
-- `json_abi.h` / `json_abi.c`: owned-input opaque document handles, root-key integer lookup, key existence, compact/pretty serialization, and parse-error retrieval.
-- `json_writer.h` / `json_writer.c`: nested object/array construction, UTF-8 string escaping, integer/boolean/null values, depth limits, and explicit writer state validation.
-  The ABI handle owns its input copy and reuses token/output capacity across parses.
-  The parser validates UTF-8, JSON escapes, surrogate pairs, number grammar,
-  delimiters, nesting depth, input size, and token count.
-- `http.h`: bounded HTTP/1.0 and HTTP/1.1 request parser, Content-Length framing, header lookup, and safe response framing. Chunked transfer encoding and socket-server lifecycle are not implemented.
-- `http_server.h` / `http_server.c`: bounded HTTP/1.1 JSON echo server using the worker pool. It supports one request per connection, content-length bodies, 503 queue backpressure, and request/byte counters. It does not support chunked transfer encoding, keep-alive, TLS, or custom Swan handlers.
+- `json.h`: bounded zero-copy-token JSON parser and compact/pretty encoder.
+  The low-level document API borrows its input buffer.
+- `json_abi.h` / `json_abi.c`: owned-input opaque document handles, root-key
+  integer lookup, key existence, compact/pretty serialization, and parse errors.
+  The handle reuses token and output capacity across repeated parses.
+- `json_writer.h` / `json_writer.c`: bounded-depth incremental object/array
+  writer for escaped UTF-8 strings, i64, booleans, and null. It enforces one
+  root value and correct object key/value order; float and typed-struct output
+  are not exposed yet.
+- `http.h`: bounded HTTP/1.0 and HTTP/1.1 request parser, Content-Length
+  framing, case-insensitive header lookup, and safe response framing.
+- `http_server.h` / `http_server.c`: bounded HTTP/1.1 JSON echo/health server
+  using the worker pool, with body limits, socket timeouts, 503 queue
+  backpressure, and request/byte counters. One request per connection.
 - `thread_pool.h`: bounded POSIX worker pool. Submission is nonblocking;
   a full queue reports backpressure. Shutdown can drain or discard queued work
   and always joins started workers.
@@ -24,9 +29,12 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
 ```sh
 sh tests/runtime-primitives.sh
 sh tests/json-runtime.sh
+sh tests/json-writer.sh
+sh tests/http-runtime.sh
+sh tests/http-server.sh
 ```
 
-The full `sh test.sh` suite includes both test runners.
+The full `sh test.sh` suite includes all runtime and Swan C-ABI integration tests.
 
 ## Not yet available
 
