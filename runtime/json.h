@@ -81,8 +81,8 @@ static inline bool swan_json_fail(SwanJsonDocument *doc, size_t offset,
 }
 
 /* Attach caller-owned token storage for allocation-free parsing. The storage
- * must remain alive until it is detached or the document is destroyed. When
- * the capacity is exhausted, parsing fails instead of falling back to heap. */
+ * must remain alive until replaced or the document is destroyed. When the
+ * capacity is exhausted, parsing fails instead of falling back to heap. */
 static inline bool swan_json_document_use_token_storage(
     SwanJsonDocument *doc, SwanJsonToken *storage, size_t capacity) {
     if (!doc || !storage || !capacity || doc->token_count != 0 ||
