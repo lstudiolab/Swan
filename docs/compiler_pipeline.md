@@ -33,7 +33,7 @@ The x86-64 AST compatibility backend remains for supported features not yet repr
 
 ## Svm optimization
 
-The typed-IR optimizer runs a bounded, change-driven fixed-point pass pipeline. Its current pass sequence includes constant folding, CFG simplification, algebraic simplification, copy propagation, common-subexpression elimination, loop-invariant code motion, a second CSE pass, and dead-code elimination. The pass manager stops when a complete round makes no changes and rejects failure to converge within 350 pass executions.
+SIL and SVM IR share a single compiler-wide ceiling of 350 optimization-pass executions. The current implementation consumes this budget in SIL and SVM IR; lexer, parser, semantic-analysis, machine-level, and final-emission pass registries are not yet connected. The typed-IR optimizer runs a bounded, change-driven fixed-point pass pipeline. Its current pass sequence includes constant folding, CFG simplification, algebraic simplification, copy propagation, common-subexpression elimination, loop-invariant code motion, a second CSE pass, and dead-code elimination. The pass manager stops when a complete round makes no changes and rejects failure to converge within 350 pass executions.
 
 The compiler verifies IR at pipeline boundaries. Debug builds also verify after mutating pass boundaries. Profiling records total IR generation, IR verification, total optimization, each individual optimization pass, and target code generation. Per-pass timings are inclusive and overlap the total optimization time; they are diagnostic breakdowns, not additive totals.
 
