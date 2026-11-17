@@ -72,8 +72,8 @@ grep -F "$TMP/warning.swan:" "$TMP/warning-diagnostic" >/dev/null
 
 mkdir -p "$TMP/cross"
 cat > "$TMP/cross/01_helper.swan" <<'SWAN'
-export func cross_value() -> i32:
-    return 42
+export func cross_value() -> bool:
+    return true
 SWAN
 cat > "$TMP/cross/02_main.swan" <<'SWAN'
 func main() -> i32:
