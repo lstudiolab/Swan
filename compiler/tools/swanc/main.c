@@ -62,6 +62,7 @@ static bool swan_source_output_path(char *out,size_t capacity,const char *direct
  const char *base=swan_source_basename(source_path);
  size_t length=strlen(base);
  if(length>=5&&!strcmp(base+length-5,".swan"))length-=5;
+ if(length>(size_t)INT_MAX)return false;
  int n=snprintf(out,capacity,"%s/%.*s.s",directory,(int)length,base);
  if(n<0||(size_t)n>=capacity)return false;
  return true;
