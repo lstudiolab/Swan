@@ -49,11 +49,11 @@ The current collection API operates on Swan's implemented `u32_array` type. Ever
 
 ### Native JSON runtime (C ABI)
 
-The JSON runtime is implemented in `runtime/json.h` and
-`runtime/json_abi.c`. Swan programs can import
-`runtime/json_abi.h` with `import C` and link the runtime object. It provides
-reusable document handles, parsing, root-key integer lookup, key existence,
-compact/pretty serialization, parse-error retrieval, and explicit destruction.
+The JSON runtime is implemented in `runtime/json.h`, `runtime/json_abi.c`, and
+`runtime/json_writer.c`. Swan programs can import the ABI headers with
+`import C` and link the runtime object. It provides reusable document handles,
+parsing, root-key integer lookup, key existence, compact/pretty serialization,
+parse-error retrieval, and a nested object/array writer with UTF-8 escaping.
 
 This is a low-level x86-64 C-ABI surface. Opaque document and returned string
 pointers are represented as integer-register values because Swan does not yet
