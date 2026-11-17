@@ -40,7 +40,6 @@ fn main() {
     var bytes: i64 = 0;
     while request < REQUESTS {
         doc.clear();
-        decoded.clear();
         out.clear();
         let root, err = json::parse(PAYLOAD, doc, decoded);
         guard root else { abort(err); }
