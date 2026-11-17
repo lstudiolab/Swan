@@ -52,7 +52,7 @@ A supported IR opcode does not imply that every source construct or target backe
 
 ## Optimization ordering
 
-The current typed-IR optimizer includes width-aware constant folding, constant-select and constant-branch folding, CFG simplification and unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware CSE, conservative loop-invariant code motion, post-hoisting CSE, and worklist dead-code elimination.
+SIL currently models typed SSA values, explicit basic blocks and branch edges, ownership conventions, stack allocation, loads/stores, applies, borrows, and destruction operations. Its verifier checks block structure, terminators, branch targets, SSA use ordering, and ownership constraints. SIL optimization currently includes canonicalization, ownership simplification, and dead-value elimination. The typed-IR optimizer includes width-aware constant folding, constant-select and constant-branch folding, CFG simplification and unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware CSE, conservative loop-invariant code motion, post-hoisting CSE, and worklist dead-code elimination.
 
 The pass manager repeats its ordered pass list until a full round makes no changes, with a hard maximum of 350 pass executions. Potentially trapping operations and observable memory effects must not be discarded. Release builds avoid redundant whole-module verification at every pass boundary; debug builds verify each mutating pass result.
 
