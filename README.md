@@ -308,6 +308,8 @@ The benchmark warms up and reports median timings across compiler stages for its
 
 The repository also includes runtime comparison workloads, including `benchmarks/binary_search.py`. Run benchmarks on controlled hardware and compare checksums before comparing speed. Do not infer that Swan is faster than another compiler from compilation time alone.
 
+For a heavy compile-time comparison across Goose, Swan, Rust, C++, C, and x86-64 assembly, see [the six-toolchain compilation benchmark](benchmarks/COMPILATION.md). It generates large workloads and reports median compile-plus-link time and peak compiler memory.
+
 ## Tests
 
 Run the complete repository test script:
