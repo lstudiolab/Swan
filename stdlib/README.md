@@ -76,7 +76,7 @@ The current language/backend subset is not yet sufficient to implement all Swift
 - General-purpose strings, Unicode scalar/grapheme processing, formatting, and parsing.
 - Floating-point math, transcendental functions, and IEEE-754 classification.
 - File and directory I/O, processes, environment access, networking, and sockets.
-- JSON, CSV, Base64, regular expressions, and general binary buffers.
+- CSV, Base64, regular expressions, general-purpose string operations, and a full typed JSON DOM/streaming API.
 - Safe pointers, allocators, ownership/borrowing, and memory layout APIs.
 - Tasks, async sequences, actors, synchronization, and cancellation.
 - Reflection, key paths, runtime metadata, and serialization protocols.
