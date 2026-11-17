@@ -72,8 +72,8 @@ grep -F "$TMP/warning.swan:" "$TMP/warning-diagnostic" >/dev/null
 
 mkdir -p "$TMP/cross"
 cat > "$TMP/cross/01_helper.swan" <<'SWAN'
-export func cross_value() -> int:
-    return 4294967296
+export func cross_value() -> bool:
+    return true
 SWAN
 cat > "$TMP/cross/02_main.swan" <<'SWAN'
 func main() -> i32:
@@ -152,8 +152,8 @@ export func target_value_$n() -> bool:
 SWAN
 done
 cat > "$TMP/ten-target/main.swan" <<'SWAN'
-func main() -> int:
-    return 4294967296
+func main() -> bool:
+    return true
 SWAN
 "$ROOT/build/swanc" build "$TMP/ten-target" --target aarch64 --emit-asm -o "$TMP/ten-aarch64"
 test "$(find "$TMP/ten-aarch64" -maxdepth 1 -name '*.s' | wc -l)" -eq 10
