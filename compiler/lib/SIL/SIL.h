@@ -241,7 +241,8 @@ static inline bool swan_sil_verify(const SwanSILModule *m,char *error,size_t cap
     if(error&&cap)snprintf(error,cap,"SIL branch has incorrect successor count in %s",f->name);
     return false;
    }
-   if(in->target_count!=f->blocks[in->block].successor_count){
+   if((in->terminates_block&&in->target_count!=f->blocks[in->block].successor_count)||
+      (!in->terminates_block&&in->target_count!=0)){
     if(error&&cap)snprintf(error,cap,"SIL branch successor metadata mismatch in %s",f->name);
     return false;
    }
@@ -276,7 +277,8 @@ static inline bool swan_sil_dead_value_elimination(SwanSILModule *m,bool *change
    }
   }
  }
- if(changed)*changed=any;return true;
+ if(changed)*changed=any;
+ return true;
 }
 static inline bool swan_sil_ownership_simplify(SwanSILModule *m,bool *changed) {
  bool any=false;
