@@ -1131,6 +1131,16 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
  text_add(o,".intel_syntax noprefix\n.text\n");o->program=p;int strid=0;
  for(size_t i=0;i<p->count;i++){
   Stmt *fn=p->functions[i];
+  if(p->codegen_source_index>=0&&fn->source_index!=(size_t)p->codegen_source_index){
+   if(fn->external)text_add(o,".extern %s\n",fn->name);
+   else if(strcmp(fn->name,"main")){
+    char external_symbol[SWAN_MAX_TEXT+128];
+    if(fn->exported&&!fn->imported)snprintf(external_symbol,sizeof(external_symbol),"%s",fn->name);
+    else snprintf(external_symbol,sizeof(external_symbol),"swan_fn_%s",fn->link_name?fn->link_name:fn->name);
+    text_add(o,".extern %s\n",external_symbol);
+   }
+   continue;
+  }
   if(fn->external){text_add(o,".extern %s\n",fn->name);continue;}
   if(p->codegen_module_index<0&&fn->imported&&!p->bundle_imports)continue;
   if(p->bundle_imports&&fn->imported&&!p->function_reachable[i])continue;
