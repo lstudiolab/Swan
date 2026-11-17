@@ -126,7 +126,7 @@ def generate_sources(directory: pathlib.Path, functions: int,
             k = ((i + 1) * (j + 3) * 17) % 999_983 + 1
             m = (j * 13 + i * 7) % 97 + 3
             asm.extend([f"    imulq ${m}, %rax", f"    addq ${k}, %rax",
-                        "    andq $0x7fffffffffffffff, %rax"])
+                        "    andl $2147483647, %eax"])
         asm.extend(["    ret", f".size workload_{i}, .-workload_{i}", ""])
     asm.extend([".globl main", ".type main, @function", "main:",
                 "    xorl %eax, %eax", "    ret", ".size main, .-main", ""])
