@@ -133,11 +133,11 @@ A directory or explicit source list denotes one logical program, not a sequence 
 - Resolve declarations across all project files before checking function bodies where language rules require whole-module visibility.
 - Detect duplicate declarations and import cycles deterministically.
 - Perform reachability, optimization, and code generation across the complete reachable program.
-- Emit one combined native object or one combined assembly artifact for the project, then link once. Multiple object files may be an internal implementation detail, but the user-facing project is one compilation unit and one final program.
+- Emit one assembly file and one object file per source translation unit. The project linker consumes those objects and produces one final executable. Source files remain separate throughout lexing, parsing, code generation, and object emission; project-wide declarations and semantic analysis still operate over the shared project graph.
 - Imported modules are deduplicated by canonical module identity and loaded once per compilation.
 - Parallel frontend work is permitted only for independent files and must merge results deterministically. Shared mutable compiler state must not be accessed concurrently without a defined synchronization/ownership model.
 
-The current driver concatenates source buffers before lexing. That is a known transitional shortcut. The source manager and per-file token streams must replace it before claiming exact multi-file diagnostics or file-boundary correctness.
+The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. Native x86-64 project builds and assembly emission produce one translation unit per Swan source file. Other target backends still use the project-wide IR module and have not yet been split into per-source object emission. Source identity is retained on declarations; full file-aware diagnostics and source-range remapping remain in progress.
 
 ### 4.2 Phase contracts
 
