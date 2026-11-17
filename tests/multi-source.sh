@@ -144,7 +144,18 @@ for n in 0 1 2 3 4 5 6 7 8; do
     grep -q "\\.extern source_value_$n" "$TMP/ten-assembly/main.s"
 done
 printf 'PASS: ten Swan files produce ten independent assembly translation units and linked symbols\n'
-"$ROOT/build/swanc" build "$TMP/ten-source" --target aarch64 --emit-asm -o "$TMP/ten-aarch64"
+mkdir -p "$TMP/ten-target"
+for n in 0 1 2 3 4 5 6 7 8; do
+    cat > "$TMP/ten-target/source_$n.swan" <<SWAN
+export func target_value_$n() -> bool:
+    return true
+SWAN
+done
+cat > "$TMP/ten-target/main.swan" <<'SWAN'
+func main() -> int:
+    return 0
+SWAN
+"$ROOT/build/swanc" build "$TMP/ten-target" --target aarch64 --emit-asm -o "$TMP/ten-aarch64"
 test "$(find "$TMP/ten-aarch64" -maxdepth 1 -name '*.s' | wc -l)" -eq 10
 printf 'PASS: AArch64 emission also preserves one output artifact per Swan source\n'
 
