@@ -41,7 +41,7 @@ jobs:
         run: sh tests/riscv64.sh
       - name: Verify arbitrary LLVM target-triple backend
         run: sh tests/llvm-target.sh
-      - name: Verify whole-project single-assembly compilation
+      - name: Verify one assembly and object per source file
         run: sh tests/multi-source.sh
       - name: Verify compiler version
         run: ./build/swanc --version
