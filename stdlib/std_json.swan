@@ -3,8 +3,8 @@
 # document handles opaque and uses the existing integer ABI representation.
 import C "runtime/json_abi.h"
 
-func json_create() -> int:
-    return swan_json_create()
+func json_create(initial_token_capacity: int) -> int:
+    return swan_json_create(initial_token_capacity)
 
 func json_parse(document: int, input: int) -> int:
     return swan_json_parse_text(document, input)
