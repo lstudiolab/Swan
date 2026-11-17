@@ -11,7 +11,7 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
   The ABI handle owns its input copy and reuses token/output capacity across parses.
   The parser validates UTF-8, JSON escapes, surrogate pairs, number grammar,
   delimiters, nesting depth, input size, and token count.
-- `thread_pool.h`: bounded POSIX worker pool. Submission is nonblocking;
+- `http.h`: bounded HTTP/1.0 and HTTP/1.1 request parser, Content-Length framing, header lookup, and safe response framing. Chunked transfer encoding and socket-server lifecycle are not implemented.\n- `thread_pool.h`: bounded POSIX worker pool. Submission is nonblocking;
   a full queue reports backpressure. Shutdown can drain or discard queued work
   and always joins started workers.
 
@@ -28,7 +28,7 @@ The full `sh test.sh` suite includes both test runners.
 
 The JSON C ABI is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
 
-HTTP/TCP/TLS, socket lifecycle, a complete request/response API, cancellation,
+TCP/TLS, socket-server lifecycle, chunked transfer decoding, keep-alive/pipelining, cancellation,
 structured task scopes, streaming JSON/JSONL, typed JSON values, and a Swan-level
 async scheduler are not implemented. Do not use the C worker pool as evidence
 that Swan async semantics exist.
