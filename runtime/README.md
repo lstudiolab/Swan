@@ -8,6 +8,7 @@ This directory contains the first C11/POSIX runtime primitives. They have direct
   append (including self-append), resize, clear, and deterministic destruction.
 - `json.h`: bounded, zero-copy-token JSON parser and compact/pretty encoder. Its low-level document API borrows input; keep the source buffer alive until document destruction.
 - `json_abi.h` / `json_abi.c`: owned-input opaque document handles, root-key integer lookup, key existence, compact/pretty serialization, and parse-error retrieval.
+- `json_writer.h` / `json_writer.c`: nested object/array construction, UTF-8 string escaping, integer/boolean/null values, depth limits, and explicit writer state validation.
   The ABI handle owns its input copy and reuses token/output capacity across parses.
   The parser validates UTF-8, JSON escapes, surrogate pairs, number grammar,
   delimiters, nesting depth, input size, and token count.
