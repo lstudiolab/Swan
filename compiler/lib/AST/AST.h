@@ -7,7 +7,8 @@ struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t
 static inline const char *swan_expr_terminal_name(Expr *e){while(e&&e->kind==E_MEMBER)e=e->right;return e&&e->kind==E_NAME?e->token.text:NULL;}
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR,S_FREE } StmtKind;
 typedef struct Stmt Stmt;
-struct Stmt { StmtKind kind; Token token; const char *name,*link_name,*type; bool mutable_value,manual_memory,manual_checked,exported; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; const char **param_types; size_t param_count,param_capacity; Stmt *next; int module_index; bool imported,external; };
+struct Stmt { StmtKind kind; Token token; size_t source_index; const char *name,*link_name,*type; bool mutable_value,manual_memory,manual_checked,exported; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; const char **param_types; size_t param_count,param_capacity; Stmt *next; int module_index; bool imported,external; };
+typedef struct { char *path,*text,*token_storage; } SwanSourceFile;
 typedef struct {
  Stmt **functions; size_t count,function_capacity;
  const char **imports; size_t import_count,import_capacity;
@@ -15,12 +16,13 @@ typedef struct {
  SwanArenaChunk *arena;
  size_t *function_buckets,*function_next,*link_function_buckets,*link_function_next,function_bucket_count;
  bool function_indexed;
+ SwanSourceFile *source_files; size_t source_count,source_capacity,current_source_index;
  size_t source_function_count,module_count,module_capacity;
  size_t *module_starts,*module_ends; size_t module_starts_capacity,module_ends_capacity;
  const char **module_names;
  bool *function_reachable;
  bool reachability_computed,bundle_imports;
- int codegen_module_index;
+ int codegen_module_index,codegen_source_index;
  SwanWarning *warnings; size_t warning_count,warning_capacity,warnings_dropped;
 } Program;
 static inline bool swan_reserve_array(void **items,size_t *capacity,size_t needed,size_t item_size){
@@ -57,6 +59,16 @@ static inline bool swan_program_add_module(Program *p,const char *name,size_t st
  p->module_starts[p->module_count]=start;p->module_ends[p->module_count]=start;
  p->module_names[p->module_count]=name;if(index)*index=p->module_count;p->module_count++;return true;
 }
+static inline bool swan_program_add_source(Program *p,const char *path,char *text,char *token_storage){
+ if(!p||!path||!text)return false;
+ if(p->source_count==SIZE_MAX||
+    !swan_reserve_array((void**)&p->source_files,&p->source_capacity,
+                        p->source_count+1,sizeof(*p->source_files)))return false;
+ SwanSourceFile *source=&p->source_files[p->source_count++];
+ source->path=strdup(path);source->text=text;source->token_storage=token_storage;
+ if(!source->path){p->source_count--;return false;}
+ return true;
+}
 static inline void *swan_arena_alloc(Program *p,size_t size){
  if(!p)return NULL;
  const size_t align=_Alignof(max_align_t);
@@ -84,7 +96,10 @@ static inline bool swan_arena_grow(Program *p,void **items,size_t old_count,size
 }
 static inline void swan_program_destroy(Program *p){
  if(!p)return;
- free(p->functions);free(p->imports);free(p->c_headers);free(p->module_names);free(p->module_starts);free(p->module_ends);free(p->function_buckets);free(p->function_next);free(p->link_function_buckets);free(p->link_function_next);free(p->function_reachable);free(p->warnings);
+ for(size_t i=0;i<p->source_count;i++){
+  free(p->source_files[i].path);free(p->source_files[i].text);free(p->source_files[i].token_storage);
+ }
+ free(p->source_files);free(p->functions);free(p->imports);free(p->c_headers);free(p->module_names);free(p->module_starts);free(p->module_ends);free(p->function_buckets);free(p->function_next);free(p->link_function_buckets);free(p->link_function_next);free(p->function_reachable);free(p->warnings);
  SwanArenaChunk *chunk=p->arena;
  while(chunk){SwanArenaChunk *next=chunk->next;free(chunk);chunk=next;}
  memset(p,0,sizeof(*p));
