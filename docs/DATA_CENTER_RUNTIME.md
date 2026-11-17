@@ -2,6 +2,25 @@
 
 **Status:** Architecture and implementation contract. This document does not claim that the listed runtime APIs are implemented.
 
+## Current implementation status
+
+The following runtime pieces are now present and covered by the repository test
+suite:
+
+| Component | Implemented surface | Boundary |
+|---|---|---|
+| Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |
+| JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; numeric accessor currently signed i64 |
+| JSON output | Compact and pretty serialization of parsed documents | Re-emits parsed source token values; no general typed writer yet |
+| Swan JSON bridge | `std_json` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
+| Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Swan task scheduler |
+| String FFI | NUL-terminated literals passed to imported C pointer parameters | x86-64 AST compatibility backend only |
+
+HTTP/TCP/TLS, SQL drivers, streaming JSONL, generic dynamic collections,
+aggregate ABI/lifetimes, and language-level async remain unimplemented. The
+benchmark work must report the exact runtime path used by each language; a C
+runtime call from Swan must not be described as a pure Swan JSON implementation.
+
 ## Goal
 
 Make Swan a native, ahead-of-time compiled language suitable for long-running backend services, database-heavy applications, JSON APIs, and data-center workloads. The target is Go-class practicality and throughput, measured on equivalent workloads. No performance ranking is claimed until repeatable benchmarks exist.
