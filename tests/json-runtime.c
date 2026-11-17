@@ -53,6 +53,26 @@ int main(void) {
     swan_json_buffer_destroy(&pretty);
     swan_json_document_destroy(&doc);
 
+    /* The reusable parser retains its token allocation across requests. */
+    SwanJsonDocument reusable;
+    swan_json_document_init(&reusable);
+    assert(swan_json_parse(&reusable, "{\"a\":[1,2,3]}", 13));
+    size_t capacity = reusable.token_capacity;
+    assert(capacity >= reusable.token_count);
+    assert(swan_json_parse_reuse(&reusable, "{\"b\":4}", 7));
+    assert(reusable.token_capacity == capacity);
+    assert(swan_json_object_get(&reusable, 0, "b") != SWAN_JSON_NONE);
+    assert(!swan_json_parse_reuse(&reusable, "{", 1));
+    assert(swan_json_parse_reuse(&reusable, "false", 5));
+    swan_json_document_destroy(&reusable);
+
+    SwanJsonDocument limited;
+    swan_json_document_init(&limited);
+    limited.limits.max_depth = 1;
+    assert(!swan_json_parse(&limited, "[[0]]", 5));
+    assert(strstr(limited.error, "depth") != NULL);
+    swan_json_document_destroy(&limited);
+
     valid("null");
     valid("true");
     valid("[]");
