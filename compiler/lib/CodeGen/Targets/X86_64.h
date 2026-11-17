@@ -32,7 +32,7 @@ static inline void cg_push(Text *o,const char *reg){text_add(o,"    push %s\n",r
 static inline void cg_pop(Text *o,const char *reg){text_add(o,"    pop %s\n",reg);o->stack_depth-=8;}
 static inline void cg_call(Text *o,const char *symbol){int entry=o->frameless?8:0;int pad=(16-((o->stack_depth+entry)%16))%16;cg_reserve(o,pad);text_add(o,"    call %s\n",symbol);cg_release(o,pad);}
 static inline bool cg_const_value(Expr *e,int64_t *out);
-typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known,samc_manual,samc_escaped,samc_freed,stack_array; int array_stack_offset; } Local;
+typedef struct { const char *name; int slot,reg,next; int64_t array_length; bool mut,array_u32,array_unchecked,array_length_known,samc_escaped,stack_array; int array_stack_offset; } Local;
 typedef struct { Local *items;size_t count,capacity;int buckets[2048];size_t array_storage_bytes;int slots,reg_count,saved_reg_count,volatile_reg_count;bool caller_saved,failed; } Locals;
 static const char *cg_saved_regs[]={"rbx","r12","r13","r14","r15"};
 static const char *cg_volatile_regs[]={"rdi","rsi","rdx","r8","r9"};
@@ -50,7 +50,7 @@ static inline Local *local_add(Locals *l,const char *name,bool mut){
  else v->slot=++l->slots;
  return v;
 }
-static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v){v->samc_manual=s->manual_memory;}if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME){
+static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0;i<n;i++){Stmt *s=body[i];if(s->kind==S_VARIABLE){Local *v=local_add(l,s->name,s->mutable_value);if(v&&s->value&&s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME){
  if(!strcmp(s->value->left->token.text,"array")||!strcmp(s->value->left->token.text,"array_u32")){
   v->array_u32=true;int64_t length=0;
   if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
@@ -915,7 +915,6 @@ static inline void samc_mark_expr(Expr *e,Locals *l,bool escapes){
  if(!e)return;
  if(e->kind==E_NAME){if(escapes){Local *v=local_find(l,e->token.text);if(v&&v->array_u32)v->samc_escaped=true;}return;}
  if(e->kind==E_CALL&&e->left&&e->left->kind==E_NAME){
-  if(!strcmp(e->left->token.text,"free")){if(e->argc==1&&e->args[0]&&e->args[0]->kind==E_NAME){Local *v=local_find(l,e->args[0]->token.text);if(v&&v->array_u32)v->samc_freed=true;}return;}
   for(size_t i=0;i<e->argc;i++)samc_mark_expr(e->args[i],l,true);
   return;
  }
@@ -933,7 +932,7 @@ static inline void samc_assign_stack_arrays(Locals *l){
  size_t base=(l->slots+l->saved_reg_count)*8u,total=0;
  for(size_t i=0;i<l->count;i++){
   Local *v=&l->items[i];
-  if(!v->array_u32||!v->array_length_known||v->samc_manual||v->samc_escaped||v->samc_freed)continue;
+  if(!v->array_u32||!v->array_length_known||v->samc_escaped)continue;
   size_t data=(size_t)v->array_length*4u;
   if(data>65536u)continue;
   size_t storage=data+(v->array_unchecked?0u:8u);
@@ -997,14 +996,14 @@ static inline bool samc_validate_no_heap(Stmt *function,Locals *locals,SwanError
  }
  return samc_validate_no_heap_block(function->body,function->body_count,locals,error);
 }
-static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array)return true;}return false;}
-static inline bool samc_expr_uses_owned_array(Expr *e,Locals *l){if(!e)return false;if(e->kind==E_NAME){Local *v=local_find(l,e->token.text);return v&&v->array_u32&&!v->samc_manual&&!v->samc_escaped&&!v->samc_freed&&!v->stack_array;}if(samc_expr_uses_owned_array(e->left,l)||samc_expr_uses_owned_array(e->right,l))return true;for(size_t i=0;i<e->argc;i++)if(samc_expr_uses_owned_array(e->args[i],l))return true;return false;}
+static inline bool samc_has_cleanup(Locals *l){for(size_t i=0;i<l->count;i++){Local *v=&l->items[i];if(v->array_u32&&!v->samc_escaped&&!v->stack_array)return true;}return false;}
+static inline bool samc_expr_uses_owned_array(Expr *e,Locals *l){if(!e)return false;if(e->kind==E_NAME){Local *v=local_find(l,e->token.text);return v&&v->array_u32&&!v->samc_escaped&&!v->stack_array;}if(samc_expr_uses_owned_array(e->left,l)||samc_expr_uses_owned_array(e->right,l))return true;for(size_t i=0;i<e->argc;i++)if(samc_expr_uses_owned_array(e->args[i],l))return true;return false;}
 /* Zero-initialize owned heap handles before any branch can bypass their
    declaration. This makes cleanup safe on every control-flow path. */
 static inline void ownership_initialize_handles(Text *o,Locals *l){
  for(size_t i=0;i<l->count;i++){
   Local *v=&l->items[i];
-  if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
+  if(!v->array_u32||v->samc_escaped||v->stack_array)continue;
   if(v->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(v->reg),cg_reg_low_name(v->reg));
   else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",v->slot*8);
  }
@@ -1014,7 +1013,7 @@ static inline void ownership_initialize_handles(Text *o,Locals *l){
 static inline void emit_samc_cleanup(Text *o,Locals *l){
  for(size_t i=0;i<l->count;i++){
   Local *v=&l->items[i];
-  if(!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)continue;
+  if(!v->array_u32||v->samc_escaped||v->stack_array)continue;
   int skip=o->next_label++;
   if(v->reg>=0)text_add(o,"    test %s, %s\n    je .Lswan_drop_skip_%d\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
   else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\n    je .Lswan_drop_skip_%d\n",v->slot*8,skip);
@@ -1049,7 +1048,7 @@ static inline bool ownership_block_mentions(Stmt **body,size_t start,size_t coun
  return false;
 }
 static inline void ownership_cleanup_local(Text *o,Locals *l,Local *v){
- if(!v||!v->array_u32||v->samc_manual||v->samc_escaped||v->samc_freed||v->stack_array)return;
+ if(!v||!v->array_u32||v->samc_escaped||v->stack_array)return;
  int skip=o->next_label++;
  if(v->reg>=0)text_add(o,"    test %s, %s\n    je .Lswan_drop_skip_%d\n",cg_reg_name(v->reg),cg_reg_name(v->reg),skip);
  else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\n    je .Lswan_drop_skip_%d\n",v->slot*8,skip);
@@ -1164,7 +1163,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
   if(top_level){
    for(size_t k=0;k<l->count;k++){
     Local *owned=&l->items[k];
-    if(owned->array_u32&&!owned->samc_manual&&!owned->samc_escaped&&!owned->samc_freed&&!owned->stack_array&&
+    if(owned->array_u32&&!owned->samc_escaped&&!owned->stack_array&&
        ownership_stmt_mentions(s,owned->name)&&!ownership_block_mentions(body,i+1,n,owned->name))
      ownership_cleanup_local(o,l,owned);
    }
