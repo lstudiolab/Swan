@@ -56,7 +56,19 @@ static inline bool swan_bytes_append(SwanByteBuffer *buffer,
     if (!buffer || (!data && length) ||
         length > SIZE_MAX - buffer->length) return false;
     size_t old_length = buffer->length;
+    bool aliases = false;
+    size_t source_offset = 0;
+    if (length && buffer->data) {
+        uintptr_t base = (uintptr_t)buffer->data;
+        uintptr_t source = (uintptr_t)data;
+        if (source >= base && source - base <= old_length) {
+            source_offset = (size_t)(source - base);
+            if (length > old_length - source_offset) return false;
+            aliases = true;
+        }
+    }
     if (!swan_bytes_reserve(buffer, old_length + length)) return false;
+    if (aliases) data = buffer->data + source_offset;
     if (length) memmove(buffer->data + old_length, data, length);
     buffer->length += length;
     return true;
