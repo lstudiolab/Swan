@@ -84,6 +84,7 @@ SWAN
 "$ROOT/build/swanc" build "$TMP/wasm-src" --target wasm32 --emit-asm -o "$TMP/wasm"
 test -f "$TMP/wasm/01_helper.wasm"
 test -f "$TMP/wasm/02_main.wasm"
+strings "$TMP/wasm/01_helper.wasm" | grep -F wasm_helper >/dev/null
 "$ROOT/build/swanc" build "$TMP/cross" --target-triple aarch64-apple-macosx14.0.0 --emit-llvm -o "$TMP/llvm"
 test -f "$TMP/llvm/01_helper.ll"
 test -f "$TMP/llvm/02_main.ll"
