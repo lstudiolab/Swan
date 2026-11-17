@@ -6,6 +6,15 @@
 static bool swan_has_suffix(const char *path,const char *suffix){
  size_t a=strlen(path),b=strlen(suffix);return a>=b&&!strcmp(path+a-b,suffix);
 }
+static void swan_print_diagnostic(const char *prefix,const SwanError *error){
+ if(!error)return;
+ if(error->source_name&&error->line)
+  fprintf(stderr,"%s:%s:%u:%u: %s\\n",prefix,error->source_name,error->line,error->col,error->message);
+ else if(error->line)
+  fprintf(stderr,"%s:%u:%u: %s\\n",prefix,error->line,error->col,error->message);
+ else
+  fprintf(stderr,"%s: %s\\n",prefix,error->message);
+}
 static bool swan_append_input(const char ***items,size_t *count,size_t *capacity,const char *path){
  if(!items||!count||!capacity||!path||*count==SIZE_MAX||
     !swan_reserve_array((void**)items,capacity,*count+1,sizeof(**items)))return false;
@@ -270,6 +279,7 @@ static int swan_run(int argc,char **argv){
    free(ts.items);free(ts.text_storage);free(source);swan_program_destroy(&p);return 1;
   }
   swan_profile_end(SWAN_PROFILE_LEX,stage);
+  swan_token_stream_set_source_name(&ts,swan_inputs[source_index]);
   if(!swan_program_add_source(&p,swan_inputs[source_index],source,ts.text_storage)){
    fprintf(stderr,"swan: out of memory retaining source file '%s'\n",swan_inputs[source_index]);
    free(ts.items);free(ts.text_storage);free(source);swan_program_destroy(&p);return 1;
