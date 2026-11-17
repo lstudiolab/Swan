@@ -40,7 +40,7 @@ typedef struct {
 } SwanIRBlock;
 struct SwanIRFunction {
  const char *name; SwanIRType return_type; SwanIRType *parameter_types;
- size_t parameter_count; bool external; SwanIRBlock *blocks; size_t block_count, block_capacity;
+ size_t parameter_count; bool external,exported; SwanIRBlock *blocks; size_t block_count, block_capacity;
  uint32_t next_value; SwanIRType *value_types; size_t value_type_capacity;
  SwanIRValueLocation *value_locations; size_t value_location_capacity;
 };
