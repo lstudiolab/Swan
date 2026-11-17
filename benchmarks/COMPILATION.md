@@ -13,8 +13,8 @@ Use `compile_speed.py` to compare source-to-native-executable compile time for:
 
 The benchmark generates one large translation unit for each high-level language.
 Each contains hundreds of reachable functions, with a configurable chain of
-dependent arithmetic operations per function. The default workload is 256
-functions × 64 operations (16,384 dependent arithmetic statements per language),
+dependent arithmetic operations per function. The default workload is 384
+functions × 96 operations (36,864 dependent arithmetic statements per language),
 plus a call site for every generated function.
 
 It records median and best compile-plus-link wall time, peak process RSS,
