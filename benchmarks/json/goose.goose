@@ -8,13 +8,10 @@ recursive fn render(node: json::Node&, out: u8[>..]&) {
     match node.val {
         Null => out.append("null"),
         Bool b => json::format_bool(out, b.v),
-        Num n => {
-            let integer = n.v as! i64;
-            if integer == n.v { json::format_int(out, integer); }
-            else { json::format_number(out, n.v); }
-        },
+        Int n => json::format_int(out, n.v),
+        Num n => json::format_number(out, n.v),
         Str s => json::format_string(out, s.s),
-        Arr a => render_children(a.first, false, out, '[', ']'),
+        Arr a => render_children(node.first, false, out, '[', ']'),
         Obj o => render_children(o.first, true, out, '{', '}'),
     }
 }
