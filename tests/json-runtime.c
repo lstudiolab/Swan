@@ -68,6 +68,8 @@ int main(void) {
     /* The reusable parser retains its token allocation across requests. */
     SwanJsonDocument reusable;
     swan_json_document_init(&reusable);
+    assert(swan_json_document_reserve_tokens(&reusable, 128));
+    assert(reusable.token_capacity == 128);
     assert(swan_json_parse(&reusable, "{\"a\":[1,2,3]}", 13));
     size_t capacity = reusable.token_capacity;
     assert(capacity >= reusable.token_count);
