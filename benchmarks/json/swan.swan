@@ -1,23 +1,11 @@
-import C "runtime/json_abi.h"
 import C "benchmarks/json/swan_payload.h"
 
 func main() -> int:
-    let payload = swan_json_benchmark_payload(0)
-    let document = swan_json_create(64)
-    if document == 0:
+    let result = swan_json_benchmark_run(swan_json_benchmark_payload(0), 100000)
+    if result == 0:
         return 1
-
-    var request = 0
-    while request < 100000:
-        if swan_json_parse_text(document, payload) != 1:
-            return 2
-        if swan_json_compact_length(document) <= 0:
-            return 3
-        request = request + 1
-
-    let checksum = (swan_json_get_i64(document, "id", -1) + swan_json_get_i64(document, "workers", -1)) * 100000
-    let bytes = (swan_json_input_length(document) + swan_json_compact_length(document)) * 100000
-    swan_json_close(document)
+    let checksum = swan_json_benchmark_checksum(result)
+    let bytes = swan_json_benchmark_bytes(result)
     !printin >> checksum
     !printin >> bytes
     return 0
