@@ -1,7 +1,8 @@
 import C "runtime/json_abi.h"
+import C "benchmarks/json/swan_payload.h"
 
 func main() -> int:
-    let payload = "{\"id\":42,\"workers\":128,\"enabled\":true,\"service\":\"swan\",\"items\":[1,2,3,4,5],\"meta\":{\"region\":\"ap-southeast-1\",\"version\":1}}"
+    let payload = swan_json_benchmark_payload(0)
     let document = swan_json_create(64)
     if document == 0:
         return 1
