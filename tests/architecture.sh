@@ -5,14 +5,14 @@ SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/targets"
 mkdir -p "$TMP"
 cat > "$TMP/native.swan" <<'SWAN'
-fn sum(n: int) -> int:
+func sum(n: int) -> int:
     var total = 0
     var i = 0
     while i < n
         total = total + i
         i = i + 1
     return total
-fn main() -> int:
+func main() -> int:
     let values = array(8)
     var i = 0
     while i < 8
@@ -25,9 +25,9 @@ SWAN
 cc -x assembler "$TMP/native.s" -o "$TMP/native"
 test "$("$TMP/native")" = "91"
 cat > "$TMP/scalar.swan" <<'SWAN'
-fn twice(x: int) -> int:
+func twice(x: int) -> int:
     return x * 2
-fn main() -> int:
+func main() -> int:
     return twice(21)
 SWAN
 "$SWAN" "$TMP/scalar.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
