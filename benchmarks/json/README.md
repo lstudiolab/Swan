@@ -26,3 +26,6 @@ does not include sockets, TLS, request scheduling, or concurrent load. The Swan
 result measures its native runtime path, not a parser written entirely in Swan.
 The reported MiB/s counts input bytes plus compact output bytes. Throughput
 percentiles are across whole benchmark runs, not per-request latency percentiles.
+
+
+The first verified baseline is recorded in [`results/2026-11-17.md`](results/2026-11-17.md).
