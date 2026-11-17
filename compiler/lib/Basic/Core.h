@@ -31,7 +31,7 @@ static bool swan_profile_enabled=false;
 static uint64_t swan_profile_ns[SWAN_PROFILE_COUNT];
 static struct timespec swan_profile_total_start;
 static inline bool swan_profile_time(struct timespec *t){
-#ifdef CLOCK_MONOTONIC
+#if defined(SWAN_USE_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
  return clock_gettime(CLOCK_MONOTONIC,t)==0;
 #else
  return timespec_get(t,TIME_UTC)==TIME_UTC;
