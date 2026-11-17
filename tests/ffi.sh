@@ -52,8 +52,10 @@ func main() -> i32:
     if swan_c_string_eq(greeting, "Swan") != 1:
         return 5
     let json = "{\"workers\":128,\"enabled\":true}"
-    let document = swan_json_open(json)
+    let document = swan_json_create(64)
     if document == 0:
+        return 6
+    if swan_json_parse_text(document, json) != 1:
         return 6
     if swan_json_get_i64(document, "workers", -1) != 128:
         return 7
