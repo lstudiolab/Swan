@@ -51,3 +51,27 @@ fi
 grep -F "$TMP/bad.swan:" "$TMP/diagnostic" >/dev/null
 
 printf 'PASS: independent per-file lexing/parsing with project-wide semantic analysis and C linking\n'
+
+
+# Ten Swan source files must remain ten independent assembly translation units.
+mkdir -p "$TMP/ten-source"
+for n in 0 1 2 3 4 5 6 7 8; do
+    value=$((n + 1))
+    cat > "$TMP/ten-source/source_$n.swan" <<SWAN
+export C func source_value_$n() -> int:
+    return $value
+SWAN
+done
+cat > "$TMP/ten-source/main.swan" <<'SWAN'
+func main() -> int:
+    return source_value_0() + source_value_1() + source_value_2() + source_value_3() + source_value_4() + source_value_5() + source_value_6() + source_value_7() + source_value_8() - 45
+SWAN
+"$ROOT/build/swanc" build "$TMP/ten-source" -o "$TMP/ten-source-app"
+"$TMP/ten-source-app"
+"$ROOT/build/swanc" build "$TMP/ten-source" --emit-asm -o "$TMP/ten-assembly"
+test "$(find "$TMP/ten-assembly" -maxdepth 1 -name '*.s' | wc -l)" -eq 10
+for n in 0 1 2 3 4 5 6 7 8; do
+    test -f "$TMP/ten-assembly/source_$n.s"
+done
+test -f "$TMP/ten-assembly/main.s"
+printf 'PASS: ten Swan files produce ten independent assembly translation units\n'
