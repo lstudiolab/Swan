@@ -111,7 +111,7 @@ def main() -> None:
         t0 = time.perf_counter()
         checked(
             [cc, "-O3", "-DNDEBUG", "-std=c11", "-I", str(ROOT / "runtime"),
-             "-c", str(ROOT / "runtime" / "json_abi.c"), "-o", str(swan_obj)], ROOT,
+             "-c", str(BENCH / "swan_payload.c"), "-o", str(swan_obj)], ROOT,
         )
         swan_bin = tmp / "swan-json"
         checked(
