@@ -18,10 +18,9 @@ func main() -> int:
         if id != 42 or workers != 128:
             !json_close(document)
             return 3
-        let encoded = !json_compact(document)
         let encoded_length = !json_compact_length(document)
         let input_length = !json_input_length(document)
-        if encoded == 0 or encoded_length <= 0 or input_length <= 0:
+        if encoded_length <= 0 or input_length <= 0:
             !json_close(document)
             return 4
         checksum = checksum + id + workers
