@@ -243,8 +243,8 @@ static void swan_http_process_client(void *context) {
         return;
     }
     const char *output = swan_json_compact(document);
-    int64_t output_length = swan_json_compact_length(document);
-    if (!output || output_length < 0) {
+    size_t output_length = output ? strlen(output) : 0;
+    if (!output) {
         swan_json_close(document);
         free(body);
         swan_http_reply_text(fd, 500, "{\"error\":\"encode_failed\"}");
@@ -252,7 +252,7 @@ static void swan_http_process_client(void *context) {
         return;
     }
     swan_http_reply(fd, 200, output, (size_t)output_length);
-    atomic_fetch_add_explicit(&server->output_bytes, output_length,
+    atomic_fetch_add_explicit(&server->output_bytes, (int64_t)output_length,
                               memory_order_relaxed);
     atomic_fetch_add_explicit(&server->completed, 1, memory_order_relaxed);
     swan_json_close(document);
