@@ -133,6 +133,7 @@ static int swan_run(int argc,char **argv){
  SwanError err={0};TokenStream ts={0};char *source=NULL;
  Program p={0};p.codegen_module_index=-1;p.codegen_source_index=-1;p.bundle_imports=!lazy_imports;
  uint64_t stage=swan_profile_start();
+ uint64_t read_stage=stage;
  for(size_t source_index=0;source_index<swan_input_count;source_index++){
   source=swan_read_file(swan_inputs[source_index]);
   if(!source){perror(swan_inputs[source_index]);swan_program_destroy(&p);return 1;}
@@ -156,7 +157,7 @@ static int swan_run(int argc,char **argv){
   swan_profile_end(SWAN_PROFILE_PARSE,stage);
   free(ts.items);ts.items=NULL;
  }
- swan_profile_end(SWAN_PROFILE_READ,stage);
+ swan_profile_end(SWAN_PROFILE_READ,read_stage);
  p.source_function_count=p.count;
  if(!swan_import_c_headers(&p,&err)){fprintf(stderr,"swan: %s\n",err.message);free(ts.text_storage);swan_program_destroy(&p);free(source);return 1;}
  char **module_sources=NULL,**module_texts=NULL;size_t module_count=0,module_source_capacity=0,module_text_capacity=0;
