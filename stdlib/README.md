@@ -47,6 +47,23 @@ Source: `stdlib/std_collections.swan`
 
 The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length; it does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
 
+### `std_json` — native JSON document handles
+
+Source: `stdlib/std_json.swan`; implementation: `runtime/json.h` and
+`runtime/json_abi.c`.
+
+- `json_open`, `json_close`
+- `json_get_i64`, `json_has_key`
+- `json_compact`, `json_pretty`, `json_error`
+
+Import `std_json` and call these through the `!` namespace. This is an
+explicitly low-level x86-64 C-ABI surface: document and returned string pointers
+are represented as integer handles because Swan does not yet have a safe pointer
+or general string type. A document owns its input copy; encoded strings remain
+valid until the document is closed. The current accessor surface covers root
+object keys and signed 64-bit integer values; it is not yet a typed generic DOM,
+streaming reader, or JSON Lines API.
+
 ## Backend runtime development order
 
 The data-center runtime is being developed in dependency order: strings/bytes and aggregate layout; typed dynamic collections and deterministic cleanup; runtime ABI and I/O; JSON parsing/encoding and streaming; SQL drivers and connection pools; then HTTP services and scalable concurrency. See [the data-center runtime contract](../docs/DATA_CENTER_RUNTIME.md) for API requirements, security constraints, benchmarks, and acceptance gates. These modules must not be represented by stub functions or advertised as available before their complete implementations and tests exist.
