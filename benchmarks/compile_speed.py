@@ -275,7 +275,7 @@ def main() -> None:
 
     flags = {
         "Swan": "native build defaults",
-        "Goose": f"--cc {args.cc}; Goose native defaults",
+        "Goose": "Goose native defaults",
         "Rust": "-C opt-level=2 -C codegen-units=1",
         "C++": "-std=c++20 -O2 -pipe",
         "C": "-std=c11 -O2 -pipe",
