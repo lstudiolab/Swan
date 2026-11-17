@@ -47,21 +47,17 @@ Source: `stdlib/std_collections.swan`
 
 The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length; it does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
 
-### `std_json` — native JSON document handles
+### Native JSON runtime (C ABI)
 
-Source: `stdlib/std_json.swan`; implementation: `runtime/json.h` and
-`runtime/json_abi.c`.
+The JSON runtime is implemented in `runtime/json.h` and
+`runtime/json_abi.c`. Swan programs can import
+`runtime/json_abi.h` with `import C` and link the runtime object. It provides
+reusable document handles, parsing, root-key integer lookup, key existence,
+compact/pretty serialization, parse-error retrieval, and explicit destruction.
 
-- `json_create`, `json_parse`, `json_close`
-- `json_input_length`, `json_get_i64`, `json_has_key`
-- `json_compact`, `json_pretty`, `json_error`
-
-Import `std_json` and call these through the `!` namespace. This is an
-explicitly low-level x86-64 C-ABI surface: document and returned string pointers
-are represented as integer handles because Swan does not yet have a safe pointer
-or general string type. A document owns its input copy; encoded strings remain
-valid until the document is closed. The current accessor surface covers root
-object keys and signed 64-bit integer values; it is not yet a typed generic DOM,
+This is a low-level x86-64 C-ABI surface. Opaque document and returned string
+pointers are represented as integer-register values because Swan does not yet
+have safe pointer or general string types. It is not yet a typed generic DOM,
 streaming reader, or JSON Lines API.
 
 ## Backend runtime development order
