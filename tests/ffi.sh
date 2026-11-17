@@ -85,7 +85,57 @@ grep -q '^.extern swan_c_noop$' "$TMP/ffi.s"
 grep -q '^.extern swan_c_double$' "$TMP/ffi.s"
 grep -q '^.extern swan_c_strlen$' "$TMP/ffi.s"
 grep -q '^.extern swan_c_string_eq$' "$TMP/ffi.s"
-grep -q '^.extern swan_json_open$' "$TMP/ffi.s"
+grep -q '^.extern swan_json_create
+grep -q '^.extern swan_json_get_i64$' "$TMP/ffi.s"
+grep -q '^.extern swan_json_compact$' "$TMP/ffi.s"
+grep -q 'call swan_c_add' "$TMP/ffi.s"
+grep -q 'call swan_c_noop' "$TMP/ffi.s"
+grep -q 'call swan_c_double' "$TMP/ffi.s"
+grep -q 'call swan_c_strlen' "$TMP/ffi.s"
+grep -q 'call swan_c_string_eq' "$TMP/ffi.s"
+grep -q 'call swan_json_create' "$TMP/ffi.s"\ngrep -q 'call swan_json_parse_text' "$TMP/ffi.s"
+grep -q 'call swan_json_get_i64' "$TMP/ffi.s"
+grep -q 'call swan_json_compact' "$TMP/ffi.s"
+grep -q '\.Lswan_string_' "$TMP/ffi.s"
+printf 'PASS: imported C symbols and string literal storage emitted in native assembly\n'
+
+cat > "$TMP/missing.swan" <<'SWAN'
+external func swan_missing(value: i64) -> i64
+func main() -> int:
+    return swan_missing(1)
+SWAN
+if "$SWAN" build "$TMP/missing.swan" -o "$TMP/missing" >"$TMP/missing.out" 2>&1; then
+    echo 'FAIL: unresolved external symbol linked successfully' >&2
+    exit 1
+fi
+grep -Eq 'undefined reference|unresolved external' "$TMP/missing.out"
+printf 'PASS: unresolved external symbols fail at link time\n'
+ "$TMP/ffi.s"\ngrep -q '^.extern swan_json_parse_text
+grep -q '^.extern swan_json_get_i64$' "$TMP/ffi.s"
+grep -q '^.extern swan_json_compact$' "$TMP/ffi.s"
+grep -q 'call swan_c_add' "$TMP/ffi.s"
+grep -q 'call swan_c_noop' "$TMP/ffi.s"
+grep -q 'call swan_c_double' "$TMP/ffi.s"
+grep -q 'call swan_c_strlen' "$TMP/ffi.s"
+grep -q 'call swan_c_string_eq' "$TMP/ffi.s"
+grep -q 'call swan_json_open' "$TMP/ffi.s"
+grep -q 'call swan_json_get_i64' "$TMP/ffi.s"
+grep -q 'call swan_json_compact' "$TMP/ffi.s"
+grep -q '\.Lswan_string_' "$TMP/ffi.s"
+printf 'PASS: imported C symbols and string literal storage emitted in native assembly\n'
+
+cat > "$TMP/missing.swan" <<'SWAN'
+external func swan_missing(value: i64) -> i64
+func main() -> int:
+    return swan_missing(1)
+SWAN
+if "$SWAN" build "$TMP/missing.swan" -o "$TMP/missing" >"$TMP/missing.out" 2>&1; then
+    echo 'FAIL: unresolved external symbol linked successfully' >&2
+    exit 1
+fi
+grep -Eq 'undefined reference|unresolved external' "$TMP/missing.out"
+printf 'PASS: unresolved external symbols fail at link time\n'
+ "$TMP/ffi.s"
 grep -q '^.extern swan_json_get_i64$' "$TMP/ffi.s"
 grep -q '^.extern swan_json_compact$' "$TMP/ffi.s"
 grep -q 'call swan_c_add' "$TMP/ffi.s"
