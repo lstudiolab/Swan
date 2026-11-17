@@ -11,6 +11,8 @@ extern "C" {
  * Bounded HTTP/1.1 JSON echo server.
  * One request per connection; request bodies must be JSON.
  * Chunked transfer encoding and keep-alive are intentionally unsupported.
+ * run() blocks; call stop() from another thread, wait for run() to return,
+ * then call destroy().
  */
 void *swan_http_json_server_create(int64_t port, int64_t workers,
                                    int64_t queue_capacity);
