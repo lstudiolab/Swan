@@ -75,8 +75,9 @@ The current x86-64 array backend performs conservative static array memory clean
 - Heap-backed arrays are released after their final proven use.
 - Arrays that escape through returns, calls, or aliases are not freed early.
 - Cleanup is emitted on normal exits and early returns, with control-flow checks that avoid freeing arrays whose declaration path did not execute.
+- `--no-heap` restricts supported Swan arrays to statically bounded stack storage and rejects dynamic or escaping allocations instead of silently allocating.
 
-This is not yet a general garbage collector, ownership type system, or borrow checker for arbitrary pointers and aggregates. When escape/liveness cannot be proven, the compiler preserves the allocation rather than guessing. Invalid programs remain compile errors; generated assembly is never rewritten to conceal a source-level correctness or memory-safety error.
+This is not yet a general garbage collector, ownership type system, or borrow checker for arbitrary pointers and aggregates. The `--no-heap` guarantee does not cover allocations performed by imported C libraries or operating-system services. When escape/liveness cannot be proven, the compiler preserves the allocation rather than guessing. Invalid programs remain compile errors; generated assembly is never rewritten to conceal a source-level correctness or memory-safety error.
 
 ## Build and run
 
