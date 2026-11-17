@@ -127,6 +127,7 @@ int main(void) {
     void *run_result = NULL;
     assert(pthread_join(server_thread, &run_result) == 0);
     assert((intptr_t)run_result == 0);
+    assert(swan_http_json_server_run(server) == -1);
     swan_http_json_server_destroy(server);
 
     puts("HTTP JSON server tests passed");
