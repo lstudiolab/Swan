@@ -394,6 +394,16 @@ static int swan_run(int argc,char **argv){
   }
  }
  bool has_lazy=swan_has_lazy_imports(&p);
+ if(!has_lazy&&(mode==SWAN_EMIT||mode==SWAN_EMIT_LLVM)&&
+    (p.source_count>1||c_input_count>0)){
+  const char *directory=output?output:"asm";
+  bool emitted=swan_emit_project_sources(&p,directory,target,mode,target_cpu,
+                                          target_features,target_feature_count,
+                                          c_inputs,c_input_count,&err);
+  if(!emitted)swan_print_diagnostic("swan",&err);
+  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
+  SWAN_RETURN(emitted?0:1);
+ }
  if(target->architecture==SWAN_ARCH_LLVM){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){
    fprintf(stderr,"swan: cross-target LLVM output cannot run on this host; use 'swan build' or --emit-asm\n");
@@ -508,13 +518,6 @@ static int swan_run(int argc,char **argv){
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
  if(!has_lazy&&(p.source_count>1||c_input_count>0)&&target->architecture==SWAN_ARCH_X86_64){
-  if(mode==SWAN_EMIT){
-   const char *directory=output?output:"asm";
-   bool emitted=swan_emit_project_sources(&p,directory,c_inputs,c_input_count,&err);
-   if(!emitted)fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"failed to emit per-source assembly");
-   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
-   SWAN_RETURN(emitted?0:1);
-  }
   char executable[1024];bool temporary=output==NULL;int name_length;
   if(output)name_length=snprintf(executable,sizeof(executable),"%s",output);
   else if(mode==SWAN_BUILD)name_length=snprintf(executable,sizeof(executable),"a.out");
