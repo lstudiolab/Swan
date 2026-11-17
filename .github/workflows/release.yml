@@ -1,0 +1,107 @@
+name: Swan Release Builds
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.asset }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            asset: linux-x86_64
+            windows: false
+          - os: ubuntu-24.04-arm
+            asset: linux-aarch64
+            windows: false
+          - os: macos-15-intel
+            asset: macos-x86_64
+            windows: false
+          - os: macos-15
+            asset: macos-aarch64
+            windows: false
+          - os: windows-latest
+            asset: windows-x86_64
+            windows: true
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Windows POSIX build environment
+        if: matrix.windows
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: MSYS
+          update: true
+          install: base-devel gcc
+
+      - name: Build Swan
+        run: |
+          sh build.sh
+          ./build/swanc --version
+
+      - name: Package Windows binary
+        if: matrix.windows
+        shell: msys2 {0}
+        run: |
+          mkdir -p dist/swan/bin
+          cp build/swanc.exe dist/swan/bin/swanc.exe
+          cp /usr/bin/msys-2.0.dll dist/swan/bin/
+          cat > dist/swan/README-WINDOWS.txt <<'EOF'
+          Swan Windows x86_64 compiler
+
+          Add the bin directory to PATH to use swanc.exe.
+          The compiler runtime requires the MSYS2 GCC toolchain (cc) for native
+          executable linking. Install MSYS2 and run: pacman -S --needed gcc
+          The MSYS2 runtime DLL is included beside swanc.exe.
+          EOF
+          cd dist
+          7z a ../swan-windows-x86_64.zip swan
+
+      - name: Package Linux and macOS binary
+        if: '!matrix.windows'
+        run: |
+          mkdir -p dist/swan/bin
+          cp build/swanc dist/swan/bin/swanc
+          cp README.md dist/swan/
+          cp -R stdlib dist/swan/
+          tar -C dist -czf "swan-${{ matrix.asset }}.tar.gz" swan
+
+      - name: Upload platform package
+        uses: actions/upload-artifact@v4
+        with:
+          name: swan-${{ matrix.asset }}
+          path: |
+            swan-${{ matrix.asset }}.tar.gz
+            swan-${{ matrix.asset }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  publish:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/')
+    needs: build
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Download all platform packages
+        uses: actions/download-artifact@v4
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Publish release assets
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+          generate_release_notes: true

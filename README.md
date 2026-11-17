@@ -78,7 +78,31 @@ The current x86-64 array backend performs conservative static array memory clean
 
 This is not yet a general garbage collector, ownership type system, or borrow checker for arbitrary pointers and aggregates. The `--no-heap` guarantee does not cover allocations performed by imported C libraries or operating-system services. When escape/liveness cannot be proven, the compiler preserves the allocation rather than guessing. Invalid programs remain compile errors; generated assembly is never rewritten to conceal a source-level correctness or memory-safety error.
 
-## Build and run
+## Install prebuilt compiler
+
+Most developers should install a release binary. You do not need to clone this repository or build Swan from source.
+
+**Linux and macOS**
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/lstudiolab/Swan/main/scripts/install.sh | sh
+swan --version
+swan run examples/hello.swan
+```
+
+The installer detects Linux x86-64/ARM64 and macOS Intel/Apple Silicon, downloads the matching release archive, and installs `swan` and `swanc` into `~/.local/bin`. Ensure that directory is on PATH. Release binaries are published automatically for version tags.
+
+**Windows 10/11 (x86-64)**
+
+Run this in PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/lstudiolab/Swan/main/scripts/install.ps1 | iex
+```
+
+Restart PowerShell, then use `swanc --version`. The Windows package includes the MSYS2 runtime DLL. Native executable linking currently requires the MSYS2 GCC toolchain (`cc`) on PATH; the compiler itself does not require the Swan source repository. Windows ARM64 is not packaged yet.
+
+**Build from source (contributors)**
 
 Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available through `cc`.
 
