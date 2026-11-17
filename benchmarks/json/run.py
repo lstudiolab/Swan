@@ -24,6 +24,16 @@ EXPECTED_CHECKSUM = REQUESTS * (42 + 128)
 EXPECTED_BYTES = REQUESTS * len(PAYLOAD.encode()) * 2
 
 
+def checked(command: list[str], cwd: pathlib.Path) -> subprocess.CompletedProcess:
+    result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
+    if result.returncode:
+        raise RuntimeError(
+            f"build failed ({result.returncode}): {' '.join(command)}\\n"
+            f"stdout:\\n{result.stdout}\\nstderr:\\n{result.stderr}"
+        )
+    return result
+
+
 def run(command: list[str], cwd: pathlib.Path) -> tuple[float, tuple[int, int]]:
     start = time.perf_counter()
     result = subprocess.run(command, cwd=cwd, text=True, capture_output=True)
@@ -94,21 +104,19 @@ def main() -> None:
         tmp = pathlib.Path(temp)
         swan = ROOT / "build" / "swan"
         if not swan.exists():
-            subprocess.run(["sh", "build.sh"], cwd=ROOT, check=True)
+            checked(["sh", "build.sh"], ROOT)
 
         # Swan uses the actual JSON runtime that its standard module calls.
         swan_obj = tmp / "json_abi.o"
         t0 = time.perf_counter()
-        subprocess.run(
+        checked(
             [cc, "-O3", "-DNDEBUG", "-std=c11", "-I", str(ROOT / "runtime"),
-             "-c", str(ROOT / "runtime" / "json_abi.c"), "-o", str(swan_obj)],
-            cwd=ROOT, check=True, capture_output=True,
+             "-c", str(ROOT / "runtime" / "json_abi.c"), "-o", str(swan_obj)], ROOT,
         )
         swan_bin = tmp / "swan-json"
-        subprocess.run(
+        checked(
             [str(swan), "build", str(BENCH / "swan.swan"), "--link",
-             str(swan_obj), "-o", str(swan_bin)],
-            cwd=ROOT, check=True, capture_output=True,
+             str(swan_obj), "-o", str(swan_bin)], ROOT,
         )
         compile_seconds["Swan"] = time.perf_counter() - t0
         outputs["Swan"] = swan_bin
@@ -116,26 +124,25 @@ def main() -> None:
 
         go_bin = tmp / "go-json"
         t0 = time.perf_counter()
-        subprocess.run([go, "build", "-trimpath", "-o", str(go_bin),
-                        str(BENCH / "main.go")], cwd=ROOT, check=True, capture_output=True)
+        checked([go, "build", "-trimpath", "-o", str(go_bin),
+                 str(BENCH / "main.go")], ROOT)
         compile_seconds["Go"] = time.perf_counter() - t0
         outputs["Go"] = go_bin
         flags["Go"] = "go build (default release compiler settings)"
 
         goose_bin = tmp / "goose-json"
         t0 = time.perf_counter()
-        subprocess.run([goose, "build", "-o", str(goose_bin),
-                        str(BENCH / "goose.goose")], cwd=ROOT, check=True, capture_output=True)
+        checked([goose, "build", "-o", str(goose_bin),
+                 str(BENCH / "goose.goose")], ROOT)
         compile_seconds["Goose"] = time.perf_counter() - t0
         outputs["Goose"] = goose_bin
         flags["Goose"] = "goose build (default release compiler settings)"
 
         rust_target = tmp / "rust-target"
         t0 = time.perf_counter()
-        subprocess.run(
+        checked(
             [cargo, "build", "--release", "--manifest-path", str(BENCH / "Cargo.toml"),
-             "--target-dir", str(rust_target)],
-            cwd=ROOT, check=True, capture_output=True,
+             "--target-dir", str(rust_target)], ROOT,
         )
         compile_seconds["Rust"] = time.perf_counter() - t0
         outputs["Rust"] = rust_target / "release" / "swan-json-benchmark"
