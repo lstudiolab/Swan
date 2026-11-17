@@ -133,7 +133,7 @@ static inline bool swan_codegen(Program *program, Text *output,
         swan_error(error, NULL, "requested code-generation backend is not implemented");
         return false;
     }
-    if(!swan_program_requires_ast_compatibility(program)){
+    if(program->codegen_source_index<0&&!swan_program_requires_ast_compatibility(program)){
         SwanIRModule module={0};
         Text ir_output={0};
         SwanError ir_error={0};
