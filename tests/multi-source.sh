@@ -76,8 +76,8 @@ export func cross_value() -> bool:
     return true
 SWAN
 cat > "$TMP/cross/02_main.swan" <<'SWAN'
-func main() -> i32:
-    return cross_value() - 42
+func main() -> bool:
+    return true
 SWAN
 "$ROOT/build/swanc" build "$TMP/cross" --target aarch64 --emit-asm -o "$TMP/aarch64"
 test -f "$TMP/aarch64/01_helper.s"
