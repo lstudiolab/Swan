@@ -56,6 +56,11 @@ const char *swan_json_compact(SwanJsonHandle *handle) {
     return handle->compact.data;
 }
 
+int64_t swan_json_compact_length(SwanJsonHandle *handle) {
+    const char *text = swan_json_compact(handle);
+    return text ? (int64_t)handle->compact.length : -1;
+}
+
 const char *swan_json_pretty(SwanJsonHandle *handle) {
     if (!handle || handle->error[0] ||
         !swan_json_encode(&handle->document, &handle->pretty, true))
