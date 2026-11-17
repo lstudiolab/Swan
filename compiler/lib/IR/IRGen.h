@@ -373,7 +373,7 @@ static inline bool swan_irgen_program(Program *program,SwanIRModule *module,Swan
         created->external=source->external||(program->codegen_source_index>=0&&
             source->source_index!=(size_t)program->codegen_source_index);
     }
-    if(!module->function_count){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
+    if(!module->function_count&&program->codegen_source_index<0){swan_error(error,NULL,"IR lowering has no reachable functions");goto fail;}
     SwanIRGen g={0};
     for(size_t i=0;i<program->count;i++){
         if(!swan_irgen_include_function(program,i))continue;
