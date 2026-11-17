@@ -21,6 +21,8 @@ jobs:
         run: sh tests/keyword-targets.sh
       - name: Verify typed SSA IR
         run: sh tests/ir.sh
+      - name: Verify Swift-style SIL generation, verification, and optimization
+        run: sh tests/sil.sh
       - name: Verify IR optimization passes
         run: sh tests/optimization.sh
       - name: Verify .swan to optimized typed-IR integration
