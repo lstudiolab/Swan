@@ -1,7 +1,8 @@
 import C "benchmarks/json/swan_payload.h"
 
 func main() -> int:
-    let result = swan_json_benchmark_run(swan_json_benchmark_payload(0), 100000)
+    let payload = swan_json_benchmark_payload(0)
+    let result = swan_json_benchmark_run(payload, 100000)
     if result == 0:
         return 1
     let checksum = swan_json_benchmark_checksum(result)
