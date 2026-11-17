@@ -33,3 +33,24 @@ TLS, chunked transfer decoding, keep-alive/pipelining, generic route handlers, c
 structured task scopes, streaming JSON/JSONL, typed JSON values, and a Swan-level
 async scheduler are not implemented. Do not use the C worker pool as evidence
 that Swan async semantics exist.
+
+
+## Minimal Swan HTTP JSON server
+
+A Swan executable can import `runtime/http_server.h`, link the runtime object,
+and run the built-in JSON echo server:
+
+```swan
+import C "runtime/http_server.h"
+
+func main() -> int:
+    let server = swan_http_json_server_create(8080, 8, 256)
+    if server == 0:
+        return 1
+    return swan_http_json_server_run(server)
+```
+
+The server binds all interfaces. It accepts one request per connection, parses
+JSON request bodies, and returns compact JSON. The blocking run call must be
+stopped from another thread before destroying the handle. It is a runtime
+foundation, not yet a full web framework or production TLS endpoint.
