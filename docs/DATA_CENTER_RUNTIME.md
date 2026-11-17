@@ -12,7 +12,7 @@ suite:
 | Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |
 | JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; numeric accessor currently signed i64 |
 | JSON output | Compact and pretty serialization of parsed documents | Re-emits parsed source token values; no general typed writer yet |
-| Swan JSON bridge | `std_json` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
+| Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
 | Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Swan task scheduler |
 | String FFI | NUL-terminated literals passed to imported C pointer parameters | x86-64 AST compatibility backend only |
 
