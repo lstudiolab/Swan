@@ -195,7 +195,7 @@ static void swan_release_cli_inputs(const char **swan_inputs,size_t swan_count,
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target <target> | --target-triple <triple>] [--target-feature <feature>] [--module-path directory ...] [--emit-llvm] [--lazy-imports] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  Multi-file x86-64 --emit-asm writes one .s file per Swan source into the -o directory.\n",SWAN_VERSION);return 0;}
  enum { SWAN_RUN_DEFAULT,SWAN_BUILD,SWAN_RUN,SWAN_EMIT,SWAN_EMIT_LLVM } mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
