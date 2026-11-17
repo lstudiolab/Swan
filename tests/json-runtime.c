@@ -73,6 +73,19 @@ int main(void) {
     assert(strstr(limited.error, "depth") != NULL);
     swan_json_document_destroy(&limited);
 
+    const char utf8_key[] = "{\"caf\xc3\xa9\":1}";
+    SwanJsonDocument unicode_keys;
+    swan_json_document_init(&unicode_keys);
+    assert(swan_json_parse(&unicode_keys, utf8_key, sizeof(utf8_key) - 1));
+    assert(swan_json_object_get(&unicode_keys, 0, "caf\xc3\xa9") != SWAN_JSON_NONE);
+    swan_json_document_destroy(&unicode_keys);
+
+    const char escaped_utf8_key[] = "{\"caf\\u00e9\":1}";
+    swan_json_document_init(&unicode_keys);
+    assert(swan_json_parse(&unicode_keys, escaped_utf8_key, sizeof(escaped_utf8_key) - 1));
+    assert(swan_json_object_get(&unicode_keys, 0, "caf\xc3\xa9") != SWAN_JSON_NONE);
+    swan_json_document_destroy(&unicode_keys);
+
     valid("null");
     valid("true");
     valid("[]");
