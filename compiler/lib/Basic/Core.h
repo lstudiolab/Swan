@@ -73,10 +73,10 @@ typedef enum {
  T_LB,T_RB,T_DOT,T_SEMI,T_OUT,T_PRINT,T_STRUCT,T_ENUM,T_TYPE,T_FOR,T_IN,T_LOOP,T_MATCH,T_GUARD,T_FROM,T_AS,T_EXPORT,T_SELF,T_LAZY,T_INIT,T_DEINIT,T_FREE,T_THROW,T_RETHROW,T_STORE,T_BORROW,
  T_NAMESPACE,T_VARIANT,T_PROTOCOL,T_THREAD,T_ASYNC,T_BLOCK,T_SET,T_BOOL_TYPE,T_CASE,T_DEFER,T_MANUAL,T_MOD,T_UPTO,T_INLINE,T_STATIC,T_PRIVATE,T_PUBLIC,T_THROWS,T_CATCH
 } TokenKind;
-typedef struct { TokenKind kind; const char *text; unsigned line,col; } Token;
+typedef struct { TokenKind kind; const char *text; unsigned line,col; const char *source_name; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
 typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
-typedef struct { char message[1024]; unsigned line,col; } SwanError;
+typedef struct { char message[1024]; unsigned line,col; const char *source_name; } SwanError;
 typedef struct { char message[256]; unsigned line,col; } SwanWarning;
 static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
  if(!e)return;
@@ -86,5 +86,6 @@ static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
  va_end(ap);
  e->line=t?t->line:0;
  e->col=t?t->col:0;
+ e->source_name=t?t->source_name:NULL;
 }
 #endif
