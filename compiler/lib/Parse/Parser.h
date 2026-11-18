@@ -46,8 +46,32 @@ static inline Stmt *statement(Parser *p);
 static inline Stmt *statement_impl(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
  if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=false;s->manual_checked=false;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
- bool std_print=is(p,T_BANG)&&p->ts->pos+2<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_IDENT&&!strcmp(p->ts->items[p->ts->pos+1].text,"printin");
- if(std_print){take(p);take(p);if(!need(p,T_GT,"expected '>>' after !printin")||!need(p,T_GT,"expected second '>' after !printin"))return NULL;s=new_stmt(p,S_LOG,t);if(s)s->value=expression(p,1);return s;}
+ /* print(value) is Swan's ordinary, concise output call. It lowers to the
+  * existing output statement so both compiler backends share one implementation. */
+ bool print_call=is(p,T_IDENT)&&!strcmp(pk(p)->text,"print")&&
+                 p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_LP;
+ if(print_call){
+  take(p);
+  if(!need(p,T_LP,"expected '(' after print"))return NULL;
+  if(is(p,T_RP)){swan_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;return NULL;}
+  s=new_stmt(p,S_LOG,t);
+  if(s)s->value=expression(p,1);
+  if(!p->failed&&eat(p,T_COMMA)){swan_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;}
+  if(!need(p,T_RP,"expected ')' after print argument"))return NULL;
+  return s;
+ }
+ /* Keep the previous spelling parseable during the syntax migration. */
+ bool legacy_print=is(p,T_BANG)&&p->ts->pos+2<p->ts->count&&
+                   p->ts->items[p->ts->pos+1].kind==T_IDENT&&
+                   !strcmp(p->ts->items[p->ts->pos+1].text,"printin");
+ if(legacy_print){
+  take(p);take(p);
+  if(!need(p,T_GT,"expected '>>' after !printin")||
+     !need(p,T_GT,"expected second '>' after !printin"))return NULL;
+  s=new_stmt(p,S_LOG,t);
+  if(s)s->value=expression(p,1);
+  return s;
+ }
  if(eat(p,T_RETURN)){s=new_stmt(p,S_RETURN,t);if(s&&!is(p,T_NEWLINE)&&!is(p,T_DEDENT)&&!is(p,T_EOF))s->value=expression(p,1);return s;}
  if(eat(p,T_BREAK))return new_stmt(p,S_BREAK,t);
  if(eat(p,T_CONTINUE))return new_stmt(p,S_CONTINUE,t);
