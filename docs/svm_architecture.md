@@ -6,9 +6,9 @@ The normative compiler design is defined in [COMPILER_SYSTEM.md](compiler_system
 
 ## Definition
 
-SVM is Swan's **target-independent compiler middle-end**, not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
+SVM is Swan's **target-independent compiler middle-end**. It is not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
 
-Swan source is lowered directly from the checked AST into typed SVM IR. SVM verifies and optimizes that IR before handing it to Swan-owned target backends. No production executable dispatches over SVM instructions at runtime.
+Swan source is lowered directly from the checked AST into typed SVM IR. SVM verifies and optimizes that IR before the WASM64 backend emits the portable AOT module. SIC then coordinates host detection: browser hosts keep and execute WASM, while supported native hosts use Wasmtime's JIT to compile it into host machine code. No production executable dispatches over SVM instructions at runtime.
 
 ## Canonical pipeline
 
@@ -33,7 +33,7 @@ Project source files
   -> standalone AOT executable
 ```
 
-WebAssembly is a separate AOT output target. It is not a native executable and requires a compatible WebAssembly host.
+WASM64 is the portable AOT artifact used by the canonical SIC path. A browser executes it through its native WebAssembly engine; a native host uses Wasmtime's runtime JIT to generate machine code for the detected CPU.
 
 ## Ownership boundaries
 
@@ -78,12 +78,14 @@ Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not
 ## Aot and performance rules
 
 1. No interpreter dispatch loop, VM, or bytecode execution path in production.
-2. `run` builds a host-native executable and launches it as a separate process.
-3. Cross-compilation emits destination-target artifacts; the host does not execute foreign machine code.
-4. Optimize target-independent IR before legalization; apply machine-level optimization after instruction selection.
-5. Respect target ABI, register classes, stack alignment, frame rules, and relocations.
-6. Profile compiler phases separately from generated-program runtime.
-7. Benchmark with correctness checks, repeated measurements, controlled settings and recorded hardware/toolchain versions. No unsupported cross-language speed claims.
+2. `swanc compile` emits a portable WASM64 module ahead of execution.
+3. SIC detects browser/WebAssembly versus native execution environments before selecting the execution path.
+4. Browser execution remains WebAssembly end to end; no Swan native JIT runs in the browser.
+5. Native x86-64 and ARM64 execution uses Wasmtime's runtime JIT to generate code for the detected host CPU.
+6. Temporary WASM is removed only after successful native runtime completion; explicit portable WASM outputs are retained.
+7. Optimize target-independent IR before WASM emission and preserve all ABI, memory64, and host-runtime constraints.
+8. Profile compiler phases separately from host JIT compilation and generated-program runtime.
+9. Benchmark with correctness checks, repeated measurements, controlled settings and recorded hardware/toolchain versions. No unsupported cross-language speed claims.
 
 ## Current repository status
 
