@@ -9,8 +9,10 @@ Integrated Compilation layer (SIC) detects the host when that module is run:
   detects the host and JIT-compiles WebAssembly into native machine code for
   that CPU before execution. A temporary WASM input is removed only after the
   runtime completes successfully.
-- If host detection or native compilation is unavailable, the original WASM
-  module is retained and the normal Wasmtime WASM execution path is attempted.
+- If host detection fails or the native architecture is unsupported, the
+  original WASM module is retained and SIC reports that the host cannot use
+  the native path. The module can still be deployed to a compatible browser
+  or native host.
 
 Wasmtime supplies validation, native JIT code generation, memory64 execution,
 traps, and host integration. Swan does not produce a separate ARM64 or x86-64
