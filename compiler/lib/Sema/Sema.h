@@ -121,10 +121,30 @@ static inline bool swan_expr_calls_raw_stack(Program *p,Expr *e){
 static inline bool swan_expr_uses_stack_pointer(Program *p,Expr *e,SwanSymbols *symbols){
  if(!e)return false;
  if(swan_expr_calls_raw_stack(p,e))return true;
- if(e->kind==E_NAME){size_t i;if(swan_symbol_find(symbols,e->token.text,&i)&&symbols->items[i].stack_address)return true;}
+ if(e->kind==E_NAME){size_t i;return swan_symbol_find(symbols,e->token.text,&i)&&symbols->items[i].stack_address;}
+ if(e->kind==E_CALL){
+  Stmt *fn=swan_raw_call_function(p,e);
+  if(fn&&(!strcmp(fn->name,"load8")||!strcmp(fn->name,"load16")||
+     !strcmp(fn->name,"load32")||!strcmp(fn->name,"load64")||
+     !strcmp(fn->name,"store8")||!strcmp(fn->name,"store16")||
+     !strcmp(fn->name,"store32")||!strcmp(fn->name,"store64")||
+     !strcmp(fn->name,"arena_remaining")||!strcmp(fn->name,"arena_reset")))return false;
+  if(fn&&(!strcmp(fn->name,"copy")||!strcmp(fn->name,"move_bytes")||!strcmp(fn->name,"fill")))
+   return e->argc>0&&swan_expr_uses_stack_pointer(p,e->args[0],symbols);
+  for(size_t i=0;i<e->argc;i++)if(swan_expr_uses_stack_pointer(p,e->args[i],symbols))return true;
+  return false;
+ }
+ if(e->kind==E_BINARY&&e->token.kind>=T_EQ&&e->token.kind<=T_GE)return false;
  if(swan_expr_uses_stack_pointer(p,e->left,symbols)||swan_expr_uses_stack_pointer(p,e->right,symbols))return true;
  for(size_t i=0;i<e->argc;i++)if(swan_expr_uses_stack_pointer(p,e->args[i],symbols))return true;
  return false;
+}
+static inline bool swan_raw_stack_argument_safe(const char *name,size_t index){
+ if(!name)return false;
+ if((!strcmp(name,"load8")||!strcmp(name,"load16")||!strcmp(name,"load32")||!strcmp(name,"load64"))&&index==0)return true;
+ if((!strcmp(name,"store8")||!strcmp(name,"store16")||!strcmp(name,"store32")||!strcmp(name,"store64"))&&index==0)return true;
+ if((!strcmp(name,"copy")||!strcmp(name,"move_bytes"))&&index<2)return true;
+ return !strcmp(name,"fill")&&index==0;
 }
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
  if(!expression)return false;
@@ -197,6 +217,10 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
        !swan_expr_borrow_use_is_scalar(p,e->args[i],symbols)&&
        !(raw_module_function&&swan_raw_borrow_call(fn->name))){
      swan_error(err,&e->args[i]->token,"borrowed pointers may only be passed to non-retaining raw memory operations");return false;
+    }
+    if(swan_expr_uses_stack_pointer(p,e->args[i],symbols)&&
+       !(raw_module_function&&swan_raw_stack_argument_safe(fn->name,i))){
+     swan_error(err,&e->args[i]->token,"raw.stack pointers may only be used by immediate raw memory operations and cannot escape to another function");return false;
     }
     if(raw_release&&e->args[i]&&e->args[i]->kind==E_NAME){
      size_t index;if(swan_symbol_find(symbols,e->args[i]->token.text,&index)&&symbols->items[index].manual_borrow){
