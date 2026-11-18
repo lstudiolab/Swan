@@ -63,7 +63,7 @@ This roadmap records the current production compiler and the remaining engineeri
 
 1. Define complete static typing and type inference rules.
 2. Implement struct layout, field access, method resolution, and aggregate ABI lowering.
-3. Define pointer/reference and ownership-transfer semantics before implementing borrowing.
+3. Complete the language-wide ARC contract, including references, returns, captures, containers, and cleanup on error paths.
 4. Add string values and general output to typed IR.
 5. Expand imports and runtime module linking across targets.
 6. Turn recognized-but-unimplemented keywords into explicit feature work or remove/deprecate them from the public language surface.
@@ -71,3 +71,12 @@ This roadmap records the current production compiler and the remaining engineeri
 ## Performance policy
 
 A change is not a performance win merely because it reduces source lines, instruction count, or compile time. Measure compile time and runtime separately, validate checksums, report memory use, and record the exact compiler revision and machine configuration. Compare only equivalent workloads and optimization settings. Do not claim superiority over C, Rust, Goose, or other languages without reproducible, current results.
+
+
+## Memory-model decision
+
+Swan uses automatic reference counting as its only ordinary source-level memory
+model. There is no raw-library mode and no import operation that disables ARC.
+Manual ownership keywords are not part of the intended everyday language
+surface. Native libraries are integrated through typed interfaces and managed
+wrappers that define cleanup for external resources.
