@@ -36,8 +36,14 @@ func alloc_zeroed(count: i64, size: i64) -> i64:
 
 func resize(pointer: i64, size: i64) -> i64:
     if size < 0:
+        return pointer
+    if size == 0:
+        release(pointer)
         return 0
-    return realloc(pointer, size)
+    let updated: i64 = realloc(pointer, size)
+    if updated == 0:
+        return pointer
+    return updated
 
 func copy(destination: i64, source: i64, size: i64) -> i64:
     if size < 0:
