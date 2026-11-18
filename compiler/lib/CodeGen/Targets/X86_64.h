@@ -305,6 +305,12 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
    !strcmp(o->program->module_names[callee_fn->module_index],"raw");
  if(raw_module){
   const char *intrinsic=callee_fn->name;
+  if(!strcmp(intrinsic,"release")){
+   if(e->argc!=1){swan_error(err,&e->token,"raw release expects exactly one argument");return;}
+   cg_save_volatile(o,l);emit_expr(o,e->args[0],l,err);
+   text_add(o,"    mov rdi, rax\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+   return;
+  }
   int width=0;bool store=false;
   if(!strcmp(intrinsic,"load8"))width=8;
   else if(!strcmp(intrinsic,"load16"))width=16;
