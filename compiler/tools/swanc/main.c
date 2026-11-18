@@ -499,7 +499,6 @@ static int swan_run(int argc,char **argv){
   }
   if(run_after_build){
    result=swan_run_wasm_file(dest,0,NULL);
-   if(!output)unlink(dest);
   }
   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
   SWAN_RETURN(result);
