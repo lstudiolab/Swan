@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -eux
+set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swanc"
 TMP="$ROOT/build/test/raw-memory"
@@ -56,6 +56,11 @@ SWAN
 grep -q 'call malloc' "$TMP/program-asm/raw.s"
 grep -q 'call memset' "$TMP/program-asm/raw.s"
 grep -q 'free@PLT' "$TMP/program-asm/program.s"
+grep -q 'movzx eax, BYTE PTR \\[rax\\]' "$TMP/program-asm/program.s"
+grep -q 'movzx eax, WORD PTR \\[rax\\]' "$TMP/program-asm/program.s"
+grep -q 'mov eax, DWORD PTR \\[rax\\]' "$TMP/program-asm/program.s"
+grep -q 'mov rax, QWORD PTR \\[rax\\]' "$TMP/program-asm/program.s"
+grep -q 'sub rsp, rax' "$TMP/program-asm/program.s"
 
 cat > "$TMP/automatic.swan" <<'SWAN'
 import raw
@@ -123,6 +128,44 @@ fi
 
 if "$SWAN" build "$TMP/program.swan" --target aarch64 -o "$TMP/unsupported-target" 2>"$TMP/unsupported-target.err"; then
     echo "raw mode unexpectedly compiled for AArch64" >&2
+    exit 1
+fi
+
+
+cat > "$TMP/double-drop.swan" <<'SWAN'
+import raw
+func main() -> int:
+    own var owner: i64 = raw.alloc(8)
+    drop owner
+    drop owner
+    return 0
+SWAN
+if "$SWAN" build "$TMP/double-drop.swan" -o "$TMP/double-drop" 2>/dev/null; then
+    echo "double drop unexpectedly compiled" >&2
+    exit 1
+fi
+
+cat > "$TMP/borrow-copy.swan" <<'SWAN'
+import raw
+func main() -> int:
+    own var owner: i64 = raw.alloc(8)
+    borrow let view: i64 = owner
+    let copied: i64 = view
+    drop owner
+    return 0
+SWAN
+if "$SWAN" build "$TMP/borrow-copy.swan" -o "$TMP/borrow-copy" 2>/dev/null; then
+    echo "borrow copied into ordinary variable unexpectedly compiled" >&2
+    exit 1
+fi
+
+cat > "$TMP/own-without-raw.swan" <<'SWAN'
+func main() -> int:
+    own var owner: i64 = 0
+    return 0
+SWAN
+if "$SWAN" build "$TMP/own-without-raw.swan" -o "$TMP/own-without-raw" 2>/dev/null; then
+    echo "own without import raw unexpectedly compiled" >&2
     exit 1
 fi
 
