@@ -68,15 +68,25 @@ The semantic checker, IR verifier, and code generators validate the constructs t
 
 Compilation is phase-gated: a failed read, lex, parse, import, semantic, IR verification, optimization, code-generation, assembly, or link step returns a non-zero status and prevents later phases from running. The compiler also emits non-fatal semantic warnings for suspicious constructs such as self-assignment, literal division by zero, constant conditions, potentially non-terminating constant-true loops, and source functions unreachable from `main`. Use `--warnings-as-errors` to stop before code generation whenever any warning is reported. Warnings are conservative bug indicators, not proof that the program is incorrect.
 
-## Automatic memory management
+## Compiler-managed memory
 
-The current x86-64 array backend performs conservative static array memory cleanup:
+Swan's intended memory model is compiler-managed and Goose-inspired: no tracing
+garbage collector, no per-object reference counting, and no routine
+source-level allocation/free pairs. The compiler analyzes lifetimes and emits
+storage selection and deterministic cleanup.
+
+The current x86-64 array backend is only the first implementation slice:
 
 - Small, non-escaping arrays can be placed in the function's stack frame.
-- Heap-backed arrays are released after their final proven use.
+- Heap-backed arrays are released after their final recognized use.
 - Arrays that escape through returns, calls, or aliases are not freed early.
 - Cleanup is emitted on normal exits and early returns, with control-flow checks that avoid freeing arrays whose declaration path did not execute.
 - `--no-heap` restricts supported Swan arrays to statically bounded stack storage and rejects dynamic or escaping allocations instead of silently allocating.
+
+This is not yet a language-wide ownership system. The typed SVM IR, SIL,
+aggregates, strings, closures, imported-memory contracts, and non-x86 backends
+still need a shared lifetime model. See [the memory model](docs/memory_model.md)
+for current guarantees and completion criteria.
 
 This is not yet a general garbage collector, ownership type system, or borrow checker for arbitrary pointers and aggregates. The `--no-heap` guarantee does not cover allocations performed by imported C libraries or operating-system services. When escape/liveness cannot be proven, the compiler preserves the allocation rather than guessing. Invalid programs remain compile errors; generated assembly is never rewritten to conceal a source-level correctness or memory-safety error.
 

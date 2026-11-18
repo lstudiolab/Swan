@@ -350,3 +350,12 @@ func main():
     return 0
 SWAN
 expect_rejected removed-manual-modifier
+
+cat > "$TMP/manual-free.swan" <<'SWAN'
+func main():
+    let values = array(4)
+    free(values)
+    return 0
+SWAN
+expect_rejected manual-free
+
