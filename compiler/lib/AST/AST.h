@@ -7,7 +7,7 @@ struct Expr { ExprKind kind; Token token; Expr *left,*right; Expr **args; size_t
 static inline const char *swan_expr_terminal_name(Expr *e){while(e&&e->kind==E_MEMBER)e=e->right;return e&&e->kind==E_NAME?e->token.text:NULL;}
 typedef enum { S_FUNCTION,S_VARIABLE,S_LOG,S_RETURN,S_IF,S_WHILE,S_BREAK,S_CONTINUE,S_PASS,S_EXPR,S_FREE,S_DROP } StmtKind;
 typedef struct Stmt Stmt;
-struct Stmt { StmtKind kind; Token token; size_t source_index; const char *name,*link_name,*type; bool mutable_value,manual_memory,manual_checked,manual_borrow,exported; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; const char **param_types; size_t param_count,param_capacity; Stmt *next; int module_index; bool imported,external; };
+struct Stmt { StmtKind kind; Token token; size_t source_index; const char *name,*link_name,*type; bool mutable_value,manual_memory,manual_checked,manual_borrow,array_unchecked,exported; Expr *value,*condition; Stmt **body,**alternate; size_t body_count,alt_count,body_cap,alt_cap; const char **params; const char **param_types; size_t param_count,param_capacity; Stmt *next; int module_index; bool imported,external; };
 typedef struct { char *path,*text,*token_storage; } SwanSourceFile;
 typedef struct {
  Stmt **functions; size_t count,function_capacity;
