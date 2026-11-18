@@ -20,4 +20,8 @@ test "$result" = "3"
 "$BIN" build "$TMP/main.swan" --target wasm64 -o "$TMP/main.wasm"
 result=$("$BIN" run "$TMP/main.wasm" 2>"$TMP/runtime.err")
 test "$result" = "3"
+# Native SIC compilation produces a host-specific Wasmtime artifact and keeps
+# an explicitly supplied portable WASM file available for browser deployment.
+test -s "$TMP/main.wasm.cwasm"
+test -s "$TMP/main.wasm"
 printf 'PASS: Swan runs a memory64 module through Wasmtime and invokes main\n'
