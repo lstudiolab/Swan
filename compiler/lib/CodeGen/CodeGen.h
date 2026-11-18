@@ -7,6 +7,7 @@
 #include "swan/optimization.h"
 #include "swan/codegen_x86_64_ir.h"
 #include "swan/codegen_aarch64.h"
+#include "swan/codegen_wasm32.h"
 
 
 static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module,SwanError *error){
