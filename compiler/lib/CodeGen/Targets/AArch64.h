@@ -20,7 +20,6 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
    if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"AArch64 backend cannot lower instruction %zu in block %zu of '%s': type is %s",i,b,fn->name,swan_ir_type_name(in->type));return false;}
-   if(in->type==SWAN_IR_I32&&in->op!=SWAN_IR_CONST&&in->op!=SWAN_IR_CALL){if(error&&cap)snprintf(error,cap,"AArch64 backend currently supports i32 constants and call pass-through only; instruction %zu in block %zu of '%s' is %d",i,b,fn->name,(int)in->op);return false;}
   }
  }
  for(size_t f=0;f<m->function_count;f++){
@@ -50,12 +49,16 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
   for(size_t p=0;p<fn->parameter_count&&p<8;p++){
    if(fn->parameter_types[p]==SWAN_IR_I1)
     text_add(o,"    and x9, x%zu, #1\n    str x9, [sp, #%d]\n",p,swan_a64_value_offset((uint32_t)p+1));
+   else if(fn->parameter_types[p]==SWAN_IR_I32)
+    text_add(o,"    sxtw x9, w%zu\n    str x9, [sp, #%d]\n",p,swan_a64_value_offset((uint32_t)p+1));
    else text_add(o,"    str x%zu, [sp, #%d]\n",p,swan_a64_value_offset((uint32_t)p+1));
   }
   for(size_t p=8;p<fn->parameter_count;p++){
    size_t offset=16u+(p-8u)*8u;
    if(fn->parameter_types[p]==SWAN_IR_I1)
     text_add(o,"    ldrb w9, [x29, #%zu]\n    str x9, [sp, #%d]\n",offset,swan_a64_value_offset((uint32_t)p+1));
+   else if(fn->parameter_types[p]==SWAN_IR_I32)
+    text_add(o,"    ldr w9, [x29, #%zu]\n    sxtw x9, w9\n    str x9, [sp, #%d]\n",offset,swan_a64_value_offset((uint32_t)p+1));
    else text_add(o,"    ldr x9, [x29, #%zu]\n    str x9, [sp, #%d]\n",offset,swan_a64_value_offset((uint32_t)p+1));
   }
   size_t ai=0;
