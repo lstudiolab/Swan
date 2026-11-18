@@ -1,7 +1,7 @@
 # Swan standard library
 # Import with: import std
-# Access public functions through the ! prefix.
-# Output is the standard-library intrinsic: !printin >> expression;
+# Public functions use ordinary calls, e.g. abs(-42).
+# Output uses print(expression).
 
 func abs(value: int) -> int:
     if value < 0:
