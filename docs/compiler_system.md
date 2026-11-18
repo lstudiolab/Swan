@@ -10,18 +10,19 @@ Implementation conventions for C11 ownership, naming, formatting, diagnostics, h
 
 ## 1. Non-negotiable execution model
 
-Swan is an ahead-of-time (AOT), native-code compiler.
+Swan uses a portable two-stage compilation and execution architecture.
 
-- Swan source is compiled before execution.
-- A successful native build produces a normal object file and/or executable for the selected target ABI.
-- The executable does not contain or require a Swan interpreter, JIT compiler, SVM virtual machine, or bytecode dispatch loop.
-- SVM is a compiler subsystem and intermediate representation (IR), not a runtime machine.
-- SVM is Swan's target-independent typed compiler IR. It is not a distributable runtime bytecode format.
-- `run` means build a native executable for the host and then launch that executable as a separate operating-system process. It must never mean interpret source or IR.
-- WebAssembly is a separately selected AOT output format. A WebAssembly module is not a Swan interpreter or native executable; execution requires a compatible WebAssembly host.
-- No performance claim may conflate compiler throughput, executable startup, and generated-program runtime.
+- `swanc compile` compiles Swan source ahead of execution into a portable WASM64 module.
+- SIC (Swan Integrated Compilation) is an internal compiler/runtime coordination layer. It detects the environment in which the compiled module is being executed and selects the correct path.
+- In browser/WebAssembly environments, SIC leaves the module as WASM. The browser's WebAssembly engine validates, compiles, and executes it; Swan does not run a native JIT in the browser.
+- On native x86-64 and ARM64 hosts, SIC invokes Wasmtime's runtime, which JIT-compiles the portable module into native machine code for the detected CPU before execution.
+- A temporary WASM module generated for a source-to-run invocation is removed only after successful runtime completion. Explicitly emitted or user-supplied WASM files are retained.
+- If native runtime execution fails, the portable WASM input is retained for diagnosis or execution on another compatible host.
+- SVM is Swan's target-independent typed compiler IR. It is not a runtime machine, executable format, or bytecode.
+- Wasmtime performs native code generation inside its runtime process; Swan does not emit a separate architecture-specific executable for this execution path.
+- No performance claim may conflate compiler throughput, host JIT compilation time, executable startup, and generated-program runtime.
 
-A future feature that introduces mandatory interpretation, JIT compilation, or VM dispatch is an architectural violation and must not be merged.
+SIC's native compilation is an intentional runtime code-generation stage, not source/IR interpretation or a bytecode dispatch loop.
 
 ## 2. Compiler ownership
 
@@ -198,20 +199,20 @@ The required flow is:
          Wasmtime runtime JIT -> host-native x86-64 / ARM64 code
          execute compiled code
          delete temporary WASM only after successful runtime completion
-       unsupported host or compilation failure:
-         retain WASM64 -> WASM runtime fallback
+       unsupported host or JIT failure:
+         retain WASM64 -> compatible WASM runtime fallback
 ```
 
 SIC requirements:
 
 1. Detect the execution environment before selecting a compilation path.
-2. Treat a WebAssembly/browser host as WASM-only. Do not attempt native CPU detection or native recompilation there.
-3. On native hosts, identify x86-64 or ARM64 and request host-specific compilation. The selected engine must compile for the actual host, not for the machine that originally built the source.
-4. Keep portable WASM until host compilation has completed and the compiled artifact has been validated as present and non-empty.
-5. Never delete a user-supplied WASM file. Only temporary WASM generated for a source-to-run invocation may be removed after successful native compilation.
-6. If host detection, the native engine, or compilation is unavailable, retain the WASM module and use the portable execution path when the host supports it.
-7. Cache compiled modules by at least host architecture and source artifact freshness. A host-specific compiled artifact must never be reused as if it were portable across architectures.
-8. Browser deployments load the original WASM module through the browser loader. Browser engine support for the WASM64 memory64 proposal is a deployment requirement and must be checked separately from native support.
+2. Treat a WebAssembly/browser host as WASM-only. Do not attempt native CPU detection or Swan native recompilation there.
+3. On native hosts, identify x86-64 or ARM64. Wasmtime's runtime JIT must generate code for the actual host CPU, not for the machine that originally built the source.
+4. Keep portable WASM until native JIT execution has completed successfully.
+5. Never delete a user-supplied or explicitly emitted WASM file. Only temporary WASM generated for a source-to-run invocation may be removed after successful native runtime completion.
+6. If host detection or native runtime execution fails, retain the WASM module. A compatible WebAssembly runtime may execute it on hosts that support the required proposals.
+7. Do not treat host-native JIT output as a portable artifact. The WASM module remains the cross-platform deployment artifact.
+8. Browser deployments load the original WASM module through the browser loader. Browser support for the WASM64 memory64 proposal is a deployment requirement and must be checked separately from native support.
 
 The current implementation delegates native JIT compilation to Wasmtime's `run` engine. This produces native machine code in the runtime process rather than a standalone OS executable. A future Swan-owned JIT may replace the engine integration without changing the SIC contract.
 
