@@ -695,11 +695,11 @@ The search functions return a zero-based index or -1 when no match exists. Binar
 
 ## 13. Complete reserved-keyword reference
 
-The lexer defines exactly **31 case-sensitive reserved words**:
+The lexer defines exactly **32 case-sensitive reserved words**:
 
 ```text
 func struct let var null if else const type match guard block while loop
-true false break continue return as from self pass upto init deinit enum
+true false break continue return as from self pass upto init deinit enum for
 throw throws rethrow catch import export
 ```
 
@@ -719,6 +719,9 @@ The table below describes their intended role and current implementation status.
 | `match` | Pattern matching | Reserved; not implemented |
 | `guard` | Guard-style conditional validation | Reserved; not implemented |
 | `block` | Explicit block construct | Reserved; not implemented as a separate construct |
+| `for` | Inclusive integer range loop | Implemented: `for name from start upto end:` |
+| `from` | Range-loop lower-bound introducer | Implemented with `for` |
+| `upto` | Inclusive range-loop upper-bound introducer | Implemented with `for` |
 | `while` | Condition-controlled loop | Implemented |
 | `loop` | Unconditional loop | Implemented as `loop:`; uses shared control-flow IR |
 | `true` | Boolean true literal | Implemented |
