@@ -40,4 +40,14 @@ if grep -q 'free@PLT' "$TMP/automatic.s"; then
     exit 1
 fi
 
-printf 'PASS: raw import, i64 pointer ABI, native allocation, byte fill, release, and disabled automatic array cleanup\n'
+
+cat > "$TMP/default.swan" <<'SWAN'
+func main() -> int:
+    let values = array_u32(32)
+    values[0] = 42
+    return values[0] - 42
+SWAN
+"$SWAN" build "$TMP/default.swan" --emit-asm -o "$TMP/default.s"
+grep -q 'free@PLT' "$TMP/default.s"
+
+printf 'PASS: raw import, i64 pointer ABI, native allocation, byte fill, release, and mode-specific array lifetime behavior\n'
