@@ -42,7 +42,7 @@ func main() -> int:
     if raw.arena_remaining(region) != 64:
         result = result + 1
     drop region
-    return result - 1110 + 123522904
+    return result - 1111177302
 SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
