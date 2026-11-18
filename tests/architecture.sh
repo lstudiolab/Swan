@@ -27,7 +27,11 @@ SWAN
 "$SWAN" build "$TMP/native.swan" --target x86_64 -o "$TMP/native"
 test "$("$TMP/native")" = "91"
 
-"$SWAN" "$TMP/native.swan" --target arm64 --emit-asm -o "$TMP/aarch64.s"
+cat > "$TMP/cross.swan" <<'SWAN'
+func main() -> int:
+    return 42
+SWAN
+"$SWAN" "$TMP/cross.swan" --target arm64 --emit-asm -o "$TMP/aarch64.s"
 grep -q 'stp x29, x30' "$TMP/aarch64.s"
 
 for unsupported in armv7 riscv64 wasm32 arm riscv llvm; do
