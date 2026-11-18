@@ -51,7 +51,7 @@ fi
 
 cat > "$TMP/default.swan" <<'SWAN'
 func main() -> int:
-    let values = array_u32(32)
+    let values = array_u32(32768)
     values[0] = 42
     return values[0] - 42
 SWAN
