@@ -460,7 +460,21 @@ func count_to(limit: int) -> int:
     return count
 ```
 
-`upto` remains reserved; its range-loop grammar and inclusive/exclusive boundary semantics are not yet specified.
+### 9.4 Inclusive range loops
+
+`for` introduces an integer range loop. The syntax is `for name from start upto end:`; both bounds are evaluated once, and `upto` is inclusive.
+
+```swan
+func sum_range(first: int, last: int) -> int:
+    var total = 0
+    for value from first upto last:
+        total = total + value
+    return total
+```
+
+The iterator is scoped to the loop. `break` exits the loop. `continue` advances the iterator exactly once before testing the next iteration. If the start exceeds the end, the body executes zero times. The increment is guarded at the upper bound to avoid signed overflow when the final value is the maximum representable integer.
+
+The current range form is integer-only. Collection iteration with `in`, custom iterators, descending ranges, and configurable step sizes are not implemented.
 
 ---
 
