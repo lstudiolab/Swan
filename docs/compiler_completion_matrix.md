@@ -60,7 +60,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Register allocation | Partial | Backend-specific register/local assignment for supported subset | Proven global allocation, spill/reload correctness and stress tests |
 | Machine IR | Not established as a complete shared stage | Target backend internal representations | Shared machine IR contract, verifier and target-independent passes |
 | ABI lowering | Partial | Scalar ABI paths for selected targets | Aggregates, floats, variadics, stack alignment, callee-save and platform ABI tests |
-| Object emission | Partial | Swan-owned ELF/WASM and LLVM bridge outputs | Relocations, debug info, object-format edge cases and validation per target |
+| Object emission | Partial | Swan-owned ELF and WASM64 outputs | Relocations, debug info, object-format edge cases and validation per target |
 | Linking / runtime | Partial | Native host linking through system toolchain | Cross-target linkers, sysroots, platform runtimes and executable tests on every target |
 
 ## Driver, quality and release engineering
