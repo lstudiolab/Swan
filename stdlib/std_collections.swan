@@ -3,9 +3,13 @@
 # generic Array<T>. Pass the logical length explicitly with every array.
 
 func array_sum(values: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     var total = 0
     var index = 0
     while index < length:
+        if total > 9223372036854775807 - values[index]:
+            return 0
         total = total + values[index]
         index = index + 1
     return total
@@ -33,6 +37,8 @@ func array_max(values: u32_array, length: int) -> int:
     return result
 
 func array_contains(values: u32_array, length: int, target: int) -> bool:
+    if length < 0:
+        return false
     var index = 0
     while index < length:
         if values[index] == target:
@@ -41,6 +47,8 @@ func array_contains(values: u32_array, length: int, target: int) -> bool:
     return false
 
 func array_index_of(values: u32_array, length: int, target: int) -> int:
+    if length < 0:
+        return 0 - 1
     var index = 0
     while index < length:
         if values[index] == target:
@@ -49,6 +57,8 @@ func array_index_of(values: u32_array, length: int, target: int) -> int:
     return 0 - 1
 
 func array_count(values: u32_array, length: int, target: int) -> int:
+    if length < 0:
+        return 0
     var total = 0
     var index = 0
     while index < length:
@@ -63,6 +73,8 @@ func array_average(values: u32_array, length: int) -> int:
     return array_sum(values, length) / length
 
 func array_is_sorted(values: u32_array, length: int) -> bool:
+    if length < 0:
+        return false
     if length < 2:
         return true
     var index = 1
@@ -73,6 +85,8 @@ func array_is_sorted(values: u32_array, length: int) -> bool:
     return true
 
 func array_fill(values: u32_array, length: int, value: int) -> int:
+    if length < 0 or value < 0 or value > 4294967295:
+        return 0
     var index = 0
     while index < length:
         values[index] = value
@@ -80,6 +94,8 @@ func array_fill(values: u32_array, length: int, value: int) -> int:
     return length
 
 func array_copy(source: u32_array, destination: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     var index = 0
     while index < length:
         destination[index] = source[index]
@@ -87,6 +103,8 @@ func array_copy(source: u32_array, destination: u32_array, length: int) -> int:
     return length
 
 func array_reverse(values: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     var left = 0
     var right = length - 1
     while left < right:
@@ -101,6 +119,8 @@ func array_linear_search(values: u32_array, length: int, target: int) -> int:
     return array_index_of(values, length, target)
 
 func array_binary_search(values: u32_array, length: int, target: int) -> int:
+    if length < 0:
+        return 0 - 1
     var low = 0
     var high = length - 1
     while low <= high:
@@ -114,6 +134,8 @@ func array_binary_search(values: u32_array, length: int, target: int) -> int:
     return 0 - 1
 
 func array_bubble_sort(values: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     var end = length
     while end > 1:
         var index = 1
@@ -131,6 +153,8 @@ func array_bubble_sort(values: u32_array, length: int) -> int:
     return length
 
 func array_selection_sort(values: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     var start = 0
     while start < length:
         var smallest = start
@@ -147,6 +171,8 @@ func array_selection_sort(values: u32_array, length: int) -> int:
     return length
 
 func array_insertion_sort(values: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     var index = 1
     while index < length:
         let current = values[index]
@@ -163,6 +189,8 @@ func array_insertion_sort(values: u32_array, length: int) -> int:
 # In-place O(n log n) heap sort. The helper keeps all temporary state in
 # scalar locals, so sorting does not allocate a second array.
 func array_sift_down(values: u32_array, length: int, root: int) -> int:
+    if length < 0 or root < 0 or root >= length:
+        return 0
     var parent = root
     while parent < length / 2:
         let left = parent * 2 + 1
@@ -181,6 +209,8 @@ func array_sift_down(values: u32_array, length: int, root: int) -> int:
     return 0
 
 func array_heap_sort(values: u32_array, length: int) -> int:
+    if length < 0:
+        return 0
     if length < 2:
         return length
     var start = length / 2
