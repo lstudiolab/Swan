@@ -93,8 +93,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     return swan_check_expr(p,e->args[0],symbols,err);
    }
    Stmt *fn=NULL;
-   bool bang_prefix=e->left&&e->left->kind==E_MEMBER&&e->left->left&&e->left->left->kind==E_NAME&&e->left->left->token.text&&!strcmp(e->left->left->token.text,"!");
-   if(e->left&&e->left->kind==E_MEMBER&&!bang_prefix&&e->left->left&&e->left->left->kind==E_NAME&&e->left->right&&e->left->right->kind==E_NAME){
+   if(e->left&&e->left->kind==E_MEMBER&&e->left->left&&e->left->left->kind==E_NAME&&e->left->right&&e->left->right->kind==E_NAME){
     const char *module=e->left->left->token.text;
     fn=swan_find_module_function(p,module,callee);
     if(!fn){swan_error(err,&e->token,"module '%s' does not export a function named '%s'",module,callee);return false;}
@@ -103,7 +102,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    }else{
     fn=swan_find_function(p,callee);
     if(!fn){if(swan_function_name_ambiguous(p,callee))swan_error(err,&e->token,"function '%s' is ambiguous; qualify it with its module name",callee);else swan_error(err,&e->token,"unknown function '%s'",callee);return false;}
-    if(e->left&&(e->left->kind==E_NAME||bang_prefix)){Token callee_token=e->left->kind==E_NAME?e->left->token:e->left->right->token;callee_token.text=fn->link_name?fn->link_name:fn->name;e->left->kind=E_NAME;e->left->token=callee_token;e->left->left=NULL;e->left->right=NULL;}
+    if(e->left&&e->left->kind==E_NAME){Token callee_token=e->left->token;callee_token.text=fn->link_name?fn->link_name:fn->name;e->left->kind=E_NAME;e->left->token=callee_token;e->left->left=NULL;e->left->right=NULL;}
    }
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
    for(size_t i=0;i<e->argc;i++){
