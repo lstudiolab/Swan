@@ -214,6 +214,12 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
       if(s->value->kind!=E_CALL){swan_error(err,&s->value->token,"own must initialize from an i64-returning allocation function or move");return false;}
       Stmt *owner_fn=swan_find_link_function(p,swan_expr_terminal_name(s->value->left));
       if(!owner_fn||!owner_fn->type||strcmp(owner_fn->type,"i64")){swan_error(err,&s->value->token,"own initializer must return i64");return false;}
+      if(owner_fn->imported&&owner_fn->module_index>=0&&(size_t)owner_fn->module_index<p->module_count&&
+         !strcmp(p->module_names[owner_fn->module_index],"raw")&&
+         strcmp(owner_fn->name,"alloc")&&strcmp(owner_fn->name,"alloc_zeroed")&&
+         strcmp(owner_fn->name,"heap")&&strcmp(owner_fn->name,"resize")&&strcmp(owner_fn->name,"arena")){
+       swan_error(err,&s->value->token,"raw own requires a freeable allocation result; stack pointers and arena slices are not owners");return false;
+      }
      }
     }else if(s->manual_borrow){
      if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
