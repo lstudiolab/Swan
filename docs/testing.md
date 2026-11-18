@@ -50,7 +50,7 @@ The C ABI test compiles a C implementation to an object, imports its header decl
 
 ## Cross-target policy
 
-A backend is advertised only for the subset exercised by its tests. Cross-target execution and full system linking require suitable target runners and toolchains. Clang/LLVM may be used for the explicit `--target-triple` portability path; it is not a silent fallback for the Swan-owned backends.
+A backend is advertised only for the subset exercised by its tests. Cross-target execution and full system linking require suitable target runners and toolchains. The only advertised targets are x86-64, AArch64/ARM64, and WASM64. Unsupported architectures and arbitrary target triples must be rejected by the CLI.
 
 ## Adding a regression
 
