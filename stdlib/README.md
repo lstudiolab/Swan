@@ -51,7 +51,7 @@ Source: `stdlib/std_math.swan`
 - Integer roots and sequences: `integer_sqrt`, `fibonacci`, `triangular`
 - Integer utilities: `distance_int`, `is_power_of_two`, `next_power_of_two`
 
-Import `std_math` to use these functions. The module uses only Swan integer expressions, conditions, loops, local bindings, and direct function calls.
+Import `std_math` to use these functions. The module uses only Swan integer expressions, conditions, loops, local bindings, and direct function calls. Invalid divisors/moduli and unrepresentable absolute results or overflows use `0` as a sentinel; callers must validate inputs when zero is a meaningful result.
 
 ### `std_collections` — u32 arrays and sequence algorithms
 
