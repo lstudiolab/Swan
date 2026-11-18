@@ -52,21 +52,22 @@ func euclidean_mod(value: int, modulus: int) -> int:
     return remainder
 
 func floor_div(left: int, right: int) -> int:
-    if right == 0:
+    if right == 0 or (left == (-9223372036854775807 - 1) and right == -1):
         return 0
-    if right < 0:
-        return floor_div(0 - left, 0 - right)
     var quotient = left / right
-    var remainder = left % right
-    while remainder < 0:
-        remainder = remainder + right
+    let remainder = left % right
+    if remainder != 0 and ((left < 0 and right > 0) or (left > 0 and right < 0)):
         quotient = quotient - 1
     return quotient
 
 func ceil_div(left: int, right: int) -> int:
-    if right == 0:
+    if right == 0 or (left == (-9223372036854775807 - 1) and right == -1):
         return 0
-    return 0 - floor_div(0 - left, right)
+    var quotient = left / right
+    let remainder = left % right
+    if remainder != 0 and ((left < 0 and right < 0) or (left > 0 and right > 0)):
+        quotient = quotient + 1
+    return quotient
 
 func integer_sqrt(value: int) -> int:
     if value < 0:
@@ -101,15 +102,25 @@ func is_composite(value: int) -> bool:
     return not is_prime(value)
 
 func triangular(value: int) -> int:
-    if value < 1:
+    if value < 1 or value == 9223372036854775807:
         return 0
+    var left = value
+    var right = value + 1
     if value % 2 == 0:
-        return (value / 2) * (value + 1)
-    return value * ((value + 1) / 2)
+        left = value / 2
+    else:
+        right = right / 2
+    if left > 9223372036854775807 / right:
+        return 0
+    return left * right
 
 func distance_int(left: int, right: int) -> int:
     if left >= right:
+        if right < 0 and left > 9223372036854775807 + right:
+            return 0
         return left - right
+    if left < 0 and right > 9223372036854775807 + left:
+        return 0
     return right - left
 
 func is_power_of_two(value: int) -> bool:
@@ -141,6 +152,8 @@ func fibonacci(value: int) -> int:
     var current = 1
     var index = 2
     while index <= value:
+        if current > 9223372036854775807 - previous:
+            return 0
         let next = previous + current
         previous = current
         current = next
