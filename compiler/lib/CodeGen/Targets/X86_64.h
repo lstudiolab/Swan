@@ -1179,7 +1179,19 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     if(!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"drop expects an owned local");break;}
     Local *owner=local_find(l,s->value->token.text);if(!owner){swan_error(err,&s->value->token,"unknown owned local");break;}
     if(owner->array_u32){ownership_cleanup_local(o,l,owner);break;}
-    if(owner->array_u32){ownership_cleanup_local(o,l,owner);break;}
+    if(owner->array_u32){
+     int skip=o->next_label++;
+     if(owner->reg>=0)text_add(o,"    test %s, %s\n    je .Lswan_drop_skip_%d\n",cg_reg_name(owner->reg),cg_reg_name(owner->reg),skip);
+     else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\n    je .Lswan_drop_skip_%d\n",owner->slot*8,skip);
+     cg_save_volatile(o,l);
+     if(owner->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(owner->reg));
+     else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",owner->slot*8);
+     if(!owner->array_unchecked)text_add(o,"    sub rdi, 8\n");
+     cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+     if(owner->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(owner->reg),cg_reg_low_name(owner->reg));
+     else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",owner->slot*8);
+     text_add(o,".Lswan_drop_skip_%d:\n",skip);break;
+    }
     cg_save_volatile(o,l);
     if(owner->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(owner->reg));
     else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",owner->slot*8);
