@@ -67,6 +67,25 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Object emission | Partial | Swan-owned ELF and WASM64 outputs | Relocations, debug info, object-format edge cases and validation per target |
 | Linking / runtime | Partial | Native x86-64 and ARM64 executable linking; native ARM64 scalar C-object linking; WASM64 execution through Wasmtime | Cross-target x86/ARM linkers and sysroots, platform runtimes, and broader executable tests |
 
+## Standard library and runtime libraries
+
+| Module / subsystem | Status | Implemented | Still required |
+|---|---|---|---|
+| `std` | Partial | Signed 64-bit helpers for bounds, sign, powers, factorial, triangular sums and averages; checked multiplication and logarithmic-time exponentiation; overflow sentinel is `0` | Structured arithmetic errors, floating-point APIs, strings, formatting and broader numeric types |
+| `foundation` | Compatibility subset | Legacy `*_int` helper names with the same overflow behavior as `std` | This is not a platform Foundation framework; consolidate or deprecate duplicated APIs |
+| `std_math` | Partial | Integer GCD/LCM, primality, division helpers, integer square root, Fibonacci, triangular numbers and power-of-two helpers | Floating-point math, transcendental functions, richer error results and high-volume algorithm tests |
+| `std_collections` | Partial | Checked `u32_array` queries, mutation, linear/binary search, bubble/selection/insertion/heap sort, negative-length guards and sum-overflow protection | Generic `Array<T>`, dynamic capacity, slices, maps/sets, iterators, queues/stacks and ownership-aware storage |
+| JSON C runtime | Partial | Native C ABI parser, document handles, key lookup and compact/pretty writer | Typed Swan JSON values, streaming APIs, full pointer/string safety and portable ABI |
+| HTTP C runtime | Partial | Bounded HTTP/1.1 JSON echo/health service and POSIX worker pool | User-defined routes, HTTP client, TLS, chunked transfer, keep-alive, WebSockets and async I/O |
+| Swan string/bytes libraries | Not implemented end-to-end | String literals and limited compatibility/runtime paths | Managed string/byte types, Unicode operations, slices, encoding and cross-target ownership |
+| I/O, filesystem, process and time libraries | Not implemented | No complete Swan source modules | Portable file/directory APIs, process/environment access, clocks, timers and error handling |
+| Networking, HTTP client and database libraries | Not implemented | Fixed native HTTP server only | TCP/UDP, TLS, HTTP client, SQLite/PostgreSQL/MySQL drivers, pools, transactions and cancellation |
+| Async, synchronization and task libraries | Not implemented | Native POSIX thread-pool primitive | Swan tasks, async/await, scheduler, channels, cancellation and structured concurrency |
+| Encoding, crypto, regex, CSV and formatting | Not implemented | No complete Swan modules | Safe, portable source APIs with cross-target tests |
+| Logging, testing and documentation libraries | Not implemented | Compiler diagnostics and shell-based test harness | Swan test framework, structured logging, formatter and documentation generator |
+
+The integer helper APIs currently use `0` as an overflow or invalid-input sentinel in several places. This is documented, but it is inherently ambiguous when zero is also a valid result. A future structured error/result type is required before these APIs can provide unambiguous failure reporting.
+
 ## Driver, quality and release engineering
 
 | Subsystem | Status | Implemented | Still required |
