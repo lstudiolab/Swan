@@ -28,6 +28,11 @@ set +e
 status=$?
 set -e
 test "$status" -eq 33
+set +e
+"$BIN" run "$TMP/i32.swan"
+default_run_status=$?
+set -e
+test "$default_run_status" -eq 33
 
 # Explicit native ARM64 build and run must use the same ABI and code path.
 "$BIN" build "$TMP/i32.swan" --target arm64 -o "$TMP/explicit-native"
