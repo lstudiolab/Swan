@@ -1,4 +1,4 @@
 func main():
-    !printin >> "Hello from Swan";
+    print("Hello from Swan")
     return 0
 
