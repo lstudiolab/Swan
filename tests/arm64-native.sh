@@ -42,11 +42,16 @@ printf 'PASS: native ARM64 default target, executable linking, i32 arithmetic, a
 cat > "$TMP/c_api.h" <<'H'
 #include <stdint.h>
 int32_t swan_arm64_add(int32_t left, int32_t right);
+int64_t swan_arm64_sum9(int64_t a, int64_t b, int64_t c, int64_t d, int64_t e, int64_t f, int64_t g, int64_t h, int64_t i);
 H
 cat > "$TMP/c_api.c" <<'C'
 #include <stdint.h>
 int32_t swan_arm64_add(int32_t left, int32_t right) {
     return left + right;
+}
+int64_t swan_arm64_sum9(int64_t a, int64_t b, int64_t c, int64_t d,
+                        int64_t e, int64_t f, int64_t g, int64_t h, int64_t i) {
+    return a + b + c + d + e + f + g + h + i;
 }
 C
 cc -std=c11 -O2 -c "$TMP/c_api.c" -o "$TMP/c_api.o"
@@ -63,3 +68,17 @@ ffi_status=$?
 set -e
 test "$ffi_status" -eq 42
 printf 'PASS: native ARM64 C header import, i32 arguments, return values, and linking\n'
+
+cat > "$TMP/stack-abi.swan" <<SWAN
+import C "$TMP/c_api.h"
+func main() -> int:
+    return swan_arm64_sum9(1, 2, 3, 4, 5, 6, 7, 8, 9)
+SWAN
+"$BIN" build "$TMP/stack-abi.swan" --target arm64 --link "$TMP/c_api.o" -o "$TMP/stack-abi"
+test -x "$TMP/stack-abi"
+set +e
+"$TMP/stack-abi"
+stack_status=$?
+set -e
+test "$stack_status" -eq 45
+printf 'PASS: native ARM64 C ABI stack-passed arguments\n'
