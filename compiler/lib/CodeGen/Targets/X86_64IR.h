@@ -104,7 +104,11 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
           a,z,f,b,i,d,in->op==SWAN_IR_UDIV?"rax":"rdx",f,b,i,f,b,i,f,b,i);
       break;}
      case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
-      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, cl\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);break;
+      if(in->type==SWAN_IR_I32)
+       text_add(o,"    mov eax, DWORD PTR [rbp-%d]\n    mov ecx, DWORD PTR [rbp-%d]\n    %s eax, cl\n    movsxd rax, eax\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);
+      else
+       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, cl\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);
+      break;
      case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    cmp rax, rcx\n    set%s al\n    movzx eax, al\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_ICMP_EQ?"e":in->op==SWAN_IR_ICMP_NE?"ne":in->op==SWAN_IR_ICMP_SLT?"l":in->op==SWAN_IR_ICMP_SLE?"le":in->op==SWAN_IR_ICMP_SGT?"g":"ge",d);break;
      default:if(error&&cap)snprintf(error,cap,"x86-64 backend encountered unsupported IR opcode %u",(unsigned)in->op);return false;
