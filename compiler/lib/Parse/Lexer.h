@@ -71,10 +71,14 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"upto",4))return T_UPTO;
   if(!memcmp(s,"true",4))return T_TRUE;
   if(!memcmp(s,"pass",4))return T_PASS;
+  if(!memcmp(s,"move",4))return T_MOVE;
+  if(!memcmp(s,"drop",4))return T_DROP;
+  if(!memcmp(s,"own",3))return T_OWN;
   if(!memcmp(s,"init",4))return T_INIT;
   break;
  case 5:
   if(!memcmp(s,"while",5))return T_WHILE;
+  if(!memcmp(s,"borrow",6))return T_BORROW;
   if(!memcmp(s,"match",5))return T_MATCH;
   if(!memcmp(s,"guard",5))return T_GUARD;
   if(!memcmp(s,"break",5))return T_BREAK;
@@ -83,6 +87,9 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"block",5))return T_BLOCK;
   if(!memcmp(s,"throw",5))return T_THROW;
   if(!memcmp(s,"catch",5))return T_CATCH;
+  if(!memcmp(s,"stack",5))return T_STACK;
+  if(!memcmp(s,"arena",5))return T_ARENA;
+  if(!memcmp(s,"heap",4))return T_HEAP;
   break;
  case 6:
   if(!memcmp(s,"import",6))return T_IMPORT;
