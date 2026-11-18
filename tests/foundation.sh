@@ -24,6 +24,22 @@ func main():
     print(factorial_int(5))
     print(sum_to_int(10))
     print(in_range_int(5, 1, 9))
+    print(abs_int(-9223372036854775807 - 1))
+    print(square_int(3037000499))
+    print(square_int(3037000500))
+    print(cube_int(2097151))
+    print(cube_int(-2097152))
+    print(cube_int(2097152))
+    print(power_int(2, 62))
+    print(power_int(2, 63))
+    print(power_int(-1, 63))
+    print(factorial_int(20))
+    print(factorial_int(21))
+    print(sum_to_int(4294967295))
+    print(sum_to_int(4294967296))
+    print(average_int(9223372036854775807, 9223372036854775807))
+    print(average_int(-9223372036854775807 - 1, -9223372036854775807 - 1))
+    print(average_int(-9223372036854775807 - 1, 9223372036854775807))
     return 0
 SWAN
 
@@ -43,6 +59,22 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 120
 55
 1
+0
+9223372030926249001
+0
+9223358842721533951
+-9223372036854775808
+0
+4611686018427387904
+0
+-1
+2432902008176640000
+0
+9223372034707292160
+0
+9223372036854775807
+-9223372036854775808
+0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
