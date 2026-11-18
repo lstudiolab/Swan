@@ -30,8 +30,8 @@ SWAN
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
 "$TMP/program"
 "$SWAN" build "$TMP/program.swan" --emit-asm -o "$TMP/program-asm"
-grep -q 'malloc@PLT' "$TMP/program-asm/program.s"
-grep -q 'memset@PLT' "$TMP/program-asm/program.s"
+grep -q 'call malloc' "$TMP/program-asm/program.s"
+grep -q 'call memset' "$TMP/program-asm/program.s"
 grep -q 'free@PLT' "$TMP/program-asm/program.s"
 
 cat > "$TMP/automatic.swan" <<'SWAN'
