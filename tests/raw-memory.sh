@@ -82,6 +82,7 @@ func main() -> int:
     return values[0] - 42
 SWAN
 "$SWAN" build "$TMP/automatic.swan" --emit-asm -o "$TMP/automatic-asm"
+grep -q 'calloc@PLT' "$TMP/automatic-asm/automatic.s"
 if grep -q 'free@PLT' "$TMP/automatic-asm/automatic.s"; then
     echo "raw mode unexpectedly emitted automatic array reclamation" >&2
     exit 1
