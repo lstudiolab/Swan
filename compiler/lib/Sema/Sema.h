@@ -1,7 +1,7 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed; size_t previous; } SwanSymbol;
+typedef struct { const char *name; bool mutable_value,initialized,is_array; size_t previous; } SwanSymbol;
 typedef struct { SwanSymbol *items; size_t count,capacity; size_t *buckets,bucket_count; } SwanSymbols;
 static inline unsigned swan_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline bool swan_symbols_rehash(SwanSymbols *s,size_t wanted){
@@ -60,11 +60,11 @@ static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *inde
  }
  return false;
 }
-static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array,bool manual,bool checked){
+static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array){
  if(s->count==SIZE_MAX||!swan_reserve_array((void**)&s->items,&s->capacity,s->count+1,sizeof(*s->items)))return false;
  if(s->count+1>s->bucket_count-s->bucket_count/4){if(s->bucket_count>SIZE_MAX/2||!swan_symbols_rehash(s,s->bucket_count*2))return false;}
  size_t b=swan_name_hash(name)&(s->bucket_count-1),i=s->count++;SwanSymbol *v=&s->items[i];
- v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->previous=s->buckets[b];s->buckets[b]=i;return true;
+ v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->previous=s->buckets[b];s->buckets[b]=i;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){while(s->count>mark){size_t i=--s->count;size_t b=swan_name_hash(s->items[i].name)&(s->bucket_count-1);s->buckets[b]=s->items[i].previous;}}
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
@@ -85,7 +85,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
  if(!e)return true;
  switch(e->kind){
   case E_INT:case E_FLOAT:case E_STRING:case E_BOOL:return true;
-  case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(!v->initialized){swan_error(err,&e->token,"use of uninitialized variable '%s'",e->token.text);return false;}if(v->manual_checked){if(v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}swan_error(err,&e->token,"manual allocation handles may only be indexed or released with free");return false;}return true;}
+  case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(!v->initialized){swan_error(err,&e->token,"use of uninitialized variable '%s'",e->token.text);return false;}return true;}
   case E_CALL:{
    const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or module-qualified function path");return false;}
    if(e->left&&e->left->kind==E_NAME&&(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked"))){
@@ -106,7 +106,6 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    }
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
    for(size_t i=0;i<e->argc;i++){
-    if(e->args[i]&&e->args[i]->kind==E_NAME){size_t arg_index;if(swan_symbol_find(symbols,e->args[i]->token.text,&arg_index)&&symbols->items[arg_index].manual_checked){swan_error(err,&e->args[i]->token,"manual ownership cannot be copied into a function call");return false;}}
     if(!swan_check_expr(p,e->args[i],symbols,err))return false;
    }
    return true;
@@ -120,12 +119,10 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(!symbols->items[base_index].is_array){swan_error(err,&e->left->token,"value '%s' is not an array",e->left->token.text);return false;}
     if(!symbols->items[base_index].initialized){swan_error(err,&e->left->token,"use of uninitialized array '%s'",e->left->token.text);return false;}
    }}
-   {size_t base_index;if(swan_symbol_find(symbols,e->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->token,"use of manually freed variable '%s'",e->left->token.text);return false;}}
    return swan_check_expr(p,e->right,symbols,err);
   case E_UNARY:return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
-    if(e->right&&e->right->kind==E_NAME){size_t right_index;if(swan_symbol_find(symbols,e->right->token.text,&right_index)&&symbols->items[right_index].manual_checked){swan_error(err,&e->right->token,"manual ownership cannot be copied or aliased");return false;}}
     if(e->left&&e->left->kind==E_INDEX){
      if(!e->left->left||e->left->left->kind!=E_NAME||!swan_symbol_find(symbols,e->left->left->token.text,NULL)){
       swan_error(err,&e->token,"array assignment requires a declared array variable");return false;
@@ -134,12 +131,10 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
       if(!symbols->items[base_index].is_array){swan_error(err,&e->left->left->token,"value '%s' is not an array",e->left->left->token.text);return false;}
       if(!symbols->items[base_index].initialized){swan_error(err,&e->left->left->token,"use of uninitialized array '%s'",e->left->left->token.text);return false;}
      }}
-     {size_t base_index;if(swan_symbol_find(symbols,e->left->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->left->token,"use of manually freed variable '%s'",e->left->left->token.text);return false;}}
      return swan_check_expr(p,e->left->right,symbols,err)&&swan_check_expr(p,e->right,symbols,err);
     }
     if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"assignment target must be a variable or array element");return false;}
     size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)){swan_error(err,&e->left->token,"unknown variable '%s'",e->left->token.text);return false;}
-    if(symbols->items[index].manual_checked){swan_error(err,&e->left->token,"manual variables cannot be reassigned or moved");return false;}
     if(!symbols->items[index].mutable_value){swan_error(err,&e->left->token,"cannot assign to immutable value '%s'",e->left->token.text);return false;}
     if(!swan_check_expr(p,e->right,symbols,err))return false;
     bool right_is_array=swan_expr_is_array(e->right,symbols);
@@ -157,58 +152,54 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
  }
 }
 static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymbols *symbols,SwanError *err,unsigned loop_depth){
- size_t scope_mark=symbols->count;
  for(size_t i=0;i<count;i++){
   Stmt *s=body[i];
   switch(s->kind){
    case S_VARIABLE:{
-    if(s->manual_checked&&(!s->mutable_value||!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||
-      (strcmp(s->value->left->token.text,"array")&&strcmp(s->value->left->token.text,"array_u32")&&strcmp(s->value->left->token.text,"array_unchecked")&&strcmp(s->value->left->token.text,"array_u32_unchecked")))){
-     swan_error(err,&s->token,"manual var must initialize a mutable array allocation");return false;
-    }
-    if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_checked){swan_error(err,&s->value->token,"manual ownership cannot be copied or aliased");return false;}}
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||
                   swan_expr_is_array(s->value,symbols);
-    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked)){swan_error(err,&s->token,"too many local variables");return false;}
+    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array)){swan_error(err,&s->token,"too many local variables");return false;}
     break;
    }
    case S_LOG:
-    if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&symbols->items[index].manual_checked){swan_error(err,&s->value->token,"manual allocation handles cannot be printed or copied");return false;}}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_RETURN:
-    if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&symbols->items[index].manual_memory){swan_error(err,&s->value->token,"manual ownership cannot escape through a return value");return false;}}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
-    for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_checked&&!symbols->items[k].manual_freed){swan_error(err,&s->token,"manual variable '%s' must be freed before returning",symbols->items[k].name);return false;}
     break;
    case S_EXPR:
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_IF:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
-    size_t outer=symbols->count;if(outer>SIZE_MAX/(6*sizeof(bool))){swan_error(err,&s->token,"branch state size overflow");return false;}
-    bool *states=calloc(outer?outer*6:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking branch state");return false;}
-    bool *before=states,*then_state=states+outer,*else_state=states+outer*2,*before_initialized=states+outer*3,*then_initialized=states+outer*4,*else_initialized=states+outer*5;
-    for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;}
+    size_t outer=symbols->count;
+    if(outer>SIZE_MAX/(3*sizeof(bool))){swan_error(err,&s->token,"branch state size overflow");return false;}
+    bool *states=calloc(outer?outer*3:1,sizeof(*states));
+    if(!states){swan_error(err,&s->token,"out of memory tracking branch state");return false;}
+    bool *before=states,*then_initialized=states+outer,*else_initialized=states+outer*2;
+    for(size_t k=0;k<outer;k++)before[k]=symbols->items[k].initialized;
     if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
-    for(size_t k=0;k<outer;k++){then_state[k]=symbols->items[k].manual_freed;then_initialized[k]=symbols->items[k].initialized;}
-    swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++){symbols->items[k].manual_freed=before[k];symbols->items[k].initialized=before_initialized[k];}
-    if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
-    for(size_t k=0;k<outer;k++){else_state[k]=symbols->items[k].manual_freed;else_initialized[k]=symbols->items[k].initialized;}
+    for(size_t k=0;k<outer;k++)then_initialized[k]=symbols->items[k].initialized;
     swan_symbols_leave(symbols,outer);
-    for(size_t k=0;k<outer;k++){if(symbols->items[k].manual_checked&&then_state[k]!=else_state[k]){swan_error(err,&s->token,"manual variable '%s' must have the same ownership state on every branch",symbols->items[k].name);free(states);return false;}symbols->items[k].manual_freed=then_state[k];symbols->items[k].initialized=then_initialized[k]&&else_initialized[k];}
+    for(size_t k=0;k<outer;k++)symbols->items[k].initialized=before[k];
+    if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
+    for(size_t k=0;k<outer;k++)else_initialized[k]=symbols->items[k].initialized;
+    swan_symbols_leave(symbols,outer);
+    for(size_t k=0;k<outer;k++)symbols->items[k].initialized=then_initialized[k]&&else_initialized[k];
     free(states);break;
    }
    case S_WHILE:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
-    size_t outer=symbols->count;if(outer>SIZE_MAX/(2*sizeof(bool))){swan_error(err,&s->token,"loop state size overflow");return false;}
-    bool *states=calloc(outer?outer*2:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking loop state");return false;}
-    bool *before=states,*before_initialized=states+outer;for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;}
-    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,outer);free(states);return false;}
-    for(size_t k=0;k<outer;k++)if(symbols->items[k].manual_checked&&symbols->items[k].manual_freed!=before[k]){swan_error(err,&s->token,"manual variable '%s' cannot change ownership inside a loop; free it after the loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);free(states);return false;}
-    swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++)symbols->items[k].initialized=before_initialized[k];free(states);break;
+    size_t outer=symbols->count;
+    bool *before=calloc(outer?outer:1,sizeof(*before));
+    if(!before){swan_error(err,&s->token,"out of memory tracking loop state");return false;}
+    for(size_t k=0;k<outer;k++)before[k]=symbols->items[k].initialized;
+    if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,outer);free(before);return false;}
+    swan_symbols_leave(symbols,outer);
+    for(size_t k=0;k<outer;k++)symbols->items[k].initialized=before[k];
+    free(before);break;
    }
    case S_BREAK:case S_CONTINUE:
     if(!loop_depth){swan_error(err,&s->token,"break and continue are only valid inside a loop");return false;}
@@ -216,9 +207,6 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
    case S_PASS:break;
    default:swan_error(err,&s->token,"statement kind %d is not implemented by semantic analysis",(int)s->kind);return false;
   }
- }
- for(size_t k=scope_mark;k<symbols->count;k++)if(symbols->items[k].manual_checked&&!symbols->items[k].manual_freed){
-  swan_error(err,NULL,"manual variable '%s' must be freed before leaving its scope",symbols->items[k].name);return false;
  }
  return true;
 }

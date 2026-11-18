@@ -71,7 +71,7 @@ static inline bool swan_block_requires_ast_compatibility(Stmt **body,size_t coun
     for(size_t i=0;i<count;i++){
         const Stmt *statement=body[i];
         if(!statement)continue;
-        if(statement->kind==S_LOG||statement->kind==S_FREE||
+        if(statement->kind==S_LOG||
            swan_expr_requires_ast_compatibility(statement->value)||
            swan_expr_requires_ast_compatibility(statement->condition)||
            swan_block_requires_ast_compatibility(statement->body,statement->body_count)||
