@@ -1,7 +1,7 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed,manual_borrow,stack_address; const char *owner_name; size_t previous; } SwanSymbol;
+typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed,manual_borrow,stack_address,array_unchecked; const char *owner_name; size_t previous; } SwanSymbol;
 typedef struct { SwanSymbol *items; size_t count,capacity; size_t *buckets,bucket_count; } SwanSymbols;
 static inline unsigned swan_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline bool swan_symbols_rehash(SwanSymbols *s,size_t wanted){
@@ -64,7 +64,7 @@ static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool
  if(s->count==SIZE_MAX||!swan_reserve_array((void**)&s->items,&s->capacity,s->count+1,sizeof(*s->items)))return false;
  if(s->count+1>s->bucket_count-s->bucket_count/4){if(s->bucket_count>SIZE_MAX/2||!swan_symbols_rehash(s,s->bucket_count*2))return false;}
  size_t b=swan_name_hash(name)&(s->bucket_count-1),i=s->count++;SwanSymbol *v=&s->items[i];
- v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->manual_borrow=borrow;v->stack_address=false;v->owner_name=owner_name;v->previous=s->buckets[b];s->buckets[b]=i;return true;
+ v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->manual_borrow=borrow;v->stack_address=false;v->array_unchecked=false;v->owner_name=owner_name;v->previous=s->buckets[b];s->buckets[b]=i;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){while(s->count>mark){size_t i=--s->count;size_t b=swan_name_hash(s->items[i].name)&(s->bucket_count-1);s->buckets[b]=s->items[i].previous;}}
 static inline bool swan_expr_has_borrow_operator(Expr *e){
@@ -151,6 +151,13 @@ static inline bool swan_raw_stack_argument_safe(const char *name,size_t index){
  if((!strcmp(name,"store8")||!strcmp(name,"store16")||!strcmp(name,"store32")||!strcmp(name,"store64"))&&index==0)return true;
  if((!strcmp(name,"copy")||!strcmp(name,"move_bytes"))&&index<2)return true;
  return !strcmp(name,"fill")&&index==0;
+}
+static inline bool swan_expr_is_unchecked_array(Expr *e,SwanSymbols *symbols){
+ if(!e)return false;
+ if(e->kind==E_NAME){size_t i;return swan_symbol_find(symbols,e->token.text,&i)&&symbols->items[i].array_unchecked;}
+ if(e->kind==E_UNARY&&e->token.kind==T_MOVE&&e->left&&e->left->kind==E_NAME){size_t i;return swan_symbol_find(symbols,e->left->token.text,&i)&&symbols->items[i].array_unchecked;}
+ if(e->kind==E_CALL){const char *name=swan_expr_terminal_name(e->left);return name&&(!strcmp(name,"array_unchecked")||!strcmp(name,"array_u32_unchecked"));}
+ return false;
 }
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
  if(!expression)return false;
