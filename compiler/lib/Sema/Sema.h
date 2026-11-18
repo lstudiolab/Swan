@@ -143,10 +143,15 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    return swan_check_expr(p,e->right,symbols,err);
   case E_UNARY:
    if(e->token.kind==T_BORROW){
-    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"borrow expects an owned variable name");return false;}
-    size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)||!symbols->items[index].manual_checked){swan_error(err,&e->token,"borrow requires an owned value");return false;}
-    if(symbols->items[index].manual_freed){swan_error(err,&e->token,"cannot borrow a moved or dropped owner");return false;}
-    return true;
+    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"borrow expects an owned variable or borrow name");return false;}
+    size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)){swan_error(err,&e->token,"borrow requires an owned value");return false;}
+    SwanSymbol *source=&symbols->items[index];
+    if(source->manual_checked){if(source->manual_freed){swan_error(err,&e->token,"cannot borrow a moved or dropped owner");return false;}return true;}
+    if(source->manual_borrow&&source->owner_name){
+     size_t owner;if(!swan_symbol_find(symbols,source->owner_name,&owner)||symbols->items[owner].manual_freed){swan_error(err,&e->token,"cannot reborrow a view after its owner was moved or dropped");return false;}
+     return true;
+    }
+    swan_error(err,&e->token,"borrow requires an owned value or an existing borrow");return false;
    }
    if(e->token.kind==T_MOVE){
     if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"move expects an owned variable name");return false;}
