@@ -71,6 +71,6 @@ if "$SWAN" build "$TMP/native.swan" --emit-llvm 2>"$TMP/llvm.err"; then
 fi
 grep -q "unknown option '--emit-llvm'" "$TMP/llvm.err"
 
-printf 'PASS: one Swan source builds to x86-64, ARM64, and WASM64 artifacts
+printf 'PASS: one Swan source builds to x86-64, ARM64, and WASM64 artifacts\n'
 printf 'PASS: Swan supports exactly x86-64, AArch64/ARM64, and WebAssembly 64-bit\n'
 printf 'PASS: unsupported architectures and arbitrary LLVM target triples are rejected\n'
