@@ -40,6 +40,11 @@ func main() -> int:
     print(average(9223372036854775807, 9223372036854775807))
     print(average(-9223372036854775807 - 1, -9223372036854775807 - 1))
     print(average(-9223372036854775807 - 1, 9223372036854775807))
+    print(power(-2, 63))
+    print(power(-2, 64))
+    print(power(1, 9223372036854775807))
+    print(power(-1, 9223372036854775807))
+    print(power(0, 9223372036854775807))
     return 0
 SWAN
 
@@ -75,6 +80,11 @@ Swan std library ready
 0
 9223372036854775807
 -9223372036854775808
+0
+-9223372036854775808
+0
+1
+-1
 0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
