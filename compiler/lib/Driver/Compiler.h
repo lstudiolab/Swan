@@ -82,7 +82,7 @@ static inline bool swan_load_imports(Program *p,const char *const *module_paths,
    char *link_name=swan_arena_alloc(p,name_length+64);
    if(!link_name){swan_error(err,&function->token,"out of memory creating module-qualified function identity");return false;}
    snprintf(link_name,name_length+64,"__swan_module_%zu_%s",module,function->name);
-   function->link_name=link_name;
+   if(!function->external)function->link_name=link_name;
   }
  }
  return true;
