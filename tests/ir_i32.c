@@ -1,4 +1,5 @@
 #include "swan/codegen_x86_64_ir.h"
+#include "swan/codegen_aarch64.h"
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -13,7 +14,7 @@ static uint32_t binary(SwanIRFunction *fn,SwanIRBlock *block,SwanIROp op,
     return swan_ir_add_inst(fn,block,in);
 }
 int main(int argc,char **argv){
-    if(argc!=2)return 2;
+    if(argc!=3)return 2;
     SwanIRModule module={0};
     const SwanIRType parameters[]={SWAN_IR_I32,SWAN_IR_I32};
     if(!swan_ir_add_function(&module,"add32",SWAN_IR_I32,parameters,2)||
@@ -68,9 +69,17 @@ int main(int argc,char **argv){
         fprintf(stderr,"x86-64 i32 lowering failed: %s\n",error);
         swan_ir_destroy(&module);return 9;
     }
+    Text aarch64={0};
+    if(!swan_codegen_aarch64_ir(&module,&aarch64,error,sizeof(error))){
+        fprintf(stderr,"AArch64 i32 lowering failed: %s\\n",error);
+        free(assembly.data);swan_ir_destroy(&module);return 10;
+    }
     FILE *output=fopen(argv[1],"wb");
     bool ok=output&&fwrite(assembly.data,1,assembly.len,output)==assembly.len;
     if(output&&fclose(output)!=0)ok=false;
-    free(assembly.data);swan_ir_destroy(&module);
-    return ok?0:10;
+    output=fopen(argv[2],"wb");
+    ok=ok&&output&&fwrite(aarch64.data,1,aarch64.len,output)==aarch64.len;
+    if(output&&fclose(output)!=0)ok=false;
+    free(aarch64.data);free(assembly.data);swan_ir_destroy(&module);
+    return ok?0:11;
 }
