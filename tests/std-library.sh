@@ -24,6 +24,22 @@ func main() -> int:
     print(factorial(5))
     print(sum_to(10))
     print(in_range(5, 1, 9))
+    print(abs(-9223372036854775807 - 1))
+    print(square(3037000499))
+    print(square(3037000500))
+    print(cube(2097151))
+    print(cube(-2097152))
+    print(cube(2097152))
+    print(power(2, 62))
+    print(power(2, 63))
+    print(power(-1, 63))
+    print(factorial(20))
+    print(factorial(21))
+    print(sum_to(4294967295))
+    print(sum_to(4294967296))
+    print(average(9223372036854775807, 9223372036854775807))
+    print(average(-9223372036854775807 - 1, -9223372036854775807 - 1))
+    print(average(-9223372036854775807 - 1, 9223372036854775807))
     return 0
 SWAN
 
@@ -44,6 +60,22 @@ Swan std library ready
 120
 55
 1
+0
+9223372030926249001
+0
+9223358842721533951
+-9223372036854775808
+0
+4611686018427387904
+0
+-1
+2432902008176640000
+0
+9223372034707292160
+0
+9223372036854775807
+-9223372036854775808
+0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
