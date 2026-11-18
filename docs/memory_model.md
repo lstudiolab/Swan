@@ -153,7 +153,11 @@ pointer, memory-operation, and lifetime implementations.
 Allocation functions return zero on failure. Negative sizes are rejected by the
 Swan wrappers. The arena stores capacity and used-byte offsets in a 16-byte
 header and aligns allocations to 8 bytes. Arena slices remain valid until the
-arena is reset or released.
+arena is reset or released. Declare an arena slice with `borrow let`; its
+lexical borrow prevents resetting, moving, or releasing the arena until the
+slice leaves scope. `raw.stack` allocations are function-scoped, are rejected
+inside loops to prevent unbounded stack growth, and cannot be returned through
+tracked local aliases.
 
 ### Direct memory operations
 
