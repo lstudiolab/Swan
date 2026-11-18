@@ -29,10 +29,10 @@ SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
 "$TMP/program"
-"$SWAN" build "$TMP/program.swan" --emit-asm -o "$TMP/program.s"
-grep -q 'malloc@PLT' "$TMP/program.s"
-grep -q 'memset@PLT' "$TMP/program.s"
-grep -q 'free@PLT' "$TMP/program.s"
+ "$SWAN" build "$TMP/program.swan" --emit-asm -o "$TMP/program-asm"
+grep -q 'malloc@PLT' "$TMP/program-asm/program.s"
+grep -q 'memset@PLT' "$TMP/program-asm/program.s"
+grep -q 'free@PLT' "$TMP/program-asm/program.s"
 
 cat > "$TMP/automatic.swan" <<'SWAN'
 import raw
@@ -42,8 +42,8 @@ func main() -> int:
     values[0] = 42
     return values[0] - 42
 SWAN
-"$SWAN" build "$TMP/automatic.swan" --emit-asm -o "$TMP/automatic.s"
-if grep -q 'free@PLT' "$TMP/automatic.s"; then
+"$SWAN" build "$TMP/automatic.swan" --emit-asm -o "$TMP/automatic-asm"
+if grep -q 'free@PLT' "$TMP/automatic-asm/automatic.s"; then
     echo "raw mode unexpectedly emitted automatic array reclamation" >&2
     exit 1
 fi
