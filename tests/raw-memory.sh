@@ -16,20 +16,19 @@ func main() -> int:
     var result: i64 = 0
     if raw.load8(borrow memory) == 0:
         borrow let view: i64 = memory
-        let same: i64 = identity(view)
-        raw.fill(same, 0, 64)
-        raw.store8(same, 65)
-        raw.store16(same + 2, 513)
-        raw.store32(same + 4, 65537)
-        raw.store64(same + 8, 123456789)
-        raw.store64(same + 16, 98765)
-        raw.copy(same + 24, same + 16, 8)
-        raw.move_bytes(same + 32, same + 24, 8)
-        let byte_value: i64 = raw.load8(same)
-        let word_value: i64 = raw.load16(same + 2)
-        let dword_value: i64 = raw.load32(same + 4)
-        let qword_value: i64 = raw.load64(same + 8)
-        let copied_value: i64 = raw.load64(same + 32)
+        raw.fill(view, 0, 64)
+        raw.store8(borrow view, 65)
+        raw.store16(view + 2, 513)
+        raw.store32(view + 4, 65537)
+        raw.store64(view + 8, 123456789)
+        raw.store64(view + 16, 98765)
+        raw.copy(view + 24, view + 16, 8)
+        raw.move_bytes(view + 32, view + 24, 8)
+        let byte_value: i64 = raw.load8(view)
+        let word_value: i64 = raw.load16(view + 2)
+        let dword_value: i64 = raw.load32(view + 4)
+        let qword_value: i64 = raw.load64(view + 8)
+        let copied_value: i64 = raw.load64(view + 32)
         result = byte_value + word_value + dword_value + qword_value + copied_value
     drop memory
     own var source: i64 = raw.heap(16)
@@ -42,9 +41,10 @@ func main() -> int:
     raw.store8(stack_memory, 77)
     result = result + raw.load8(stack_memory)
     own var region: i64 = raw.arena(64)
-    let chunk: i64 = raw.arena_alloc(borrow region, 16)
-    raw.store64(chunk, 987654321)
-    result = result + raw.load64(chunk)
+    if true:
+        borrow let chunk: i64 = raw.arena_alloc(borrow region, 16)
+        raw.store64(chunk, 987654321)
+        result = result + raw.load64(chunk)
     raw.arena_reset(borrow region)
     if raw.arena_remaining(borrow region) != 64:
         result = result + 1
@@ -168,6 +168,51 @@ func main() -> int:
 SWAN
 if "$SWAN" build "$TMP/borrow-copy.swan" -o "$TMP/borrow-copy" 2>/dev/null; then
     echo "borrow copied into ordinary variable unexpectedly compiled" >&2
+    exit 1
+fi
+
+cat > "$TMP/borrow-escape.swan" <<'SWAN'
+import raw
+func identity(pointer: i64) -> i64:
+    return pointer
+func main() -> int:
+    own var owner: i64 = raw.alloc(8)
+    borrow let view: i64 = owner
+    let escaped: i64 = identity(view)
+    drop owner
+    return 0
+SWAN
+if "$SWAN" build "$TMP/borrow-escape.swan" -o "$TMP/borrow-escape" 2>/dev/null; then
+    echo "borrow escaped through an ordinary function call" >&2
+    exit 1
+fi
+
+cat > "$TMP/arena-reset-live-borrow.swan" <<'SWAN'
+import raw
+func main() -> int:
+    own var region: i64 = raw.arena(64)
+    borrow let chunk: i64 = raw.arena_alloc(borrow region, 16)
+    raw.arena_reset(borrow region)
+    drop region
+    return 0
+SWAN
+if "$SWAN" build "$TMP/arena-reset-live-borrow.swan" -o "$TMP/arena-reset-live-borrow" 2>/dev/null; then
+    echo "arena reset with a live slice borrow unexpectedly compiled" >&2
+    exit 1
+fi
+
+cat > "$TMP/stack-in-loop.swan" <<'SWAN'
+import raw
+func main() -> int:
+    var index: i64 = 0
+    while index < 4:
+        let memory: i64 = raw.stack(16)
+        raw.store8(memory, 1)
+        index = index + 1
+    return 0
+SWAN
+if "$SWAN" build "$TMP/stack-in-loop.swan" -o "$TMP/stack-in-loop" 2>/dev/null; then
+    echo "stack allocation inside a loop unexpectedly compiled" >&2
     exit 1
 fi
 
