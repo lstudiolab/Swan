@@ -5,17 +5,16 @@ Integrated Compilation layer (SIC) detects the host when that module is run:
 
 - In a browser/WebAssembly host, the module stays WebAssembly and the browser's
   WebAssembly engine executes it. SIC does not recompile it.
-- On supported native x86-64 and ARM64 hosts, SIC asks Wasmtime to compile the
-  module into a host-specific `.cwasm` artifact. Wasmtime's Cranelift code
-  generator selects the host machine architecture. The portable input is only
-  removed when it was a temporary compiler output and native compilation
-  succeeded.
+- On native x86-64 and ARM64 hosts, SIC invokes Wasmtime's runtime. Wasmtime
+  detects the host and JIT-compiles WebAssembly into native machine code for
+  that CPU before execution. A temporary WASM input is removed only after the
+  runtime completes successfully.
 - If host detection or native compilation is unavailable, the original WASM
   module is retained and the normal Wasmtime WASM execution path is attempted.
 
-Wasmtime supplies validation, memory64 execution, traps, and host integration.
-The `.cwasm` artifact is Wasmtime-specific and host-specific; it is not a
-standalone operating-system executable.
+Wasmtime supplies validation, native JIT code generation, memory64 execution,
+traps, and host integration. Swan does not produce a separate ARM64 or x86-64
+build artifact for this execution path.
 
 ## Requirements
 
@@ -38,14 +37,15 @@ swan run app.wasm
 swan run app.swan --target wasm64
 ```
 
-On native hosts, the first run also creates an architecture-specific
-`app.wasm.cwasm.x86_64` or `app.wasm.cwasm.arm64` cache beside a persistent
-WASM input. Browser deployments use the original `.wasm` file and
-`browser.js`; they do not use the native cache.
+On native hosts, Wasmtime JIT-compiles the module for the detected CPU during
+execution. An explicitly supplied `.wasm` file is retained so it remains
+portable. Browser deployments use the original `.wasm` file and
+`browser.js`; they do not use Swan's native execution path.
 
 The runtime invokes the module's exported `main` function. Integer return values
-are printed by Wasmtime's `--invoke` interface. The module is compiled and
-executed with `memory64=y`, so modules using 64-bit linear memory are accepted.
+are printed by Wasmtime's `--invoke` interface. Wasmtime JIT-compiles and
+executes the module with `memory64=y`, so modules using 64-bit linear memory
+are accepted.
 
 For browser hosts, import `runtime/wasm64/browser.js` and call
 `runSwanWasm("/path/to/app.wasm")`. The browser engine owns WebAssembly
