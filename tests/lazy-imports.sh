@@ -19,7 +19,7 @@ test ! -d "$TMP/unused.modules"
 cat > "$TMP/used.swan" <<'SWAN'
 import foundation
 func main():
-    !printin >> abs_int(-9);
+    print(abs_int(-9))
     return 0
 SWAN
 "$SWAN" build "$TMP/used.swan" --lazy-imports -o "$TMP/used"
