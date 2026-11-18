@@ -286,6 +286,12 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
   * the browser entry point and uses the browser's own WebAssembly engine.
   */
  SwanSICHost host=swan_sic_detect_host();
+ if(getenv("SWAN_SIC_DEBUG")){
+  const char *architecture=host.architecture==SWAN_SIC_ARCH_X86_64?"x86-64":
+      host.architecture==SWAN_SIC_ARCH_ARM64?"ARM64":"unknown";
+  fprintf(stderr,"SIC: environment=%s architecture=%s\\n",
+      host.environment==SWAN_SIC_ENV_WEBASSEMBLY?"WebAssembly":"native",architecture);
+ }
  if(host.environment==SWAN_SIC_ENV_WEBASSEMBLY){
   fprintf(stderr,"swan: SIC detected a WebAssembly host; load the module with runtime/wasm64/browser.js instead of native recompilation\n");
   return 2;
