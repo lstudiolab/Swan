@@ -192,8 +192,19 @@ func main() -> int:
 - `borrow let view: i64 = owner` creates an immutable, lexical view. A view
   cannot be copied into an ordinary variable or returned.
 - `borrow owner` creates a temporary borrow for a call argument.
+- `borrow let slice: i64 = raw.arena_alloc(borrow region, size)` creates a
+  view whose lifetime is tied to the arena owner. The arena cannot be reset,
+  moved, or dropped while that view remains in scope.
+- Borrowed pointers may only be passed to the raw module's non-retaining
+  memory operations. Passing one to an ordinary Swan function or external
+  function is rejected because the compiler cannot prove that the callee
+  does not retain or return the address. Scalar reads such as `raw.load32`
+  remain usable in expressions.
 - `move owner` transfers ownership and invalidates the previous owner.
 - `drop owner` releases an owner exactly once.
+- `raw.stack(size)` allocates function-lifetime stack storage. It is rejected
+  inside loops because repeated dynamic stack allocation would accumulate
+  until the function returns. Allocate before the loop or use an arena.
 
 The semantic checker rejects use after move/drop, copying an owner, dropping or
 moving an owner while a lexical borrow is live, and leaving a scope or
