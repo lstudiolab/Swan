@@ -1,6 +1,7 @@
 import std
 
 func main() -> int:
-    !printin >> "Standard-library output works";
-    !printin >> 42;
+    print("Standard-library output works")
+    print(42)
+    print(abs(-9))
     return 0
