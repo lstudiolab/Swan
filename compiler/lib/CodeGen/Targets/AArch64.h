@@ -98,7 +98,11 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
       break;}
      case SWAN_IR_SELECT:text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    ldr x11, [sp, #%d]\n    cmp x9, #0\n    csel x12, x10, x11, ne\n    str x12, [sp, #%d]\n",a,z,swan_a64_value_offset(in->c),dst);break;
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
-      text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    %s x11, x9, x10\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_SDIV?"sdiv":in->op==SWAN_IR_UDIV?"udiv":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"orr":in->op==SWAN_IR_XOR?"eor":in->op==SWAN_IR_SHL?"lsl":in->op==SWAN_IR_LSHR?"lsr":"asr",dst);break;
+      if(in->type==SWAN_IR_I32)
+       text_add(o,"    ldr w9, [sp, #%d]\n    ldr w10, [sp, #%d]\n    %s w11, w9, w10\n    sxtw x11, w11\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"orr":in->op==SWAN_IR_XOR?"eor":in->op==SWAN_IR_SHL?"lsl":in->op==SWAN_IR_LSHR?"lsr":"asr",dst);
+      else
+       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    %s x11, x9, x10\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"mul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"orr":in->op==SWAN_IR_XOR?"eor":in->op==SWAN_IR_SHL?"lsl":in->op==SWAN_IR_LSHR?"lsr":"asr",dst);
+      break;
      case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
       int id=o->next_label++;
       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    cbz x10, .Lsw_a64_divzero_%d\n",a,z,id);
