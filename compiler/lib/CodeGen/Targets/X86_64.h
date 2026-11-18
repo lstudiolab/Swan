@@ -1179,6 +1179,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     if(!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"drop expects an owned local");break;}
     Local *owner=local_find(l,s->value->token.text);if(!owner){swan_error(err,&s->value->token,"unknown owned local");break;}
     if(owner->array_u32){ownership_cleanup_local(o,l,owner);break;}
+    if(owner->array_u32){ownership_cleanup_local(o,l,owner);break;}
     cg_save_volatile(o,l);
     if(owner->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(owner->reg));
     else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",owner->slot*8);
