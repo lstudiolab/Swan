@@ -407,7 +407,8 @@ static int swan_run(int argc,char **argv){
  if(compile_jobs!=1){fprintf(stderr,"swan: invalid compiler worker limit\n");SWAN_RETURN(2);}
  if(target_all&&(mode!=SWAN_BUILD||emit_asm)){fprintf(stderr,"swan: --target all requires 'build' and cannot be combined with --emit-asm\n");SWAN_RETURN(2);}
  if(target_all&&(c_input_count||link_arg_count||no_heap||lazy_imports)){fprintf(stderr,"swan: --target all currently requires Swan-only sources without C inputs, linker flags, --no-heap, or --lazy-imports\n");SWAN_RETURN(2);}
- if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");SWAN_RETURN(2);}
+ bool native_arm64_target=target->architecture==SWAN_ARCH_AARCH64&&detected_host.environment==SWAN_SIC_ENV_NATIVE&&detected_host.architecture==SWAN_SIC_ARCH_ARM64;
+ if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64&&!native_arm64_target){fprintf(stderr,"swan: linker inputs require a native x86-64 or ARM64 execution target\n");SWAN_RETURN(2);}
  if(emit_asm)mode=SWAN_EMIT;
  if(no_heap&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: --no-heap is currently supported only by the native x86-64 backend\\n");SWAN_RETURN(2);}
  if(no_heap&&lazy_imports){fprintf(stderr,"swan: --no-heap cannot be combined with runtime-lazy imports\\n");SWAN_RETURN(2);}
@@ -464,9 +465,9 @@ static int swan_run(int argc,char **argv){
   fprintf(stderr,"swan: compilation stopped: %zu warning(s) treated as errors\n",warning_count);
   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
  }
- if(target->architecture!=SWAN_ARCH_X86_64){
+ if(target->architecture==SWAN_ARCH_WASM64){
   for(size_t i=0;i<p.count;i++)if(p.function_reachable[i]&&p.functions[i]->external){
-   fprintf(stderr,"swan: external C ABI calls are currently supported only by the x86_64 System V backend\n");
+   fprintf(stderr,"swan: external C ABI calls are not yet supported by the WASM64 backend\n");
    swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);
   }
  }
