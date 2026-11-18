@@ -326,13 +326,23 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
    case S_VARIABLE:{
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
     bool stack_address=swan_expr_uses_stack_pointer(p,s->value,symbols);
+    bool value_is_array=swan_expr_is_array(s->value,symbols);
+    bool array_unchecked=swan_expr_is_unchecked_array(s->value,symbols);
+    if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE&&s->value->left&&s->value->left->kind==E_NAME){
+     size_t source;if(swan_symbol_find(symbols,s->value->left->token.text,&source)){
+      value_is_array=symbols->items[source].is_array;array_unchecked=symbols->items[source].array_unchecked;
+     }
+    }
     const char *owner_name=NULL;
     if(s->manual_checked){
      if(!p->raw_mode){swan_error(err,&s->token,"own declarations require 'import raw'");return false;}
      if(!s->mutable_value||!s->value){swan_error(err,&s->token,"own must declare an initialized mutable variable");return false;}
-     if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw owners currently require the i64 address type");return false;}
+     if(s->type&&strcmp(s->type,"i64")&&!(value_is_array&&!strcmp(s->type,"u32_array"))){swan_error(err,&s->token,"raw owners require i64 addresses or u32_array allocations");return false;}
      if(!swan_check_expr(p,s->value,symbols,err))return false;
-     if(!(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE)){
+     if(value_is_array){
+      if(s->value->kind!=E_CALL&&!(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE)){swan_error(err,&s->value->token,"owned arrays must initialize from an array allocation or move");return false;}
+      if(!s->type)s->type="u32_array";
+     }else if(!(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE)){
       if(s->value->kind!=E_CALL){swan_error(err,&s->value->token,"own must initialize from an i64-returning allocation function or move");return false;}
       Stmt *owner_fn=swan_find_link_function(p,swan_expr_terminal_name(s->value->left));
       if(!owner_fn||!owner_fn->type||strcmp(owner_fn->type,"i64")){swan_error(err,&s->value->token,"own initializer must return i64");return false;}
@@ -346,13 +356,12 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     }else if(s->manual_borrow){
      if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
      if(s->mutable_value||!s->value){swan_error(err,&s->token,"borrow must declare an immutable view of an owned allocation");return false;}
-     if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw borrows currently require the i64 address type");return false;}
      if(s->value->kind==E_NAME){
       size_t owner;if(!swan_symbol_find(symbols,s->value->token.text,&owner)){swan_error(err,&s->value->token,"borrow source must be an owned value or an existing borrow");return false;}
       if(symbols->items[owner].manual_checked){
        if(symbols->items[owner].manual_freed){swan_error(err,&s->value->token,"cannot borrow a moved or dropped owner");return false;}
-       owner_name=s->value->token.text;
-      }else if(symbols->items[owner].manual_borrow&&symbols->items[owner].owner_name)owner_name=symbols->items[owner].owner_name;
+       owner_name=s->value->token.text;value_is_array=symbols->items[owner].is_array;array_unchecked=symbols->items[owner].array_unchecked;
+      }else if(symbols->items[owner].manual_borrow&&symbols->items[owner].owner_name){owner_name=symbols->items[owner].owner_name;value_is_array=symbols->items[owner].is_array;array_unchecked=symbols->items[owner].array_unchecked;}
       else{swan_error(err,&s->value->token,"borrow source must be an owned value or an existing borrow");return false;}
      }else{
       Stmt *allocation=swan_raw_call_function(p,s->value);
@@ -372,17 +381,22 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
       else{swan_error(err,&s->value->token,"arena slice requires a live arena owner");return false;}
       if(!swan_check_expr(p,s->value,symbols,err))return false;
      }
+     if(value_is_array){if(s->type&&strcmp(s->type,"u32_array")){swan_error(err,&s->token,"array borrows require the u32_array view type");return false;}if(!s->type)s->type="u32_array";}
+     else if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw borrows currently require the i64 address type");return false;}
     }else{
      if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must initialize an own variable or transfer into raw.release/raw.resize/raw.arena_release");return false;}
      if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"temporary borrows are only valid as call arguments; use 'borrow let' for a scoped view");return false;}
+     if(p->raw_mode&&value_is_array){swan_error(err,&s->value->token,"array allocations in raw mode must initialize an own variable");return false;}
      if(s->value&&!swan_expr_borrow_use_is_scalar(p,s->value,symbols)){
       swan_error(err,&s->value->token,"borrowed pointers cannot escape into ordinary variables; use a borrow declaration for arena slices");return false;
      }
      if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     }
-    bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||swan_expr_is_array(s->value,symbols);
+    bool is_array=value_is_array||(s->type&&!strcmp(s->type,"u32_array"))||swan_expr_is_array(s->value,symbols);
+    s->array_unchecked=array_unchecked;
     if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked,s->manual_borrow,owner_name)){swan_error(err,&s->token,"too many local variables");return false;}
     symbols->items[symbols->count-1].stack_address=stack_address;
+    symbols->items[symbols->count-1].array_unchecked=array_unchecked;
     break;
    }
    case S_LOG:
