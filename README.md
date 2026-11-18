@@ -8,7 +8,7 @@ Licensed under Apache-2.0.
 
 ## Compiler system contract
 
-The production architecture is specified in [docs/compiler_system.md](docs/compiler_system.md). The current implementation boundary and unfinished work are tracked in [the compiler completion matrix](docs/compiler_completion_matrix.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/engineering_style.md](docs/engineering_style.md). It defines Swan as an AOT compiler with a Swan-owned SVM typed-IR pipeline, native machine-code backends, project-wide compilation, strict phase invariants, and no interpreter, JIT, or bytecode runtime. The document also distinguishes implemented behavior from migration requirements; it is the source of truth for compiler architecture changes.
+The production architecture is specified in [docs/compiler_system.md](docs/compiler_system.md). The current implementation boundary and unfinished work are tracked in [the compiler completion matrix](docs/compiler_completion_matrix.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/engineering_style.md](docs/engineering_style.md). The canonical portable path is source -> SVM typed IR -> WASM64 AOT -> SIC environment detection -> browser WASM execution or native Wasmtime JIT on x86-64/ARM64. The document distinguishes this path from the retained explicit native backends and records the remaining runtime and feature-parity limits.
 
 ## Language guide
 
@@ -36,10 +36,12 @@ The compatibility path is intentional. A construct supported by the x86-64 front
        AST -> x86-64 compatibility backend (where required)
   -> typed IR verification
   -> target-independent optimization
-  -> selected Swan backend:
-       x86-64 | AArch64 (ARM64) | WASM64
-  -> assembly / object / WebAssembly module
-  -> assembler and linker where applicable
+  -> SVM verification and target-independent optimization
+  -> WASM64 AOT emission (canonical portable path)
+  -> SIC host detection:
+       browser / WebAssembly -> keep and execute WASM64
+       native x86-64 / ARM64 -> Wasmtime runtime JIT -> host machine code
+  -> explicit legacy native backend (x86-64 / ARM64) only when selected
 ```
 
 ### Implemented typed-IR optimization
@@ -48,13 +50,7 @@ The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 indi
 
 ### SVM compiler core
 
-SVM is the target-independent compilation engine, not a CPU target and not an interpreter. It owns the shared path from typed source lowering through IR verification and optimization. The same verified, optimized IR is passed to the selected machine backend:
-
-- x86-64
-- AArch64 / ARM64
-- WebAssembly 64-bit (memory64)
-
-The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target executes the IR through an interpreter loop.
+SVM is the target-independent compilation engine, not a CPU target, runtime, or interpreter. It owns typed source lowering, IR verification, and optimization. The canonical `swanc compile` command emits WASM64 (memory64) ahead of execution. SIC then detects the host: browsers execute the WASM module directly, while native x86-64 and ARM64 hosts use Wasmtime's runtime JIT to generate host machine code. The explicit x86-64 and ARM64 AOT backends remain available as legacy/low-level targets, but they are not required for the canonical portable workflow.
 
 The legacy `--target svm`, `swan vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/svm_architecture.md).
 
