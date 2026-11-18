@@ -59,7 +59,7 @@ static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0
   v->array_u32=true;v->array_unchecked=true;int64_t length=0;
   if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
  }
-}}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
+}if(v&&s->type&&!strcmp(s->type,"u32_array")){v->array_u32=true;v->array_unchecked=s->array_unchecked;}}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
