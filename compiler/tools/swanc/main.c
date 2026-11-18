@@ -385,6 +385,10 @@ static int swan_run(int argc,char **argv){
   swan_print_diagnostic("swan",&err);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
  }
  swan_profile_end(SWAN_PROFILE_IMPORTS,stage);
+ if(p.raw_mode&&target->architecture!=SWAN_ARCH_X86_64){
+  fprintf(stderr,"swan: import raw currently requires the native x86-64 backend; this target has no raw pointer and ownership lowering yet\\n");
+  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);
+ }
  stage=swan_profile_start();
  if(!swan_semantic_check(&p,&err)){swan_print_diagnostic("swan",&err);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);}
  swan_profile_end(SWAN_PROFILE_SEMA,stage);
