@@ -181,4 +181,49 @@ if "$SWAN" build "$TMP/own-without-raw.swan" -o "$TMP/own-without-raw" 2>/dev/nu
     exit 1
 fi
 
+
+cat > "$TMP/move-while-borrowed.swan" <<'SWAN'
+import raw
+func main() -> int:
+    own var owner: i64 = raw.alloc(8)
+    borrow let view: i64 = owner
+    own var target: i64 = move owner
+    drop target
+    return 0
+SWAN
+if "$SWAN" build "$TMP/move-while-borrowed.swan" -o "$TMP/move-while-borrowed" 2>/dev/null; then
+    echo "move while borrowed unexpectedly compiled" >&2
+    exit 1
+fi
+
+cat > "$TMP/branch-ownership.swan" <<'SWAN'
+import raw
+func main() -> int:
+    own var owner: i64 = raw.alloc_zeroed(8, 1)
+    if raw.load8(borrow owner) == 0:
+        drop owner
+    else:
+        pass
+    return 0
+SWAN
+if "$SWAN" build "$TMP/branch-ownership.swan" -o "$TMP/branch-ownership" 2>/dev/null; then
+    echo "inconsistent branch ownership unexpectedly compiled" >&2
+    exit 1
+fi
+
+cat > "$TMP/loop-ownership.swan" <<'SWAN'
+import raw
+func main() -> int:
+    own var owner: i64 = raw.alloc(8)
+    var count: i64 = 0
+    while count < 1:
+        drop owner
+        count = count + 1
+    return 0
+SWAN
+if "$SWAN" build "$TMP/loop-ownership.swan" -o "$TMP/loop-ownership" 2>/dev/null; then
+    echo "ambiguous loop ownership unexpectedly compiled" >&2
+    exit 1
+fi
+
 printf 'PASS: raw i64 access, own/borrow/move/drop, stack, heap, arena, and lifetime diagnostics\n'
