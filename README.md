@@ -120,6 +120,20 @@ Emit x86-64 assembly for one source:
 ./build/swanc examples/hello.swan --emit-asm -o hello.s
 ```
 
+Build one Swan source project for every supported target in one compiler invocation:
+
+```sh
+./build/swanc build app.swan --target all -o build/all
+```
+
+This parses and checks the Swan project once, then emits:
+
+- `build/all/app-x86_64` — native x86-64 Linux executable
+- `build/all/app-arm64.o` — ARM64 Linux ELF object; link it with an ARM64 toolchain before running it
+- `build/all/app-wasm64.wasm` — WebAssembly memory64 module; run it with a memory64-capable runtime
+
+The all-target build currently accepts Swan-only source projects. C ABI inputs, custom linker arguments, runtime-lazy imports, and `--no-heap` are not supported in this mode. The same source must use features supported by all three backends; target feature parity is not complete.
+
 Emit one target artifact per Swan source in a multi-file project. The extension follows the selected backend (`.s` or `.wasm`):
 
 ```sh
