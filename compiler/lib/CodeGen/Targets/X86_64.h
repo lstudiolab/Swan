@@ -461,7 +461,13 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_FLOAT:swan_error(err,&e->token,"floating point is not yet supported by the C backend");break;
  case E_STRING:emit_string_pointer(o,e->token.text);break;
  case E_NAME:{if(o->inline_param&&!strcmp(e->token.text,o->inline_param)){Expr *arg=o->inline_arg;const char *param=o->inline_param;o->inline_arg=NULL;o->inline_param=NULL;emit_expr(o,arg,l,err);o->inline_arg=arg;o->inline_param=param;break;}Local *v=local_find(l,e->token.text);if(!v)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else if(v->reg>=0)text_add(o,"    mov rax, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",v->slot*8);break;}
- case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
+ case E_UNARY:
+   emit_expr(o,e->left,l,err);
+   if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");
+   else if(e->token.kind==T_MOVE){
+    if(e->left&&e->left->kind==E_NAME){Local *source=local_find(l,e->left->token.text);if(source){if(source->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(source->reg),cg_reg_low_name(source->reg));else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",source->slot*8);}}
+   }else if(e->token.kind!=T_BORROW)text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");
+   break;
  case E_CALL:emit_call(o,e,l,err);break;
  case E_INDEX:{
   if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local array variable");break;}
@@ -1164,11 +1170,11 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
     if(!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"drop expects an owned local");break;}
     Local *owner=local_find(l,s->value->token.text);if(!owner){swan_error(err,&s->value->token,"unknown owned local");break;}
     cg_save_volatile(o,l);
-    if(owner->reg>=0)text_add(o,"    mov rdi, %s\\n",cg_reg_name(owner->reg));
-    else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\\n",owner->slot*8);
+    if(owner->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(owner->reg));
+    else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",owner->slot*8);
     cg_call(o,"free@PLT");cg_restore_volatile(o,l);
-    if(owner->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(owner->reg),cg_reg_low_name(owner->reg));
-    else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",owner->slot*8);
+    if(owner->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(owner->reg),cg_reg_low_name(owner->reg));
+    else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",owner->slot*8);
     break;
    }
    case S_PASS:break;
