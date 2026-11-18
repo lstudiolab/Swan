@@ -22,15 +22,20 @@ func main() -> int:
         raw.store16(same + 2, 513)
         raw.store32(same + 4, 65537)
         raw.store64(same + 8, 123456789)
+        raw.store64(same + 16, 98765)
+        raw.copy(same + 24, same + 16, 8)
+        raw.move_bytes(same + 32, same + 24, 8)
         let byte_value: i64 = raw.load8(same)
         let word_value: i64 = raw.load16(same + 2)
         let dword_value: i64 = raw.load32(same + 4)
         let qword_value: i64 = raw.load64(same + 8)
-        result = byte_value + word_value + dword_value + qword_value
+        let copied_value: i64 = raw.load64(same + 32)
+        result = byte_value + word_value + dword_value + qword_value + copied_value
     drop memory
     own var source: i64 = raw.heap(16)
     own var destination: i64 = move source
-    drop destination
+    own var resized: i64 = raw.resize(move destination, 32)
+    drop resized
     let stack_memory: i64 = raw.stack(16)
     raw.store8(stack_memory, 77)
     result = result + raw.load8(stack_memory)
@@ -42,7 +47,7 @@ func main() -> int:
     if raw.arena_remaining(borrow region) != 64:
         result = result + 1
     drop region
-    return result - 1111177302
+    return result - 1111276067
 SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
