@@ -333,7 +333,24 @@ static inline bool swan_irgen_statements(SwanIRGen *g,Stmt **body,size_t count) 
                 if(!swan_ir_terminate(swan_irgen_block(g),(SwanIRTerm){SWAN_IR_BR,0,(uint32_t)target,0}))return false;
                 break;
             }
-            case S_EXPR:if(s->value){uint32_t result=swan_irgen_expr(g,s->value);if(!result){bool void_call=false;if(s->value->kind==E_CALL&&s->value->left&&s->value->left->kind==E_NAME&&!g->error->message[0])for(size_t fi=0;fi<g->module->function_count;fi++)if(!strcmp(g->module->functions[fi].name,s->value->left->token.text)&&g->module->functions[fi].return_type==SWAN_IR_VOID){void_call=true;break;}if(!void_call)return false;}}break;
+            case S_EXPR:
+                if(s->value){
+                    uint32_t result=swan_irgen_expr(g,s->value);
+                    if(!result){
+                        /*
+                         * Void calls intentionally have no SSA result ID.
+                         * Detect successful emission from the final instruction
+                         * rather than dereferencing the optional diagnostic sink.
+                         */
+                        SwanIRBlock *block=swan_irgen_block(g);
+                        bool void_call=s->value->kind==E_CALL&&block&&
+                            block->instruction_count>0&&
+                            block->instructions[block->instruction_count-1].op==SWAN_IR_CALL&&
+                            block->instructions[block->instruction_count-1].type==SWAN_IR_VOID;
+                        if(!void_call)return false;
+                    }
+                }
+                break;
             case S_PASS:break;
             case S_LOG:return swan_irgen_fail(g,&s->token,"log output is not yet supported by the portable SVM backend");
             default:return swan_irgen_fail(g,&s->token,"statement is not supported by the portable IR backend");
