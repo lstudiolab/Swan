@@ -32,6 +32,19 @@ func main() -> int:
     array_reverse(values, 6)
     print(values[0])
     print(values[5])
+    var heap_values = array_u32(8)
+    heap_values[0] = 12
+    heap_values[1] = 3
+    heap_values[2] = 19
+    heap_values[3] = 3
+    heap_values[4] = 0
+    heap_values[5] = 8
+    heap_values[6] = 14
+    heap_values[7] = 1
+    print(array_heap_sort(heap_values, 8))
+    print(array_is_sorted(heap_values, 8))
+    print(heap_values[0])
+    print(heap_values[7])
     return 0
 SWAN
 
@@ -51,6 +64,10 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 9
 9
 1
+8
+1
+0
+19
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
