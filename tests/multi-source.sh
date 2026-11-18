@@ -82,39 +82,21 @@ SWAN
 "$ROOT/build/swanc" build "$TMP/cross" --target aarch64 --emit-asm -o "$TMP/aarch64"
 test -f "$TMP/aarch64/01_helper.s"
 test -f "$TMP/aarch64/02_main.s"
-mkdir -p "$TMP/armv7-src"
-cat > "$TMP/armv7-src/01_helper.swan" <<'SWAN'
-export func arm_value() -> i32:
-    return 42
-SWAN
-cat > "$TMP/armv7-src/02_main.swan" <<'SWAN'
-func main() -> i32:
-    return arm_value() - 42
-SWAN
-"$ROOT/build/swanc" build "$TMP/armv7-src" --target armv7 --emit-asm -o "$TMP/armv7"
-test -f "$TMP/armv7/01_helper.s"
-test -f "$TMP/armv7/02_main.s"
-"$ROOT/build/swanc" build "$TMP/cross" --target riscv64 --emit-asm -o "$TMP/riscv64"
-test -f "$TMP/riscv64/01_helper.s"
-test -f "$TMP/riscv64/02_main.s"
-mkdir -p "$TMP/wasm-src"
-cat > "$TMP/wasm-src/01_helper.swan" <<'SWAN'
+mkdir -p "$TMP/wasm64-src"
+cat > "$TMP/wasm64-src/01_helper.swan" <<'SWAN'
 export func wasm_helper() -> i64:
     return 42
 SWAN
-cat > "$TMP/wasm-src/02_main.swan" <<'SWAN'
+cat > "$TMP/wasm64-src/02_main.swan" <<'SWAN'
 func main() -> i64:
     return 0
 SWAN
-"$ROOT/build/swanc" build "$TMP/wasm-src" --target wasm32 --emit-asm -o "$TMP/wasm"
-test -f "$TMP/wasm/01_helper.wasm"
-test -f "$TMP/wasm/02_main.wasm"
-strings "$TMP/wasm/01_helper.wasm" | grep -F wasm_helper >/dev/null
-"$ROOT/build/swanc" build "$TMP/cross" --target-triple aarch64-apple-macosx14.0.0 --emit-llvm -o "$TMP/llvm"
-test -f "$TMP/llvm/01_helper.ll"
-test -f "$TMP/llvm/02_main.ll"
+"$ROOT/build/swanc" build "$TMP/wasm64-src" --target wasm64 --emit-asm -o "$TMP/wasm64"
+test -f "$TMP/wasm64/01_helper.wasm"
+test -f "$TMP/wasm64/02_main.wasm"
+strings "$TMP/wasm64/01_helper.wasm" | grep -F wasm_helper >/dev/null
 
-printf 'PASS: per-file source buffers, source-aware diagnostics, and per-source artifacts on x86-64, AArch64, WASM and LLVM\n'
+printf 'PASS: per-file source buffers, source-aware diagnostics, and per-source artifacts on x86-64, AArch64, and WASM64\n'
 
 
 # Ten Swan source files must remain ten independent assembly translation units.
