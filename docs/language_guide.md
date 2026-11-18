@@ -246,7 +246,7 @@ func main() -> int:
     return 0
 ```
 
-`print(expression)` is the single standard-library output intrinsic. It writes the value followed by a newline. There are no separate `log`, `print`, or `echo!` language operations.
+`print(expression)` is the single standard-library output intrinsic. It writes the value followed by a newline. There are no separate `log` or `echo` output operations.
 
 ## 6. Types and values
 
@@ -565,7 +565,7 @@ These are library functions, not language keywords. Their current implementation
 
 ---
 
-### 12.1 The `!` standard-library prefix
+### 12.1 Standard-library function calls
 
 Import the standard library module once at file scope:
 
@@ -579,17 +579,7 @@ func main() -> int:
     return 0
 ```
 
-The `!` prefix selects the standard-library namespace. It is not a separate runtime or a reserved word. Imported functions in `stdlib/std.swan` are resolved during normal semantic analysis.
-
-The output intrinsic uses the same prefix and the `>>` operator:
-
-```swan
-print("text")
-print(42)
-print(true)
-```
-
-The `!printin` form is a compiler-recognized output statement; it is not a function call. Other standard-library operations are ordinary imported functions:
+The standard library uses ordinary function-call syntax. Import a module, then call its functions directly, without a special prefix. `print(value)` is the compiler-provided output call and writes one value followed by a newline. It accepts exactly one argument. Other standard-library operations are ordinary imported functions:
 
 | API | Behavior |
 |---|---|
