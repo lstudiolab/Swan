@@ -108,7 +108,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    bool raw_module_function=fn->imported&&fn->module_index>=0&&
       (size_t)fn->module_index<p->module_count&&
       !strcmp(p->module_names[fn->module_index],"raw");
-   bool raw_release=raw_module_function&&!strcmp(fn->name,"release");
+   bool raw_release=raw_module_function&&(!strcmp(fn->name,"release")||!strcmp(fn->name,"arena_release"));
    bool raw_resize=raw_module_function&&!strcmp(fn->name,"resize");
    for(size_t i=0;i<e->argc;i++){
     if(raw_release&&i==0&&e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_BORROW){
