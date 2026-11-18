@@ -121,4 +121,10 @@ if "$SWAN" build "$TMP/leaked-owner.swan" -o "$TMP/leaked-owner" 2>/dev/null; th
     exit 1
 fi
 
+if "$SWAN" build "$TMP/program.swan" --target aarch64 -o "$TMP/unsupported-target" 2>"$TMP/unsupported-target.err"; then
+    echo "raw mode unexpectedly compiled for AArch64" >&2
+    exit 1
+fi
+grep -q 'import raw currently requires the native x86-64 backend' "$TMP/unsupported-target.err"
+
 printf 'PASS: raw i64 access, own/borrow/move/drop, stack, heap, arena, and lifetime diagnostics\n'
