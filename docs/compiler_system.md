@@ -179,6 +179,42 @@ The x86-64 AST compatibility backend remains a deliberate, separately tested rou
 
 The C11 production compiler is built directly. No bootstrap compiler or secondary compiler is built.
 
+## 5.1 SIC environment detection and host compilation
+
+SIC is part of the `swanc` pipeline and runtime entry path; it is not a second source-language compiler and does not define a distributable instruction format.
+
+The required flow is:
+
+```text
+.swan source
+  -> swanc frontend and semantic analysis
+  -> SVM typed IR
+  -> SVM verification and optimization
+  -> WASM64 AOT module
+  -> SIC environment detection
+       browser / WebAssembly host:
+         retain WASM64 -> browser WebAssembly engine
+       native x86-64 or ARM64 host:
+         Wasmtime host compilation -> host-specific .cwasm
+         delete temporary WASM only after successful compilation
+         execute compiled module
+       unsupported host or compilation failure:
+         retain WASM64 -> WASM runtime fallback
+```
+
+SIC requirements:
+
+1. Detect the execution environment before selecting a compilation path.
+2. Treat a WebAssembly/browser host as WASM-only. Do not attempt native CPU detection or native recompilation there.
+3. On native hosts, identify x86-64 or ARM64 and request host-specific compilation. The selected engine must compile for the actual host, not for the machine that originally built the source.
+4. Keep portable WASM until host compilation has completed and the compiled artifact has been validated as present and non-empty.
+5. Never delete a user-supplied WASM file. Only temporary WASM generated for a source-to-run invocation may be removed after successful native compilation.
+6. If host detection, the native engine, or compilation is unavailable, retain the WASM module and use the portable execution path when the host supports it.
+7. Cache compiled modules by at least host architecture and source artifact freshness. A host-specific compiled artifact must never be reused as if it were portable across architectures.
+8. Browser deployments load the original WASM module through the browser loader. Browser engine support for the WASM64 memory64 proposal is a deployment requirement and must be checked separately from native support.
+
+The current implementation uses Wasmtime's `compile` command to produce its host-specific compiled-module artifact. This is runtime-triggered native code generation, but the `.cwasm` artifact remains tied to Wasmtime and a compatible host configuration; it is not a directly linked OS executable. A future Swan-owned JIT may replace the engine integration without changing the SIC contract.
+
 ## 6. Optimization and pass management
 
 Optimization is a sequence of independently testable passes managed by an explicit pass manager.
