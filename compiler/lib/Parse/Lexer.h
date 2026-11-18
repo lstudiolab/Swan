@@ -62,6 +62,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   break;
  case 4:
   if(!memcmp(s,"func",4))return T_FN;
+  if(!memcmp(s,"heap",4))return T_HEAP;
   if(!memcmp(s,"else",4))return T_ELSE;
   if(!memcmp(s,"null",4))return T_NONE;
   if(!memcmp(s,"type",4))return T_TYPE;
@@ -78,7 +79,6 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   break;
  case 5:
   if(!memcmp(s,"while",5))return T_WHILE;
-  if(!memcmp(s,"borrow",6))return T_BORROW;
   if(!memcmp(s,"match",5))return T_MATCH;
   if(!memcmp(s,"guard",5))return T_GUARD;
   if(!memcmp(s,"break",5))return T_BREAK;
@@ -89,10 +89,10 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"catch",5))return T_CATCH;
   if(!memcmp(s,"stack",5))return T_STACK;
   if(!memcmp(s,"arena",5))return T_ARENA;
-  if(!memcmp(s,"heap",4))return T_HEAP;
   break;
  case 6:
   if(!memcmp(s,"import",6))return T_IMPORT;
+  if(!memcmp(s,"borrow",6))return T_BORROW;
   if(!memcmp(s,"export",6))return T_EXPORT;
   if(!memcmp(s,"struct",6))return T_STRUCT;
   if(!memcmp(s,"return",6))return T_RETURN;
