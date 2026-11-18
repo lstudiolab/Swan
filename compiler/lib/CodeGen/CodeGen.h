@@ -124,6 +124,10 @@ static inline bool swan_codegen(Program *program, Text *output,
         swan_error(error,NULL,"code generation requires a program, output buffer, and target");
         return false;
     }
+    if(program->raw_mode&&target->architecture!=SWAN_ARCH_X86_64){
+        swan_error(error,NULL,"import raw currently requires the native x86-64 backend and i64 pointer ABI");
+        return false;
+    }
     if (target->architecture != SWAN_ARCH_X86_64) {
         swan_error(error, NULL, "requested code-generation backend is not implemented");
         return false;
