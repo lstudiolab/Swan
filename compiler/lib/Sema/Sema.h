@@ -338,7 +338,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     if(s->manual_checked){
      if(!p->raw_mode){swan_error(err,&s->token,"own declarations require 'import raw'");return false;}
      if(!s->mutable_value||!s->value){swan_error(err,&s->token,"own must declare an initialized mutable variable");return false;}
-     if(s->type&&strcmp(s->type,"i64")&&!(value_is_array&&!strcmp(s->type,"u32_array"))){swan_error(err,&s->token,"raw owners require i64 addresses or u32_array allocations");return false;}
+     if(s->type&&((value_is_array&&strcmp(s->type,"u32_array"))||(!value_is_array&&strcmp(s->type,"i64")))){swan_error(err,&s->token,"raw owners require i64 addresses or u32_array allocations");return false;}
      if(!swan_check_expr(p,s->value,symbols,err))return false;
      if(value_is_array){
       if(s->value->kind!=E_CALL&&!(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE)){swan_error(err,&s->value->token,"owned arrays must initialize from an array allocation or move");return false;}
