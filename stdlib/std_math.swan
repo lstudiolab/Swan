@@ -54,32 +54,37 @@ func euclidean_mod(value: int, modulus: int) -> int:
 func floor_div(left: int, right: int) -> int:
     if right == 0 or (left == (-9223372036854775807 - 1) and right == -1):
         return 0
+    if right == (-9223372036854775807 - 1):
+        if left == right:
+            return 1
+        if left > 0:
+            return 0 - 1
+        return 0
+    if right < 0:
+        if left == (-9223372036854775807 - 1):
+            return left / right
+        return floor_div(0 - left, 0 - right)
     var quotient = left / right
     var remainder = left % right
-    if right > 0:
-        while remainder < 0:
-            remainder = remainder + right
-            quotient = quotient - 1
-    else:
-        while remainder > 0:
-            remainder = remainder + right
-            quotient = quotient - 1
+    while remainder < 0:
+        remainder = remainder + right
+        quotient = quotient - 1
     return quotient
 
 func ceil_div(left: int, right: int) -> int:
     if right == 0 or (left == (-9223372036854775807 - 1) and right == -1):
         return 0
-    var quotient = left / right
-    var remainder = left % right
-    if right > 0:
-        while remainder > 0:
-            remainder = remainder - right
+    if left == (-9223372036854775807 - 1):
+        if right > 0:
+            return left / right
+        if right == (-9223372036854775807 - 1):
+            return 1
+        var quotient = left / right
+        var remainder = left % right
+        if remainder < 0:
             quotient = quotient + 1
-    else:
-        while remainder < 0:
-            remainder = remainder - right
-            quotient = quotient + 1
-    return quotient
+        return quotient
+    return 0 - floor_div(0 - left, right)
 
 func integer_sqrt(value: int) -> int:
     if value < 0:
