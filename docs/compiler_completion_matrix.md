@@ -41,8 +41,8 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Subsystem | Status | Implemented | Still required |
 |---|---|---|---|
 | Compiler-managed array cleanup | Partial | Eligible x86-64 AST-path local arrays, stack placement, conservative last-use cleanup and early-return cleanup | Shared lifetime model in SIL/typed IR and all backends |
-| Ownership / borrowing | Not implemented | No general ownership or borrow checker | Move/borrow rules, alias analysis, lifetime constraints and diagnostics |
-| Heap / escape analysis | Partial | Conservative array escape handling in x86-64 compatibility path | Interprocedural escape analysis and complete alias tracking |
+| Automatic reference counting (ARC) | Partial | Limited compiler-generated cleanup for selected x86-64 array forms | Retain/release insertion, strings/aggregates/closures/collections, cycle strategy, error-path cleanup and cross-target parity |
+| Managed lifetime analysis | Partial | Conservative array escape handling and last-use cleanup in x86-64 compatibility path | Target-independent managed-reference analysis and complete ARC dataflow |
 | Structs / aggregates | Not implemented end-to-end | Syntax vocabulary and partial representation | Layout, field access, initialization, destruction, alignment and ABI passing/return |
 | Strings / slices | Partial | Existing frontend/runtime compatibility functionality | Typed IR representation, ownership/lifetime, slicing and cross-target runtime |
 | Floating point | Partial | IR type declarations and limited backend representation | Source literal/type semantics, arithmetic lowering, conversions, ABI and runtime tests |
@@ -77,7 +77,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Fuzzing | Not established | No comprehensive fuzz campaign documented | Lexer/parser/IR/optimizer fuzzers and minimized regression corpus |
 | Sanitizers | Partial | Build script supports ASan/UBSan configuration | Execute full suite under sanitizers in CI and add leak checks |
 | Benchmarks | Partial | Profiling and per-pass timing | Stable benchmark corpus, baselines and regression thresholds |
-| Bootstrap / self-hosting | Not implemented | Single C11 production compiler; no bootstrap stage | Swan-written compiler and reproducible bootstrap, if self-hosting remains a project goal |
+| Compiler implementation language | Out of scope by design | Swan compiler is implemented in C11 using an existing toolchain | No self-hosting or Swan-written bootstrap compiler is required |
 | Editor tooling | Partial | VS Code syntax highlighting, indentation and snippets | Language server, diagnostics, completion, formatting and navigation |
 
 ## Completion gates
