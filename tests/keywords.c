@@ -10,13 +10,13 @@ int main(void) {
         "func","struct","let","var","null","if","else","const","type","match",
         "guard","block","while","loop","true","false","break","continue","return",
         "as","from","self","pass","upto","init","deinit","enum","throw","throws",
-        "rethrow","catch","import","export"
+        "rethrow","catch","import","export","own","borrow","move","drop","stack","heap","arena"
     };
     static const char *const identifiers[] = {
         "fn","out","store","manual","for","nil","none","namespace",
         "variant","protocol","thread","async","external","lazy","case","set",
         /* print is intentionally not reserved; it remains a valid identifier. */ "print",
-        "free","borrow","and","or","not","extern","defer","bool","inline","static",
+        "free","and","or","not","extern","defer","bool","inline","static",
         "private","public","mod","in","int"
     };
     char source[2048] = {0};
@@ -26,9 +26,9 @@ int main(void) {
     }
     TokenStream ts={0};SwanError error={0};
     assert(swan_lex(source,&ts,&error));
-    assert(sizeof(keywords)/sizeof(keywords[0])==33);
-    assert(ts.count==34);
-    for (size_t i=0;i<33;i++) {
+    assert(sizeof(keywords)/sizeof(keywords[0])==40);
+    assert(ts.count==41);
+    for (size_t i=0;i<40;i++) {
         if (ts.items[i].kind==T_IDENT) {
             fprintf(stderr,"keyword was not reserved: %s\n",keywords[i]);
             return 1;
@@ -49,6 +49,6 @@ int main(void) {
         }
     }
     free(ts.items);free(ts.text_storage);
-    puts("PASS: exact 33-word Swan keyword set; all other tested spellings are identifiers");
+    puts("PASS: exact 40-word Swan keyword set; all other tested spellings are identifiers");
     return 0;
 }
