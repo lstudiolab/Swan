@@ -36,7 +36,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | SVM common pipeline | Partial | Shared verification/optimization and backend dispatch | One mandatory path for all source features; retire the AST compatibility route |
 | SIC environment detection | Complete (scoped) | Detects WebAssembly-hosted builds and native x86-64/ARM64 hosts; selects browser-WASM or native Wasmtime execution | End-to-end browser integration tests and broader host/OS detection matrix |
 | Portable WASM64 AOT command | Complete (scoped) | `swanc compile` emits a WASM64 module using the existing backend | Expand source-feature coverage and memory64 browser interoperability |
-| Native runtime JIT | Partial / validation needed | Native WASM execution delegates to Wasmtime, which JIT-compiles for the host CPU | Validate JIT execution on real x86-64 and ARM64 hosts; startup/cache benchmarks |
+| Native runtime JIT | Partial / validation needed | Native WASM execution delegates to Wasmtime, which JIT-compiles for the host CPU; CI now executes WASM64 on native ARM64 | Keep x86-64/ARM64 runtime conformance, startup/cache benchmarks, and broader import coverage |
 | Browser WASM execution | Partial / validation needed | Browser loader instantiates the portable module without Swan native recompilation | Validate memory64 support and imports across target browsers |
 | Serialization / bytecode runtime | Not implemented by design | SVM is the compiler IR; WASM64 is the portable executable artifact | No Swan bytecode interpreter or dispatch loop is required |
 
@@ -58,7 +58,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Target / stage | Status | Implemented | Still required |
 |---|---|---|---|
 | x86-64 System V | Partial but most complete | Native assembly/executable, typed scalar path and AST compatibility features | Unified typed-IR feature coverage, robust ABI edge cases and sanitizer/runtime matrix |
-| AArch64 / ARM64 | Partial | Swan-owned assembly/object for limited scalar IR | Full type/operation coverage, ABI edge cases, linker/runtime validation |
+| AArch64 / ARM64 | Partial | Native ARM64 executable linking/running; cross-target ELF object/assembly; signed i32/i64 arithmetic, calls, and stack-passed arguments; scalar C ABI linking on native ARM64 | Full type/operation coverage, aggregate and floating-point ABI, broader FFI, cross-target linking and standard-library parity |
 | WASM64 | Partial / validation needed | Memory64 module emission for supported subset | Runtime engine interoperability, memory model and execution tests |
 | Instruction selection | Partial | Target-specific lowering for current supported operations | Legalization and coverage for all operations/types |
 | Register allocation | Partial | Backend-specific register/local assignment for supported subset | Proven global allocation, spill/reload correctness and stress tests |
