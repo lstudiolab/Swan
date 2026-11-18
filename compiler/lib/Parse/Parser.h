@@ -86,6 +86,9 @@ static inline bool swan_parser_rewrite_for_continues(Parser *p,Stmt ***body,
  size_t extra=continues+1;
  if(original>SIZE_MAX-extra)return false;
  size_t needed=original+extra;
+ if(needed>SIZE_MAX/sizeof(Stmt *)){
+  swan_error(p->err,&location,"range-loop control-flow size overflow");p->failed=true;return false;
+ }
  Stmt **rewritten=swan_arena_alloc(p->program,needed*sizeof(*rewritten));
  if(!rewritten){swan_error(p->err,&location,"out of memory rewriting range-loop control flow");p->failed=true;return false;}
  size_t out=0;
