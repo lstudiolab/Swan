@@ -8,7 +8,9 @@ func gcd(left: int, right: int) -> int:
     var b = right
     while b != 0:
         # INT64_MIN % -1 is the one signed remainder overflow case.
-        let remainder = 0 if a == (-9223372036854775807 - 1) and b == -1 else a % b
+        var remainder = 0
+        if a != (-9223372036854775807 - 1) or b != -1:
+            remainder = a % b
         a = b
         b = remainder
     if a == (-9223372036854775807 - 1):
