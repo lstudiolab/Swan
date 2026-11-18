@@ -194,6 +194,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
      swan_error(err,&e->args[i]->token,"move may only initialize an owner or transfer into raw.release/raw.resize/raw.arena_release");return false;
     }
     if((swan_expr_has_borrow_operator(e->args[i])||swan_expr_mentions_borrow(e->args[i],symbols))&&
+       !swan_expr_borrow_use_is_scalar(p,e->args[i],symbols)&&
        !(raw_module_function&&swan_raw_borrow_call(fn->name))){
      swan_error(err,&e->args[i]->token,"borrowed pointers may only be passed to non-retaining raw memory operations");return false;
     }
