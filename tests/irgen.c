@@ -11,9 +11,12 @@ int main(void) {
         "    return 1 / 0 == 0\n"
         "func double(x: int) -> int:\n"
         "    return x * 2\n"
+        "func noop() -> void:\n"
+        "    pass\n"
         "func minimum() -> int:\n"
         "    return -9223372036854775808\n"
         "func main() -> int:\n"
+        "    noop()\n"
         "    var i = 0\n"
         "    var total = 0\n"
         "    while i < 10:\n"
@@ -57,6 +60,9 @@ int main(void) {
     char detail[256]={0};
     assert(swan_ir_optimize(&module,detail,sizeof(detail)));
     assert(swan_ir_verify(&module,detail,sizeof(detail)));
+    swan_ir_destroy(&module);
+    /* The diagnostic sink is optional, including for void-call statements. */
+    assert(swan_irgen_program(&program,&module,NULL));
     swan_ir_destroy(&module);
     swan_program_destroy(&program);free(tokens.items);free(tokens.text_storage);
     puts("PASS: .swan -> typed IR -> verified optimization, loops, branches and calls");
