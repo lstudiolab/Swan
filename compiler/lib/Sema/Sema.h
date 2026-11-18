@@ -129,7 +129,15 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(symbols->items[index].manual_freed){swan_error(err,&e->token,"cannot borrow a moved or dropped owner");return false;}
     return true;
    }
-   if(e->token.kind==T_MOVE){swan_error(err,&e->token,"move is only valid when initializing an own variable");return false;}
+   if(e->token.kind==T_MOVE){
+    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"move expects an owned variable name");return false;}
+    size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)||!symbols->items[index].manual_checked){swan_error(err,&e->token,"move requires an owned value");return false;}
+    if(symbols->items[index].manual_freed){swan_error(err,&e->token,"cannot move an owner that was already moved or dropped");return false;}
+    for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_borrow&&symbols->items[k].owner_name&&!strcmp(symbols->items[k].owner_name,e->left->token.text)){
+     swan_error(err,&e->token,"cannot move '%s' while borrow '%s' is in scope",e->left->token.text,symbols->items[k].name);return false;
+    }
+    symbols->items[index].manual_freed=true;return true;
+   }
    return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
@@ -176,17 +184,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
      if(!p->raw_mode){swan_error(err,&s->token,"own declarations require 'import raw'");return false;}
      if(!s->mutable_value||!s->value){swan_error(err,&s->token,"own must declare an initialized mutable variable");return false;}
      if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw owners currently require the i64 address type");return false;}
-     if(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){
-      Expr *source_expr=s->value->left;size_t source;
-      if(!source_expr||source_expr->kind!=E_NAME||!swan_symbol_find(symbols,source_expr->token.text,&source)||!symbols->items[source].manual_checked){
-       swan_error(err,&s->value->token,"move requires an owned variable");return false;
-      }
-      if(symbols->items[source].manual_freed){swan_error(err,&source_expr->token,"cannot move an owner that was already moved or dropped");return false;}
-      for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_borrow&&symbols->items[k].owner_name&&!strcmp(symbols->items[k].owner_name,source_expr->token.text)){
-       swan_error(err,&s->value->token,"cannot move '%s' while borrow '%s' is in scope",source_expr->token.text,symbols->items[k].name);return false;
-      }
-      symbols->items[source].manual_freed=true;
-     }else if(!swan_check_expr(p,s->value,symbols,err))return false;
+     if(!swan_check_expr(p,s->value,symbols,err))return false;
     }else if(s->manual_borrow){
      if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
      if(s->mutable_value||!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"borrow must declare an immutable view of an owned variable");return false;}
@@ -221,6 +219,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     symbols->items[owner].manual_freed=true;break;
    }
    case S_EXPR:
+    if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must transfer into an owner or an ownership-taking call");return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_IF:{
