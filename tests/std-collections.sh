@@ -45,6 +45,23 @@ func main() -> int:
     print(array_is_sorted(heap_values, 8))
     print(heap_values[0])
     print(heap_values[7])
+    print(array_sum(values, -1))
+    print(array_min(values, -1))
+    print(array_max(values, -1))
+    print(array_contains(values, -1, 1))
+    print(array_index_of(values, -1, 1))
+    print(array_count(values, -1, 1))
+    print(array_average(values, -1))
+    print(array_is_sorted(values, -1))
+    print(array_fill(values, -1, 5))
+    print(array_fill(values, 6, -1))
+    print(array_fill(values, 6, 4294967296))
+    print(array_copy(values, values, -1))
+    print(array_reverse(values, -1))
+    print(array_bubble_sort(values, -1))
+    print(array_selection_sort(values, -1))
+    print(array_insertion_sort(values, -1))
+    print(array_heap_sort(values, -1))
     return 0
 SWAN
 
@@ -68,6 +85,23 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 1
 0
 19
+0
+0
+0
+0
+-1
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
+0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
