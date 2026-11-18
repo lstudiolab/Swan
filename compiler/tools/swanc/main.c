@@ -289,7 +289,7 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
  if(getenv("SWAN_SIC_DEBUG")){
   const char *architecture=host.architecture==SWAN_SIC_ARCH_X86_64?"x86-64":
       host.architecture==SWAN_SIC_ARCH_ARM64?"ARM64":"unknown";
-  fprintf(stderr,"SIC: environment=%s architecture=%s\\n",
+  fprintf(stderr,"SIC: environment=%s architecture=%s\n",
       host.environment==SWAN_SIC_ENV_WEBASSEMBLY?"WebAssembly":"native",architecture);
  }
  if(host.environment==SWAN_SIC_ENV_WEBASSEMBLY){
