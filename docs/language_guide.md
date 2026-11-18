@@ -444,7 +444,7 @@ A bare `return` is also accepted by the parser.
 
 ### 9.4 Infinite loops
 
-`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared SVM control flow and is supported by the x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
+`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared SVM control flow and is supported by the x86-64, AArch64/ARM64, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
 
 ```swan
 func count_to(limit: int) -> int:
@@ -812,14 +812,13 @@ Optimization is required to preserve the language's semantics. Integer transform
 
 ### Target availability
 
-The repository currently documents these target families with unequal feature coverage:
+Swan exposes exactly three code-generation targets:
 
 - x86-64 System V Linux: native executable/assembly, typed-IR scalar path plus compatibility path.
-- AArch64 Linux: Swan-owned ELF assembly/object for a limited scalar IR subset.
-- ARMv7 Linux (ARM state): limited `i32`/`i1` subset.
-- RISC-V64 Linux: limited scalar IR subset.
-- WebAssembly 32/64: module emission for the implemented subset; a WebAssembly host is required to execute it.
-- Optional LLVM target-triple bridge: explicit compatibility path, not the default Swan-owned backend.
+- AArch64 / ARM64 Linux: Swan-owned ELF assembly/object for a limited scalar IR subset.
+- WebAssembly 64 (WASM64): memory64 module emission for the implemented subset; a memory64-capable WebAssembly host is required to execute it.
+
+ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported. The compiler rejects those targets instead of falling back to another compiler backend.
 
 An emitted object is not proof of full language support, ABI completeness, successful linking, or runtime correctness. Check the target-specific support before relying on a feature.
 
