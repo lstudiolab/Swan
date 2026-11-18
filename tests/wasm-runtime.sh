@@ -20,8 +20,13 @@ test "$result" = "3"
 "$BIN" build "$TMP/main.swan" --target wasm64 -o "$TMP/main.wasm"
 result=$("$BIN" run "$TMP/main.wasm" 2>"$TMP/runtime.err")
 test "$result" = "3"
-# Native SIC compilation produces a host-specific Wasmtime artifact and keeps
-# an explicitly supplied portable WASM file available for browser deployment.
-test -s "$TMP/main.wasm.cwasm"
+# An explicitly emitted portable module is retained after native JIT execution
+# so the same artifact can still be deployed to a browser.
 test -s "$TMP/main.wasm"
-printf 'PASS: Swan runs a memory64 module through Wasmtime and invokes main\n'
+test ! -e "$TMP/main.wasm.cwasm"
+"$BIN" compile "$TMP/main.swan" -o "$TMP/portable.wasm"
+test -s "$TMP/portable.wasm"
+result=$("$BIN" run "$TMP/portable.wasm" 2>"$TMP/portable-runtime.err")
+test "$result" = "3"
+test -s "$TMP/portable.wasm"
+printf 'PASS: swanc compile emits portable WASM64 and SIC runs it through the host JIT\n'
