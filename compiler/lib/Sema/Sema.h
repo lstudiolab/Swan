@@ -268,10 +268,10 @@ static inline void swan_warning_block(Program *program,Stmt **body,size_t count)
      statement->condition&&statement->condition->kind==E_BOOL&&
      statement->condition->token.text){
    bool condition=!strcmp(statement->condition->token.text,"true");
-   if(statement->kind==S_IF){
+   if(statement->kind==S_IF&&statement->token.kind!=T_FOR){
     swan_warning_add(program,&statement->token,
       "condition is always %s; one branch is unreachable",condition?"true":"false");
-   }else if(!condition){
+   }else if(statement->kind==S_WHILE&&!condition){
     swan_warning_add(program,&statement->token,
       "loop condition is always false; loop body will never execute");
    }else if(statement->token.kind!=T_LOOP){
