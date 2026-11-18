@@ -33,7 +33,8 @@ static inline bool swan_sil_ownership_simplify(SwanSILModule *m,bool *changed) {
   SwanSILInstruction *in=&m->functions[f].instructions[i];
   if(in->type==SWAN_SIL_TYPE_TRIVIAL&&in->ownership!=SWAN_SIL_OWNERSHIP_NONE){in->ownership=SWAN_SIL_OWNERSHIP_NONE;any=true;}
  }
- if(changed)*changed=any;return true;
+ if(changed)*changed=any;
+ return true;
 }
 
 #endif
