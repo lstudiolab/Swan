@@ -46,26 +46,36 @@ func cube(value: int) -> int:
         return 0
     return value * value * value
 
+func multiplication_overflows(left: int, right: int) -> bool:
+    if left > 0:
+        if right > 0 and left > 9223372036854775807 / right:
+            return true
+        if right < 0 and right < (-9223372036854775807 - 1) / left:
+            return true
+    else if left < 0:
+        if right > 0 and left < (-9223372036854775807 - 1) / right:
+            return true
+        if right < 0 and left < 9223372036854775807 / right:
+            return true
+    return false
+
 func power(base: int, exponent: int) -> int:
-    var result: int = 1
-    var count: int = 0
     if exponent < 0:
         return 0
-    while count < exponent:
-        if result > 0:
-            if base > 0 and result > 9223372036854775807 / base:
+    var result: int = 1
+    var factor = base
+    var remaining = exponent
+    while remaining > 0:
+        if remaining % 2 != 0:
+            if multiplication_overflows(result, factor):
                 return 0
-            if base < 0 and base < (-9223372036854775807 - 1) / result:
+            result = result * factor
+        remaining = remaining / 2
+        if remaining > 0:
+            if multiplication_overflows(factor, factor):
                 return 0
-        else if result < 0:
-            if base > 0 and result < (-9223372036854775807 - 1) / base:
-                return 0
-            if base < 0 and result < 9223372036854775807 / base:
-                return 0
-        result = result * base
-        count = count + 1
+            factor = factor * factor
     return result
-
 func factorial(value: int) -> int:
     var result: int = 1
     var count: int = 2
