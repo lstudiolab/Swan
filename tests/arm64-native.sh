@@ -38,3 +38,28 @@ run_status=$?
 set -e
 test "$run_status" -eq 33
 printf 'PASS: native ARM64 default target, executable linking, i32 arithmetic, and execution\n'
+
+cat > "$TMP/c_api.h" <<'H'
+#include <stdint.h>
+int32_t swan_arm64_add(int32_t left, int32_t right);
+H
+cat > "$TMP/c_api.c" <<'C'
+#include <stdint.h>
+int32_t swan_arm64_add(int32_t left, int32_t right) {
+    return left + right;
+}
+C
+cc -std=c11 -O2 -c "$TMP/c_api.c" -o "$TMP/c_api.o"
+cat > "$TMP/ffi.swan" <<SWAN
+import C "$TMP/c_api.h"
+func main() -> i32:
+    return swan_arm64_add(19, 23)
+SWAN
+"$BIN" build "$TMP/ffi.swan" --target arm64 --link "$TMP/c_api.o" -o "$TMP/ffi-native"
+test -x "$TMP/ffi-native"
+set +e
+"$TMP/ffi-native"
+ffi_status=$?
+set -e
+test "$ffi_status" -eq 42
+printf 'PASS: native ARM64 C header import, i32 arguments, return values, and linking\n'
