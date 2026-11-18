@@ -30,6 +30,12 @@ func main() -> int:
         let qword_value: i64 = raw.load64(view + 8)
         let copied_value: i64 = raw.load64(view + 32)
         result = byte_value + word_value + dword_value + qword_value + copied_value
+    own var numbers: u32_array = array_u32(4)
+    numbers[0] = 42
+    if numbers[0] == 42:
+        borrow let number_view: u32_array = numbers
+        result = result + number_view[0]
+    drop numbers
     drop memory
     own var source: i64 = raw.heap(16)
     own var destination: i64 = move source
@@ -49,7 +55,7 @@ func main() -> int:
     if raw.arena_remaining(borrow region) != 64:
         result = result + 1
     raw.arena_release(move region)
-    return result - 1111276067
+    return result - 1111276109
 SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
@@ -77,16 +83,14 @@ cat > "$TMP/automatic.swan" <<'SWAN'
 import raw
 
 func main() -> int:
-    let values = array_u32(32)
+    own var values: u32_array = array_u32(32)
     values[0] = 42
-    return values[0] - 42
+    drop values
+    return 0
 SWAN
 "$SWAN" build "$TMP/automatic.swan" --emit-asm -o "$TMP/automatic-asm"
 grep -q 'calloc@PLT' "$TMP/automatic-asm/automatic.s"
-if grep -q 'free@PLT' "$TMP/automatic-asm/automatic.s"; then
-    echo "raw mode unexpectedly emitted automatic array reclamation" >&2
-    exit 1
-fi
+test "$(grep -c 'free@PLT' "$TMP/automatic-asm/automatic.s")" -eq 1
 
 
 cat > "$TMP/default.swan" <<'SWAN'
@@ -98,6 +102,17 @@ SWAN
 "$SWAN" build "$TMP/default.swan" --emit-asm -o "$TMP/default.s"
 grep -q 'free@PLT' "$TMP/default.s"
 
+
+cat > "$TMP/raw-array-without-own.swan" <<'SWAN'
+import raw
+func main() -> int:
+    let values = array_u32(8)
+    return 0
+SWAN
+if "$SWAN" build "$TMP/raw-array-without-own.swan" -o "$TMP/raw-array-without-own" 2>/dev/null; then
+    echo "raw array allocation without own unexpectedly compiled" >&2
+    exit 1
+fi
 
 cat > "$TMP/use-after-move.swan" <<'SWAN'
 import raw
