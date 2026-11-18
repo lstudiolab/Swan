@@ -43,7 +43,7 @@ func calc_negate(value: int) -> int:
     return 0 - value
 
 func calc_absolute(value: int) -> int:
-    return !abs(value)
+    return abs(value)
 
 func calc_round(value: int) -> int:
     if value >= 0:
@@ -51,10 +51,10 @@ func calc_round(value: int) -> int:
     return 0 - ((0 - value + CALC_SCALE / 2) / CALC_SCALE)
 
 func calc_floor(value: int) -> int:
-    return !floor_div(value, CALC_SCALE)
+    return floor_div(value, CALC_SCALE)
 
 func calc_ceil(value: int) -> int:
-    return !ceil_div(value, CALC_SCALE)
+    return ceil_div(value, CALC_SCALE)
 
 func calc_truncate(value: int) -> int:
     return value / CALC_SCALE
@@ -63,7 +63,7 @@ func calc_fraction(value: int) -> int:
     return value % CALC_SCALE
 
 func calc_clamp(value: int, lower: int, upper: int) -> int:
-    return !clamp(value, lower, upper)
+    return clamp(value, lower, upper)
 
 # ---------------------------------------------------------------------------
 # Powers, roots, and factorials
@@ -107,7 +107,7 @@ func calc_power(base: int, exponent: int) -> int:
 func calc_square_root(value: int) -> int:
     if value < 0:
         return 0
-    return !integer_sqrt(value * CALC_SCALE)
+    return integer_sqrt(value * CALC_SCALE)
 
 func calc_cube_root(value: int) -> int:
     if value == 0:
@@ -130,7 +130,7 @@ func calc_factorial(value: int) -> int:
         return 0
     if value % CALC_SCALE != 0:
         return 0
-    return !factorial(value / CALC_SCALE) * CALC_SCALE
+    return factorial(value / CALC_SCALE) * CALC_SCALE
 
 # ---------------------------------------------------------------------------
 # Trigonometry. Arguments and results are radians in fixed-point form.
@@ -353,17 +353,17 @@ func calc_standard_deviation_two(left: int, right: int) -> int:
 func calc_gcd(left: int, right: int) -> int:
     if left % CALC_SCALE != 0 or right % CALC_SCALE != 0:
         return 0
-    return !gcd(left / CALC_SCALE, right / CALC_SCALE) * CALC_SCALE
+    return gcd(left / CALC_SCALE, right / CALC_SCALE) * CALC_SCALE
 
 func calc_lcm(left: int, right: int) -> int:
     if left % CALC_SCALE != 0 or right % CALC_SCALE != 0:
         return 0
-    return !lcm(left / CALC_SCALE, right / CALC_SCALE) * CALC_SCALE
+    return lcm(left / CALC_SCALE, right / CALC_SCALE) * CALC_SCALE
 
 func calc_is_prime(value: int) -> bool:
     if value % CALC_SCALE != 0:
         return false
-    return !is_prime(value / CALC_SCALE)
+    return is_prime(value / CALC_SCALE)
 
 func calc_combinations(n: int, r: int) -> int:
     if n < 0 or r < 0 or r > n:
@@ -394,14 +394,14 @@ func calc_permutations(n: int, r: int) -> int:
 # ---------------------------------------------------------------------------
 
 func main() -> int:
-    !printin >> "Swan Scientific Calculator"
-    !printin >> "Fixed-point scale: 10000 = 1.0000"
-    !printin >> "sin(90 degrees), scaled:"
-    !printin >> calc_sin(calc_degrees_to_radians(90 * CALC_SCALE))
-    !printin >> "sqrt(2), scaled:"
-    !printin >> calc_square_root(2 * CALC_SCALE)
-    !printin >> "ln(2), scaled:"
-    !printin >> calc_ln(2 * CALC_SCALE)
-    !printin >> "5 choose 2, scaled:"
-    !printin >> calc_combinations(5, 2)
+    print("Swan Scientific Calculator")
+    print("Fixed-point scale: 10000 = 1.0000")
+    print("sin(90 degrees), scaled:")
+    print(calc_sin(calc_degrees_to_radians(90 * CALC_SCALE)))
+    print("sqrt(2), scaled:")
+    print(calc_square_root(2 * CALC_SCALE))
+    print("ln(2), scaled:")
+    print(calc_ln(2 * CALC_SCALE))
+    print("5 choose 2, scaled:")
+    print(calc_combinations(5, 2))
     return 0
