@@ -78,7 +78,8 @@ Most developers should install a release binary. You do not need to clone this r
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lstudiolab/Swan/main/scripts/install.sh | sh
 swan --version
-swanc compile examples/hello.swan -o hello.wasm\nswan run hello.wasm
+swanc compile examples/hello.swan -o hello.wasm
+swan run hello.wasm
 ```
 
 The installer detects Linux x86-64/ARM64 and macOS Intel/Apple Silicon, downloads the matching release archive, and installs `swan` and `swanc` into `~/.local/bin`. Ensure that directory is on PATH. Release binaries are published automatically for version tags.
@@ -99,7 +100,8 @@ Requirements: a C11 compiler, POSIX shell, and a host assembler/linker available
 
 ```sh
 sh build.sh
-./build/swanc compile examples/hello.swan -o hello.wasm\n./build/swanc run hello.wasm
+./build/swanc compile examples/hello.swan -o hello.wasm
+./build/swanc run hello.wasm
 ```
 
 Build an executable:
