@@ -56,6 +56,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"as",2))return T_AS;
   break;
  case 3:
+  if(!memcmp(s,"for",3))return T_FOR;
   if(!memcmp(s,"let",3))return T_LET;
   if(!memcmp(s,"var",3))return T_VAR;
   break;

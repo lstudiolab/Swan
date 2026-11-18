@@ -460,7 +460,21 @@ func count_to(limit: int) -> int:
     return count
 ```
 
-`upto` remains reserved; its range-loop grammar and inclusive/exclusive boundary semantics are not yet specified.
+### 9.4 Inclusive range loops
+
+`for` introduces an integer range loop. The syntax is `for name from start upto end:`; both bounds are evaluated once, and `upto` is inclusive.
+
+```swan
+func sum_range(first: int, last: int) -> int:
+    var total = 0
+    for value from first upto last:
+        total = total + value
+    return total
+```
+
+The iterator is scoped to the loop. `break` exits the loop. `continue` advances the iterator exactly once before testing the next iteration. If the start exceeds the end, the body executes zero times. The increment is guarded at the upper bound to avoid signed overflow when the final value is the maximum representable integer.
+
+The current range form is integer-only. Collection iteration with `in`, custom iterators, descending ranges, and configurable step sizes are not implemented.
 
 ---
 
@@ -681,11 +695,11 @@ The search functions return a zero-based index or -1 when no match exists. Binar
 
 ## 13. Complete reserved-keyword reference
 
-The lexer defines exactly **31 case-sensitive reserved words**:
+The lexer defines exactly **32 case-sensitive reserved words**:
 
 ```text
 func struct let var null if else const type match guard block while loop
-true false break continue return as from self pass upto init deinit enum
+true false break continue return as from self pass upto init deinit enum for
 throw throws rethrow catch import export
 ```
 
@@ -705,6 +719,7 @@ The table below describes their intended role and current implementation status.
 | `match` | Pattern matching | Reserved; not implemented |
 | `guard` | Guard-style conditional validation | Reserved; not implemented |
 | `block` | Explicit block construct | Reserved; not implemented as a separate construct |
+| `for` | Inclusive integer range loop | Implemented: `for name from start upto end:` |
 | `while` | Condition-controlled loop | Implemented |
 | `loop` | Unconditional loop | Implemented as `loop:`; uses shared control-flow IR |
 | `true` | Boolean true literal | Implemented |
@@ -713,10 +728,10 @@ The table below describes their intended role and current implementation status.
 | `continue` | Continue nearest loop | Implemented |
 | `return` | Return from function | Implemented |
 | `as` | Conversion or type-ascription operator | Reserved; no general cast syntax is specified |
-| `from` | Import/source qualifier | Reserved; no standalone syntax is implemented |
+| `from` | Introduces the lower bound in a range loop | Implemented with `for` |
 | `self` | Current instance reference | Tokenized; instance/member semantics are not implemented |
 | `pass` | Empty/no-op statement | Implemented |
-| `upto` | Upper-bound loop/range word | Reserved; not implemented |
+| `upto` | Inclusive upper bound in a range loop | Implemented with `for` |
 | `init` | Initializer declaration | Reserved; not implemented |
 | `deinit` | Deinitializer declaration | Reserved; not implemented |
 | `enum` | Enumeration declaration | Reserved; not implemented |
