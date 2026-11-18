@@ -294,7 +294,7 @@ func escape() -> i64:
     let alias: i64 = pointer
     return alias
 func main() -> int:
-    let unused: i64 = 0
+    let leaked: i64 = escape()
     return 0
 SWAN
 if "$SWAN" build "$TMP/stack-escape.swan" -o "$TMP/stack-escape" 2>/dev/null; then
