@@ -34,6 +34,23 @@ SWAN
 "$SWAN" "$TMP/cross.swan" --target arm64 --emit-asm -o "$TMP/aarch64.s"
 grep -q 'stp x29, x30' "$TMP/aarch64.s"
 
+# One frontend pass builds the same Swan source for all supported targets.
+"$SWAN" build "$TMP/cross.swan" --target all -o "$TMP/all"
+test -x "$TMP/all/cross-x86_64"
+test -s "$TMP/all/cross-arm64.o"
+test -s "$TMP/all/cross-wasm64.wasm"
+set +e
+"$TMP/all/cross-x86_64"
+native_status=$?
+set -e
+test "$native_status" -eq 42
+readelf -h "$TMP/all/cross-arm64.o" | grep -q 'AArch64'
+python3 - "$TMP/all/cross-wasm64.wasm" <<'PY'
+import sys
+data=open(sys.argv[1],"rb").read()
+assert data[:8] == b"\0asm\1\0\0\0", "invalid WebAssembly module"
+PY
+
 for unsupported in armv7 riscv64 wasm32 arm riscv llvm; do
     if "$SWAN" build "$TMP/native.swan" --target "$unsupported" -o "$TMP/unsupported" 2>"$TMP/unsupported.err"; then
         echo "FAIL: unsupported target '$unsupported' was accepted" >&2
@@ -54,5 +71,6 @@ if "$SWAN" build "$TMP/native.swan" --emit-llvm 2>"$TMP/llvm.err"; then
 fi
 grep -q "unknown option '--emit-llvm'" "$TMP/llvm.err"
 
+printf 'PASS: one Swan source builds to x86-64, ARM64, and WASM64 artifacts
 printf 'PASS: Swan supports exactly x86-64, AArch64/ARM64, and WebAssembly 64-bit\n'
 printf 'PASS: unsupported architectures and arbitrary LLVM target triples are rejected\n'
