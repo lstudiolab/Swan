@@ -55,3 +55,26 @@ jobs:
         run: sh tests/ffi.sh
       - name: Exercise independent source translation units
         run: sh tests/multi-source.sh
+
+  compiler-arm64:
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Wasmtime with memory64 support
+        run: |
+          curl -fsSL https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.2/wasmtime-v50.0.2-aarch64-linux.tar.xz -o "$RUNNER_TEMP/wasmtime.tar.xz"
+          tar -xJf "$RUNNER_TEMP/wasmtime.tar.xz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/wasmtime-v50.0.2-aarch64-linux" >> "$GITHUB_PATH"
+      - name: Build compiler on native ARM64
+        run: sh build.sh
+      - name: Execute native ARM64 Swan programs
+        run: sh tests/arm64-native.sh
+      - name: Verify AArch64 object and ABI lowering
+        run: sh tests/aarch64.sh
+      - name: Execute WASM64 artifacts on ARM64
+        run: sh tests/wasm-runtime.sh
+      - name: Verify target-independent IR and optimization
+        run: |
+          sh tests/ir-verifier.sh
+          sh tests/irgen-control.sh
+          sh tests/optimization.sh
