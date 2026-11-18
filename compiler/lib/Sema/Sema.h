@@ -118,7 +118,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
      swan_error(err,&e->args[i]->token,"raw.resize may invalidate its input; transfer an owner with move");return false;
     }
     if(e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_MOVE&&!raw_release&&!raw_resize){
-     swan_error(err,&e->args[i]->token,"move may only initialize an owner or transfer into raw.release/raw.resize");return false;
+     swan_error(err,&e->args[i]->token,"move may only initialize an owner or transfer into raw.release/raw.resize/raw.arena_release/raw.arena_release");return false;
     }
     if(raw_release&&e->args[i]&&e->args[i]->kind==E_NAME){
      size_t index;if(swan_symbol_find(symbols,e->args[i]->token.text,&index)&&symbols->items[index].manual_borrow){
