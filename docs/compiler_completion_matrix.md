@@ -100,8 +100,9 @@ A subsystem should only be marked complete when all applicable gates pass:
 Swan has a real production compiler, typed SSA infrastructure, an optimizer, and multiple
 code-generation backends. It is not yet feature-complete or cross-platform equivalent.
 The largest architectural blockers are the AST compatibility path, incomplete typed-IR
-lowering, the lack of a unified ownership/lifetime implementation, incomplete aggregate
-and floating-point semantics, and limited cross-target ABI/runtime validation.
+lowering, incomplete ARC integration, incomplete aggregate and floating-point semantics,
+and limited cross-target ABI/runtime validation.
 
-Do not describe the language as having universal automatic memory management, complete
-SIL ownership, or full WORA until those gates pass on every supported target.
+Do not describe the language as having complete ARC or full WORA until those gates pass
+on every supported target. ARC is the only ordinary source-level memory model; a raw mode
+and manual ownership syntax are explicitly out of scope.
