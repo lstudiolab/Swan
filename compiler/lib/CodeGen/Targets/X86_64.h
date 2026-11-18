@@ -259,6 +259,16 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
  }
  return false;
 }
+static inline void cg_clear_moved_arguments(Text *o,Expr *e,Locals *l){
+ for(size_t i=0;i<e->argc;i++){
+  Expr *argument=e->args[i];
+  if(!argument||argument->kind!=E_UNARY||argument->token.kind!=T_MOVE||
+     !argument->left||argument->left->kind!=E_NAME)continue;
+  Local *source=local_find(l,argument->left->token.text);if(!source)continue;
+  if(source->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(source->reg),cg_reg_low_name(source->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",source->slot*8);
+ }
+}
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=swan_expr_terminal_name(e->left);if(!name){swan_error(err,&e->token,"invalid function call target");return;}
  if(!strcmp(name,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME){swan_error(err,&e->token,"free expects one memory variable");return;}Local *v=local_find(l,e->args[0]->token.text);if(!v||!v->array_u32){swan_error(err,&e->token,"free requires an array variable");return;}cg_save_volatile(o,l);if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);text_add(o,"    xor eax, eax\n");return;}
@@ -309,7 +319,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   if(!strcmp(intrinsic,"release")){
    if(e->argc!=1){swan_error(err,&e->token,"raw release expects exactly one argument");return;}
    cg_save_volatile(o,l);emit_expr(o,e->args[0],l,err);
-   text_add(o,"    mov rdi, rax\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+   text_add(o,"    mov rdi, rax\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);cg_clear_moved_arguments(o,e,l);
    return;
   }
   if(!strcmp(intrinsic,"stack")){
@@ -382,7 +392,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   }
   text_add(o,"    call %s\n",symbol);
   if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))text_add(o,"    movzx eax, al\n");
-  cg_release(o,reserve);cg_restore_volatile(o,l);return;
+  cg_release(o,reserve);cg_restore_volatile(o,l);cg_clear_moved_arguments(o,e,l);return;
  }
  if(e->argc>(size_t)INT32_MAX/8){swan_error(err,&e->token,"call staging area exceeds the x86-64 displacement range");return;}
  size_t stage_bytes=e->argc*8,stage_area=(stage_bytes+15u)&~(size_t)15u;
@@ -398,7 +408,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   text_add(o,"    mov %s, QWORD PTR [rsp + %zu]\n",regs[i],stage_base+i*8);
  text_add(o,"    call %s\n",symbol);
  if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))text_add(o,"    movzx eax, al\n");
- cg_release(o,reserve);cg_release(o,(int)stage_area);cg_restore_volatile(o,l);
+ cg_release(o,reserve);cg_release(o,(int)stage_area);cg_restore_volatile(o,l);cg_clear_moved_arguments(o,e,l);
 }
 static inline bool cg_const_value(Expr *e,int64_t *out);
 static inline bool cg_const_value_uncached(Expr *e,int64_t *out){
