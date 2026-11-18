@@ -242,6 +242,9 @@ Run a compiled WASM64 module through Swan's Wasmtime-backed runtime:
 
 ```sh
 swan run app.wasm
+
+# Or compile and execute in one command
+swan run app.swan --target wasm64
 ```
 
 Install Wasmtime separately; Swan enables memory64 when launching it. See [the WASM64 runtime guide](runtime/wasm64/README.md) for requirements and current runtime limits.
