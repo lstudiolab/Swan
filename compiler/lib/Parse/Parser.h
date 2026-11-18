@@ -43,6 +43,66 @@ static inline Expr *expression_impl(Parser *p,int min){Expr *left=prefix(p);whil
 static inline Expr *expression(Parser *p,int min){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing an expression");p->failed=true;return NULL;}p->recursion_depth++;Expr *result=expression_impl(p,min);p->recursion_depth--;return result;}
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
 static inline Stmt *statement(Parser *p);
+static inline Expr *swan_parser_name(Parser *p,const char *name,Token token){
+ Token t=token;t.kind=T_IDENT;t.text=name;return new_expr(p,E_NAME,t);
+}
+static inline Stmt *swan_parser_for_increment(Parser *p,const char *iterator,
+        const char *end_name,Token location){
+ Stmt *guard=new_stmt(p,S_IF,location);
+ if(!guard)return NULL;
+ guard->condition=new_expr(p,E_BINARY,location);
+ if(!guard->condition)return NULL;
+ guard->condition->token.kind=T_LT;
+ guard->condition->left=swan_parser_name(p,iterator,location);
+ guard->condition->right=swan_parser_name(p,end_name,location);
+ guard->body=swan_arena_alloc(p->program,sizeof(*guard->body));
+ if(!guard->body){swan_error(p->err,&location,"out of memory building range-loop increment");p->failed=true;return NULL;}
+ guard->body_count=guard->body_cap=1;
+ Stmt *assignment=new_stmt(p,S_EXPR,location);
+ Expr *set=new_expr(p,E_BINARY,location);
+ Expr *sum=new_expr(p,E_BINARY,location);
+ if(!assignment||!set||!sum)return NULL;
+ set->token.kind=T_ASSIGN;set->left=swan_parser_name(p,iterator,location);
+ sum->token.kind=T_PLUS;sum->left=swan_parser_name(p,iterator,location);
+ Token one=location;one.kind=T_INT;one.text="1";
+ sum->right=new_expr(p,E_INT,one);set->right=sum;assignment->value=set;
+ guard->body[0]=assignment;return guard;
+}
+static inline bool swan_parser_rewrite_for_continues(Parser *p,Stmt ***body,
+        size_t *count,size_t *capacity,const char *iterator,const char *end_name,
+        Token location){
+ size_t original=*count;
+ for(size_t i=0;i<original;i++){
+  Stmt *item=(*body)[i];
+  if(item&&item->kind==S_IF){
+   if(!swan_parser_rewrite_for_continues(p,&item->body,&item->body_count,
+       &item->body_cap,iterator,end_name,location)||
+      !swan_parser_rewrite_for_continues(p,&item->alternate,&item->alt_count,
+       &item->alt_cap,iterator,end_name,location))return false;
+  }
+ }
+ size_t continues=0;
+ for(size_t i=0;i<original;i++)if((*body)[i]&&(*body)[i]->kind==S_CONTINUE)continues++;
+ size_t extra=continues+1;
+ if(original>SIZE_MAX-extra)return false;
+ size_t needed=original+extra;
+ Stmt **rewritten=swan_arena_alloc(p->program,needed*sizeof(*rewritten));
+ if(!rewritten){swan_error(p->err,&location,"out of memory rewriting range-loop control flow");p->failed=true;return false;}
+ size_t out=0;
+ for(size_t i=0;i<original;i++){
+  Stmt *item=(*body)[i];
+  if(item&&item->kind==S_CONTINUE){
+   Stmt *increment=swan_parser_for_increment(p,iterator,end_name,location);
+   if(!increment)return false;
+   rewritten[out++]=increment;
+  }
+  rewritten[out++]=item;
+ }
+ Stmt *increment=swan_parser_for_increment(p,iterator,end_name,location);
+ if(!increment)return false;
+ rewritten[out++]=increment;
+ *body=rewritten;*count=out;*capacity=needed;return true;
+}
 static inline Stmt *statement_impl(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
  if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;s->manual_memory=false;s->manual_checked=false;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
@@ -52,6 +112,42 @@ static inline Stmt *statement_impl(Parser *p){
  if(eat(p,T_BREAK))return new_stmt(p,S_BREAK,t);
  if(eat(p,T_CONTINUE))return new_stmt(p,S_CONTINUE,t);
  if(eat(p,T_PASS))return new_stmt(p,S_PASS,t);
+ if(eat(p,T_FOR)){
+  Token iterator=take(p);
+  if(iterator.kind!=T_IDENT){swan_error(p->err,&iterator,"expected loop variable after 'for'");p->failed=true;return NULL;}
+  if(!need(p,T_FROM,"expected 'from' after range-loop variable"))return NULL;
+  Expr *start=expression(p,1);
+  if(!need(p,T_UPTO,"expected 'upto' after range-loop start"))return NULL;
+  Expr *end=expression(p,1);
+  if(!start||!end)return NULL;
+  char hidden[96];snprintf(hidden,sizeof(hidden),"__swan_for_end_%u_%u",t.line,t.col);
+  size_t hidden_length=strlen(hidden)+1;
+  char *end_name=swan_arena_alloc(p->program,hidden_length);
+  if(!end_name){swan_error(p->err,&t,"out of memory naming range-loop bound");p->failed=true;return NULL;}
+  memcpy(end_name,hidden,hidden_length);
+  Stmt *scope=new_stmt(p,S_IF,t),*bound=new_stmt(p,S_VARIABLE,t),
+       *index=new_stmt(p,S_VARIABLE,iterator),*loop=new_stmt(p,S_WHILE,t);
+  if(!scope||!bound||!index||!loop)return NULL;
+  Token truth=t;truth.kind=T_TRUE;truth.text="true";
+  scope->condition=new_expr(p,E_BOOL,truth);
+  scope->body=swan_arena_alloc(p->program,3*sizeof(*scope->body));
+  if(!scope->body){swan_error(p->err,&t,"out of memory building range-loop scope");p->failed=true;return NULL;}
+  scope->body_count=scope->body_cap=3;
+  bound->name=end_name;bound->value=end;bound->mutable_value=false;
+  bound->manual_memory=false;bound->manual_checked=false;
+  index->name=iterator.text;index->value=start;index->mutable_value=true;
+  index->manual_memory=false;index->manual_checked=false;
+  loop->condition=new_expr(p,E_BINARY,t);
+  if(!loop->condition)return NULL;
+  loop->condition->token.kind=T_LE;
+  loop->condition->left=swan_parser_name(p,iterator.text,iterator);
+  loop->condition->right=swan_parser_name(p,end_name,t);
+  if(!block(p,&loop->body,&loop->body_count,&loop->body_cap))return scope;
+  if(!swan_parser_rewrite_for_continues(p,&loop->body,&loop->body_count,
+       &loop->body_cap,iterator.text,end_name,t))return scope;
+  scope->body[0]=bound;scope->body[1]=index;scope->body[2]=loop;
+  return scope;
+ }
  if(eat(p,T_LOOP)){s=new_stmt(p,S_WHILE,t);Token truth=t;truth.kind=T_TRUE;truth.text="true";s->condition=new_expr(p,E_BOOL,truth);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;return s;}
  if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=swan_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){swan_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
  s=new_stmt(p,S_EXPR,t);if(s)s->value=expression(p,1);return s;
