@@ -16,6 +16,9 @@ https://docs.wasmtime.dev/cli-install.html
 ## Run a compiled Swan module
 
 ```sh
+swan run app.swan --target wasm64
+
+# Or build once, then run the module separately
 swanc build app.swan --target wasm64 -o app.wasm
 swan run app.wasm
 ```
