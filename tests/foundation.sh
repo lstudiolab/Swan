@@ -10,20 +10,20 @@ import foundation
 import foundation
 func main():
     foundation_hello()
-    !printin >> abs_int(-9);
-    !printin >> average_int(4, 7);
-    !printin >> is_even(12);
-    !printin >> is_odd(9);
-    !printin >> min_int(8, 3);
-    !printin >> max_int(8, 3);
-    !printin >> clamp_int(15, 0, 10);
-    !printin >> sign_int(-20);
-    !printin >> square_int(5);
-    !printin >> cube_int(3);
-    !printin >> power_int(2, 8);
-    !printin >> factorial_int(5);
-    !printin >> sum_to_int(10);
-    !printin >> in_range_int(5, 1, 9);
+    print(abs_int(-9))
+    print(average_int(4, 7))
+    print(is_even(12))
+    print(is_odd(9))
+    print(min_int(8, 3))
+    print(max_int(8, 3))
+    print(clamp_int(15, 0, 10))
+    print(sign_int(-20))
+    print(square_int(5))
+    print(cube_int(3))
+    print(power_int(2, 8))
+    print(factorial_int(5))
+    print(sum_to_int(10))
+    print(in_range_int(5, 1, 9))
     return 0
 SWAN
 
