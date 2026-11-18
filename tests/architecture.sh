@@ -18,7 +18,7 @@ func main() -> int:
     while i < 8
         values[i] = i * 2
         i = i + 1
-    !printin >> sum(values[7]);
+    print(sum(values[7]))
     return 0
 SWAN
 "$SWAN" "$TMP/native.swan" --target x86_64 --emit-asm -o "$TMP/native.s"
