@@ -277,27 +277,21 @@ fail:
 static int swan_run_wasm_file(const char *path,int argument_count,char **arguments){
  const char *engine=getenv("SWAN_WASM_ENGINE");
  if(!engine||!*engine)engine="wasmtime";
- if(argument_count<0||(size_t)argument_count>SIZE_MAX/sizeof(char*)-10)return 1;
+ if(argument_count<0||(size_t)argument_count>SIZE_MAX/sizeof(char*)-8)return 1;
 
  /*
-  * SIC leaves execution in WebAssembly when swanc itself is hosted by
-  * WebAssembly. On supported native hosts, compile the portable module to a
-  * host-specific Wasmtime artifact first. A failed native compile never
-  * removes the portable input and falls back to the WASM execution path.
+  * SIC selects execution by host. Wasmtime's run command performs the JIT
+  * compilation from portable WASM to the current native CPU (x86-64/ARM64).
+  * A WebAssembly-hosted build must leave the module as WASM; browser.js is
+  * the browser entry point and uses the browser's own WebAssembly engine.
   */
  SwanSICHost host=swan_sic_detect_host();
- char compiled_path[4096]={0};
+ if(host.environment==SWAN_SIC_ENV_WEBASSEMBLY){
+  fprintf(stderr,"swan: SIC detected a WebAssembly host; load the module with runtime/wasm64/browser.js instead of native recompilation\n");
+  return 2;
+ }
  bool temporary_wasm=!strncmp(path,"/tmp/swan-wasm-run-",19);
- bool native_compiled=
-     host.environment==SWAN_SIC_ENV_NATIVE &&
-     (host.architecture==SWAN_SIC_ARCH_X86_64 ||
-      host.architecture==SWAN_SIC_ARCH_ARM64) &&
-     swan_sic_compile_for_host(path,compiled_path,sizeof(compiled_path));
-
- const char *module_path=native_compiled?compiled_path:path;
- if(native_compiled&&temporary_wasm)unlink(path);
-
- char **args=calloc((size_t)argument_count+10,sizeof(*args));
+ char **args=calloc((size_t)argument_count+8,sizeof(*args));
  if(!args){fprintf(stderr,"swan: out of memory preparing SIC runtime invocation\n");return 1;}
  size_t n=0;
  args[n++]=(char*)engine;
@@ -306,7 +300,7 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
  args[n++]="memory64=y";
  args[n++]="--invoke";
  args[n++]="main";
- args[n++]=(char*)module_path;
+ args[n++]=(char*)path;
  for(int i=0;i<argument_count;i++)args[n++]=arguments[i];
  args[n]=NULL;
  int result=swan_exec(args,true);
@@ -314,12 +308,11 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
   if(errno==ENOENT)fprintf(stderr,"swan: WebAssembly runtime '%s' was not found; install Wasmtime or set SWAN_WASM_ENGINE\n",engine);
   else fprintf(stderr,"swan: could not start WebAssembly runtime '%s': %s\n",engine,strerror(errno));
   result=127;
- }else if(!native_compiled&&host.environment==SWAN_SIC_ENV_NATIVE&&
-          (host.architecture==SWAN_SIC_ARCH_X86_64||host.architecture==SWAN_SIC_ARCH_ARM64)){
-  fprintf(stderr,"swan: SIC native compilation was unavailable; executed the retained WASM module instead\n");
  }
+ if(temporary_wasm&&result==0)unlink(path);
+ else if(temporary_wasm&&result!=0)
+  fprintf(stderr,"swan: SIC retained temporary WASM module '%s' because native JIT execution did not complete successfully\n",path);
  free(args);
- if(native_compiled&&temporary_wasm)unlink(compiled_path);
  return result;
 }
 
