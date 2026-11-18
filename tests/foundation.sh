@@ -46,4 +46,4 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: imported Foundation helpers and !printin output\n'
+printf 'PASS: imported Foundation helpers and print() output\n'
