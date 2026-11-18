@@ -105,7 +105,15 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(e->left&&e->left->kind==E_NAME){Token callee_token=e->left->token;callee_token.text=fn->link_name?fn->link_name:fn->name;e->left->kind=E_NAME;e->left->token=callee_token;e->left->left=NULL;e->left->right=NULL;}
    }
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
+   bool raw_release=fn->imported&&fn->module_index>=0&&
+      (size_t)fn->module_index<p->module_count&&
+      !strcmp(p->module_names[fn->module_index],"raw")&&!strcmp(fn->name,"release");
    for(size_t i=0;i<e->argc;i++){
+    if(raw_release&&e->args[i]&&e->args[i]->kind==E_NAME){
+     size_t index;if(swan_symbol_find(symbols,e->args[i]->token.text,&index)&&symbols->items[index].manual_borrow){
+      swan_error(err,&e->args[i]->token,"a borrowed view cannot be released; drop its owner instead");return false;
+     }
+    }
     if(e->args[i]&&e->args[i]->kind==E_NAME){size_t arg_index;if(swan_symbol_find(symbols,e->args[i]->token.text,&arg_index)&&symbols->items[arg_index].manual_checked){swan_error(err,&e->args[i]->token,"manual ownership cannot be copied into a function call");return false;}}
     if(!swan_check_expr(p,e->args[i],symbols,err))return false;
    }
@@ -185,11 +193,15 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
      if(!s->mutable_value||!s->value){swan_error(err,&s->token,"own must declare an initialized mutable variable");return false;}
      if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw owners currently require the i64 address type");return false;}
      if(!swan_check_expr(p,s->value,symbols,err))return false;
+     if(s->value->kind!=E_CALL){swan_error(err,&s->value->token,"own must initialize from an i64-returning allocation function or move");return false;}
+     Stmt *owner_fn=swan_find_link_function(p,swan_expr_terminal_name(s->value->left));
+     if(!owner_fn||!owner_fn->type||strcmp(owner_fn->type,"i64")){swan_error(err,&s->value->token,"own initializer must return i64");return false;}
     }else if(s->manual_borrow){
      if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
      if(s->mutable_value||!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"borrow must declare an immutable view of an owned variable");return false;}
      size_t owner;if(!swan_symbol_find(symbols,s->value->token.text,&owner)||!symbols->items[owner].manual_checked){swan_error(err,&s->value->token,"borrow source must be an owned variable");return false;}
      if(symbols->items[owner].manual_freed){swan_error(err,&s->value->token,"cannot borrow a moved or dropped owner");return false;}
+     if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw borrows currently require the i64 address type");return false;}
      owner_name=s->value->token.text;
     }else{
      if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_checked){swan_error(err,&s->value->token,"owned values cannot be copied; use borrow or move");return false;}}
