@@ -57,15 +57,15 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 
 | Target / stage | Status | Implemented | Still required |
 |---|---|---|---|
-| x86-64 System V | Partial but most complete | Native assembly/executable, typed scalar path and AST compatibility features | Unified typed-IR feature coverage, robust ABI edge cases and sanitizer/runtime matrix |
+| x86-64 System V | Partial but most complete | Native assembly/executable; signed i32/i64 arithmetic, shifts, division traps, direct calls and scalar C ABI; AST compatibility features | Unified typed-IR feature coverage, aggregate/float ABI, robust edge cases and expanded sanitizer/runtime matrix |
 | AArch64 / ARM64 | Partial | Native ARM64 executable linking/running; cross-target ELF object/assembly; signed i32/i64 arithmetic, calls, and stack-passed arguments; scalar C ABI linking on native ARM64 | Full type/operation coverage, aggregate and floating-point ABI, broader FFI, cross-target linking and standard-library parity |
-| WASM64 | Partial / validation needed | Memory64 module emission for supported subset | Runtime engine interoperability, memory model and execution tests |
+| WASM64 | Partial | Memory64 module emission; scalar i32/i64 arithmetic and control flow; signed division overflow traps; Wasmtime execution tested on x86-64 and ARM64 hosts | Browser memory64 interoperability, imports, complete memory model and broader language coverage |
 | Instruction selection | Partial | Target-specific lowering for current supported operations | Legalization and coverage for all operations/types |
 | Register allocation | Partial | Backend-specific register/local assignment for supported subset | Proven global allocation, spill/reload correctness and stress tests |
 | Machine IR | Not established as a complete shared stage | Target backend internal representations | Shared machine IR contract, verifier and target-independent passes |
-| ABI lowering | Partial | Scalar ABI paths for selected targets | Aggregates, floats, variadics, stack alignment, callee-save and platform ABI tests |
+| ABI lowering | Partial | Scalar System V and AAPCS64 calls; i32/i64 arguments and returns; ARM64 stack-passed arguments and native scalar C linking | Aggregates, floats, variadics, complete callee-save/stack rules, and broad external ABI conformance |
 | Object emission | Partial | Swan-owned ELF and WASM64 outputs | Relocations, debug info, object-format edge cases and validation per target |
-| Linking / runtime | Partial | Native host linking through system toolchain | Cross-target linkers, sysroots, platform runtimes and executable tests on every target |
+| Linking / runtime | Partial | Native x86-64 and ARM64 executable linking; native ARM64 scalar C-object linking; WASM64 execution through Wasmtime | Cross-target x86/ARM linkers and sysroots, platform runtimes, and broader executable tests |
 
 ## Driver, quality and release engineering
 
