@@ -15,6 +15,8 @@ func main() -> int:
         count = count + 1
     return count
 SWAN
+result=$("$BIN" run "$TMP/main.swan" --target wasm64 2>"$TMP/source-runtime.err")
+test "$result" = "3"
 "$BIN" build "$TMP/main.swan" --target wasm64 -o "$TMP/main.wasm"
 result=$("$BIN" run "$TMP/main.wasm" 2>"$TMP/runtime.err")
 test "$result" = "3"
