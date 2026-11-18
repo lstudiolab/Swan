@@ -1,117 +1,137 @@
-# Swan compiler-managed memory model
+# Swan automatic memory management
 
-Swan uses a compiler-managed lifetime model inspired by Goose. The programmer
-works with values; the compiler determines their storage duration and emits
-allocation and reclamation code. Ordinary Swan code must not require explicit
-allocation/free pairs, a garbage collector, or per-object reference counters.
+Swan is a high-level language. Programmers work with ordinary values and
+references; they do not manage allocation, deallocation, pointer lifetimes, or
+ownership transfers as part of normal application code.
 
-This document distinguishes the current implementation from the target design.
-A design goal is not an implemented guarantee.
+Swan uses automatic reference counting (ARC) as its default managed-memory
+model. The compiler and runtime insert the retain/release operations needed to
+keep referenced objects alive and reclaim them when they are no longer
+reachable through managed references.
 
-## Design contract
+There is no raw-library mode that disables automatic memory management. Importing
+a library must never silently change the memory-safety or lifetime rules of the
+calling Swan code.
 
-1. **No routine manual deallocation.** There is no supported source-level
-   free(value) or manual allocation modifier. Compiler-generated calls to
-   the platform allocator are implementation details, not language operations.
-2. **No tracing garbage collector.** Swan does not pause execution to discover
-   unreachable objects.
-3. **No reference counting.** Ordinary ownership does not increment or decrement
-   runtime counters on every copy or reference.
-4. **Static lifetime analysis.** The compiler tracks definitions, uses, control
-   flow, aliases, escapes, and ownership transfers before selecting storage.
-5. **Stack first.** Values with statically bounded size and a lifetime contained
-   by the current activation or lexical scope should use registers or stack
-   storage.
-6. **Deterministic cleanup.** Heap-backed values are released at their proven
-   last use or scope exit. Cleanup must cover early returns and all control-flow
-   exits, and must not double-release a value.
-7. **Escape-safe ownership.** A value that may outlive its current scope must
-   be transferred to an owner whose lifetime is sufficient. If the compiler
-   cannot prove a safe transfer, it must preserve the allocation or reject the
-   operation; it must never guess and free early.
-8. **Explicit low-level control remains possible.** Unsafe pointer operations
-   and allocator/FFI integration belong in clearly marked low-level interfaces,
-   not in the ordinary value-lifetime path.
+## Language contract
 
-## Current implementation
+1. **Automatic allocation and cleanup.** Ordinary Swan code never needs to pair
+   allocation with a manual free operation.
+2. **Automatic reference counting.** Managed references keep their objects
+   alive. The runtime reclaims an object when its managed reference count reaches
+   zero.
+3. **No manual ownership syntax.** Everyday Swan code does not require
+   `own`, `borrow`, `move`, `drop`, `stack`, `heap`, or `arena`.
+4. **No raw mode.** There is no import modifier, library annotation, or compiler
+   switch that turns off ARC for a module or for its callers.
+5. **Safe library boundaries.** Imported libraries are exposed through typed
+   interfaces and managed wrappers. External resources must use wrapper-defined
+   cleanup, such as closing a file or releasing a native handle; this does not
+   disable ARC for Swan values.
+6. **Compiler-controlled storage.** The compiler may use registers, stack slots,
+   heap allocations, arenas, pooling, or other optimizations internally. These
+   choices do not change Swan source semantics.
+7. **Deterministic resource cleanup.** Objects and external resources must be
+   released according to documented lifetime rules. ARC handles managed object
+   memory; resource wrappers handle operating-system or library resources.
+8. **Cycle handling.** The runtime must provide a defined strategy for reference
+   cycles, such as compiler-supported weak references or cycle detection.
+   Cycles must not silently cause unbounded leaks.
 
-The native x86-64 AST compatibility backend has a limited automatic lifetime
-implementation for array, array_u32, and their unchecked variants:
+## What programmers write
 
-- Small, fixed-size, non-escaping arrays can be placed in the function stack
-  frame.
-- Dynamic or larger arrays use heap storage.
-- Eligible heap arrays are released after their last recognized use.
-- Cleanup is emitted for early returns and normal function exit.
-- Handles are initialized so paths that skip a declaration do not release
-  uninitialized storage.
-- Escape analysis conservatively avoids releasing arrays passed to calls or
-  returned from a function when the backend cannot prove a safe transfer.
-- --no-heap rejects array allocations that cannot be proven to fit the
-  current bounded stack-storage path.
+Normal Swan code uses values and library APIs. The compiler handles object
+lifetimes:
 
-This is automatic management: users do not pair allocation calls with
-source-level free calls. The emitted free@PLT call is compiler-generated
-runtime cleanup.
+```swan
+import std
 
-## Current limitations
+func make_message() -> string:
+    let message = "Hello from Swan"
+    return message
 
-The current implementation is **not yet Goose-equivalent across the language**:
+func main() -> int:
+    let message = make_message()
+    print(message)
+    return 0
+```
 
-- Lifetime analysis is specific to arrays in the native x86-64 AST backend.
-- SIL has ownership markers, but does not yet carry a complete, verified
-  ownership dataflow model or drive SVM lowering.
-- The typed SVM IR and non-x86 backends do not yet share the x86-64 array
-  cleanup implementation.
-- General strings, structs, enums with payloads, closures, dynamic collections,
-  and arbitrary owned aggregates do not yet have a unified ownership model.
-- Interprocedural escape summaries, explicit borrowing rules, move checking,
-  and safe ownership transfer are incomplete.
-- Exception unwinding and guaranteed cleanup for all future error paths are not
-  implemented.
-- Imported C code and operating-system APIs can allocate outside Swan analysis.
-  FFI contracts must describe who owns returned memory and how it is released.
-- --no-heap only constrains the currently supported Swan array allocations;
-  it cannot constrain allocations performed inside imported native libraries.
+There is no explicit allocation/free pair and no manual ownership transfer in
+this example. The returned string remains alive while it is referenced and is
+reclaimed automatically when its last managed reference is gone.
 
-## Required compiler architecture
+## Library and native interoperability
 
-The complete model must be implemented as a target-independent compiler
-analysis, not as a collection of backend-specific cleanup heuristics.
+A normal Swan import always retains Swan's automatic memory-management rules.
+A library cannot opt the importing source file out of ARC.
 
-1. Semantic analysis establishes value types, ownership categories, mutability,
-   and legal borrow/move operations.
-2. SIL represents owned values, guaranteed borrows, address-only values,
-   ownership transfer, destruction, and lexical scope boundaries.
-3. SIL verification performs control-flow-aware ownership checking: every owned
-   value has one valid destruction/transfer path, borrows do not outlive their
-   owner, and no value is used after destruction.
-4. Interprocedural summaries describe which parameters are borrowed, consumed,
-   or allowed to escape, including imported-function annotations.
-5. A target-independent lifetime pass computes last-use points and storage
-   classes: register, stack, bounded arena, or heap.
-6. Cleanup insertion handles normal exits, early returns, loop exits, and
-   exceptional exits before lowering to SVM IR.
-7. Every target backend lowers the same verified ownership operations. Backend
-   differences must not change source-level lifetime semantics.
+For libraries implemented outside Swan:
+
+- Prefer typed Swan wrappers that expose ordinary Swan values.
+- Copy or convert externally owned data into managed Swan values when needed.
+- Wrap native handles in managed objects whose cleanup routine releases the
+  external resource exactly once.
+- Document whether a native function borrows data for the duration of a call,
+  copies it, or returns a separately owned resource.
+- Do not expose arbitrary pointer arithmetic or unmanaged memory as ordinary
+  Swan application syntax.
+
+A wrapper may internally call native allocation or release functions. That is
+an implementation detail of the wrapper, not a mode change for the Swan
+program. ARC does not automatically know how to release an arbitrary external
+resource; the wrapper must define that resource's cleanup behavior.
+
+## Compiler implementation requirements
+
+The compiler/runtime must implement ARC consistently across all supported
+targets:
+
+1. Semantic analysis identifies managed reference values and their copy,
+   assignment, return, capture, and container operations.
+2. SIL or the typed intermediate representation records the lifetime
+   operations needed by the compiler. These are internal implementation
+   details, not source-level ownership keywords.
+3. Compiler passes insert retain/release operations and eliminate redundant
+   operations where safe.
+4. Every control-flow exit, including early returns and error paths, releases
+   references exactly as required.
+5. Function calls and module boundaries use consistent managed-value
+   conventions.
+6. Native library wrappers define cleanup for external resources and prevent
+   unmanaged handles from being mistaken for ordinary managed objects.
+7. The runtime defines and tests its reference-cycle strategy.
+8. Every backend implements equivalent observable lifetime behavior.
+
+## Current implementation status
+
+The current compiler does not yet provide complete ARC across the language.
+The native x86-64 AST compatibility backend has limited compiler-generated
+lifetime cleanup for selected array forms, including stack placement for small
+fixed-size non-escaping arrays and conservative cleanup for eligible heap
+arrays.
+
+That implementation is not a complete ARC runtime. The typed SVM IR, SIL,
+other backends, general strings, structs, closures, collections, and imported
+library wrappers do not yet share a complete retain/release implementation.
+Do not claim universal automatic memory management until the compiler/runtime
+and cross-target tests establish it.
 
 ## Acceptance criteria
 
-The model is not complete until tests demonstrate all of the following:
+ARC is complete only when tests demonstrate:
 
-- No user-written deallocation is needed for ordinary values.
-- No runtime reference counts or tracing collector are emitted.
-- Stack promotion works for bounded non-escaping aggregates on every supported
-  backend where stack storage is available.
-- Heap values are reclaimed at last use or the end of their proven owner scope.
-- Moves, borrows, aliases, returns, captures, and calls preserve lifetime safety.
-- Nested branches, loops, break, continue, early returns, and error exits
-  produce exactly-once cleanup.
-- Invalid use-after-move, use-after-destroy, and escaping-borrow programs are
-  rejected with source locations.
-- Sanitizer tests, allocation counters, stress tests, and cross-target runtime
-  tests validate the generated behavior.
+- Ordinary values and references require no manual allocation or deallocation.
+- Copies, assignments, returns, captures, and container storage preserve
+  object lifetime.
+- Objects are reclaimed after their final managed reference is released.
+- Early returns, loops, branches, and error paths do not leak or double-release.
+- Reference cycles follow the documented weak-reference or cycle-collection
+  policy.
+- Native resource wrappers release external resources exactly once.
+- Importing any ordinary library never disables ARC.
+- All supported targets pass lifetime, stress, sanitizer, and interoperability
+  tests.
 
-Swan is not currently a memory-safe or safety-certified language. Compiler
-analysis cannot make arbitrary unsafe pointer arithmetic, data races, foreign
-code, or undefined behavior safe by rewriting generated machine code.
+Swan aims to make ordinary application programming high-level and automatic.
+Low-level allocation strategies remain compiler/runtime implementation details,
+not a second programming mode that users must learn.
