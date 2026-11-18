@@ -45,7 +45,13 @@ static inline bool swan_sil_statements(SwanSILModule *m,SwanSILFunction *f,Stmt 
    SwanSILInstruction alloc={0};alloc.opcode=SWAN_SIL_ALLOC_STACK;alloc.type=SWAN_SIL_TYPE_ADDRESS;
    alloc.text=s->name;alloc.location=&s->token;uint32_t address=swan_sil_emit(m,f,alloc);
    uint32_t value=swan_sil_expr(m,f,s->value);
-   if(value){SwanSILInstruction store={0};store.opcode=SWAN_SIL_STORE;store.type=SWAN_SIL_TYPE_TRIVIAL;store.operands[0]=address;store.operands[1]=value;store.operand_count=2;store.side_effecting=true;store.location=&s->token;if(!swan_sil_emit(m,f,store))return false;}
+   if(value&&s->manual_borrow){
+    SwanSILInstruction borrow={0};borrow.opcode=SWAN_SIL_BORROW_VALUE;
+    borrow.type=SWAN_SIL_TYPE_TRIVIAL;borrow.operands[0]=value;
+    borrow.operand_count=1;borrow.location=&s->token;
+    value=swan_sil_emit(m,f,borrow);if(!value)return false;
+   }
+   if(value){SwanSILInstruction store={0};store.opcode=SWAN_SIL_STORE;store.type=SWAN_SIL_TYPE_TRIVIAL;store.operands[0]=address;store.operands[1]=value;store.operand_count=2;store.side_effecting=true;store.ownership=s->manual_memory?SWAN_SIL_OWNED:SWAN_SIL_OWNERSHIP_NONE;store.location=&s->token;if(!swan_sil_emit(m,f,store))return false;}
   }else if(s->kind==S_RETURN){
    uint32_t value=swan_sil_expr(m,f,s->value);SwanSILInstruction ret={0};ret.opcode=SWAN_SIL_RETURN;ret.type=SWAN_SIL_TYPE_TRIVIAL;ret.side_effecting=true;ret.terminates_block=true;ret.location=&s->token;if(value){ret.operands[0]=value;ret.operand_count=1;}if(!swan_sil_emit(m,f,ret))return false;
   }else if(s->kind==S_IF){
