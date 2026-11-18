@@ -1,5 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "swan/compiler.h"
+#include "../../lib/Driver/SIC.h"
 #include <glob.h>
 
 /* The executable entry point owns command-line orchestration. */
@@ -371,7 +372,10 @@ static int swan_run(int argc,char **argv){
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
  bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false,target_all=false;size_t compile_jobs=1;
- const SwanTarget *target=swan_target_find(sic_compile_command?"wasm64":"x86_64");
+ SwanSICHost detected_host=swan_sic_detect_host();
+ const char *default_target_name=sic_compile_command||detected_host.environment==SWAN_SIC_ENV_WEBASSEMBLY?"wasm64":
+     detected_host.architecture==SWAN_SIC_ARCH_ARM64?"arm64":"x86_64";
+ const SwanTarget *target=swan_target_find(default_target_name);
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--low-resource"))compile_jobs=1;
   else if(!strcmp(argv[i],"--jobs")&&i+1<argc){char *end=NULL;errno=0;unsigned long jobs=strtoul(argv[++i],&end,10);if(errno||!end||*end||jobs!=1){fprintf(stderr,"swan: this compiler currently supports only --jobs 1; parallel compilation is not implemented\n");SWAN_RETURN(2);}compile_jobs=(size_t)jobs;}
@@ -514,22 +518,69 @@ static int swan_run(int argc,char **argv){
   SWAN_RETURN(result);
  }
  if(target->architecture==SWAN_ARCH_AARCH64){
-  if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
-
+  SwanSICHost host=swan_sic_detect_host();
+  bool native_arm64=host.environment==SWAN_SIC_ENV_NATIVE&&host.architecture==SWAN_SIC_ARCH_ARM64;
+  if((mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT)&&!native_arm64){
+   fprintf(stderr,"swan: AArch64 execution requires an ARM64 host; cross-target output must be linked and run on ARM64\n");
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);
+  }
   SwanSVMOutput compiled={0};
   bool generated=swan_svm_codegen(&p,target,&compiled,&err);
   Text assembly={.data=compiled.data,.len=compiled.length};
   if(!generated){
-   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
+   fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");free(assembly.data);
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
   }
-  const char *dest=output?output:(mode==SWAN_EMIT?"aarch64.s":"aarch64.o");int result=0;
-  if(mode==SWAN_EMIT){FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}}
-  else {
-   char temp[]="/tmp/swan-a64-XXXXXX";int fd=mkstemp(temp);if(fd<0)result=1;
-   else {FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);if(of&&fclose(of)!=0)ok=false;if(!ok){if(!of)close(fd);result=1;}else{char *args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",temp,"-o",(char*)dest,NULL};result=swan_exec(args,true);}unlink(temp);}
+  int result=0;
+  if(mode==SWAN_EMIT){
+   const char *dest=output?output:"aarch64.s";
+   FILE *of=fopen(dest,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);
+   if(of&&fclose(of)!=0)ok=false;
+   if(!ok){fprintf(stderr,"swan: cannot write assembly '%s'\n",dest);result=1;}
+  }else if(native_arm64){
+   char executable[1024];
+   bool temporary=output==NULL&&mode!=SWAN_BUILD;
+   int name_length=output?snprintf(executable,sizeof(executable),"%s",output):
+       mode==SWAN_BUILD?snprintf(executable,sizeof(executable),"a.out"):
+       snprintf(executable,sizeof(executable),"/tmp/swan-arm64-run-%ld",(long)getpid());
+   if(name_length<0||(size_t)name_length>=sizeof(executable)){
+    fprintf(stderr,"swan: output path is too long\n");result=1;
+   }else{
+    char temp[]="/tmp/swan-arm64-XXXXXX";int fd=mkstemp(temp);
+    if(fd<0)result=1;
+    else{
+     FILE *of=fdopen(fd,"wb");bool written=of&&swan_emit_assembly(of,&assembly);
+     if(written&&c_input_count)written=swan_append_c_assembly(of,c_inputs,c_input_count);
+     if(of&&fclose(of)!=0)written=false;
+     else if(!of)close(fd);
+     if(!written){fprintf(stderr,"swan: cannot write temporary ARM64 assembly\n");result=1;}
+     else result=swan_link_assembly_with_args("cc",temp,executable,link_args,link_arg_count);
+     unlink(temp);
+    }
+    if(result==0&&mode!=SWAN_BUILD){
+     char *run_args[]={executable,NULL};result=swan_exec(run_args,false);
+    }
+    if(temporary)unlink(executable);
+   }
+  }else{
+   const char *dest=output?output:"aarch64.o";
+   char temp[]="/tmp/swan-a64-XXXXXX";int fd=mkstemp(temp);
+   if(fd<0)result=1;
+   else{
+    FILE *of=fdopen(fd,"wb");bool ok=of&&swan_emit_assembly(of,&assembly);
+    if(of&&fclose(of)!=0)ok=false;
+    else if(!of)close(fd);
+    if(!ok)result=1;
+    else{
+     char *args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",temp,"-o",(char*)dest,NULL};
+     result=swan_exec(args,true);
+    }
+    unlink(temp);
+   }
    if(result)fprintf(stderr,"swan: AArch64 assembly failed; install a Clang toolchain with AArch64 support\n");
   }
-  free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(result);
+  free(assembly.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
+  SWAN_RETURN(result);
  }
  if(mode==SWAN_EMIT&&has_lazy){fprintf(stderr,"swan: --emit-asm cannot bundle runtime-lazy modules; use 'swan build' or 'swan run'\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
  if(!has_lazy&&(p.source_count>1||c_input_count>0)&&target->architecture==SWAN_ARCH_X86_64){
