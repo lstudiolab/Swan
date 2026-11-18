@@ -56,10 +56,10 @@ SWAN
 grep -q 'call malloc' "$TMP/program-asm/raw.s"
 grep -q 'call memset' "$TMP/program-asm/raw.s"
 grep -q 'free@PLT' "$TMP/program-asm/program.s"
-grep -q 'movzx eax, BYTE PTR \\[rax\\]' "$TMP/program-asm/program.s"
-grep -q 'movzx eax, WORD PTR \\[rax\\]' "$TMP/program-asm/program.s"
-grep -q 'mov eax, DWORD PTR \\[rax\\]' "$TMP/program-asm/program.s"
-grep -q 'mov rax, QWORD PTR \\[rax\\]' "$TMP/program-asm/program.s"
+grep -q 'movzx eax, BYTE PTR \[rax\]' "$TMP/program-asm/program.s"
+grep -q 'movzx eax, WORD PTR \[rax\]' "$TMP/program-asm/program.s"
+grep -q 'mov eax, DWORD PTR \[rax\]' "$TMP/program-asm/program.s"
+grep -q 'mov rax, QWORD PTR \[rax\]' "$TMP/program-asm/program.s"
 grep -q 'sub rsp, rax' "$TMP/program-asm/program.s"
 
 cat > "$TMP/automatic.swan" <<'SWAN'
