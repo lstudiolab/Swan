@@ -31,6 +31,14 @@ func main() -> int:
     print(gcd(-9223372036854775807 - 1, 1))
     print(gcd(-9223372036854775807 - 1, 0))
     print(lcm(-9223372036854775807 - 1, 1))
+    print(floor_div(-9223372036854775807 - 1, 3))
+    print(ceil_div(9223372036854775807, 3))
+    print(floor_div(-9223372036854775807 - 1, -1))
+    print(triangular(4294967295))
+    print(triangular(9223372036854775807))
+    print(distance_int(-9223372036854775807 - 1, 9223372036854775807))
+    print(fibonacci(92))
+    print(fibonacci(93))
     return 0
 SWAN
 
@@ -57,6 +65,14 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 6
 1
 0
+0
+-3074457345618258603
+3074457345618258603
+0
+9223372034707292160
+0
+0
+7540113804746346429
 0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
