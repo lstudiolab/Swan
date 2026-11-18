@@ -118,24 +118,103 @@ code, or undefined behavior safe by rewriting generated machine code.
 
 ## Raw mode and the i64 interface
 
-Importing `raw` opts the whole program into raw mode. Raw mode disables the native x86-64 AST backend's compiler-inserted array reclamation. It does not change programs that do not import `raw`. Raw mode also disables the automatic stack-promotion path for arrays, so the programmer can reason about the allocator-backed representation directly.
+Importing `raw` opts the whole program into the raw execution model. Without
+that import, Swan's existing automatic array lifetime behavior is unchanged.
+With `raw`, compiler-inserted array reclamation and automatic array stack
+promotion are disabled. Raw programs must manage raw allocations explicitly.
 
-The `raw` standard module exposes native allocator and byte-memory operations:
+### Address representation
 
-| Function | Operation |
-| --- | --- |
-| `raw.alloc(size: i64) -> i64` | Allocate uninitialized bytes |
-| `raw.alloc_zeroed(count: i64, size: i64) -> i64` | Allocate zeroed bytes |
-| `raw.resize(pointer: i64, size: i64) -> i64` | Reallocate an allocation |
-| `raw.release(pointer: i64)` | Release an allocation |
-| `raw.copy(dst: i64, src: i64, size: i64) -> i64` | Copy non-overlapping bytes |
-| `raw.move_bytes(dst: i64, src: i64, size: i64) -> i64` | Copy bytes with overlap support |
-| `raw.fill(dst: i64, value: i64, size: i64) -> i64` | Fill a byte range |
-| `raw.load8/16/32/64(address: i64) -> i64` | Load an unsigned value directly from memory |
-| `raw.store8/16/32/64(address: i64, value: i64)` | Store the low 8/16/32/64 bits directly to memory |
+Raw addresses and byte counts use `i64`. On the implemented x86-64 System V
+backend, an address is carried in a 64-bit general-purpose register. This is
+a machine-word ABI convention, not a portable pointer type. The compiler
+rejects raw mode on other target architectures until they have matching
+pointer, memory-operation, and lifetime implementations.
 
-These operations call the native C allocator and memory functions. Allocation failure returns zero/null. The caller must check results, release each live allocation exactly once, and must not use an allocation after release or after a successful resize that moved it.
+### Raw allocation interface
 
-`i64` is a signed 64-bit integer. On the implemented x86-64 System V ABI, raw addresses are represented as `i64` machine words. This is not a portable pointer representation on targets with different pointer widths or ABIs. Complete static type checking, pointer provenance, and bounds safety are not provided by the current frontend.
+| Operation | Signature | Behavior |
+| --- | --- | --- |
+| Heap allocation | `raw.alloc(size: i64) -> i64` | Allocate uninitialized bytes |
+| Zeroed allocation | `raw.alloc_zeroed(count: i64, size: i64) -> i64` | Allocate zeroed bytes |
+| Heap alias | `raw.heap(size: i64) -> i64` | Allocate uninitialized heap bytes |
+| Resize | `raw.resize(pointer: i64, size: i64) -> i64` | Resize; preserves the old pointer on allocation failure |
+| Release | `raw.release(pointer: i64)` | Release an unmanaged raw pointer |
+| Copy | `raw.copy(dst: i64, src: i64, size: i64) -> i64` | Copy non-overlapping bytes |
+| Move bytes | `raw.move_bytes(dst: i64, src: i64, size: i64) -> i64` | Copy with overlap support |
+| Fill | `raw.fill(dst: i64, value: i64, size: i64) -> i64` | Fill a byte range |
+| Stack allocation | `raw.stack(size: i64) -> i64` | Dynamically reserve aligned stack bytes until function return |
+| Arena creation | `raw.arena(capacity: i64) -> i64` | Create a fixed-capacity heap-backed bump arena |
+| Arena allocation | `raw.arena_alloc(arena: i64, size: i64) -> i64` | Allocate an aligned slice from an arena |
+| Arena reset | `raw.arena_reset(arena: i64)` | Rewind the arena to offset zero |
+| Arena remaining | `raw.arena_remaining(arena: i64) -> i64` | Return remaining capacity |
+| Arena release | `raw.arena_release(arena: i64)` | Release the arena backing allocation |
 
-The dedicated `own`, `borrow`, `move`, `drop`, `stack`, `heap`, and `arena` language constructs, plus direct typed load/store intrinsics, still require parser, semantic, verifier, and backend implementation. They are not claimed by this initial raw-mode layer.
+Allocation functions return zero on failure. Negative sizes are rejected by the
+Swan wrappers. The arena stores capacity and used-byte offsets in a 16-byte
+header and aligns allocations to 8 bytes. Arena slices remain valid until the
+arena is reset or released.
+
+### Direct memory operations
+
+The following functions are compiler intrinsics, not ordinary library calls:
+
+- `raw.load8/16/32/64(address: i64) -> i64` — unsigned load from the exact
+  address.
+- `raw.store8/16/32/64(address: i64, value: i64)` — store the low 8, 16, 32,
+  or 64 bits at the exact address.
+
+On x86-64 these lower to direct `mov` instructions with byte, word, dword, or
+qword memory operands. They do not perform bounds checks, alignment checks,
+or pointer-provenance checks. Invalid addresses and out-of-bounds access have
+native undefined behavior.
+
+### Ownership syntax
+
+Raw owner and borrow declarations are checked by semantic analysis:
+
+```swan
+import raw
+
+func main() -> int:
+    own var buffer: i64 = raw.heap(64)
+
+    if raw.load8(borrow buffer) == 0:
+        borrow let view: i64 = buffer
+        raw.store8(view, 65)
+
+    own var resized: i64 = raw.resize(move buffer, 128)
+    drop resized
+    return 0
+```
+
+- `own var name: i64 = allocation` creates the unique owner of an allocation.
+- `borrow let view: i64 = owner` creates an immutable, lexical view. A view
+  cannot be copied into an ordinary variable or returned.
+- `borrow owner` creates a temporary borrow for a call argument.
+- `move owner` transfers ownership and invalidates the previous owner.
+- `drop owner` releases an owner exactly once.
+
+The semantic checker rejects use after move/drop, copying an owner, dropping or
+moving an owner while a lexical borrow is live, and leaving a scope or
+returning while an owner remains live. Branches must agree on each owner's
+state; ownership cannot be changed inside a loop when that would make its
+post-loop state ambiguous.
+
+`raw.release` remains available for unmanaged `i64` pointers and internal
+runtime code. For values declared with `own`, prefer `drop` so the compiler
+can track the owner state. A borrowed view cannot be passed to `raw.release`.
+
+### Safety boundary
+
+Raw mode is deliberately unsafe. The current implementation checks lexical
+ownership of variables declared with `own`, but it cannot prove that arbitrary
+`i64` values are valid addresses, that a foreign function does not retain a
+borrow, or that pointer arithmetic stays within an allocation. A raw pointer
+stored in an ordinary `i64` is outside the owner checker. The programmer is
+responsible for FFI contracts, bounds, alignment, aliasing, synchronization,
+and exactly-once release.
+
+The default Swan memory model remains separate: ordinary values continue to
+use the compiler's existing automatic behavior and do not require `own`,
+`borrow`, `move`, or `drop`.
