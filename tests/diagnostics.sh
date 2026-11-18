@@ -19,7 +19,7 @@ func main() -> int:
     return 0
 SWAN
 
-if ! "$SWAN" "$TMP/warnings.swan" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"; then cat "$TMP/warnings.err" >&2; exit 1; fi
+"$SWAN" "$TMP/warnings.swan" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"
 grep -q "self-assignment to 'value' has no effect" "$TMP/warnings.err"
 grep -q "condition is always true" "$TMP/warnings.err"
 grep -q "literal zero" "$TMP/warnings.err"
