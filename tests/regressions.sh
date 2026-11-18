@@ -30,7 +30,7 @@ expect_rejected obsolete-out-terminator
 
 cat > "$TMP/removed-printin.swan" <<'SWAN'
 func main() -> int:
-    !printin >> "old syntax";
+    !printin >> "removed syntax";
     return 0
 SWAN
 expect_rejected removed-printin

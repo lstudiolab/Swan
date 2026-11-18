@@ -126,7 +126,7 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
  program->codegen_source_index=-1;
  program->codegen_include_external_functions=target->architecture!=SWAN_ARCH_WASM32&&target->architecture!=SWAN_ARCH_WASM64;
  program->codegen_force_ast=target->architecture==SWAN_ARCH_X86_64&&
-                            (program->no_heap||swan_program_requires_ast_compatibility(program));
+                            (program->raw_mode||program->no_heap||swan_program_requires_ast_compatibility(program));
  for(size_t i=0;i<program->source_count;i++){
   if(i>(size_t)INT_MAX){swan_error(error,NULL,"source index exceeds code-generation representation");goto fail;}
   char path[4096];
@@ -189,7 +189,7 @@ static bool swan_compile_project_objects(Program *program,char ***objects_out,
  *objects_out=NULL;*object_count_out=0;
  program->codegen_source_index=-1;
  program->codegen_include_external_functions=true;
- program->codegen_force_ast=program->no_heap||swan_program_requires_ast_compatibility(program);
+ program->codegen_force_ast=program->raw_mode||program->no_heap||swan_program_requires_ast_compatibility(program);
  if(program->source_count>SIZE_MAX/sizeof(char*)){
   swan_error(error,NULL,"project object list size overflow");return false;
  }
@@ -385,6 +385,10 @@ static int swan_run(int argc,char **argv){
   swan_print_diagnostic("swan",&err);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
  }
  swan_profile_end(SWAN_PROFILE_IMPORTS,stage);
+ if(p.raw_mode&&target->architecture!=SWAN_ARCH_X86_64){
+  fprintf(stderr,"swan: import raw currently requires the native x86-64 backend; this target has no raw pointer and ownership lowering yet\\n");
+  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);
+ }
  stage=swan_profile_start();
  if(!swan_semantic_check(&p,&err)){swan_print_diagnostic("swan",&err);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);}
  swan_profile_end(SWAN_PROFILE_SEMA,stage);

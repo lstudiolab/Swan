@@ -59,7 +59,7 @@ static inline void collect_locals(Stmt **body,size_t n,Locals *l){for(size_t i=0
   v->array_u32=true;v->array_unchecked=true;int64_t length=0;
   if(s->value->argc==1&&cg_const_value(s->value->args[0],&length)&&length>=0&&length<=INT32_MAX){v->array_length=length;v->array_length_known=true;}
  }
-}}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
+}if(v&&s->type&&!strcmp(s->type,"u32_array")){v->array_u32=true;v->array_unchecked=s->array_unchecked;}}collect_locals(s->body,s->body_count,l);collect_locals(s->alternate,s->alt_count,l);}}
 static inline void emit_restore_regs(Text *o,Locals *l){
  for(int i=0;i<l->saved_reg_count;i++)text_add(o,"    mov %s, QWORD PTR [rbp - %d]\n",cg_saved_regs[i],l->slots*8+(i+1)*8);
 }
@@ -259,6 +259,16 @@ static inline bool expr_inline_pure(Expr *e,const char *parameter,bool only_para
  }
  return false;
 }
+static inline void cg_clear_moved_arguments(Text *o,Expr *e,Locals *l){
+ for(size_t i=0;i<e->argc;i++){
+  Expr *argument=e->args[i];
+  if(!argument||argument->kind!=E_UNARY||argument->token.kind!=T_MOVE||
+     !argument->left||argument->left->kind!=E_NAME)continue;
+  Local *source=local_find(l,argument->left->token.text);if(!source)continue;
+  if(source->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(source->reg),cg_reg_low_name(source->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",source->slot*8);
+ }
+}
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  const char *name=swan_expr_terminal_name(e->left);if(!name){swan_error(err,&e->token,"invalid function call target");return;}
  if(!strcmp(name,"free")){if(e->argc!=1||!e->args[0]||e->args[0]->kind!=E_NAME){swan_error(err,&e->token,"free expects one memory variable");return;}Local *v=local_find(l,e->args[0]->token.text);if(!v||!v->array_u32){swan_error(err,&e->token,"free requires an array variable");return;}cg_save_volatile(o,l);if(v->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",v->slot*8);if(!v->array_unchecked)text_add(o,"    sub rdi, 8\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);text_add(o,"    xor eax, eax\n");return;}
@@ -299,6 +309,52 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  Stmt *callee_fn=o->program?cg_find_link_function(o->program,name):NULL;
  int target_module=callee_fn&&callee_fn->imported?callee_fn->module_index:-1;
  bool external_call=callee_fn&&callee_fn->external;
+ /* raw.loadN/storeN are compiler intrinsics: lower directly to native
+    memory operands instead of emitting calls to nonexistent C symbols. */
+ bool raw_module=o->program&&o->program->raw_mode&&callee_fn&&callee_fn->external&&
+   callee_fn->module_index>=0&&callee_fn->module_index< (int)o->program->module_count&&
+   !strcmp(o->program->module_names[callee_fn->module_index],"raw");
+ if(raw_module){
+  const char *intrinsic=callee_fn->name;
+  if(!strcmp(intrinsic,"release")){
+   if(e->argc!=1){swan_error(err,&e->token,"raw release expects exactly one argument");return;}
+   cg_save_volatile(o,l);emit_expr(o,e->args[0],l,err);
+   text_add(o,"    mov rdi, rax\n");cg_call(o,"free@PLT");cg_restore_volatile(o,l);cg_clear_moved_arguments(o,e,l);
+   return;
+  }
+  if(!strcmp(intrinsic,"stack")){
+   if(e->argc!=1){swan_error(err,&e->token,"raw stack expects exactly one size argument");return;}
+   emit_expr(o,e->args[0],l,err);
+   text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n    add rax, 15\n    jc .Lswan_array_bounds_fail\n    and rax, -16\n    sub rsp, rax\n    mov rax, rsp\n");
+   o->uses_array_bounds=true;return;
+  }
+  int width=0;bool store=false;
+  if(!strcmp(intrinsic,"load8"))width=8;
+  else if(!strcmp(intrinsic,"load16"))width=16;
+  else if(!strcmp(intrinsic,"load32"))width=32;
+  else if(!strcmp(intrinsic,"load64"))width=64;
+  else if(!strcmp(intrinsic,"store8")){width=8;store=true;}
+  else if(!strcmp(intrinsic,"store16")){width=16;store=true;}
+  else if(!strcmp(intrinsic,"store32")){width=32;store=true;}
+  else if(!strcmp(intrinsic,"store64")){width=64;store=true;}
+  if(width){
+   if(e->argc!=(store?2u:1u)){swan_error(err,&e->token,"raw %s expects %u argument(s)",intrinsic,store?2u:1u);return;}
+   if(store){
+    emit_expr(o,e->args[0],l,err);cg_push(o,"rax");
+    emit_expr(o,e->args[1],l,err);cg_pop(o,"r10");
+    text_add(o,"    mov %s PTR [r10], %s\n",
+      width==8?"BYTE":width==16?"WORD":width==32?"DWORD":"QWORD",
+      width==8?"al":width==16?"ax":width==32?"eax":"rax");
+   }else{
+    emit_expr(o,e->args[0],l,err);
+    if(width==8)text_add(o,"    movzx eax, BYTE PTR [rax]\n");
+    else if(width==16)text_add(o,"    movzx eax, WORD PTR [rax]\n");
+    else if(width==32)text_add(o,"    mov eax, DWORD PTR [rax]\n");
+    else text_add(o,"    mov rax, QWORD PTR [rax]\n");
+   }
+   return;
+  }
+ }
  if(o->program&&(o->program->bundle_imports||target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
   Stmt *fn=cg_find_link_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
@@ -335,7 +391,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   }
   text_add(o,"    call %s\n",symbol);
   if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))text_add(o,"    movzx eax, al\n");
-  cg_release(o,reserve);cg_restore_volatile(o,l);return;
+  cg_release(o,reserve);cg_restore_volatile(o,l);cg_clear_moved_arguments(o,e,l);return;
  }
  if(e->argc>(size_t)INT32_MAX/8){swan_error(err,&e->token,"call staging area exceeds the x86-64 displacement range");return;}
  size_t stage_bytes=e->argc*8,stage_area=(stage_bytes+15u)&~(size_t)15u;
@@ -351,7 +407,7 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   text_add(o,"    mov %s, QWORD PTR [rsp + %zu]\n",regs[i],stage_base+i*8);
  text_add(o,"    call %s\n",symbol);
  if(callee_fn&&callee_fn->type&&(!strcmp(callee_fn->type,"bool")||!strcmp(callee_fn->type,"i1")))text_add(o,"    movzx eax, al\n");
- cg_release(o,reserve);cg_release(o,(int)stage_area);cg_restore_volatile(o,l);
+ cg_release(o,reserve);cg_release(o,(int)stage_area);cg_restore_volatile(o,l);cg_clear_moved_arguments(o,e,l);
 }
 static inline bool cg_const_value(Expr *e,int64_t *out);
 static inline bool cg_const_value_uncached(Expr *e,int64_t *out){
@@ -414,7 +470,13 @@ static inline void emit_expr(Text *o,Expr *e,Locals *l,SwanError *err){
  case E_FLOAT:swan_error(err,&e->token,"floating point is not yet supported by the C backend");break;
  case E_STRING:emit_string_pointer(o,e->token.text);break;
  case E_NAME:{if(o->inline_param&&!strcmp(e->token.text,o->inline_param)){Expr *arg=o->inline_arg;const char *param=o->inline_param;o->inline_arg=NULL;o->inline_param=NULL;emit_expr(o,arg,l,err);o->inline_arg=arg;o->inline_param=param;break;}Local *v=local_find(l,e->token.text);if(!v)swan_error(err,&e->token,"unknown variable '%s'",e->token.text);else if(v->reg>=0)text_add(o,"    mov rax, %s\n",cg_reg_name(v->reg));else text_add(o,"    mov rax, QWORD PTR [rbp - %d]\n",v->slot*8);break;}
- case E_UNARY:emit_expr(o,e->left,l,err);if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");else text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");break;
+ case E_UNARY:
+   emit_expr(o,e->left,l,err);
+   if(e->token.kind==T_MINUS)text_add(o,"    neg rax\n");
+   else if(e->token.kind==T_MOVE){
+    if(e->left&&e->left->kind==E_NAME){Local *source=local_find(l,e->left->token.text);if(source){if(source->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(source->reg),cg_reg_low_name(source->reg));else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",source->slot*8);}}
+   }else if(e->token.kind!=T_BORROW)text_add(o,"    test rax, rax\n    sete al\n    movzx rax, al\n");
+   break;
  case E_CALL:emit_call(o,e,l,err);break;
  case E_INDEX:{
   if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"array base must be a local array variable");break;}
@@ -1110,9 +1172,34 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
      cg_save_volatile(o,l);text_add(o,"\"\n.text\n    lea rdi, [rip + .Lswan_str_%d]\n",id);cg_call(o,"puts@PLT");cg_restore_volatile(o,l);
     }else{emit_expr(o,s->value,l,err);cg_save_volatile(o,l);text_add(o,"    mov rsi, rax\n    lea rdi, [rip + .Lswan_fmt]\n    xor eax, eax\n");cg_call(o,"printf@PLT");cg_restore_volatile(o,l);}
     break;
-    case S_RETURN:if(samc_has_cleanup(l)&&samc_expr_uses_owned_array(s->value,l)){if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");cg_push(o,"rax");emit_samc_cleanup(o,l);cg_pop(o,"rax");}else{emit_samc_cleanup(o,l);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");}emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
+    case S_RETURN:if(!o->program->raw_mode&&samc_has_cleanup(l)&&samc_expr_uses_owned_array(s->value,l)){if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");cg_push(o,"rax");emit_samc_cleanup(o,l);cg_pop(o,"rax");}else{if(!o->program->raw_mode)emit_samc_cleanup(o,l);if(s->value)emit_expr(o,s->value,l,err);else text_add(o,"    xor eax, eax\n");}emit_restore_regs(o,l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");break;
    case S_EXPR:if(!emit_accumulate_statement(o,s->value,l,err)&&!emit_increment_statement(o,s->value,l))emit_expr(o,s->value,l,err);break;
    case S_FREE:if(s->value)emit_expr(o,s->value,l,err);break;
+   case S_DROP:{
+    if(!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"drop expects an owned local");break;}
+    Local *owner=local_find(l,s->value->token.text);if(!owner){swan_error(err,&s->value->token,"unknown owned local");break;}
+    if(owner->array_u32){ownership_cleanup_local(o,l,owner);break;}
+    if(owner->array_u32){
+     int skip=o->next_label++;
+     if(owner->reg>=0)text_add(o,"    test %s, %s\n    je .Lswan_drop_skip_%d\n",cg_reg_name(owner->reg),cg_reg_name(owner->reg),skip);
+     else text_add(o,"    cmp QWORD PTR [rbp - %d], 0\n    je .Lswan_drop_skip_%d\n",owner->slot*8,skip);
+     cg_save_volatile(o,l);
+     if(owner->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(owner->reg));
+     else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",owner->slot*8);
+     if(!owner->array_unchecked)text_add(o,"    sub rdi, 8\n");
+     cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+     if(owner->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(owner->reg),cg_reg_low_name(owner->reg));
+     else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",owner->slot*8);
+     text_add(o,".Lswan_drop_skip_%d:\n",skip);break;
+    }
+    cg_save_volatile(o,l);
+    if(owner->reg>=0)text_add(o,"    mov rdi, %s\n",cg_reg_name(owner->reg));
+    else text_add(o,"    mov rdi, QWORD PTR [rbp - %d]\n",owner->slot*8);
+    cg_call(o,"free@PLT");cg_restore_volatile(o,l);
+    if(owner->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(owner->reg),cg_reg_low_name(owner->reg));
+    else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",owner->slot*8);
+    break;
+   }
    case S_PASS:break;
    case S_BREAK:if(!o->loop_depth)swan_error(err,&s->token,"break is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_end_%d\n",o->loop_break[o->loop_depth-1]);break;
    case S_CONTINUE:if(!o->loop_depth)swan_error(err,&s->token,"continue is only valid inside a loop");else text_add(o,"    jmp .Lswan_loop_%d\n",o->loop_continue[o->loop_depth-1]);break;
@@ -1160,7 +1247,7 @@ static inline void emit_block(Text *o,Stmt **body,size_t n,Locals *l,int *label,
    }
    default:swan_error(err,&s->token,"statement kind %d is not implemented by the x86-64 backend",(int)s->kind);break;
   }
-  if(top_level){
+  if(top_level&&!o->program->raw_mode){
    for(size_t k=0;k<l->count;k++){
     Local *owned=&l->items[k];
     if(owned->array_u32&&!owned->samc_escaped&&!owned->stack_array&&
@@ -1204,11 +1291,11 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
     param->array_u32=true;param->array_unchecked=true;param->samc_escaped=true;
    }
   }
-  collect_locals(fn->body,fn->body_count,&l);if(l.failed){free(l.items);swan_error(err,&fn->token,"out of memory growing AST backend local table");return false;}samc_scan_escapes(fn->body,fn->body_count,&l);samc_assign_stack_arrays(&l);if(p->no_heap&&!samc_validate_no_heap(fn,&l,err)){free(l.items);return false;}if(l.slots>INT32_MAX/8){free(l.items);swan_error(err,&fn->token,"AST backend stack frame exceeds signed displacement range");return false;}int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);
+  collect_locals(fn->body,fn->body_count,&l);if(l.failed){free(l.items);swan_error(err,&fn->token,"out of memory growing AST backend local table");return false;}samc_scan_escapes(fn->body,fn->body_count,&l);if(!p->raw_mode)samc_assign_stack_arrays(&l);if(p->no_heap&&!samc_validate_no_heap(fn,&l,err)){free(l.items);return false;}if(l.slots>INT32_MAX/8){free(l.items);swan_error(err,&fn->token,"AST backend stack frame exceeds signed displacement range");return false;}int frame=(int)(((l.slots+l.saved_reg_count)*8u+l.array_storage_bytes+15u)&~(size_t)15u);if(p->raw_mode&&!frame)frame=16;
   char sym[SWAN_MAX_TEXT+128];if(!strcmp(fn->name,"main"))strcpy(sym,"main");else if(fn->exported&&!fn->imported)snprintf(sym,sizeof(sym),"%s",fn->name);else snprintf(sym,sizeof(sym),"swan_fn_%s",fn->link_name?fn->link_name:fn->name);
   o->frameless=frame==0&&l.saved_reg_count==0;if(o->frameless)text_add(o,".globl %s\n%s:\n",sym,sym);else{text_add(o,".globl %s\n%s:\n    push rbp\n    mov rbp, rsp\n",sym,sym);if(frame)text_add(o,"    sub rsp, %d\n",frame);}
   for(int a=0;a<l.saved_reg_count;a++)text_add(o,"    mov QWORD PTR [rbp - %d], %s\n",l.slots*8+(a+1)*8,cg_saved_regs[a]);
-  ownership_initialize_handles(o,&l);
+  if(!p->raw_mode)ownership_initialize_handles(o,&l);
   const char *regs[]={"rdi","rsi","rdx","rcx","r8","r9"};
   const char *byte_regs[]={"dil","sil","dl","cl","r8b","r9b"};
   for(size_t a=fn->param_count<6?fn->param_count:6;a>0;a--){
@@ -1241,7 +1328,7 @@ static inline bool swan_codegen_x86_64(Program *p,Text *o,SwanError *err){
     text_add(o,"    mov QWORD PTR [rbp - %d], rax\n",v->slot*8);
    }
   }
-  emit_block(o,fn->body,fn->body_count,&l,&strid,err);emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
+  emit_block(o,fn->body,fn->body_count,&l,&strid,err);if(!p->raw_mode)emit_samc_cleanup(o,&l);text_add(o,"    xor eax, eax\n");emit_restore_regs(o,&l);if(o->frameless)text_add(o,"    ret\n");else text_add(o,"    leave\n    ret\n");
   free(l.items);
  }
  for(size_t i=0;i<p->count&&!p->bundle_imports;i++){

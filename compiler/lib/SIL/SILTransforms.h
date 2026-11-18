@@ -6,7 +6,7 @@ static inline bool swan_sil_canonicalize(SwanSILModule *m,bool *changed) {
  for(size_t f=0;f<m->function_count;f++)for(size_t i=0;i<m->functions[f].instruction_count;i++){
   SwanSILInstruction *in=&m->functions[f].instructions[i];
   if(in->opcode==SWAN_SIL_COPY_VALUE&&in->operand_count==1){in->deleted=true;any=true;}
-  if(in->opcode==SWAN_SIL_BORROW_VALUE&&in->ownership!=SWAN_SIL_GUARANTEED){in->ownership=SWAN_SIL_GUARANTEED;any=true;}
+  if(in->opcode==SWAN_SIL_BORROW_VALUE&&in->type==SWAN_SIL_TYPE_OBJECT&&in->ownership!=SWAN_SIL_GUARANTEED){in->ownership=SWAN_SIL_GUARANTEED;any=true;}
  }
  if(changed)*changed=any;
  return true;

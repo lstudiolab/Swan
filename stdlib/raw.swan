@@ -1,0 +1,96 @@
+# Swan raw memory interface
+# Import with: import raw
+#
+# Raw addresses and byte counts use i64. This module intentionally bypasses
+# automatic array cleanup. Owners must be dropped exactly once.
+
+external func malloc(size: i64) -> i64
+external func calloc(count: i64, size: i64) -> i64
+external func realloc(pointer: i64, size: i64) -> i64
+external func memcpy(destination: i64, source: i64, size: i64) -> i64
+external func memmove(destination: i64, source: i64, size: i64) -> i64
+external func memset(destination: i64, value: i64, size: i64) -> i64
+external func load8(address: i64) -> i64
+external func load16(address: i64) -> i64
+external func load32(address: i64) -> i64
+external func load64(address: i64) -> i64
+external func store8(address: i64, value: i64)
+external func store16(address: i64, value: i64)
+external func store32(address: i64, value: i64)
+external func store64(address: i64, value: i64)
+external func stack(size: i64) -> i64
+external func release(pointer: i64)
+
+func alloc(size: i64) -> i64:
+    if size < 0:
+        return 0
+    return malloc(size)
+
+func heap(size: i64) -> i64:
+    return alloc(size)
+
+func alloc_zeroed(count: i64, size: i64) -> i64:
+    if count < 0 or size < 0:
+        return 0
+    return calloc(count, size)
+
+func resize(pointer: i64, size: i64) -> i64:
+    if size < 0:
+        return pointer
+    if size == 0:
+        release(pointer)
+        return 0
+    let updated: i64 = realloc(pointer, size)
+    if updated == 0:
+        return pointer
+    return updated
+
+func copy(destination: i64, source: i64, size: i64) -> i64:
+    if size < 0:
+        return 0
+    return memcpy(destination, source, size)
+
+func move_bytes(destination: i64, source: i64, size: i64) -> i64:
+    if size < 0:
+        return 0
+    return memmove(destination, source, size)
+
+func fill(destination: i64, value: i64, size: i64) -> i64:
+    if size < 0:
+        return 0
+    return memset(destination, value, size)
+
+# Arena layout: [capacity: i64][used: i64][aligned payload...].
+# The arena is one heap allocation; arena_alloc is a checked bump allocator.
+func arena(capacity: i64) -> i64:
+    if capacity < 0 or capacity > 9223372036854775791:
+        return 0
+    let memory: i64 = alloc(capacity + 16)
+    if memory == 0:
+        return 0
+    store64(memory, capacity)
+    store64(memory + 8, 0)
+    return memory
+
+func arena_alloc(memory: i64, size: i64) -> i64:
+    if memory == 0 or size < 0 or size > 9223372036854775800:
+        return 0
+    let capacity: i64 = load64(memory)
+    let used: i64 = load64(memory + 8)
+    let aligned: i64 = ((size + 7) / 8) * 8
+    if aligned > capacity - used:
+        return 0
+    store64(memory + 8, used + aligned)
+    return memory + 16 + used
+
+func arena_reset(memory: i64):
+    if memory != 0:
+        store64(memory + 8, 0)
+
+func arena_remaining(memory: i64) -> i64:
+    if memory == 0:
+        return 0
+    return load64(memory) - load64(memory + 8)
+
+func arena_release(memory: i64):
+    release(memory)

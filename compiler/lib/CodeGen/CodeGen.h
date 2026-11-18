@@ -101,7 +101,7 @@ static inline bool swan_block_exceeds_ir_local_limit(
     return false;
 }
 static inline bool swan_program_requires_ast_compatibility(const Program *program){
-    if(!program||(!program->bundle_imports&&program->import_count))return true;
+    if(!program||program->raw_mode||(!program->bundle_imports&&program->import_count))return true;
     for(size_t i=0;i<program->count;i++){
         const Stmt *function=program->functions[i];
         if(!function)continue;
@@ -122,6 +122,10 @@ static inline bool swan_codegen(Program *program, Text *output,
     if(output)memset(output,0,sizeof(*output));
     if(!program||!output||!target){
         swan_error(error,NULL,"code generation requires a program, output buffer, and target");
+        return false;
+    }
+    if(program->raw_mode&&target->architecture!=SWAN_ARCH_X86_64){
+        swan_error(error,NULL,"import raw currently requires the native x86-64 backend and i64 pointer ABI");
         return false;
     }
     if (target->architecture != SWAN_ARCH_X86_64) {
@@ -190,6 +194,10 @@ static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
     if(output)memset(output,0,sizeof(*output));
     if(!program||!target||!output){
         swan_error(error,NULL,"SVM requires a program, target, and output buffer");
+        return false;
+    }
+    if(program->raw_mode&&target->architecture!=SWAN_ARCH_X86_64){
+        swan_error(error,NULL,"import raw currently requires the native x86-64 backend and i64 pointer ABI");
         return false;
     }
     char detail[256]={0};

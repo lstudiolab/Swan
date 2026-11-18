@@ -40,6 +40,12 @@ static inline bool swan_sil_verify(const SwanSILModule *m,char *error,size_t cap
     if(error&&cap)snprintf(error,cap,"SIL branch successor metadata mismatch in %s",f->name);
     return false;
    }
+   if((in->opcode==SWAN_SIL_MOVE_VALUE||in->opcode==SWAN_SIL_BORROW_VALUE||
+       in->opcode==SWAN_SIL_END_BORROW||in->opcode==SWAN_SIL_DESTROY_VALUE)&&
+      in->operand_count!=1){
+    if(error&&cap)snprintf(error,cap,"SIL ownership instruction requires one operand in %s",f->name);
+    return false;
+   }
    if(in->opcode==SWAN_SIL_STORE&&in->operand_count!=2){
     if(error&&cap){snprintf(error,cap,"SIL store requires address and value in %s",f->name);}
     return false;

@@ -58,3 +58,5 @@ jobs:
         run: sh tests/ffi.sh
       - name: Exercise independent source translation units
         run: sh tests/multi-source.sh
+      - name: Exercise raw memory mode and i64 allocation interface
+        run: sh tests/raw-memory.sh
