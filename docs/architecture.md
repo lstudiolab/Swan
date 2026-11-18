@@ -79,3 +79,8 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 7. Treat performance as unproven until measured on reproducible workloads.
 
 See [SVM Compiler Architecture](svm_architecture.md) for the target-independent compiler design and performance requirements.
+
+
+## Building every supported target
+
+Use `swanc build <source.swan> --target all -o <directory>` to compile one source project for all registered backends. The compiler parses and semantically checks the source once, then emits a native x86-64 executable, an ARM64 ELF object, and a WASM64 memory64 module. The ARM64 object still requires target linking, and the WebAssembly module requires a memory64 runtime. This mode currently rejects C ABI inputs, custom linker arguments, runtime-lazy imports, and `--no-heap`; source constructs must be supported by each backend.
