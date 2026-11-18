@@ -265,8 +265,8 @@ static inline void cg_clear_moved_arguments(Text *o,Expr *e,Locals *l){
   if(!argument||argument->kind!=E_UNARY||argument->token.kind!=T_MOVE||
      !argument->left||argument->left->kind!=E_NAME)continue;
   Local *source=local_find(l,argument->left->token.text);if(!source)continue;
-  if(source->reg>=0)text_add(o,"    xor %s, %s\\n",cg_reg_low_name(source->reg),cg_reg_low_name(source->reg));
-  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\\n",source->slot*8);
+  if(source->reg>=0)text_add(o,"    xor %s, %s\n",cg_reg_low_name(source->reg),cg_reg_low_name(source->reg));
+  else text_add(o,"    mov QWORD PTR [rbp - %d], 0\n",source->slot*8);
  }
 }
 static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
