@@ -5,7 +5,7 @@ TMP="$ROOT/build/ir-div-traps"
 mkdir -p "$TMP"
 cc -std=c11 -O2 -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" \
     "$ROOT/tests/ir_div_trap.c" -o "$TMP/generate"
-for mode in zero overflow unsigned; do
+for mode in zero overflow unsigned i32-zero i32-overflow i32-unsigned; do
     "$TMP/generate" "$mode" "$TMP/$mode.s"
     cc -x assembler "$TMP/$mode.s" -o "$TMP/$mode"
     set +e
