@@ -219,7 +219,7 @@ The typed-IR generator currently handles scalar integer/boolean expressions, dir
 | Target | Current status |
 |---|---|
 | x86-64 System V Linux | Native executable and assembly; typed-IR scalar path plus AST compatibility path |
-| AArch64 / ARM64 Linux | Native executable on an ARM64 host; Swan-owned ELF object/assembly when cross-compiling; signed i32/i64 scalar operations and calls |
+| AArch64 / ARM64 Linux | Native executable on an ARM64 host; Swan-owned ELF object/assembly when cross-compiling; signed i32/i64 operations, calls, and scalar C ABI linking |
 | WebAssembly 64 | Swan-owned memory64 module emission for its implemented subset |
 | SVM | Shared target-independent compilation engine; not a runtime target |
 
