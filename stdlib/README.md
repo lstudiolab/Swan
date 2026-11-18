@@ -62,7 +62,7 @@ Source: `stdlib/std_collections.swan`
 - Search: `array_linear_search`, `array_binary_search`
 - Sorting: `array_bubble_sort`, `array_selection_sort`, `array_insertion_sort`, `array_heap_sort`
 
-The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length, which must not exceed the allocated array length. Binary search requires sorted input. Empty min/max/average results use `0` as a sentinel. It does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
+The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit nonnegative logical length, which must not exceed the allocated array length; violating the capacity precondition triggers the compiler's checked-index trap. Binary search requires sorted input. Empty min/max/average results and invalid fill lengths/values use `0` as a sentinel. `array_sum` also returns `0` if its signed result would overflow. It does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
 
 ### Native JSON runtime (C ABI)
 
