@@ -17,7 +17,7 @@ jobs:
         run: sh test.sh
       - name: Verify production x86-64 IR backend
         run: sh tests/x86-ir.sh
-      - name: Verify shared keyword semantics across native and WASM targets
+      - name: Verify shared keyword semantics across supported targets
         run: sh tests/keyword-targets.sh
       - name: Verify typed SSA IR
         run: sh tests/ir.sh
@@ -33,8 +33,6 @@ jobs:
         run: sh tests/aarch64.sh
       - name: Verify scalar WASM64 binary emission
         run: sh tests/wasm64.sh
-      - name: Verify AArch64 ELF emission
-        run: sh tests/aarch64.sh
       - name: Verify one assembly and object per source file
         run: sh tests/multi-source.sh
       - name: Verify direct single-compiler build
