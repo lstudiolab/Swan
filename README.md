@@ -37,8 +37,7 @@ The compatibility path is intentional. A construct supported by the x86-64 front
   -> typed IR verification
   -> target-independent optimization
   -> selected Swan backend:
-       x86-64 | AArch64 | ARMv7 | RISC-V64 | WASM32 | WASM64
-       or explicit LLVM target-triple bridge
+       x86-64 | AArch64 (ARM64) | WASM64
   -> assembly / object / WebAssembly module
   -> assembler and linker where applicable
 ```
@@ -53,10 +52,7 @@ SVM is the target-independent compilation engine, not a CPU target and not an in
 
 - x86-64
 - AArch64 / ARM64
-- ARMv7 / ARM32
-- RISC-V
-- WebAssembly 32/64
-- additional LLVM-supported target triples through the explicit LLVM bridge
+- WebAssembly 64-bit (memory64)
 
 The `swan_svm_codegen` dispatcher selects the target backend after common lowering and optimization. Each backend performs its own instruction selection, target legalization, ABI lowering, register allocation or local assignment, and assembly/module emission. No target executes the IR through an interpreter loop.
 
@@ -124,13 +120,12 @@ Emit x86-64 assembly for one source:
 ./build/swanc examples/hello.swan --emit-asm -o hello.s
 ```
 
-Emit one target artifact per Swan source in a multi-file project. The extension follows the selected backend (`.s`, `.wasm`, or `.ll`):
+Emit one target artifact per Swan source in a multi-file project. The extension follows the selected backend (`.s` or `.wasm`):
 
 ```sh
 ./build/swanc build Sources/ --emit-asm -o build/assembly
 ./build/swanc build Sources/ --target aarch64 --emit-asm -o build/aarch64
-./build/swanc build Sources/ --target wasm32 --emit-asm -o build/wasm
-./build/swanc build Sources/ --target-triple aarch64-unknown-linux-gnu --emit-llvm -o build/llvm-ir
+./build/swanc build Sources/ --target wasm64 -o build/wasm
 ```
 
 Native x86-64 `build` also assembles one object per Swan source and links them into one executable. Per-source cross-target emission creates independent artifacts with external references; combine them with a compatible target linker where that target supports linking. A multi-file cross-target `build` still emits the backend's project-level artifact.
@@ -213,32 +208,23 @@ The typed-IR generator currently handles scalar integer/boolean expressions, dir
 | Target | Current status |
 |---|---|
 | x86-64 System V Linux | Native executable and assembly; typed-IR scalar path plus AST compatibility path |
-| AArch64 Linux | Swan-owned ELF object/assembly for a limited scalar IR subset |
-| ARMv7 Linux, ARM state | Swan-owned ELF object/assembly for a limited i32/i1 subset |
-| RISC-V64 Linux | Swan-owned ELF object/assembly for a limited scalar IR subset |
-| WebAssembly 32 | Swan-owned WASM module for the implemented scalar/control-flow subset |
+| AArch64 / ARM64 Linux | Swan-owned ELF object/assembly for a limited scalar IR subset |
 | WebAssembly 64 | Swan-owned memory64 module emission for its implemented subset |
 | SVM | Shared target-independent compilation engine; not a runtime target |
-| Other LLVM triples | Optional explicit `--target-triple` bridge; depends on installed Clang/LLVM target support and the Swan typed-IR subset |
 
 Object emission is not proof of execution or complete ABI integration on the destination platform. Cross-target runtime linking, full standard-library support, aggregate ABI lowering, and complete feature parity are not implemented.
 
 ### Cross-target examples
 
 ```sh
-# Swan-owned AArch64 ELF object
-./build/swanc build app.swan --target aarch64 -o app-aarch64.o
+# Swan-owned AArch64 / ARM64 ELF object
+./build/swanc build app.swan --target arm64 -o app-aarch64.o
 
-# Swan-owned WebAssembly module
-./build/swanc build app.swan --target wasm32 -o app.wasm
-
-# Explicit LLVM portability path
-./build/swanc build app.swan --target-triple aarch64-unknown-linux-gnu -o app.o
-./build/swanc build app.swan --target-triple x86_64-pc-windows-msvc -o app.obj
-./build/swanc build app.swan --target-triple arm64-apple-macosx14.0 --emit-llvm -o app.ll
+# Swan-owned WebAssembly memory64 module
+./build/swanc build app.swan --target wasm64 -o app.wasm
 ```
 
-The LLVM bridge is opt-in. It lowers verified Swan typed IR to LLVM IR, then uses the installed Clang/LLVM toolchain for assembly or object emission. It is not the default backend and does not make unsupported Swan language features portable. Use `--cpu` and repeatable `--target-feature` options only with `--target-triple`.
+Swan exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64. ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported. The compiler rejects other target names rather than silently routing them through another backend.
 
 ## Arrays and memory
 
