@@ -118,7 +118,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
      swan_error(err,&e->args[i]->token,"raw.resize may invalidate its input; transfer an owner with move");return false;
     }
     if(e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_MOVE&&!raw_release&&!raw_resize){
-     swan_error(err,&e->args[i]->token,"move may only initialize an owner or transfer into raw.release/raw.resize/raw.arena_release/raw.arena_release");return false;
+     swan_error(err,&e->args[i]->token,"move may only initialize an owner or transfer into raw.release/raw.resize/raw.arena_release");return false;
     }
     if(raw_release&&e->args[i]&&e->args[i]->kind==E_NAME){
      size_t index;if(swan_symbol_find(symbols,e->args[i]->token.text,&index)&&symbols->items[index].manual_borrow){
@@ -232,7 +232,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
      else{swan_error(err,&s->value->token,"borrow source must be an owned value or an existing borrow");return false;}
      if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw borrows currently require the i64 address type");return false;}
     }else{
-     if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must initialize an own variable or transfer into raw.release/raw.resize");return false;}
+     if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must initialize an own variable or transfer into raw.release/raw.resize/raw.arena_release");return false;}
      if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"temporary borrows are only valid as call arguments; use 'borrow let' for a scoped view");return false;}
      if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)){
       if(symbols->items[source].manual_checked){swan_error(err,&s->value->token,"owned values cannot be copied; use borrow or move");return false;}
@@ -266,7 +266,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
    }
    case S_EXPR:
     if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"a temporary borrow must be passed directly to a call");return false;}
-    if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must transfer into an owner or an ownership-taking call");return false;}
+    if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must initialize an own variable or transfer into raw.release/raw.resize/raw.arena_release");return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_IF:{
