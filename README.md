@@ -34,9 +34,8 @@ The compatibility path is intentional. A construct supported by the x86-64 front
   -> source lowering:
        general AST -> typed SSA IR (fallback)
        AST -> x86-64 compatibility backend (where required)
-  -> typed IR verification
+  -> SVM verification
   -> target-independent optimization
-  -> SVM verification and target-independent optimization
   -> WASM64 AOT emission (canonical portable path)
   -> SIC host detection:
        browser / WebAssembly -> keep and execute WASM64
@@ -234,16 +233,20 @@ Object emission is not proof of execution or complete ABI integration on the des
 ./build/swanc build app.swan --target wasm64 -o app.wasm
 ```
 
-Run a compiled WASM64 module through Swan's Wasmtime-backed runtime:
+Compile Swan source once to the portable WASM64 artifact:
 
 ```sh
+swanc compile app.swan -o app.wasm
 swan run app.wasm
 
-# Or compile and execute in one command
+# Or compile and run in one command
 swan run app.swan --target wasm64
 ```
 
-Install Wasmtime separately; Swan enables memory64 when launching it. See [the WASM64 runtime guide](runtime/wasm64/README.md) for requirements and current runtime limits.
+SIC selects Wasmtime's native JIT on supported x86-64/ARM64 hosts. Browser
+deployments keep the WASM module and use [runtime/wasm64/browser.js](runtime/wasm64/browser.js)
+to execute it through the browser's WebAssembly engine. Install Wasmtime
+separately for native execution; see the [WASM64 runtime guide](runtime/wasm64/README.md).
 
 Swan exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64. ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported. The compiler rejects other target names rather than silently routing them through another backend.
 
