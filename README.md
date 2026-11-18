@@ -238,6 +238,14 @@ Object emission is not proof of execution or complete ABI integration on the des
 ./build/swanc build app.swan --target wasm64 -o app.wasm
 ```
 
+Run a compiled WASM64 module through Swan's Wasmtime-backed runtime:
+
+```sh
+swan run app.wasm
+```
+
+Install Wasmtime separately; Swan enables memory64 when launching it. See [the WASM64 runtime guide](runtime/wasm64/README.md) for requirements and current runtime limits.
+
 Swan exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64. ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported. The compiler rejects other target names rather than silently routing them through another backend.
 
 ## Arrays and memory
