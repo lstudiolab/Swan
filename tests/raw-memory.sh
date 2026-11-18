@@ -15,8 +15,16 @@ func main() -> int:
     let memory: i64 = raw.alloc(64)
     let same: i64 = identity(memory)
     raw.fill(same, 0, 64)
+    raw.store8(same, 65)
+    raw.store16(same + 2, 513)
+    raw.store32(same + 4, 65537)
+    raw.store64(same + 8, 123456789)
+    let byte_value: i64 = raw.load8(same)
+    let word_value: i64 = raw.load16(same + 2)
+    let dword_value: i64 = raw.load32(same + 4)
+    let qword_value: i64 = raw.load64(same + 8)
     raw.release(same)
-    return 0
+    return byte_value + word_value + dword_value + qword_value - 123522904
 SWAN
 
 "$SWAN" build "$TMP/program.swan" -o "$TMP/program"
