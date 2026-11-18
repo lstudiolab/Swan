@@ -83,6 +83,7 @@ static bool swan_emit_project_sources(Program *program,const char *directory,
                                       const SwanTarget *target,int mode,
                                       const char *const *c_inputs,size_t c_count,
                                       SwanError *error){
+ (void)mode;
  if(!swan_make_output_dir(directory))return false;
  const char *extension=target->architecture==SWAN_ARCH_WASM64?".wasm":".s";
  program->codegen_source_index=-1;
@@ -351,16 +352,15 @@ static int swan_run(int argc,char **argv){
   if(has_lazy){fprintf(stderr,"swan: WASM64 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
   SwanSVMOutput compiled={0};
   bool backend_ok=swan_svm_codegen(&p,target,&compiled,&err);
-  SwanWasmBuffer wasm={.data=(unsigned char*)compiled.data,.length=compiled.length,.capacity=compiled.length};
   if(!backend_ok){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");
-   free(wasm.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
+   free(compiled.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
   }
   const char *dest=output?output:(target->architecture==SWAN_ARCH_WASM64?"a64.wasm":"a.wasm");FILE *wf=fopen(dest,"wb");
-  bool saved=wf&&fwrite(wasm.data,1,wasm.length,wf)==wasm.length;
+  bool saved=wf&&fwrite(compiled.data,1,compiled.length,wf)==compiled.length;
   if(wf&&fclose(wf)!=0)saved=false;
   if(!saved)fprintf(stderr,"swan: failed to write WebAssembly module '%s'\n",dest);
-  free(wasm.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(saved?0:1);
+  free(compiled.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(saved?0:1);
  }
  if(target->architecture==SWAN_ARCH_AARCH64){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
