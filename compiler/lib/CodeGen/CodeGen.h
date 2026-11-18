@@ -7,10 +7,6 @@
 #include "swan/optimization.h"
 #include "swan/codegen_x86_64_ir.h"
 #include "swan/codegen_aarch64.h"
-#include "swan/codegen_armv7.h"
-#include "swan/codegen_riscv64.h"
-#include "swan/codegen_wasm32.h"
-#include "swan/codegen_llvm.h"
 
 
 static inline bool swan_compile_ir_program(Program *program,SwanIRModule *module,SwanError *error){
@@ -166,8 +162,7 @@ static inline bool swan_codegen(Program *program, Text *output,
 
 typedef enum {
     SWAN_SVM_OUTPUT_ASSEMBLY,
-    SWAN_SVM_OUTPUT_WASM,
-    SWAN_SVM_OUTPUT_LLVM_IR
+    SWAN_SVM_OUTPUT_WASM
 } SwanSVMOutputKind;
 
 typedef struct {
@@ -206,25 +201,13 @@ static inline bool swan_svm_codegen(Program *program,const SwanTarget *target,
             case SWAN_ARCH_AARCH64:
                 ok=swan_codegen_aarch64_ir(&module,&text,detail,sizeof(detail));
                 output->kind=SWAN_SVM_OUTPUT_ASSEMBLY;break;
-            case SWAN_ARCH_ARMV7:
-                ok=swan_codegen_armv7_ir(&module,&text,detail,sizeof(detail));
-                output->kind=SWAN_SVM_OUTPUT_ASSEMBLY;break;
-            case SWAN_ARCH_RISCV64:
-                ok=swan_codegen_riscv64_ir(&module,&text,detail,sizeof(detail));
-                output->kind=SWAN_SVM_OUTPUT_ASSEMBLY;break;
-            case SWAN_ARCH_WASM32:
             case SWAN_ARCH_WASM64:{
                 SwanWasmBuffer wasm={0};
-                ok=target->architecture==SWAN_ARCH_WASM64
-                    ?swan_codegen_wasm64(&module,&wasm,detail,sizeof(detail))
-                    :swan_codegen_wasm32(&module,&wasm,detail,sizeof(detail));
+                ok=swan_codegen_wasm64(&module,&wasm,detail,sizeof(detail));
                 if(ok){output->kind=SWAN_SVM_OUTPUT_WASM;output->data=(char*)wasm.data;output->length=wasm.length;}
                 else free(wasm.data);
                 break;
             }
-            case SWAN_ARCH_LLVM:
-                ok=swan_codegen_llvm_ir(&module,&text,target->triple,detail,sizeof(detail));
-                output->kind=SWAN_SVM_OUTPUT_LLVM_IR;break;
             default:
                 ok=false;
                 snprintf(detail,sizeof(detail),"SVM has no backend registered for target '%s'",target->name?target->name:"unknown");
