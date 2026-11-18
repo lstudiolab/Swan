@@ -9,21 +9,21 @@ cat > "$TMP/program.swan" <<'SWAN'
 import std
 
 func main() -> int:
-    !printin >> "Swan std library ready"
-    !printin >> !abs(-9)
-    !printin >> !average(4, 7)
-    !printin >> !is_even(12)
-    !printin >> !is_odd(9)
-    !printin >> !min(8, 3)
-    !printin >> !max(8, 3)
-    !printin >> !clamp(15, 0, 10)
-    !printin >> !sign(-20)
-    !printin >> !square(5)
-    !printin >> !cube(3)
-    !printin >> !power(2, 8)
-    !printin >> !factorial(5)
-    !printin >> !sum_to(10)
-    !printin >> !in_range(5, 1, 9)
+    print("Swan std library ready")
+    print(abs(-9))
+    print(average(4, 7))
+    print(is_even(12))
+    print(is_odd(9))
+    print(min(8, 3))
+    print(max(8, 3))
+    print(clamp(15, 0, 10))
+    print(sign(-20))
+    print(square(5))
+    print(cube(3))
+    print(power(2, 8))
+    print(factorial(5))
+    print(sum_to(10))
+    print(in_range(5, 1, 9))
     return 0
 SWAN
 
@@ -47,4 +47,4 @@ Swan std library ready
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: std namespace, !printin, and standard functions\n'
+printf 'PASS: std import, print(), and standard functions\n'
