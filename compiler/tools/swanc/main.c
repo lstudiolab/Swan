@@ -389,7 +389,7 @@ static int swan_run(int argc,char **argv){
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
    const char *name=argv[++i];
    if(sic_compile_command&&strcmp(name,"wasm64")){
-    fprintf(stderr,"swan: compile always produces portable WASM64; use build --target %s for an explicit legacy backend\\n",name);
+    fprintf(stderr,"swan: compile always produces portable WASM64; use build --target %s for an explicit legacy backend\n",name);
     SWAN_RETURN(2);
    }
    if(!strcmp(name,"all")){target_all=true;target=swan_target_find("x86_64");}
