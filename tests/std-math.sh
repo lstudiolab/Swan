@@ -27,6 +27,10 @@ func main() -> int:
     print(integer_sqrt(9223372036854775807))
     print(next_power_of_two(4611686018427387904))
     print(next_power_of_two(4611686018427387905))
+    print(gcd(-84, -30))
+    print(gcd(-9223372036854775807 - 1, 1))
+    print(gcd(-9223372036854775807 - 1, 0))
+    print(lcm(-9223372036854775807 - 1, 1))
     return 0
 SWAN
 
@@ -49,6 +53,10 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 55
 3037000499
 4611686018427387904
+0
+6
+1
+0
 0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
