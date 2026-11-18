@@ -276,30 +276,30 @@ The standard-library loader resolves and checks imported Swan modules. The Found
 import foundation
 
 func main() -> int:
-    !printin >> "Hello from Swan";
-    !printin >> abs_int(-42);
+    print("Hello from Swan")
+    print(abs_int(-42))
     return 0
 ```
 
-`!printin >> expression;` is the single standard-library output intrinsic. Foundation provides integer helpers `abs_int`, `min_int`, `max_int`, `clamp_int`, `sign_int`, `square_int`, `cube_int`, `power_int`, `factorial_int`, `sum_to_int`, `average_int`, `is_even`, `is_odd`, and `in_range_int`.
+`print(expression)` is the single standard-library output intrinsic. Foundation provides integer helpers `abs_int`, `min_int`, `max_int`, `clamp_int`, `sign_int`, `square_int`, `cube_int`, `power_int`, `factorial_int`, `sum_to_int`, `average_int`, `is_even`, `is_odd`, and `in_range_int`.
 
 Set `SWAN_STDLIB` or pass `--stdlib <directory>` to select a standard-library directory.
 
 ## Standard library
 
-Import the standard library explicitly and use the `!` namespace for every public operation:
+Import the standard library explicitly and call public functions by their ordinary names:
 
 ```swan
 import std
 
 func main() -> int:
-    !printin >> "Hello from Swan"
-    !printin >> !abs(-42)
-    !printin >> !max(10, 20)
+    print("Hello from Swan")
+    print(abs(-42))
+    print(max(10, 20))
     return 0
 ```
 
-`!printin >> expression` is Swan's namespaced output intrinsic. Other `!name(...)` calls resolve to ordinary functions in explicitly imported Swan modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use the `!` prefix. See [the standard-library reference](stdlib/readme.md) and [the language guide](docs/language_guide.md#121-the-!-standard-library-prefix) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
+`print(expression)` is Swan's namespaced output intrinsic. Other `name(...)` calls resolve to ordinary functions in explicitly imported Swan modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use the `!` prefix. See [the standard-library reference](stdlib/readme.md) and [the language guide](docs/language_guide.md#121-the-!-standard-library-prefix) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
 
 ## Low-resource compilation
 
