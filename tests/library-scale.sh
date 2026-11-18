@@ -60,7 +60,7 @@ while [ "$i" -le 1100 ]; do
     i=$((i + 1))
 done
 cat >> "$TMP/large-locals.swan" <<'SWAN'
-    !printin >> value_1100;
+    print(value_1100)
     return 0
 SWAN
 "$SWAN" build "$TMP/large-locals.swan" -o "$TMP/large-locals"
