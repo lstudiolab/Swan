@@ -201,12 +201,19 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     }else if(s->manual_borrow){
      if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
      if(s->mutable_value||!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"borrow must declare an immutable view of an owned variable");return false;}
-     size_t owner;if(!swan_symbol_find(symbols,s->value->token.text,&owner)||!symbols->items[owner].manual_checked){swan_error(err,&s->value->token,"borrow source must be an owned variable");return false;}
-     if(symbols->items[owner].manual_freed){swan_error(err,&s->value->token,"cannot borrow a moved or dropped owner");return false;}
+     size_t owner;if(!swan_symbol_find(symbols,s->value->token.text,&owner)){swan_error(err,&s->value->token,"borrow source must be an owned value or an existing borrow");return false;}
+     if(symbols->items[owner].manual_checked){
+      if(symbols->items[owner].manual_freed){swan_error(err,&s->value->token,"cannot borrow a moved or dropped owner");return false;}
+      owner_name=s->value->token.text;
+     }else if(symbols->items[owner].manual_borrow&&symbols->items[owner].owner_name)owner_name=symbols->items[owner].owner_name;
+     else{swan_error(err,&s->value->token,"borrow source must be an owned value or an existing borrow");return false;}
      if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw borrows currently require the i64 address type");return false;}
-     owner_name=s->value->token.text;
     }else{
-     if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_checked){swan_error(err,&s->value->token,"owned values cannot be copied; use borrow or move");return false;}}
+     if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"temporary borrows are only valid as call arguments; use 'borrow let' for a scoped view");return false;}
+     if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)){
+      if(symbols->items[source].manual_checked){swan_error(err,&s->value->token,"owned values cannot be copied; use borrow or move");return false;}
+      if(symbols->items[source].manual_borrow){swan_error(err,&s->value->token,"borrowed views cannot be copied into ordinary variables");return false;}
+     }}
      if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     }
     bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||swan_expr_is_array(s->value,symbols);
@@ -218,6 +225,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_RETURN:
+    if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"a temporary borrow cannot escape through return");return false;}
     if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&(symbols->items[index].manual_memory||symbols->items[index].manual_borrow)){swan_error(err,&s->value->token,"raw owners and borrows cannot escape through a return value");return false;}}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_checked&&!symbols->items[k].manual_freed){swan_error(err,&s->token,"manual variable '%s' must be freed before returning",symbols->items[k].name);return false;}
@@ -233,6 +241,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     symbols->items[owner].manual_freed=true;break;
    }
    case S_EXPR:
+    if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"a temporary borrow must be passed directly to a call");return false;}
     if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must transfer into an owner or an ownership-taking call");return false;}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
