@@ -93,6 +93,7 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
                 frame,k,swan_a64_value_offset(in->incoming[k].value));
       text_add(o,"    bl %s\n",in->symbol);
       if(in->type==SWAN_IR_I1)text_add(o,"    and x0, x0, #1\n");
+      else if(in->type==SWAN_IR_I32)text_add(o,"    sxtw x0, w0\n");
       if(outgoing)text_add(o,"    add sp, sp, #%zu\n",outgoing);
       if(in->type!=SWAN_IR_VOID)text_add(o,"    str x0, [sp, #%d]\n",dst);
       break;}
