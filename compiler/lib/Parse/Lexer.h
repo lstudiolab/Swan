@@ -58,6 +58,7 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
  case 3:
   if(!memcmp(s,"let",3))return T_LET;
   if(!memcmp(s,"var",3))return T_VAR;
+  if(!memcmp(s,"own",3))return T_OWN;
   break;
  case 4:
   if(!memcmp(s,"func",4))return T_FN;
@@ -73,7 +74,6 @@ static inline TokenKind swan_keyword(const char *s,size_t n) {
   if(!memcmp(s,"pass",4))return T_PASS;
   if(!memcmp(s,"move",4))return T_MOVE;
   if(!memcmp(s,"drop",4))return T_DROP;
-  if(!memcmp(s,"own",3))return T_OWN;
   if(!memcmp(s,"init",4))return T_INIT;
   break;
  case 5:
