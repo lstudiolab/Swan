@@ -79,10 +79,13 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
      case SWAN_IR_SELECT:text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    mov r10, QWORD PTR [rbp-%d]\n    test rax, rax\n    cmovne r10, rcx\n    mov QWORD PTR [rbp-%d], r10\n",a,z,swan_x64_slot(in->c),d);break;
      case SWAN_IR_ADD:case SWAN_IR_SUB:case SWAN_IR_MUL:case SWAN_IR_AND:case SWAN_IR_OR:case SWAN_IR_XOR:
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, rcx\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_ADD?"add":in->op==SWAN_IR_SUB?"sub":in->op==SWAN_IR_MUL?"imul":in->op==SWAN_IR_AND?"and":in->op==SWAN_IR_OR?"or":"xor",d);break;
-     case SWAN_IR_SDIV:case SWAN_IR_SREM:
-      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    cqo\n    idiv rcx\n    mov QWORD PTR [rbp-%d], %s\n",a,z,d,in->op==SWAN_IR_SDIV?"rax":"rdx");break;
-     case SWAN_IR_UDIV:case SWAN_IR_UREM:
-      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    xor edx, edx\n    div rcx\n    mov QWORD PTR [rbp-%d], %s\n",a,z,d,in->op==SWAN_IR_UDIV?"rax":"rdx");break;
+     case SWAN_IR_SDIV:case SWAN_IR_SREM:{
+      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n    mov rcx, QWORD PTR [rbp-%d]\\n    test rcx, rcx\\n    jz .Lsw_x64_divtrap_%zu_%zu_%zu\\n    movabs r10, -9223372036854775808\\n    cmp rax, r10\\n    jne .Lsw_x64_divsafe_%zu_%zu_%zu\\n    cmp rcx, -1\\n    je .Lsw_x64_divtrap_%zu_%zu_%zu\\n.Lsw_x64_divsafe_%zu_%zu_%zu:\\n    cqo\\n    idiv rcx\\n    mov QWORD PTR [rbp-%d], %s\\n    jmp .Lsw_x64_divdone_%zu_%zu_%zu\\n.Lsw_x64_divtrap_%zu_%zu_%zu:\\n    ud2\\n.Lsw_x64_divdone_%zu_%zu_%zu:\\n",
+       a,z,f,b,i,f,b,i,f,b,i,f,b,i,d,in->op==SWAN_IR_SDIV?"rax":"rdx",
+       f,b,i,f,b,i,f,b,i);break;}
+     case SWAN_IR_UDIV:case SWAN_IR_UREM:{
+      text_add(o,"    mov rax, QWORD PTR [rbp-%d]\\n    mov rcx, QWORD PTR [rbp-%d]\\n    test rcx, rcx\\n    jz .Lsw_x64_divtrap_%zu_%zu_%zu\\n    xor edx, edx\\n    div rcx\\n    mov QWORD PTR [rbp-%d], %s\\n    jmp .Lsw_x64_divdone_%zu_%zu_%zu\\n.Lsw_x64_divtrap_%zu_%zu_%zu:\\n    ud2\\n.Lsw_x64_divdone_%zu_%zu_%zu:\\n",
+       a,z,f,b,i,d,in->op==SWAN_IR_UDIV?"rax":"rdx",f,b,i,f,b,i);break;}
      case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, cl\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);break;
      case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
