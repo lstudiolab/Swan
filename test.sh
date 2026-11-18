@@ -39,6 +39,7 @@ sh "$ROOT/tests/library-scale.sh"
 sh "$ROOT/tests/module-namespaces.sh"
 sh "$ROOT/tests/ast-stack-arguments.sh"
 sh "$ROOT/tests/architecture.sh"
+sh "$ROOT/tests/wasm-runtime.sh"
 
 cc -std=c11 -Wall -Wextra -Wpedantic -I"$ROOT/compiler/include" "$ROOT/tests/keywords.c" -o "$ROOT/build/keywords-test"
 "$ROOT/build/keywords-test"
