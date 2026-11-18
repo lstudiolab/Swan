@@ -34,7 +34,11 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | IR optimizer | Complete (scoped) | Constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, conservative LICM and DCE | More analyses/passes, compile-time budgets, differential testing and proof of semantics preservation |
 | SIL | Partial / integration unclear | Repository references SIL in build messaging and memory-model plans | A single documented, independently verifiable SIL contract; ARC retain/release lifetime analysis, verifier, lowering and integration tests |
 | SVM common pipeline | Partial | Shared verification/optimization and backend dispatch | One mandatory path for all source features; retire the AST compatibility route |
-| Serialization / bytecode runtime | Not implemented by design | SVM is the compilation engine, not a VM runtime | No interpreter or bytecode runtime is required by the current architecture |
+| SIC environment detection | Complete (scoped) | Detects WebAssembly-hosted builds and native x86-64/ARM64 hosts; selects browser-WASM or native Wasmtime execution | End-to-end browser integration tests and broader host/OS detection matrix |
+| Portable WASM64 AOT command | Complete (scoped) | `swanc compile` emits a WASM64 module using the existing backend | Expand source-feature coverage and memory64 browser interoperability |
+| Native runtime JIT | Partial / validation needed | Native WASM execution delegates to Wasmtime, which JIT-compiles for the host CPU | Validate JIT execution on real x86-64 and ARM64 hosts; startup/cache benchmarks |
+| Browser WASM execution | Partial / validation needed | Browser loader instantiates the portable module without Swan native recompilation | Validate memory64 support and imports across target browsers |
+| Serialization / bytecode runtime | Not implemented by design | SVM is the compiler IR; WASM64 is the portable executable artifact | No Swan bytecode interpreter or dispatch loop is required |
 
 ## Memory and language semantics
 
