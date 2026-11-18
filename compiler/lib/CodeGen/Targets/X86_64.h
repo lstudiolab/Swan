@@ -299,6 +299,39 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  Stmt *callee_fn=o->program?cg_find_link_function(o->program,name):NULL;
  int target_module=callee_fn&&callee_fn->imported?callee_fn->module_index:-1;
  bool external_call=callee_fn&&callee_fn->external;
+ /* raw.loadN/storeN are compiler intrinsics: lower directly to native
+    memory operands instead of emitting calls to nonexistent C symbols. */
+ bool raw_module=callee_fn&&callee_fn->imported&&callee_fn->module_index>=0&&
+   !strcmp(o->program->module_names[callee_fn->module_index],"raw");
+ if(raw_module){
+  const char *intrinsic=callee_fn->name;
+  int width=0;bool store=false;
+  if(!strcmp(intrinsic,"load8"))width=8;
+  else if(!strcmp(intrinsic,"load16"))width=16;
+  else if(!strcmp(intrinsic,"load32"))width=32;
+  else if(!strcmp(intrinsic,"load64"))width=64;
+  else if(!strcmp(intrinsic,"store8")){width=8;store=true;}
+  else if(!strcmp(intrinsic,"store16")){width=16;store=true;}
+  else if(!strcmp(intrinsic,"store32")){width=32;store=true;}
+  else if(!strcmp(intrinsic,"store64")){width=64;store=true;}
+  if(width){
+   if(e->argc!=(store?2u:1u)){swan_error(err,&e->token,"raw %s expects %u argument(s)",intrinsic,store?2u:1u);return;}
+   if(store){
+    emit_expr(o,e->args[0],l,err);cg_push(o,"rax");
+    emit_expr(o,e->args[1],l,err);cg_pop(o,"r10");
+    text_add(o,"    mov %s PTR [r10], %s\n",
+      width==8?"BYTE":width==16?"WORD":width==32?"DWORD":"QWORD",
+      width==8?"al":width==16?"ax":width==32?"eax":"rax");
+   }else{
+    emit_expr(o,e->args[0],l,err);
+    if(width==8)text_add(o,"    movzx eax, BYTE PTR [rax]\n");
+    else if(width==16)text_add(o,"    movzx eax, WORD PTR [rax]\n");
+    else if(width==32)text_add(o,"    mov eax, DWORD PTR [rax]\n");
+    else text_add(o,"    mov rax, QWORD PTR [rax]\n");
+   }
+   return;
+  }
+ }
  if(o->program&&(o->program->bundle_imports||target_module<0||target_module==o->program->codegen_module_index)&&e->argc==1&&expr_inline_pure(e->args[0],NULL,false)){
   Stmt *fn=cg_find_link_function(o->program,name);
   if(fn&&fn->param_count==1&&fn->body_count==1&&fn->body[0]->kind==S_RETURN&&fn->body[0]->value){
