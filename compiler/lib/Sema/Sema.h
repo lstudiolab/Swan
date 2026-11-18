@@ -1,7 +1,7 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed,manual_borrow; const char *owner_name; size_t previous; } SwanSymbol;
+typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed,manual_borrow,stack_address; const char *owner_name; size_t previous; } SwanSymbol;
 typedef struct { SwanSymbol *items; size_t count,capacity; size_t *buckets,bucket_count; } SwanSymbols;
 static inline unsigned swan_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline bool swan_symbols_rehash(SwanSymbols *s,size_t wanted){
@@ -64,7 +64,7 @@ static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool
  if(s->count==SIZE_MAX||!swan_reserve_array((void**)&s->items,&s->capacity,s->count+1,sizeof(*s->items)))return false;
  if(s->count+1>s->bucket_count-s->bucket_count/4){if(s->bucket_count>SIZE_MAX/2||!swan_symbols_rehash(s,s->bucket_count*2))return false;}
  size_t b=swan_name_hash(name)&(s->bucket_count-1),i=s->count++;SwanSymbol *v=&s->items[i];
- v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->manual_borrow=borrow;v->owner_name=owner_name;v->previous=s->buckets[b];s->buckets[b]=i;return true;
+ v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->manual_borrow=borrow;v->stack_address=false;v->owner_name=owner_name;v->previous=s->buckets[b];s->buckets[b]=i;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){while(s->count>mark){size_t i=--s->count;size_t b=swan_name_hash(s->items[i].name)&(s->bucket_count-1);s->buckets[b]=s->items[i].previous;}}
 static inline bool swan_expr_has_borrow_operator(Expr *e){
@@ -116,6 +116,14 @@ static inline bool swan_expr_calls_raw_stack(Program *p,Expr *e){
  if(fn&&!strcmp(fn->name,"stack"))return true;
  if(swan_expr_calls_raw_stack(p,e->left)||swan_expr_calls_raw_stack(p,e->right))return true;
  for(size_t i=0;i<e->argc;i++)if(swan_expr_calls_raw_stack(p,e->args[i]))return true;
+ return false;
+}
+static inline bool swan_expr_uses_stack_pointer(Program *p,Expr *e,SwanSymbols *symbols){
+ if(!e)return false;
+ if(swan_expr_calls_raw_stack(p,e))return true;
+ if(e->kind==E_NAME){size_t i;if(swan_symbol_find(symbols,e->token.text,&i)&&symbols->items[i].stack_address)return true;}
+ if(swan_expr_uses_stack_pointer(p,e->left,symbols)||swan_expr_uses_stack_pointer(p,e->right,symbols))return true;
+ for(size_t i=0;i<e->argc;i++)if(swan_expr_uses_stack_pointer(p,e->args[i],symbols))return true;
  return false;
 }
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
@@ -253,6 +261,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(symbols->items[index].manual_checked){swan_error(err,&e->left->token,"manual variables cannot be reassigned or moved");return false;}
     if(!symbols->items[index].mutable_value){swan_error(err,&e->left->token,"cannot assign to immutable value '%s'",e->left->token.text);return false;}
     if(!swan_check_expr(p,e->right,symbols,err))return false;
+    symbols->items[index].stack_address=swan_expr_uses_stack_pointer(p,e->right,symbols);
     bool right_is_array=swan_expr_is_array(e->right,symbols);
     if(symbols->items[index].initialized&&
        symbols->items[index].is_array!=right_is_array){
@@ -332,7 +341,9 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
      if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     }
     bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||swan_expr_is_array(s->value,symbols);
+    bool stack_address=swan_expr_uses_stack_pointer(p,s->value,symbols);
     if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked,s->manual_borrow,owner_name)){swan_error(err,&s->token,"too many local variables");return false;}
+    symbols->items[symbols->count-1].stack_address=stack_address;
     break;
    }
    case S_LOG:
