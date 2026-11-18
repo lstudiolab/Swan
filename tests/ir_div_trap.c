@@ -6,25 +6,35 @@
 int main(int argc,char **argv){
     if(argc!=3)return 2;
     SwanIROp op=SWAN_IR_SDIV;
+    SwanIRType type=SWAN_IR_I64;
     int64_t left=9,right=0;
     if(!strcmp(argv[1],"overflow")){
         left=INT64_MIN;
         right=-1;
     }else if(!strcmp(argv[1],"unsigned")){
         op=SWAN_IR_UDIV;
+    }else if(!strcmp(argv[1],"i32-zero")){
+        type=SWAN_IR_I32;
+    }else if(!strcmp(argv[1],"i32-overflow")){
+        type=SWAN_IR_I32;
+        left=INT32_MIN;
+        right=-1;
+    }else if(!strcmp(argv[1],"i32-unsigned")){
+        type=SWAN_IR_I32;
+        op=SWAN_IR_UDIV;
     }else if(strcmp(argv[1],"zero"))return 2;
 
     SwanIRModule module={0};
-    SwanIRFunction *fn=swan_ir_add_function(&module,"main",SWAN_IR_I64,NULL,0);
+    SwanIRFunction *fn=swan_ir_add_function(&module,"main",type,NULL,0);
     SwanIRBlock *block=fn?swan_ir_add_block(fn,"entry"):NULL;
     if(!block)return 3;
     SwanIRInst constant={0};
-    constant.op=SWAN_IR_CONST;constant.type=SWAN_IR_I64;constant.immediate=left;
+    constant.op=SWAN_IR_CONST;constant.type=type;constant.immediate=left;
     uint32_t a=swan_ir_add_inst(fn,block,constant);
     constant.immediate=right;
     uint32_t b=swan_ir_add_inst(fn,block,constant);
     SwanIRInst divide={0};
-    divide.op=op;divide.type=SWAN_IR_I64;divide.a=a;divide.b=b;
+    divide.op=op;divide.type=type;divide.a=a;divide.b=b;
     uint32_t result=swan_ir_add_inst(fn,block,divide);
     if(!a||!b||!result||!swan_ir_terminate(block,(SwanIRTerm){SWAN_IR_RET,result,0,0})){
         swan_ir_destroy(&module);return 4;
