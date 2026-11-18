@@ -13,6 +13,11 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+      - name: Install Wasmtime with memory64 support
+        run: |
+          curl -fsSL https://github.com/bytecodealliance/wasmtime/releases/download/v50.0.2/wasmtime-v50.0.2-x86_64-linux.tar.xz -o "$RUNNER_TEMP/wasmtime.tar.xz"
+          tar -xJf "$RUNNER_TEMP/wasmtime.tar.xz" -C "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/wasmtime-v50.0.2-x86_64-linux" >> "$GITHUB_PATH"
       - name: Run complete compiler and standard-library test suite
         run: sh test.sh
       - name: Verify production x86-64 IR backend
