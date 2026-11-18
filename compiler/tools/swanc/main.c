@@ -296,6 +296,10 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
   fprintf(stderr,"swan: SIC detected a WebAssembly host; load the module with runtime/wasm64/browser.js instead of native recompilation\n");
   return 2;
  }
+ if(host.architecture!=SWAN_SIC_ARCH_X86_64&&host.architecture!=SWAN_SIC_ARCH_ARM64){
+  fprintf(stderr,"swan: SIC supports native JIT on x86-64 and ARM64; retained portable WASM module at '%s'\n",path);
+  return 2;
+ }
  bool temporary_wasm=!strncmp(path,"/tmp/swan-wasm-run-",19);
  char **args=calloc((size_t)argument_count+8,sizeof(*args));
  if(!args){fprintf(stderr,"swan: out of memory preparing SIC runtime invocation\n");return 1;}
