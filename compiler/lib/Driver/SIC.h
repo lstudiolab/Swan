@@ -55,7 +55,8 @@ static inline bool swan_sic_compile_for_host(const char *wasm_path,
          host.architecture != SWAN_SIC_ARCH_ARM64))
         return false;
 
-    int n = snprintf(compiled_path, compiled_capacity, "%s.cwasm", wasm_path);
+    const char *arch = host.architecture == SWAN_SIC_ARCH_X86_64 ? "x86_64" : "arm64";
+    int n = snprintf(compiled_path, compiled_capacity, "%s.cwasm.%s", wasm_path, arch);
     if (n < 0 || (size_t)n >= compiled_capacity) return false;
 
     struct stat wasm_info, compiled_info;
