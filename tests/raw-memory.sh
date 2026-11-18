@@ -41,7 +41,7 @@ func main() -> int:
     raw.store8(stack_memory, 77)
     result = result + raw.load8(stack_memory)
     own var region: i64 = raw.arena(64)
-    if true:
+    if raw.arena_remaining(borrow region) == 64:
         borrow let chunk: i64 = raw.arena_alloc(borrow region, 16)
         raw.store64(chunk, 987654321)
         result = result + raw.load64(chunk)
