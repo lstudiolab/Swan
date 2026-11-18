@@ -71,6 +71,28 @@ if "$SWAN" build "$TMP/native.swan" --emit-llvm 2>"$TMP/llvm.err"; then
 fi
 grep -q "unknown option '--emit-llvm'" "$TMP/llvm.err"
 
+cat > "$TMP/i32.swan" <<'SWAN'
+func combine(a: i32, b: i32) -> i32:
+    var total: i32 = a + b
+    total = total * 3
+    total = total - 2
+    let quotient: i32 = total / 3
+    let remainder: i32 = total % 3
+    return quotient + remainder
+func main() -> i32:
+    return combine(-7, 2)
+SWAN
+"$SWAN" build "$TMP/i32.swan" --target all -o "$TMP/i32-all"
+test -x "$TMP/i32-all/i32-x86_64"
+test -s "$TMP/i32-all/i32-arm64.o"
+test -s "$TMP/i32-all/i32-wasm64.wasm"
+set +e
+"$TMP/i32-all/i32-x86_64"
+i32_status=$?
+set -e
+test "$i32_status" -eq 249
+printf 'PASS: signed i32 arithmetic and function ABI across all three backends\n'
+
 printf 'PASS: one Swan source builds to x86-64, ARM64, and WASM64 artifacts\n'
 printf 'PASS: Swan supports exactly x86-64, AArch64/ARM64, and WebAssembly 64-bit\n'
 printf 'PASS: unsupported architectures and arbitrary LLVM target triples are rejected\n'
