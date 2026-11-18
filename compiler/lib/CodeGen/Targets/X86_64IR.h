@@ -85,7 +85,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
        f,b,i,f,b,i,f,b,i);break;}
      case SWAN_IR_UDIV:case SWAN_IR_UREM:{
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    test rcx, rcx\n    jz .Lsw_x64_divtrap_%zu_%zu_%zu\n    xor edx, edx\n    div rcx\n    mov QWORD PTR [rbp-%d], %s\n    jmp .Lsw_x64_divdone_%zu_%zu_%zu\n.Lsw_x64_divtrap_%zu_%zu_%zu:\n    ud2\n.Lsw_x64_divdone_%zu_%zu_%zu:\n",
-       a,z,f,b,i,d,in->op==SWAN_IR_UDIV?"rax":"rdx",f,b,i,f,b,i);break;}
+       a,z,f,b,i,d,in->op==SWAN_IR_UDIV?"rax":"rdx",f,b,i,f,b,i,f,b,i);break;}
      case SWAN_IR_SHL:case SWAN_IR_LSHR:case SWAN_IR_ASHR:
       text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    %s rax, cl\n    mov QWORD PTR [rbp-%d], rax\n",a,z,in->op==SWAN_IR_SHL?"shl":in->op==SWAN_IR_LSHR?"shr":"sar",d);break;
      case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
