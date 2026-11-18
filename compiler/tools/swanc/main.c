@@ -274,6 +274,27 @@ fail:
  return false;
 }
 
+static int swan_run_wasm_file(const char *path,int argument_count,char **arguments){
+ const char *engine=getenv("SWAN_WASM_ENGINE");
+ if(!engine||!*engine)engine="wasmtime";
+ if(argument_count<0||(size_t)argument_count>SIZE_MAX/sizeof(char*)-8)return 1;
+ char **args=calloc((size_t)argument_count+8,sizeof(*args));
+ if(!args){fprintf(stderr,"swan: out of memory preparing WebAssembly runtime invocation\n");return 1;}
+ size_t n=0;
+ args[n++]=(char*)engine;args[n++]="run";args[n++]="--wasm";args[n++]="memory64=y";
+ args[n++]="--invoke";args[n++]="main";args[n++]=(char*)path;
+ for(int i=0;i<argument_count;i++)args[n++]=arguments[i];
+ args[n]=NULL;
+ int result=swan_exec(args,true);
+ if(result<0){
+  if(errno==ENOENT)fprintf(stderr,"swan: WebAssembly runtime '%s' was not found; install Wasmtime or set SWAN_WASM_ENGINE\n",engine);
+  else fprintf(stderr,"swan: could not start WebAssembly runtime '%s': %s\n",engine,strerror(errno));
+  result=127;
+ }
+ free(args);
+ return result;
+}
+
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
@@ -286,24 +307,7 @@ static int swan_run(int argc,char **argv){
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|arm64|wasm64|all] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
  if(index<argc&&swan_has_suffix(argv[index],".wasm")){
   if(mode==SWAN_BUILD){fprintf(stderr,"swan: WebAssembly modules are executed with 'swan run', not 'swan build'\n");return 2;}
-  const char *engine=getenv("SWAN_WASM_ENGINE");
-  if(!engine||!*engine)engine="wasmtime";
-  size_t extra=(size_t)(argc-index-1);
-  char **args=calloc(extra+8,sizeof(*args));
-  if(!args){fprintf(stderr,"swan: out of memory preparing WebAssembly runtime invocation\n");return 1;}
-  size_t n=0;
-  args[n++]=(char*)engine;args[n++]="run";args[n++]="--wasm";args[n++]="memory64=y";
-  args[n++]="--invoke";args[n++]="main";args[n++]=argv[index++];
-  while(index<argc)args[n++]=argv[index++];
-  args[n]=NULL;
-  int result=swan_exec(args,true);
-  if(result<0){
-   if(errno==ENOENT)fprintf(stderr,"swan: WebAssembly runtime '%s' was not found; install Wasmtime or set SWAN_WASM_ENGINE\n",engine);
-   else fprintf(stderr,"swan: could not start WebAssembly runtime '%s': %s\n",engine,strerror(errno));
-   result=127;
-  }
-  free(args);
-  return result;
+  return swan_run_wasm_file(argv[index],argc-index-1,&argv[index+1]);
  }
  const char **swan_inputs=NULL,**c_inputs=NULL,**link_args=NULL;
  size_t swan_input_count=0,swan_input_capacity=0,c_input_count=0,c_input_capacity=0;
@@ -443,19 +447,34 @@ static int swan_run(int argc,char **argv){
   SWAN_RETURN(emitted?0:1);
  }
  if(target->architecture==SWAN_ARCH_WASM64){
-  if(mode!=SWAN_BUILD&&mode!=SWAN_EMIT){fprintf(stderr,"swan: WASM64 output is a WebAssembly module; run it with a WebAssembly memory64 runtime\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
   if(has_lazy){fprintf(stderr,"swan: WASM64 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
+  bool run_after_build=mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT;
+  char temporary_wasm[128];
+  const char *dest=output;
+  if(!dest){
+   if(run_after_build){snprintf(temporary_wasm,sizeof(temporary_wasm),"/tmp/swan-wasm-run-%ld.wasm",(long)getpid());dest=temporary_wasm;}
+   else dest="a.wasm";
+  }
   SwanSVMOutput compiled={0};
   bool backend_ok=swan_svm_codegen(&p,target,&compiled,&err);
   if(!backend_ok){
    fprintf(stderr,"swan: %s\n",err.message[0]?err.message:"SVM backend failed");
    free(compiled.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
   }
-  const char *dest=output?output:(target->architecture==SWAN_ARCH_WASM64?"a64.wasm":"a.wasm");FILE *wf=fopen(dest,"wb");
+  FILE *wf=fopen(dest,"wb");
   bool saved=wf&&fwrite(compiled.data,1,compiled.length,wf)==compiled.length;
   if(wf&&fclose(wf)!=0)saved=false;
-  if(!saved)fprintf(stderr,"swan: failed to write WebAssembly module '%s'\n",dest);
-  free(compiled.data);swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(saved?0:1);
+  free(compiled.data);
+  if(!saved){
+   fprintf(stderr,"swan: failed to write WebAssembly module '%s'\n",dest);
+   swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(1);
+  }
+  if(run_after_build){
+   result=swan_run_wasm_file(dest,0,NULL);
+   if(!output)unlink(dest);
+  }
+  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
+  SWAN_RETURN(result);
  }
  if(target->architecture==SWAN_ARCH_AARCH64){
   if(mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT){fprintf(stderr,"swan: AArch64 cross-target output is an ELF object; execute it on an AArch64 system after linking\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
