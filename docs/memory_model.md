@@ -148,7 +148,7 @@ pointer, memory-operation, and lifetime implementations.
 | Arena allocation | `raw.arena_alloc(arena: i64, size: i64) -> i64` | Allocate an aligned slice from an arena |
 | Arena reset | `raw.arena_reset(arena: i64)` | Rewind the arena to offset zero |
 | Arena remaining | `raw.arena_remaining(arena: i64) -> i64` | Return remaining capacity |
-| Arena release | `raw.arena_release(arena: i64)` | Release the arena backing allocation |
+| Arena release | `raw.arena_release(arena: i64)` | Release the arena backing allocation; transfer an owned arena with `move` |
 
 Allocation functions return zero on failure. Negative sizes are rejected by the
 Swan wrappers. The arena stores capacity and used-byte offsets in a 16-byte
@@ -203,7 +203,8 @@ post-loop state ambiguous.
 
 `raw.release` remains available for unmanaged `i64` pointers and internal
 runtime code. For values declared with `own`, prefer `drop` so the compiler
-can track the owner state. A borrowed view cannot be passed to `raw.release`.
+can track the owner state; `raw.release(move owner)` and
+`raw.arena_release(move arena)` are also consuming operations. A borrowed view cannot be passed to `raw.release`.
 
 ### Safety boundary
 
