@@ -21,7 +21,7 @@ Swan source
   -> IR verification
   -> target-independent optimization
   -> final IR verification
-  -> selected Swan target backend
+  -> selected Swan target backend (x86-64, AArch64/ARM64, or WASM64)
   -> assembly/object/WebAssembly emission
   -> platform assembler and linker where applicable
 ```
@@ -54,7 +54,7 @@ The optimizer performs width-aware constant folding, select and CFG simplificati
 
 ## Runtime and memory
 
-SVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WebAssembly targets emit WebAssembly modules.
+SVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WASM64 emits a memory64 WebAssembly module.
 
 The x86-64 compatibility backend supports the currently implemented u32 array forms and automatic cleanup for eligible local arrays. Small fixed-size non-escaping arrays can use a stack-frame fast path. This is not yet a general ownership or borrow-checking system.
 
@@ -63,12 +63,8 @@ The x86-64 compatibility backend supports the currently implemented u32 array fo
 | Backend | Object/runtime boundary | Scope |
 |---|---|---|
 | x86-64 | System V Linux | Native executable/assembly; typed scalar IR and broader AST compatibility features |
-| AArch64 | AAPCS64 Linux | Limited scalar IR object/assembly emission |
-| ARMv7 | AAPCS32 Linux, ARM state | Limited i32/i1 IR object/assembly emission |
-| RISC-V64 | Linux integer ABI subset | Limited scalar IR object/assembly emission |
-| WASM32 | WebAssembly 32-bit memory | Limited scalar/control-flow module emission |
+| AArch64 / ARM64 | AAPCS64 Linux | Limited scalar IR object/assembly emission |
 | WASM64 | WebAssembly memory64 | Limited memory64 module emission |
-| LLVM triple | Depends on target triple/toolchain | Explicit typed-IR portability route; Clang/LLVM must support the target |
 
 Successful object emission is not proof of runtime ABI compatibility. Cross-target linking, full runtime support, standard-library module bundling, aggregates, and full frontend parity remain incomplete.
 
@@ -76,7 +72,7 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 
 1. Do not transpile Swan source to C.
 2. Keep the native backend path Swan-owned.
-3. Keep the LLVM bridge explicit through `--target-triple`; it is not a silent fallback.
+3. Expose only the x86-64, AArch64/ARM64, and WASM64 target backends.
 4. Reject unsupported constructs with diagnostics rather than emitting partial code.
 5. Verify typed IR before and after transformations.
 6. Describe parser, semantic, IR, and backend support separately.
