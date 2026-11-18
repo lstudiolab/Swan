@@ -325,9 +325,8 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
   if(!strcmp(intrinsic,"stack")){
    if(e->argc!=1){swan_error(err,&e->token,"raw stack expects exactly one size argument");return;}
    emit_expr(o,e->args[0],l,err);
-   int failed=o->next_label++;
    text_add(o,"    test rax, rax\n    js .Lswan_array_bounds_fail\n    add rax, 15\n    jc .Lswan_array_bounds_fail\n    and rax, -16\n    sub rsp, rax\n    mov rax, rsp\n");
-   (void)failed;o->uses_array_bounds=true;return;
+   o->uses_array_bounds=true;return;
   }
   int width=0;bool store=false;
   if(!strcmp(intrinsic,"load8"))width=8;
