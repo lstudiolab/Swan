@@ -70,20 +70,21 @@ static inline Stmt *swan_parser_for_increment(Parser *p,const char *iterator,
 }
 static inline bool swan_parser_rewrite_for_continues(Parser *p,Stmt ***body,
         size_t *count,size_t *capacity,const char *iterator,const char *end_name,
-        Token location){
+        Token location,bool append_at_end){
  size_t original=*count;
  for(size_t i=0;i<original;i++){
   Stmt *item=(*body)[i];
   if(item&&item->kind==S_IF){
    if(!swan_parser_rewrite_for_continues(p,&item->body,&item->body_count,
-       &item->body_cap,iterator,end_name,location)||
+       &item->body_cap,iterator,end_name,location,false)||
       !swan_parser_rewrite_for_continues(p,&item->alternate,&item->alt_count,
-       &item->alt_cap,iterator,end_name,location))return false;
+       &item->alt_cap,iterator,end_name,location,false))return false;
   }
  }
  size_t continues=0;
  for(size_t i=0;i<original;i++)if((*body)[i]&&(*body)[i]->kind==S_CONTINUE)continues++;
- size_t extra=continues+1;
+ size_t extra=continues+(append_at_end?1u:0u);
+ if(!extra)return true;
  if(original>SIZE_MAX-extra)return false;
  size_t needed=original+extra;
  if(needed>SIZE_MAX/sizeof(Stmt *)){
@@ -101,9 +102,11 @@ static inline bool swan_parser_rewrite_for_continues(Parser *p,Stmt ***body,
   }
   rewritten[out++]=item;
  }
- Stmt *increment=swan_parser_for_increment(p,iterator,end_name,location);
- if(!increment)return false;
- rewritten[out++]=increment;
+ if(append_at_end){
+  Stmt *increment=swan_parser_for_increment(p,iterator,end_name,location);
+  if(!increment)return false;
+  rewritten[out++]=increment;
+ }
  *body=rewritten;*count=out;*capacity=needed;return true;
 }
 static inline Stmt *statement_impl(Parser *p){
@@ -147,7 +150,7 @@ static inline Stmt *statement_impl(Parser *p){
   loop->condition->right=swan_parser_name(p,end_name,t);
   if(!block(p,&loop->body,&loop->body_count,&loop->body_cap))return scope;
   if(!swan_parser_rewrite_for_continues(p,&loop->body,&loop->body_count,
-       &loop->body_cap,iterator.text,end_name,t))return scope;
+       &loop->body_cap,iterator.text,end_name,t,true))return scope;
   scope->body[0]=bound;scope->body[1]=index;scope->body[2]=loop;
   return scope;
  }
