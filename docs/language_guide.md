@@ -720,9 +720,6 @@ The table below describes their intended role and current implementation status.
 | `guard` | Guard-style conditional validation | Reserved; not implemented |
 | `block` | Explicit block construct | Reserved; not implemented as a separate construct |
 | `for` | Inclusive integer range loop | Implemented: `for name from start upto end:` |
-| `from` | Range-loop lower-bound introducer | Implemented with `for` |
-| `upto` | Inclusive range-loop upper-bound introducer | Implemented with `for` |
-| `for` | Inclusive integer range loop | Implemented: `for name from start upto end:` |
 | `while` | Condition-controlled loop | Implemented |
 | `loop` | Unconditional loop | Implemented as `loop:`; uses shared control-flow IR |
 | `true` | Boolean true literal | Implemented |
