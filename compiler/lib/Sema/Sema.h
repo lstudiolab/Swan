@@ -350,7 +350,7 @@ static inline bool swan_validate_local_names(Stmt **body,size_t count,SwanSymbol
  for(size_t i=0;i<count;i++){Stmt *statement=body[i];if(!statement)continue;
   if(statement->kind==S_VARIABLE){
    if(swan_symbol_find(names,statement->name,NULL)){swan_error(error,&statement->token,"local variable '%s' is redeclared; local shadowing is not supported",statement->name);return false;}
-   if(!swan_symbol_add(names,statement->name,false,true,false,false,false)){swan_error(error,&statement->token,"out of memory validating local declarations");return false;}
+   if(!swan_symbol_add(names,statement->name,false,true,false,false,false,false,NULL)){swan_error(error,&statement->token,"out of memory validating local declarations");return false;}
   }
   if(!swan_validate_local_names(statement->body,statement->body_count,names,error)||!swan_validate_local_names(statement->alternate,statement->alt_count,names,error))return false;
  }return true;
@@ -408,8 +408,8 @@ static inline bool swan_semantic_check(Program *p,SwanError *err){
    if(!fn->params[a]||!fn->params[a][0]){swan_error(err,&fn->token,"function '%s' has an invalid parameter name",fn->name);ok=false;break;}
    if(swan_symbol_find(&symbols,fn->params[a],NULL)){swan_error(err,&fn->token,"duplicate parameter '%s'",fn->params[a]);ok=false;break;}
    bool is_array=fn->param_types&&fn->param_types[a]&&!strcmp(fn->param_types[a],"u32_array");
-   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false)||
-      !swan_symbol_add(&local_names,fn->params[a],false,true,is_array,false,false)){
+   if(!swan_symbol_add(&symbols,fn->params[a],false,true,is_array,false,false,false,NULL)||
+      !swan_symbol_add(&local_names,fn->params[a],false,true,is_array,false,false,false,NULL)){
     swan_error(err,&fn->token,"out of memory adding function parameter");ok=false;break;
    }
   }
