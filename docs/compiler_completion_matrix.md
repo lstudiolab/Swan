@@ -54,12 +54,8 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Target / stage | Status | Implemented | Still required |
 |---|---|---|---|
 | x86-64 System V | Partial but most complete | Native assembly/executable, typed scalar path and AST compatibility features | Unified typed-IR feature coverage, robust ABI edge cases and sanitizer/runtime matrix |
-| AArch64 | Partial | Swan-owned assembly/object for limited scalar IR | Full type/operation coverage, ABI edge cases, linker/runtime validation |
-| ARMv7 | Partial | ARM-state assembly/object for limited i32/i1 subset | Broader operations, ABI validation and runtime tests |
-| RISC-V64 | Partial | Swan-owned assembly/object for limited scalar IR | Full operation/type coverage, ABI and runtime validation |
-| WASM32 | Partial | Module emission for supported scalar/control flow | Full language/runtime integration, imports/exports, memory and execution tests |
+| AArch64 / ARM64 | Partial | Swan-owned assembly/object for limited scalar IR | Full type/operation coverage, ABI edge cases, linker/runtime validation |
 | WASM64 | Partial / validation needed | Memory64 module emission for supported subset | Runtime engine interoperability, memory model and execution tests |
-| LLVM target bridge | Partial / toolchain-dependent | Explicit LLVM IR bridge for supported Swan IR subset | Complete lowering coverage and target-specific ABI/runtime validation |
 | Instruction selection | Partial | Target-specific lowering for current supported operations | Legalization and coverage for all operations/types |
 | Register allocation | Partial | Backend-specific register/local assignment for supported subset | Proven global allocation, spill/reload correctness and stress tests |
 | Machine IR | Not established as a complete shared stage | Target backend internal representations | Shared machine IR contract, verifier and target-independent passes |
