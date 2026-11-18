@@ -131,6 +131,8 @@ The `raw` standard module exposes native allocator and byte-memory operations:
 | `raw.copy(dst: i64, src: i64, size: i64) -> i64` | Copy non-overlapping bytes |
 | `raw.move_bytes(dst: i64, src: i64, size: i64) -> i64` | Copy bytes with overlap support |
 | `raw.fill(dst: i64, value: i64, size: i64) -> i64` | Fill a byte range |
+| `raw.load8/16/32/64(address: i64) -> i64` | Load an unsigned value directly from memory |
+| `raw.store8/16/32/64(address: i64, value: i64)` | Store the low 8/16/32/64 bits directly to memory |
 
 These operations call the native C allocator and memory functions. Allocation failure returns zero/null. The caller must check results, release each live allocation exactly once, and must not use an allocation after release or after a successful resize that moved it.
 
