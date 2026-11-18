@@ -371,6 +371,22 @@ SWAN
 "$SWAN" build "$TMP/range-for-inclusive.swan" -o "$TMP/range-for-inclusive"
 test "$("$TMP/range-for-inclusive")" = "15"
 printf 'PASS: for/from/upto iterates an inclusive integer range\n'
+"$SWAN" build "$TMP/range-for-inclusive.swan" --warnings-as-errors -o "$TMP/range-for-inclusive-werror"
+test "$("$TMP/range-for-inclusive-werror")" = "15"
+printf 'PASS: synthetic range scope does not trigger constant-condition warnings\n'
+
+cat > "$TMP/range-for-empty.swan" <<'SWAN'
+func main() -> int:
+    var total = 0
+    for i from 5 upto 1:
+        total = total + i
+    !printin >> total;
+    return 0
+SWAN
+"$SWAN" build "$TMP/range-for-empty.swan" -o "$TMP/range-for-empty"
+test "$("$TMP/range-for-empty")" = "0"
+printf 'PASS: descending endpoints produce an empty ascending range\n'
+
 
 cat > "$TMP/range-for-continue.swan" <<'SWAN'
 func main() -> int:
