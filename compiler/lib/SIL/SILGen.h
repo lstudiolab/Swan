@@ -26,7 +26,11 @@ static inline uint32_t swan_sil_expr(SwanSILModule *m,SwanSILFunction *f,const E
   case E_BOOL:in.opcode=SWAN_SIL_BOOL_LITERAL;in.integer=e->token.kind==T_TRUE;break;
   case E_NAME:in.opcode=SWAN_SIL_DEBUG_VALUE;in.text=e->token.text;in.type=SWAN_SIL_TYPE_UNKNOWN;break;
   case E_CALL:in.opcode=SWAN_SIL_APPLY;for(size_t i=0;i<argc;i++)in.operands[i]=args[i];in.operand_count=argc;in.side_effecting=true;break;
-  case E_UNARY:in.opcode=SWAN_SIL_UNARY;if(a){in.operands[0]=a;in.operand_count=1;}in.text=e->token.text;break;
+  case E_UNARY:
+   in.opcode=e->token.kind==T_MOVE?SWAN_SIL_MOVE_VALUE:
+             (e->token.kind==T_BORROW?SWAN_SIL_BORROW_VALUE:SWAN_SIL_UNARY);
+   if(a){in.operands[0]=a;in.operand_count=1;}
+   in.text=e->token.text;in.side_effecting=e->token.kind==T_MOVE;break;
   case E_BINARY:in.opcode=SWAN_SIL_BINARY;if(a&&b){in.operands[0]=a;in.operands[1]=b;in.operand_count=2;}in.text=e->token.text;break;
   case E_INDEX:case E_MEMBER:in.opcode=SWAN_SIL_LOAD;if(a){in.operands[0]=a;in.operand_count=1;}in.side_effecting=true;break;
   default:return 0;
@@ -72,6 +76,12 @@ static inline bool swan_sil_statements(SwanSILModule *m,SwanSILFunction *f,Stmt 
    f->current_block=exit_block;
   }else if(s->kind==S_LOG){
    uint32_t value=swan_sil_expr(m,f,s->value);SwanSILInstruction log={0};log.opcode=SWAN_SIL_LOG;log.type=SWAN_SIL_TYPE_TRIVIAL;log.side_effecting=true;log.location=&s->token;if(value){log.operands[0]=value;log.operand_count=1;}if(!swan_sil_emit(m,f,log))return false;
+  }else if(s->kind==S_DROP){
+   uint32_t value=swan_sil_expr(m,f,s->value);SwanSILInstruction destroy={0};
+   destroy.opcode=SWAN_SIL_DESTROY_VALUE;destroy.type=SWAN_SIL_TYPE_TRIVIAL;
+   destroy.side_effecting=true;destroy.location=&s->token;
+   if(value){destroy.operands[0]=value;destroy.operand_count=1;}
+   if(!swan_sil_emit(m,f,destroy))return false;
   }else if(s->kind==S_EXPR){(void)swan_sil_expr(m,f,s->value);}
   else if(s->kind==S_BREAK||s->kind==S_CONTINUE){
    if(!f->loop_count)return false;
