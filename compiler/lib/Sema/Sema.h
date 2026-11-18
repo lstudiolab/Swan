@@ -96,6 +96,20 @@ static inline Stmt *swan_raw_call_function(Program *p,Expr *e){
     strcmp(e->left->left->token.text,"raw"))return NULL;
  return swan_find_module_function(p,"raw",swan_expr_terminal_name(e->left));
 }
+static inline bool swan_expr_borrow_use_is_scalar(Program *p,Expr *e,SwanSymbols *symbols){
+ if(!e||(!swan_expr_has_borrow_operator(e)&&!swan_expr_mentions_borrow(e,symbols)))return true;
+ if(e->kind==E_CALL){
+  Stmt *fn=swan_raw_call_function(p,e);
+  return fn&&((!strncmp(fn->name,"load",4)&&
+    (!strcmp(fn->name,"load8")||!strcmp(fn->name,"load16")||
+     !strcmp(fn->name,"load32")||!strcmp(fn->name,"load64")))||
+    !strcmp(fn->name,"arena_remaining"));
+ }
+ if(e->kind==E_BINARY&&e->token.kind!=T_ASSIGN)
+  return swan_expr_borrow_use_is_scalar(p,e->left,symbols)&&
+         swan_expr_borrow_use_is_scalar(p,e->right,symbols);
+ return false;
+}
 static inline bool swan_expr_calls_raw_stack(Program *p,Expr *e){
  if(!e)return false;
  Stmt *fn=swan_raw_call_function(p,e);
@@ -223,7 +237,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
-    if(e->right&&(swan_expr_has_borrow_operator(e->right)||swan_expr_mentions_borrow(e->right,symbols))){swan_error(err,&e->right->token,"borrowed pointers cannot escape into an ordinary assignment");return false;}
+    if(e->right&&!swan_expr_borrow_use_is_scalar(p,e->right,symbols)){swan_error(err,&e->right->token,"borrowed pointers cannot escape into an ordinary assignment");return false;}
     if(e->right&&e->right->kind==E_UNARY&&(e->right->token.kind==T_MOVE||e->right->token.kind==T_BORROW)){swan_error(err,&e->right->token,"ownership transfers must use an own declaration or a direct call argument");return false;}
     if(e->right&&e->right->kind==E_NAME){size_t right_index;if(swan_symbol_find(symbols,e->right->token.text,&right_index)&&symbols->items[right_index].manual_checked){swan_error(err,&e->right->token,"manual ownership cannot be copied or aliased");return false;}}
     if(e->left&&e->left->kind==E_INDEX){
@@ -315,7 +329,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     }else{
      if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){swan_error(err,&s->value->token,"move must initialize an own variable or transfer into raw.release/raw.resize/raw.arena_release");return false;}
      if(s->value&&s->value->kind==E_UNARY&&s->value->token.kind==T_BORROW){swan_error(err,&s->value->token,"temporary borrows are only valid as call arguments; use 'borrow let' for a scoped view");return false;}
-     if(s->value&&(swan_expr_has_borrow_operator(s->value)||swan_expr_mentions_borrow(s->value,symbols))){
+     if(s->value&&!swan_expr_borrow_use_is_scalar(p,s->value,symbols)){
       swan_error(err,&s->value->token,"borrowed pointers cannot escape into ordinary variables; use a borrow declaration for arena slices");return false;
      }
      if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
@@ -325,14 +339,14 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     break;
    }
    case S_LOG:
-    if(s->value&&(swan_expr_has_borrow_operator(s->value)||swan_expr_mentions_borrow(s->value,symbols))){
+    if(s->value&&!swan_expr_borrow_use_is_scalar(p,s->value,symbols)){
      swan_error(err,&s->value->token,"borrowed pointers cannot be printed");return false;
     }
     if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&symbols->items[index].manual_checked){swan_error(err,&s->value->token,"manual allocation handles cannot be printed or copied");return false;}}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_RETURN:
-    if(s->value&&(swan_expr_has_borrow_operator(s->value)||swan_expr_mentions_borrow(s->value,symbols))){
+    if(s->value&&!swan_expr_borrow_use_is_scalar(p,s->value,symbols)){
      swan_error(err,&s->value->token,"borrowed pointers cannot escape through a return value");return false;
     }
     if(s->value&&s->value->kind==E_UNARY&&(s->value->token.kind==T_BORROW||s->value->token.kind==T_MOVE)){swan_error(err,&s->value->token,"raw borrows and owners cannot escape through return");return false;}
