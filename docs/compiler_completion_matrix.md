@@ -19,7 +19,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | Source loading and UTF-8 validation | Complete (scoped) | UTF-8 validation, BOM handling, source buffers and diagnostics | Full Unicode identifier XID tables and normalization |
 | Lexer | Complete (scoped) | Current token set, indentation and UTF-8 byte preservation | Unicode normalization and exhaustive fuzz/property tests |
 | Parser / AST | Partial | Indentation-based grammar and AST for current syntax | End-to-end implementation of all advertised constructs; grammar fuzzing |
-| Semantic analysis | Partial | Existing declaration, type, control-flow and diagnostic checks | Complete struct/member/method resolution, full type inference and ownership rules |
+| Semantic analysis | Partial | Existing declaration, type, control-flow and diagnostic checks | Complete struct/member/method resolution, full type inference and type-compatibility diagnostics |
 | Imports / modules | Partial | Swan module loading, namespaces, lazy imports and C-header scalar declarations | Complete package resolution, cycles/visibility policy, portable native ABI and dependency graph validation |
 | Reachability | Partial | Function reachability from `main` for supported direct-call forms | Indirect calls, closures, address-taken functions and complete module graph semantics |
 | Diagnostics | Partial | Source positions, phase errors, warnings and warnings-as-errors | Structured diagnostic codes, robust imported-source spans and error recovery |
@@ -32,7 +32,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 | IR generation | Partial | Integer/boolean scalar subset, direct calls, locals, assignment, if/else, loops and short-circuit logic | Arrays, strings, floats, aggregates, member access, indirect calls and full import lowering |
 | IR verifier | Complete (scoped) | SSA/dominance, PHI placement, operation contracts, signatures and malformed storage checks | Expand adversarial/property tests as new operations are added |
 | IR optimizer | Complete (scoped) | Constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, conservative LICM and DCE | More analyses/passes, compile-time budgets, differential testing and proof of semantics preservation |
-| SIL | Partial / integration unclear | Repository references SIL in build messaging and memory-model plans | A single documented, independently verifiable SIL contract; ownership dataflow, borrow/move checks, verifier, lowering and integration tests |
+| SIL | Partial / integration unclear | Repository references SIL in build messaging and memory-model plans | A single documented, independently verifiable SIL contract; ARC retain/release lifetime analysis, verifier, lowering and integration tests |
 | SVM common pipeline | Partial | Shared verification/optimization and backend dispatch | One mandatory path for all source features; retire the AST compatibility route |
 | Serialization / bytecode runtime | Not implemented by design | SVM is the compilation engine, not a VM runtime | No interpreter or bytecode runtime is required by the current architecture |
 
