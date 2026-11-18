@@ -28,7 +28,7 @@ The current `test.sh` runs:
 10. `tests/foundation.sh` — Foundation source module behavior.
 11. `tests/lazy-imports.sh` — reachability-based runtime-lazy module behavior.
 12. `tests/architecture.sh` — target/backend and architecture checks.
-13. Compile and run `tests/keywords.c` — keyword/token registry smoke test.
+13. `tests/architecture.sh` — target/backend checks, including a single-source all-target build.\n14. Compile and run `tests/keywords.c` — keyword/token registry smoke test.
 
 ## Coverage areas
 
@@ -55,3 +55,6 @@ A backend is advertised only for the subset exercised by its tests. Cross-target
 ## Adding a regression
 
 For a new feature, add the narrowest useful positive and negative cases. Include source diagnostics, IR verification, generated artifact checks, and executable tests as appropriate. For optimizer changes, add before/after IR assertions and behavior tests. For ownership changes, test valid release, leak, double-free, use-after-free, aliasing, and branch/loop state consistency.
+
+
+The architecture integration test also invokes `swanc build source.swan --target all -o output/` and checks that the x86-64 executable runs, the ARM64 output is an AArch64 ELF object, and the WASM64 output has a valid WebAssembly header.
