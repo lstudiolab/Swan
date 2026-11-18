@@ -15,7 +15,6 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
   for(size_t b=0;b<fn->block_count;b++)for(size_t i=0;i<fn->blocks[b].instruction_count;i++){
    const SwanIRInst *in=&fn->blocks[b].instructions[i];
    if(in->type!=SWAN_IR_VOID&&in->type!=SWAN_IR_I1&&in->type!=SWAN_IR_I32&&in->type!=SWAN_IR_I64&&in->type!=SWAN_IR_PTR){if(error&&cap)snprintf(error,cap,"x86-64 IR backend currently supports i1/i32/i64 scalar values and pointers");return false;}
-   if(in->type==SWAN_IR_I32&&in->op!=SWAN_IR_CONST&&in->op!=SWAN_IR_CALL){if(error&&cap)snprintf(error,cap,"x86-64 C ABI currently supports i32 only at call boundaries");return false;}
   }
  }
  static const char *args[]={"rdi","rsi","rdx","rcx","r8","r9"};
@@ -42,9 +41,12 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
   if(frame>INT32_MAX){if(error&&cap)snprintf(error,cap,"x86-64 IR stack frame exceeds the signed displacement limit");return false;}
   text_add(o,".intel_syntax noprefix\n.text\n.globl %s\n.type %s, @function\n%s:\n    push rbp\n    mov rbp, rsp\n    sub rsp, %zu\n",fn->name,fn->name,fn->name,frame);
   static const char *arg_bytes[]={"dil","sil","dl","cl","r8b","r9b"};
+  static const char *arg_dwords[]={"edi","esi","edx","ecx","r8d","r9d"};
   for(size_t p=0;p<fn->parameter_count&&p<6;p++){
    if(fn->parameter_types[p]==SWAN_IR_I1)
     text_add(o,"    movzx eax, %s\n    mov QWORD PTR [rbp-%d], rax\n",arg_bytes[p],swan_x64_slot((uint32_t)p+1));
+   else if(fn->parameter_types[p]==SWAN_IR_I32)
+    text_add(o,"    movsxd rax, %s\n    mov QWORD PTR [rbp-%d], rax\n",arg_dwords[p],swan_x64_slot((uint32_t)p+1));
    else
     text_add(o,"    mov QWORD PTR [rbp-%d], %s\n",swan_x64_slot((uint32_t)p+1),args[p]);
   }
@@ -52,6 +54,8 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
    size_t source_offset=16u+(p-6u)*8u;
    if(fn->parameter_types[p]==SWAN_IR_I1)
     text_add(o,"    movzx eax, BYTE PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",source_offset,swan_x64_slot((uint32_t)p+1));
+   else if(fn->parameter_types[p]==SWAN_IR_I32)
+    text_add(o,"    movsxd rax, DWORD PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",source_offset,swan_x64_slot((uint32_t)p+1));
    else
     text_add(o,"    mov rax, QWORD PTR [rbp+%zu]\n    mov QWORD PTR [rbp-%d], rax\n",source_offset,swan_x64_slot((uint32_t)p+1));
   }
