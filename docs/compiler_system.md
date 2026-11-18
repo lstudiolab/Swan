@@ -135,7 +135,7 @@ A directory or explicit source list denotes one logical program, not a sequence 
 - Imported modules are deduplicated by canonical module identity and loaded once per compilation.
 - Parallel frontend work is permitted only for independent files and must merge results deterministically. Shared mutable compiler state must not be accessed concurrently without a defined synchronization/ownership model.
 
-The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. Native x86-64 project builds produce one object per Swan source file before linking. Explicit emission produces one target artifact per source for x86-64, AArch64/ARM64, or WASM64. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
+The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. SIC host detection selects WASM64 for WebAssembly-hosted builds, ARM64 as the default native target on ARM64 hosts, and x86-64 on x86-64 hosts. Native x86-64 project builds produce one object per Swan source file before linking. Native ARM64 single-file builds link host executables and `run` executes them; ARM64 cross-builds on other hosts emit ELF objects. Explicit emission produces one target artifact per source for x86-64, AArch64/ARM64, or WASM64. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
 
 ### 4.2 Phase contracts
 
