@@ -12,9 +12,9 @@ func identity(pointer: i64) -> i64:
     return pointer
 
 func main() -> int:
-    own var memory: i64 = raw.alloc(64)
+    own var memory: i64 = raw.alloc_zeroed(64, 1)
     var result: i64 = 0
-    if true:
+    if raw.load8(borrow memory) == 0:
         borrow let view: i64 = memory
         let same: i64 = identity(view)
         raw.fill(same, 0, 64)
