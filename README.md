@@ -14,6 +14,8 @@ The production architecture is specified in [docs/compiler_system.md](docs/compi
 
 The programmer-facing syntax, coding conventions, complete reserved-keyword list, operator precedence, standard library, and current feature boundaries are documented in [docs/language_guide.md](docs/language_guide.md).
 
+The all-rounder language target, implementation gaps, per-keyword disposition, backend capability policy, and completion gates are tracked in [docs/language_completion.md](docs/language_completion.md).
+
 ## Current compiler
 
 The compiler has two cooperating source-lowering paths:
