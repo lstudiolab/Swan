@@ -11,6 +11,14 @@ external func free(pointer: i64)
 external func memcpy(destination: i64, source: i64, size: i64) -> i64
 external func memmove(destination: i64, source: i64, size: i64) -> i64
 external func memset(destination: i64, value: i64, size: i64) -> i64
+external func load8(address: i64) -> i64
+external func load16(address: i64) -> i64
+external func load32(address: i64) -> i64
+external func load64(address: i64) -> i64
+external func store8(address: i64, value: i64)
+external func store16(address: i64, value: i64)
+external func store32(address: i64, value: i64)
+external func store64(address: i64, value: i64)
 
 func alloc(size: i64) -> i64:
     return malloc(size)
