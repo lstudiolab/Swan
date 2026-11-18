@@ -193,9 +193,11 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
      if(!s->mutable_value||!s->value){swan_error(err,&s->token,"own must declare an initialized mutable variable");return false;}
      if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw owners currently require the i64 address type");return false;}
      if(!swan_check_expr(p,s->value,symbols,err))return false;
-     if(s->value->kind!=E_CALL){swan_error(err,&s->value->token,"own must initialize from an i64-returning allocation function or move");return false;}
-     Stmt *owner_fn=swan_find_link_function(p,swan_expr_terminal_name(s->value->left));
-     if(!owner_fn||!owner_fn->type||strcmp(owner_fn->type,"i64")){swan_error(err,&s->value->token,"own initializer must return i64");return false;}
+     if(!(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE)){
+      if(s->value->kind!=E_CALL){swan_error(err,&s->value->token,"own must initialize from an i64-returning allocation function or move");return false;}
+      Stmt *owner_fn=swan_find_link_function(p,swan_expr_terminal_name(s->value->left));
+      if(!owner_fn||!owner_fn->type||strcmp(owner_fn->type,"i64")){swan_error(err,&s->value->token,"own initializer must return i64");return false;}
+     }
     }else if(s->manual_borrow){
      if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
      if(s->mutable_value||!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"borrow must declare an immutable view of an owned variable");return false;}
