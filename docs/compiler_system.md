@@ -195,9 +195,9 @@ The required flow is:
        browser / WebAssembly host:
          retain WASM64 -> browser WebAssembly engine
        native x86-64 or ARM64 host:
-         Wasmtime host compilation -> host-specific .cwasm
-         delete temporary WASM only after successful compilation
-         execute compiled module
+         Wasmtime runtime JIT -> host-native x86-64 / ARM64 code
+         execute compiled code
+         delete temporary WASM only after successful runtime completion
        unsupported host or compilation failure:
          retain WASM64 -> WASM runtime fallback
 ```
@@ -213,7 +213,7 @@ SIC requirements:
 7. Cache compiled modules by at least host architecture and source artifact freshness. A host-specific compiled artifact must never be reused as if it were portable across architectures.
 8. Browser deployments load the original WASM module through the browser loader. Browser engine support for the WASM64 memory64 proposal is a deployment requirement and must be checked separately from native support.
 
-The current implementation uses Wasmtime's `compile` command to produce its host-specific compiled-module artifact. This is runtime-triggered native code generation, but the `.cwasm` artifact remains tied to Wasmtime and a compatible host configuration; it is not a directly linked OS executable. A future Swan-owned JIT may replace the engine integration without changing the SIC contract.
+The current implementation delegates native JIT compilation to Wasmtime's `run` engine. This produces native machine code in the runtime process rather than a standalone OS executable. A future Swan-owned JIT may replace the engine integration without changing the SIC contract.
 
 ## 6. Optimization and pass management
 
