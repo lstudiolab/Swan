@@ -30,3 +30,21 @@ result=$("$BIN" run "$TMP/portable.wasm" 2>"$TMP/portable-runtime.err")
 test "$result" = "3"
 test -s "$TMP/portable.wasm"
 printf 'PASS: swanc compile emits portable WASM64 and SIC runs it through the host JIT\n'
+
+cat > "$TMP/i32.swan" <<'SWAN'
+func combine(a: i32, b: i32) -> i32:
+    var total: i32 = a + b
+    total = total * 3
+    total = total - 2
+    let quotient: i32 = total / 3
+    let remainder: i32 = total % 3
+    return quotient + remainder
+func main() -> i32:
+    return combine(-7, 2)
+SWAN
+result=$("$BIN" run "$TMP/i32.swan" --target wasm64 2>"$TMP/i32-source-runtime.err")
+test "$result" = "-7"
+"$BIN" build "$TMP/i32.swan" --target wasm64 -o "$TMP/i32.wasm"
+result=$("$BIN" run "$TMP/i32.wasm" 2>"$TMP/i32-runtime.err")
+test "$result" = "-7"
+printf 'PASS: WASM64 i32 arithmetic, signed division, and function ABI\n'
