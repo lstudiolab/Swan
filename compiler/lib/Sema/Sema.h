@@ -274,7 +274,7 @@ static inline void swan_warning_block(Program *program,Stmt **body,size_t count)
    }else if(statement->kind==S_WHILE&&!condition){
     swan_warning_add(program,&statement->token,
       "loop condition is always false; loop body will never execute");
-   }else if(statement->token.kind!=T_LOOP){
+   }else if(statement->kind==S_WHILE&&statement->token.kind!=T_LOOP){
     swan_warning_add(program,&statement->token,
       "loop condition is always true; verify that the loop can terminate");
    }
