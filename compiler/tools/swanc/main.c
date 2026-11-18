@@ -326,10 +326,12 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|file.wasm|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'swan run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [compile|build|run] <file.swan|file.wasm|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'swan run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",SWAN_VERSION);return 0;}
  SwanDriverMode mode=SWAN_RUN_DEFAULT;
+ bool sic_compile_command=false;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
+ else if(index<argc&&!strcmp(argv[index],"compile")){mode=SWAN_BUILD;sic_compile_command=true;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
  if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|arm64|wasm64|all] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
@@ -366,7 +368,7 @@ static int swan_run(int argc,char **argv){
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
  bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false,target_all=false;size_t compile_jobs=1;
- const SwanTarget *target=swan_target_find("x86_64");
+ const SwanTarget *target=swan_target_find(sic_compile_command?"wasm64":"x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--low-resource"))compile_jobs=1;
   else if(!strcmp(argv[i],"--jobs")&&i+1<argc){char *end=NULL;errno=0;unsigned long jobs=strtoul(argv[++i],&end,10);if(errno||!end||*end||jobs!=1){fprintf(stderr,"swan: this compiler currently supports only --jobs 1; parallel compilation is not implemented\n");SWAN_RETURN(2);}compile_jobs=(size_t)jobs;}
@@ -383,6 +385,10 @@ static int swan_run(int argc,char **argv){
   else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i]))SWAN_RETURN(2);}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
    const char *name=argv[++i];
+   if(sic_compile_command&&strcmp(name,"wasm64")){
+    fprintf(stderr,"swan: compile always produces portable WASM64; use build --target %s for an explicit legacy backend\\n",name);
+    SWAN_RETURN(2);
+   }
    if(!strcmp(name,"all")){target_all=true;target=swan_target_find("x86_64");}
    else{
     target=swan_target_find(name);
