@@ -355,6 +355,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_RETURN:
+    if(swan_expr_uses_stack_pointer(p,s->value,symbols)){swan_error(err,&s->token,"raw.stack pointers cannot escape the function that allocated them");return false;}
     if(s->value&&!swan_expr_borrow_use_is_scalar(p,s->value,symbols)){
      swan_error(err,&s->value->token,"borrowed pointers cannot escape through a return value");return false;
     }
@@ -380,26 +381,33 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     break;
    case S_IF:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
-    size_t outer=symbols->count;if(outer>SIZE_MAX/(6*sizeof(bool))){swan_error(err,&s->token,"branch state size overflow");return false;}
-    bool *states=calloc(outer?outer*6:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking branch state");return false;}
-    bool *before=states,*then_state=states+outer,*else_state=states+outer*2,*before_initialized=states+outer*3,*then_initialized=states+outer*4,*else_initialized=states+outer*5;
-    for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;}
+    size_t outer=symbols->count;if(outer>SIZE_MAX/(9*sizeof(bool))){swan_error(err,&s->token,"branch state size overflow");return false;}
+    bool *states=calloc(outer?outer*9:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking branch state");return false;}
+    bool *before=states,*then_state=states+outer,*else_state=states+outer*2,*before_initialized=states+outer*3,*then_initialized=states+outer*4,*else_initialized=states+outer*5,*before_stack=states+outer*6,*then_stack=states+outer*7,*else_stack=states+outer*8;
+    for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;before_stack[k]=symbols->items[k].stack_address;}
     if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
-    for(size_t k=0;k<outer;k++){then_state[k]=symbols->items[k].manual_freed;then_initialized[k]=symbols->items[k].initialized;}
-    swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++){symbols->items[k].manual_freed=before[k];symbols->items[k].initialized=before_initialized[k];}
+    for(size_t k=0;k<outer;k++){then_state[k]=symbols->items[k].manual_freed;then_initialized[k]=symbols->items[k].initialized;then_stack[k]=symbols->items[k].stack_address;}
+    swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++){symbols->items[k].manual_freed=before[k];symbols->items[k].initialized=before_initialized[k];symbols->items[k].stack_address=before_stack[k];}
     if(!swan_check_block(p,s->alternate,s->alt_count,symbols,err,loop_depth)){swan_symbols_leave(symbols,outer);free(states);return false;}
-    for(size_t k=0;k<outer;k++){else_state[k]=symbols->items[k].manual_freed;else_initialized[k]=symbols->items[k].initialized;}
+    for(size_t k=0;k<outer;k++){else_state[k]=symbols->items[k].manual_freed;else_initialized[k]=symbols->items[k].initialized;else_stack[k]=symbols->items[k].stack_address;}
     swan_symbols_leave(symbols,outer);
-    for(size_t k=0;k<outer;k++){if(symbols->items[k].manual_checked&&then_state[k]!=else_state[k]){swan_error(err,&s->token,"manual variable '%s' must have the same ownership state on every branch",symbols->items[k].name);free(states);return false;}symbols->items[k].manual_freed=then_state[k];symbols->items[k].initialized=then_initialized[k]&&else_initialized[k];}
+    for(size_t k=0;k<outer;k++){
+     if(symbols->items[k].manual_checked&&then_state[k]!=else_state[k]){swan_error(err,&s->token,"manual variable '%s' must have the same ownership state on every branch",symbols->items[k].name);free(states);return false;}
+     if(then_stack[k]!=else_stack[k]){swan_error(err,&s->token,"stack pointer provenance for '%s' must agree on every branch",symbols->items[k].name);free(states);return false;}
+     symbols->items[k].manual_freed=then_state[k];symbols->items[k].initialized=then_initialized[k]&&else_initialized[k];symbols->items[k].stack_address=then_stack[k];
+    }
     free(states);break;
    }
    case S_WHILE:{
     if(!swan_check_expr(p,s->condition,symbols,err))return false;
-    size_t outer=symbols->count;if(outer>SIZE_MAX/(2*sizeof(bool))){swan_error(err,&s->token,"loop state size overflow");return false;}
-    bool *states=calloc(outer?outer*2:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking loop state");return false;}
-    bool *before=states,*before_initialized=states+outer;for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;}
+    size_t outer=symbols->count;if(outer>SIZE_MAX/(3*sizeof(bool))){swan_error(err,&s->token,"loop state size overflow");return false;}
+    bool *states=calloc(outer?outer*3:1,sizeof(*states));if(!states){swan_error(err,&s->token,"out of memory tracking loop state");return false;}
+    bool *before=states,*before_initialized=states+outer,*before_stack=states+outer*2;for(size_t k=0;k<outer;k++){before[k]=symbols->items[k].manual_freed;before_initialized[k]=symbols->items[k].initialized;before_stack[k]=symbols->items[k].stack_address;}
     if(!swan_check_block(p,s->body,s->body_count,symbols,err,loop_depth+1)){swan_symbols_leave(symbols,outer);free(states);return false;}
-    for(size_t k=0;k<outer;k++)if(symbols->items[k].manual_checked&&symbols->items[k].manual_freed!=before[k]){swan_error(err,&s->token,"manual variable '%s' cannot change ownership inside a loop; free it after the loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);free(states);return false;}
+    for(size_t k=0;k<outer;k++){
+     if(symbols->items[k].manual_checked&&symbols->items[k].manual_freed!=before[k]){swan_error(err,&s->token,"manual variable '%s' cannot change ownership inside a loop; free it after the loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);free(states);return false;}
+     if(symbols->items[k].stack_address!=before_stack[k]){swan_error(err,&s->token,"stack pointer provenance for '%s' cannot change inside a loop",symbols->items[k].name);swan_symbols_leave(symbols,outer);free(states);return false;}
+    }
     swan_symbols_leave(symbols,outer);for(size_t k=0;k<outer;k++)symbols->items[k].initialized=before_initialized[k];free(states);break;
    }
    case S_BREAK:case S_CONTINUE:
