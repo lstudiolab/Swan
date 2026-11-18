@@ -302,6 +302,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(!swan_check_expr(p,e->right,symbols,err))return false;
     symbols->items[index].stack_address=right_stack_address;
     bool right_is_array=swan_expr_is_array(e->right,symbols);
+    if(p->raw_mode&&right_is_array){swan_error(err,&e->right->token,"raw-mode array allocations must initialize an own variable");return false;}
     if(symbols->items[index].initialized&&
        symbols->items[index].is_array!=right_is_array){
      swan_error(err,&e->token,"assignment changes the value between array and scalar types");
