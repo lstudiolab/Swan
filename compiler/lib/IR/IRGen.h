@@ -167,6 +167,15 @@ static inline uint32_t swan_irgen_expr(SwanIRGen *g,Expr *e) {
         SwanIRInst in={0};in.op=SWAN_IR_LOAD;in.type=local->type;in.a=local->value;return swan_irgen_emit(g,in);
     }
     if(e->kind==E_UNARY) {
+        /*
+         * Parse a signed integer literal as one value before lowering its
+         * positive magnitude. In particular, INT64_MIN has no representable
+         * positive int64_t counterpart, so recursively lowering the operand
+         * through strtoll() incorrectly rejects it.
+         */
+        int64_t signed_literal;
+        if(e->token.kind==T_MINUS&&swan_irgen_integer_literal(e,&signed_literal))
+            return swan_irgen_const(g,swan_irgen_infer_expr_type(g,e),signed_literal);
         uint32_t a=swan_irgen_expr(g,e->left);if(!a)return 0;
         SwanIRType t=swan_ir_value_type_of(g->function,a);
         if(e->token.kind==T_MINUS){uint32_t z=swan_irgen_const(g,t,0);SwanIRInst in={0};in.op=SWAN_IR_SUB;in.type=t;in.a=z;in.b=a;return swan_irgen_emit(g,in);}
