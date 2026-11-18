@@ -105,12 +105,24 @@ static inline bool swan_codegen_aarch64_ir(const SwanIRModule *m,Text *o,char *e
       break;
      case SWAN_IR_SDIV:case SWAN_IR_UDIV:case SWAN_IR_SREM:case SWAN_IR_UREM:{
       int id=o->next_label++;
-      text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    cbz x10, .Lsw_a64_divzero_%d\n",a,z,id);
-      if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM)
-       text_add(o,"    movz x11, #0\n    movk x11, #32768, lsl #48\n    cmp x9, x11\n    b.ne .Lsw_a64_divsafe_%d\n    cmn x10, #1\n    b.eq .Lsw_a64_divzero_%d\n.Lsw_a64_divsafe_%d:\n",id,id,id);
-      text_add(o,"    %s x11, x9, x10\n",in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM?"sdiv":"udiv");
-      if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)text_add(o,"    msub x11, x11, x10, x9\n");
-      text_add(o,"    str x11, [sp, #%d]\n    b .Lsw_a64_divdone_%d\n.Lsw_a64_divzero_%d:\n    brk #0\n.Lsw_a64_divdone_%d:\n",dst,id,id,id);break;
+      if(in->type==SWAN_IR_I32){
+       text_add(o,"    ldr w9, [sp, #%d]\n    ldr w10, [sp, #%d]\n    cbz w10, .Lsw_a64_divzero32_%d\n",a,z,id);
+       if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM)
+        text_add(o,"    mov w11, #0x80000000\n    cmp w9, w11\n    b.ne .Lsw_a64_divsafe32_%d\n    cmn w10, #1\n    b.eq .Lsw_a64_divzero32_%d\n.Lsw_a64_divsafe32_%d:\n",id,id,id);
+       text_add(o,"    %s w11, w9, w10\n",in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM?"sdiv":"udiv");
+       if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)
+        text_add(o,"    msub w11, w11, w10, w9\n");
+       text_add(o,"    sxtw x11, w11\n    str x11, [sp, #%d]\n    b .Lsw_a64_divdone32_%d\n.Lsw_a64_divzero32_%d:\n    brk #0\n.Lsw_a64_divdone32_%d:\n",dst,id,id,id);
+      }else{
+       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    cbz x10, .Lsw_a64_divzero_%d\n",a,z,id);
+       if(in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM)
+        text_add(o,"    movz x11, #0\n    movk x11, #32768, lsl #48\n    cmp x9, x11\n    b.ne .Lsw_a64_divsafe_%d\n    cmn x10, #1\n    b.eq .Lsw_a64_divzero_%d\n.Lsw_a64_divsafe_%d:\n",id,id,id);
+       text_add(o,"    %s x11, x9, x10\n",in->op==SWAN_IR_SDIV||in->op==SWAN_IR_SREM?"sdiv":"udiv");
+       if(in->op==SWAN_IR_SREM||in->op==SWAN_IR_UREM)
+        text_add(o,"    msub x11, x11, x10, x9\n");
+       text_add(o,"    str x11, [sp, #%d]\n    b .Lsw_a64_divdone_%d\n.Lsw_a64_divzero_%d:\n    brk #0\n.Lsw_a64_divdone_%d:\n",dst,id,id,id);
+      }
+      break;
      }
           case SWAN_IR_ICMP_EQ:case SWAN_IR_ICMP_NE:case SWAN_IR_ICMP_SLT:case SWAN_IR_ICMP_SLE:case SWAN_IR_ICMP_SGT:case SWAN_IR_ICMP_SGE:
       text_add(o,"    ldr x9, [sp, #%d]\n    ldr x10, [sp, #%d]\n    cmp x9, x10\n    cset x11, %s\n    str x11, [sp, #%d]\n",a,z,in->op==SWAN_IR_ICMP_EQ?"eq":in->op==SWAN_IR_ICMP_NE?"ne":in->op==SWAN_IR_ICMP_SLT?"lt":in->op==SWAN_IR_ICMP_SLE?"le":in->op==SWAN_IR_ICMP_SGT?"gt":"ge",dst);break;
