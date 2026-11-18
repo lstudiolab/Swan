@@ -159,3 +159,39 @@ func array_insertion_sort(values: u32_array, length: int) -> int:
         values[position] = current
         index = index + 1
     return length
+
+# In-place O(n log n) heap sort. The helper keeps all temporary state in
+# scalar locals, so sorting does not allocate a second array.
+func array_sift_down(values: u32_array, length: int, root: int) -> int:
+    var parent = root
+    while parent < length / 2:
+        let left = parent * 2 + 1
+        let right = left + 1
+        var largest = parent
+        if values[left] > values[largest]:
+            largest = left
+        if right < length and values[right] > values[largest]:
+            largest = right
+        if largest == parent:
+            return 0
+        let temporary = values[parent]
+        values[parent] = values[largest]
+        values[largest] = temporary
+        parent = largest
+    return 0
+
+func array_heap_sort(values: u32_array, length: int) -> int:
+    if length < 2:
+        return length
+    var start = length / 2
+    while start > 0:
+        start = start - 1
+        array_sift_down(values, length, start)
+    var end = length
+    while end > 1:
+        end = end - 1
+        let temporary = values[0]
+        values[0] = values[end]
+        values[end] = temporary
+        array_sift_down(values, end, 0)
+    return length
