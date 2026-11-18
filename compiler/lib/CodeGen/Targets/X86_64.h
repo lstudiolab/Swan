@@ -301,7 +301,8 @@ static inline void emit_call(Text *o,Expr *e,Locals *l,SwanError *err){
  bool external_call=callee_fn&&callee_fn->external;
  /* raw.loadN/storeN are compiler intrinsics: lower directly to native
     memory operands instead of emitting calls to nonexistent C symbols. */
- bool raw_module=callee_fn&&callee_fn->imported&&callee_fn->module_index>=0&&
+ bool raw_module=o->program&&o->program->raw_mode&&callee_fn&&callee_fn->external&&
+   callee_fn->module_index>=0&&callee_fn->module_index< (int)o->program->module_count&&
    !strcmp(o->program->module_names[callee_fn->module_index],"raw");
  if(raw_module){
   const char *intrinsic=callee_fn->name;
