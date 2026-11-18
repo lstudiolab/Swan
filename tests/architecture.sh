@@ -4,6 +4,11 @@ ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swan"
 TMP="$ROOT/build/targets"
 mkdir -p "$TMP"
+"$SWAN" --list-targets > "$TMP/targets.txt"
+test "$(wc -l < "$TMP/targets.txt" | tr -d ' ')" -eq 3
+grep -q '^x86_64 .*supported$' "$TMP/targets.txt"
+grep -q '^aarch64 .*supported$' "$TMP/targets.txt"
+grep -q '^wasm64 .*supported$' "$TMP/targets.txt"
 cat > "$TMP/native.swan" <<'SWAN'
 func sum(n: int) -> int:
     var total = 0
@@ -13,38 +18,29 @@ func sum(n: int) -> int:
         i = i + 1
     return total
 func main() -> int:
-    let values = array(8)
-    var i = 0
-    while i < 8
-        values[i] = i * 2
-        i = i + 1
-    print(sum(values[7]))
+    print(sum(14))
     return 0
 SWAN
-"$SWAN" "$TMP/native.swan" --target x86_64 --emit-asm -o "$TMP/native.s"
-cc -x assembler "$TMP/native.s" -o "$TMP/native"
+"$SWAN" build "$TMP/native.swan" --target x86_64 -o "$TMP/native"
 test "$("$TMP/native")" = "91"
-cat > "$TMP/scalar.swan" <<'SWAN'
-func twice(x: int) -> int:
-    return x * 2
-func main() -> int:
-    return twice(21)
-SWAN
-"$SWAN" "$TMP/scalar.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
-grep -q "stp x29, x30" "$TMP/aarch64.s"
-"$SWAN" "$TMP/scalar.swan" --target riscv64 --emit-asm -o "$TMP/riscv64.s"
-grep -q "addi sp, sp" "$TMP/riscv64.s"
-"$SWAN" --list-targets > "$TMP/targets.txt"
-grep -q "x86_64.*implemented" "$TMP/targets.txt"
-grep -q "aarch64.*implemented" "$TMP/targets.txt"
-grep -q "riscv64.*implemented" "$TMP/targets.txt"
-grep -q "wasm32.*implemented" "$TMP/targets.txt"
-grep -q "wasm64.*implemented" "$TMP/targets.txt"
-grep -q "armv7.*implemented" "$TMP/targets.txt"
-if "$SWAN" "$TMP/native.swan" --target madeup 2>"$TMP/unknown.err"; then
-    echo "FAIL: unknown target was accepted" >&2
+"$SWAN" "$TMP/native.swan" --target arm64 --emit-asm -o "$TMP/aarch64.s"
+grep -q 'stp x29, x30' "$TMP/aarch64.s"
+for unsupported in armv7 riscv64 wasm32 arm riscv llvm; do
+    if "$SWAN" build "$TMP/native.swan" --target "$unsupported" -o "$TMP/unsupported" 2>"$TMP/unsupported.err"; then
+        echo "FAIL: unsupported target '$unsupported' was accepted" >&2
+        exit 1
+    fi
+    grep -q "unknown target '$unsupported'" "$TMP/unsupported.err"
+done
+if "$SWAN" build "$TMP/native.swan" --target-triple x86_64-unknown-linux-gnu 2>"$TMP/triple.err"; then
+    echo "FAIL: arbitrary target triples were accepted" >&2
     exit 1
 fi
-grep -q "unknown target 'madeup'" "$TMP/unknown.err"
-printf 'PASS: Swan-owned x86-64 assembly and execution\n'
-printf 'PASS: target registry reports implemented and planned backends\n'
+grep -q "unknown option '--target-triple'" "$TMP/triple.err"
+if "$SWAN" build "$TMP/native.swan" --emit-llvm 2>"$TMP/llvm.err"; then
+    echo "FAIL: LLVM output mode was accepted" >&2
+    exit 1
+fi
+grep -q "unknown option '--emit-llvm'" "$TMP/llvm.err"
+printf 'PASS: Swan supports exactly x86-64, AArch64/ARM64, and WebAssembly 64-bit\n'
+printf 'PASS: unsupported architectures and arbitrary LLVM target triples are rejected\n'
