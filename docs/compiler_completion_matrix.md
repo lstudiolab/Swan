@@ -1,0 +1,107 @@
+# Compiler Completion Matrix
+
+This matrix distinguishes implemented infrastructure from language-feature completeness.
+A parser token, IR opcode, or successful object emission is not evidence of end-to-end
+support. Status is based on the production source and the repository's documented
+implementation boundaries; it is not a claim that every path has been runtime-tested.
+
+**Status definitions**
+
+- **Complete (scoped):** implemented and tested within the explicitly stated boundary.
+- **Partial:** a working subset exists, but important language, target, or runtime cases remain.
+- **Not implemented:** no complete production implementation is documented.
+- **Validation needed:** implementation exists, but runtime/cross-target evidence is insufficient.
+
+## Frontend and project model
+
+| Subsystem | Status | Implemented | Still required |
+|---|---|---|---|
+| Source loading and UTF-8 validation | Complete (scoped) | UTF-8 validation, BOM handling, source buffers and diagnostics | Full Unicode identifier XID tables and normalization |
+| Lexer | Complete (scoped) | Current token set, indentation and UTF-8 byte preservation | Unicode normalization and exhaustive fuzz/property tests |
+| Parser / AST | Partial | Indentation-based grammar and AST for current syntax | End-to-end implementation of all advertised constructs; grammar fuzzing |
+| Semantic analysis | Partial | Existing declaration, type, control-flow and diagnostic checks | Complete struct/member/method resolution, full type inference and ownership rules |
+| Imports / modules | Partial | Swan module loading, namespaces, lazy imports and C-header scalar declarations | Complete package resolution, cycles/visibility policy, portable native ABI and dependency graph validation |
+| Reachability | Partial | Function reachability from `main` for supported direct-call forms | Indirect calls, closures, address-taken functions and complete module graph semantics |
+| Diagnostics | Partial | Source positions, phase errors, warnings and warnings-as-errors | Structured diagnostic codes, robust imported-source spans and error recovery |
+
+## Intermediate representations
+
+| Subsystem | Status | Implemented | Still required |
+|---|---|---|---|
+| Typed SVM IR data model | Partial | Typed SSA values, blocks, operations, calls, PHIs and memory operations | Complete source lowering for every supported Swan type and construct |
+| IR generation | Partial | Integer/boolean scalar subset, direct calls, locals, assignment, if/else, loops and short-circuit logic | Arrays, strings, floats, aggregates, member access, indirect calls and full import lowering |
+| IR verifier | Complete (scoped) | SSA/dominance, PHI placement, operation contracts, signatures and malformed storage checks | Expand adversarial/property tests as new operations are added |
+| IR optimizer | Complete (scoped) | Constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, conservative LICM and DCE | More analyses/passes, compile-time budgets, differential testing and proof of semantics preservation |
+| SIL | Partial / integration unclear | Repository references SIL in build messaging and memory-model plans | A single documented, independently verifiable SIL contract; ownership dataflow, borrow/move checks, verifier, lowering and integration tests |
+| SVM common pipeline | Partial | Shared verification/optimization and backend dispatch | One mandatory path for all source features; retire the AST compatibility route |
+| Serialization / bytecode runtime | Not implemented by design | SVM is the compilation engine, not a VM runtime | No interpreter or bytecode runtime is required by the current architecture |
+
+## Memory and language semantics
+
+| Subsystem | Status | Implemented | Still required |
+|---|---|---|---|
+| Compiler-managed array cleanup | Partial | Eligible x86-64 AST-path local arrays, stack placement, conservative last-use cleanup and early-return cleanup | Shared lifetime model in SIL/typed IR and all backends |
+| Ownership / borrowing | Not implemented | No general ownership or borrow checker | Move/borrow rules, alias analysis, lifetime constraints and diagnostics |
+| Heap / escape analysis | Partial | Conservative array escape handling in x86-64 compatibility path | Interprocedural escape analysis and complete alias tracking |
+| Structs / aggregates | Not implemented end-to-end | Syntax vocabulary and partial representation | Layout, field access, initialization, destruction, alignment and ABI passing/return |
+| Strings / slices | Partial | Existing frontend/runtime compatibility functionality | Typed IR representation, ownership/lifetime, slicing and cross-target runtime |
+| Floating point | Partial | IR type declarations and limited backend representation | Source literal/type semantics, arithmetic lowering, conversions, ABI and runtime tests |
+| Exceptions / unwinding | Not implemented end-to-end | Keyword vocabulary exists | Defined semantics, unwind tables/runtime, cleanup integration and target support |
+| Closures / function values | Not implemented | None complete in the production pipeline | Capture analysis, environment layout, indirect calls and lifetime rules |
+
+## Backends and toolchain
+
+| Target / stage | Status | Implemented | Still required |
+|---|---|---|---|
+| x86-64 System V | Partial but most complete | Native assembly/executable, typed scalar path and AST compatibility features | Unified typed-IR feature coverage, robust ABI edge cases and sanitizer/runtime matrix |
+| AArch64 | Partial | Swan-owned assembly/object for limited scalar IR | Full type/operation coverage, ABI edge cases, linker/runtime validation |
+| ARMv7 | Partial | ARM-state assembly/object for limited i32/i1 subset | Broader operations, ABI validation and runtime tests |
+| RISC-V64 | Partial | Swan-owned assembly/object for limited scalar IR | Full operation/type coverage, ABI and runtime validation |
+| WASM32 | Partial | Module emission for supported scalar/control flow | Full language/runtime integration, imports/exports, memory and execution tests |
+| WASM64 | Partial / validation needed | Memory64 module emission for supported subset | Runtime engine interoperability, memory model and execution tests |
+| LLVM target bridge | Partial / toolchain-dependent | Explicit LLVM IR bridge for supported Swan IR subset | Complete lowering coverage and target-specific ABI/runtime validation |
+| Instruction selection | Partial | Target-specific lowering for current supported operations | Legalization and coverage for all operations/types |
+| Register allocation | Partial | Backend-specific register/local assignment for supported subset | Proven global allocation, spill/reload correctness and stress tests |
+| Machine IR | Not established as a complete shared stage | Target backend internal representations | Shared machine IR contract, verifier and target-independent passes |
+| ABI lowering | Partial | Scalar ABI paths for selected targets | Aggregates, floats, variadics, stack alignment, callee-save and platform ABI tests |
+| Object emission | Partial | Swan-owned ELF/WASM and LLVM bridge outputs | Relocations, debug info, object-format edge cases and validation per target |
+| Linking / runtime | Partial | Native host linking through system toolchain | Cross-target linkers, sysroots, platform runtimes and executable tests on every target |
+
+## Driver, quality and release engineering
+
+| Subsystem | Status | Implemented | Still required |
+|---|---|---|---|
+| CLI / phase gating | Complete (scoped) | Build/run/emit modes, targets, nonzero failure behavior | Consistent diagnostics and option coverage for every project mode |
+| Multi-file compilation | Partial | Per-source x86-64 objects and project-level cross-target IR output | Consistent separate compilation and symbol/ABI rules on every target |
+| Test suite | Partial | Regression, verifier, lexer, FFI, module, standard-library and architecture scripts | Run all tests in CI; target runtime matrix, fuzzing, sanitizers and differential tests |
+| Fuzzing | Not established | No comprehensive fuzz campaign documented | Lexer/parser/IR/optimizer fuzzers and minimized regression corpus |
+| Sanitizers | Partial | Build script supports ASan/UBSan configuration | Execute full suite under sanitizers in CI and add leak checks |
+| Benchmarks | Partial | Profiling and per-pass timing | Stable benchmark corpus, baselines and regression thresholds |
+| Bootstrap / self-hosting | Not implemented | Single C11 production compiler; no bootstrap stage | Swan-written compiler and reproducible bootstrap, if self-hosting remains a project goal |
+| Editor tooling | Partial | VS Code syntax highlighting, indentation and snippets | Language server, diagnostics, completion, formatting and navigation |
+
+## Completion gates
+
+A subsystem should only be marked complete when all applicable gates pass:
+
+1. Syntax and semantic positive tests.
+2. Negative tests proving invalid programs fail with source diagnostics.
+3. IR generation and verifier tests.
+4. Optimized and unoptimized behavior equivalence.
+5. Backend assembly/object validation for every target claiming support.
+6. Runtime execution tests where a target runner is available.
+7. ABI interoperability tests for external calls and linked modules.
+8. ASan/UBSan and leak checks for native compiler/runtime paths.
+9. Fuzz/property tests for parsers, verifiers and transformations.
+10. Documentation that matches the tested implementation boundary.
+
+## Current conclusion
+
+Swan has a real production compiler, typed SSA infrastructure, an optimizer, and multiple
+code-generation backends. It is not yet feature-complete or cross-platform equivalent.
+The largest architectural blockers are the AST compatibility path, incomplete typed-IR
+lowering, the lack of a unified ownership/lifetime implementation, incomplete aggregate
+and floating-point semantics, and limited cross-target ABI/runtime validation.
+
+Do not describe the language as having universal automatic memory management, complete
+SIL ownership, or full WORA until those gates pass on every supported target.

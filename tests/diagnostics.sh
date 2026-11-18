@@ -13,13 +13,16 @@ func unused_helper() -> int:
 func main() -> int:
     var value = 1
     value = value
-    !printin >> 4 / 0;
+    print(4 / 0)
     if true:
-        !printin >> value;
+        print(value)
     return 0
 SWAN
 
-"$SWAN" "$TMP/warnings.swan" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"
+if ! "$SWAN" "$TMP/warnings.swan" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"; then
+    cat "$TMP/warnings.err" >&2
+    exit 1
+fi
 grep -q "self-assignment to 'value' has no effect" "$TMP/warnings.err"
 grep -q "condition is always true" "$TMP/warnings.err"
 grep -q "literal zero" "$TMP/warnings.err"
@@ -36,7 +39,7 @@ printf 'PASS: --warnings-as-errors stops before code generation\n'
 
 cat > "$TMP/error.swan" <<'SWAN'
 func main() -> int:
-    !printin >> missing_symbol;
+    print(missing_symbol)
     return 0
 SWAN
 if "$SWAN" "$TMP/error.swan" --emit-asm -o "$TMP/error.s" 2>"$TMP/error.err"; then
