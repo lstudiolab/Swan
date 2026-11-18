@@ -36,6 +36,8 @@ func main() -> int:
     own var destination: i64 = move source
     own var resized: i64 = raw.resize(move destination, 32)
     drop resized
+    own var released: i64 = raw.alloc(8)
+    raw.release(move released)
     let stack_memory: i64 = raw.stack(16)
     raw.store8(stack_memory, 77)
     result = result + raw.load8(stack_memory)
@@ -46,7 +48,7 @@ func main() -> int:
     raw.arena_reset(borrow region)
     if raw.arena_remaining(borrow region) != 64:
         result = result + 1
-    drop region
+    raw.arena_release(move region)
     return result - 1111276067
 SWAN
 
