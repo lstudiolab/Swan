@@ -11,14 +11,14 @@ typedef struct { const char *name; const char *triple; SwanArchitecture architec
 /* These are the only supported Swan code-generation targets. */
 static const SwanTarget swan_targets[] = {
  {"x86_64","x86_64-unknown-linux-gnu",SWAN_ARCH_X86_64,SWAN_OBJECT_ELF,SWAN_ABI_SYSV,true},
- {"aarch64","aarch64-unknown-linux-gnu",SWAN_ARCH_AARCH64,SWAN_OBJECT_ELF,SWAN_ABI_AAPCS64,true},
+ {"arm64","aarch64-unknown-linux-gnu",SWAN_ARCH_AARCH64,SWAN_OBJECT_ELF,SWAN_ABI_AAPCS64,true},
  {"wasm64","wasm64-unknown-unknown",SWAN_ARCH_WASM64,SWAN_OBJECT_WASM,SWAN_ABI_WASM,true}
 };
 #define SWAN_TARGET_COUNT (sizeof(swan_targets)/sizeof(swan_targets[0]))
 static inline const SwanTarget *swan_target_find(const char *name){
  if(!name)return NULL;
  if(!strcmp(name,"x86-64")||!strcmp(name,"amd64"))name="x86_64";
- else if(!strcmp(name,"arm64"))name="aarch64";
+ else if(!strcmp(name,"aarch64"))name="arm64";
  for(size_t i=0;i<SWAN_TARGET_COUNT;i++)
   if(!strcmp(name,swan_targets[i].name)||!strcmp(name,swan_targets[i].triple))return &swan_targets[i];
  return NULL;
