@@ -22,10 +22,25 @@ func main() -> int:
 
 Source: `stdlib/std.swan`
 
+Integer helpers that can overflow return `0` as an overflow sentinel. This includes
+`abs(INT64_MIN)`, out-of-range `square`/`cube`, overflowing `power`,
+`factorial`, and `sum_to`. Because zero can also be a valid result, callers that
+need to distinguish overflow from a mathematical zero must validate inputs first.
+`average` avoids overflowing the intermediate sum and truncates toward zero.
+
 - `abs`, `min`, `max`, `clamp`, `sign`
 - `square`, `cube`, `power`, `factorial`, `sum_to`
 - `is_even`, `is_odd`, `in_range`, `average`
 - `print(value)` output call
+
+### `foundation` — compatibility integer helpers
+
+Source: `stdlib/foundation.swan`
+
+This module preserves the earlier `*_int` helper names for existing programs.
+Its arithmetic has the same signed 64-bit overflow sentinel behavior as `std`.
+New programs should generally prefer `std`; Foundation is retained for import
+compatibility and is not a separate platform API.
 
 ### `std_math` — integer mathematics
 
@@ -45,9 +60,9 @@ Source: `stdlib/std_collections.swan`
 - Queries: `array_sum`, `array_min`, `array_max`, `array_contains`, `array_index_of`, `array_count`, `array_average`, `array_is_sorted`
 - Mutation: `array_fill`, `array_copy`, `array_reverse`
 - Search: `array_linear_search`, `array_binary_search`
-- Sorting: `array_bubble_sort`, `array_selection_sort`, `array_insertion_sort`
+- Sorting: `array_bubble_sort`, `array_selection_sort`, `array_insertion_sort`, `array_heap_sort`
 
-The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length; it does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
+The current collection API operates on Swan's implemented `u32_array` type. Every operation takes an explicit logical length, which must not exceed the allocated array length. Binary search requires sorted input. Empty min/max/average results use `0` as a sentinel. It does not pretend to provide generic `Array<T>`, dynamic capacity, slices, or collection protocols.
 
 ### Native JSON runtime (C ABI)
 
