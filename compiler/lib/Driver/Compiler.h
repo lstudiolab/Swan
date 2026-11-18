@@ -99,6 +99,8 @@ static inline int swan_exec(char *const args[],bool search_path){
  return swan_wait_child(pid);
 }
 
+#include "SIC.h"
+
 static inline size_t swan_function_index(Program *p,Stmt *fn){for(size_t i=0;i<p->count;i++)if(p->functions[i]==fn)return i;return SIZE_MAX;}
 static inline void swan_mark_block(Program *p,Stmt **body,size_t count);
 static inline void swan_mark_expr(Program *p,Expr *e){
