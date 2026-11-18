@@ -3,14 +3,14 @@
 # The Swan Programming Language
 ## Language Guide and Reference
 
-**Status:** Written against the current `lstudiolab/Swan` compiler source on the `main` branch.  
-**Purpose:** Teach the syntax that exists today, list the complete reserved-word set, and distinguish implemented features from reserved or planned language constructs.
+**Status:** This guide describes the current compiler implementation. The normative high-level language direction is in [the High-Level Language Contract](high_level_language.md).
 
-> Swan is an ahead-of-time (AOT) compiled language. Swan source is compiled into target code before the program runs. SVM is Swan's compiler middle-end, not a virtual machine or runtime. There is no interpreter or bytecode dispatch loop in the production execution model.
+> Swan is a high-level, ahead-of-time compiled language. Programmers work with values, functions, data structures, collections, and libraries. Memory management and hardware-specific execution are compiler/runtime responsibilities. SVM is Swan's compiler middle-end, not a virtual machine or runtime.
 
-This guide deliberately does not pretend that every reserved word is already a working language feature. A word can be reserved by the lexer while its syntax or runtime semantics are still incomplete. The status notes below are part of the specification, not optional caveats.
+The language contract is the intended public design; this guide and the [compiler completion matrix](compiler_completion_matrix.md) distinguish that design from constructs that are currently implemented. Reserved words, parsed syntax, and IR operations are not proof of complete end-to-end support.
 
 ---
+
 
 ## 1. First program
 
