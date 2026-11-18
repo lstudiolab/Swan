@@ -153,7 +153,7 @@ if "$SWAN" "$TMP/identifier-location.swan" --emit-asm -o "$TMP/identifier-locati
   echo 'FAIL: unknown identifier accepted' >&2
   exit 1
 fi
-grep -q "2:17: unknown name 'missing'" "$TMP/identifier-location.err"
+grep -q "2:11: unknown name 'missing'" "$TMP/identifier-location.err"
 printf 'PASS: identifier source columns\n'
 
 cat > "$TMP/keyword-operators.swan" <<'SWAN'
