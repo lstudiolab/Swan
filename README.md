@@ -129,7 +129,7 @@ This parses and checks the Swan project once, then emits:
 - `build/all/app-arm64.o` — ARM64 Linux ELF object; link it with an ARM64 toolchain before running it
 - `build/all/app-wasm64.wasm` — WebAssembly memory64 module; run it with a memory64-capable runtime
 
-The all-target build currently accepts Swan-only source projects. C ABI inputs, custom linker arguments, runtime-lazy imports, and `--no-heap` are not supported in this mode. The same source must use features supported by all three backends; target feature parity is not complete.
+The all-target build currently assumes an x86-64 host for its native x86-64 executable; producing the complete matrix from an ARM64 host still needs a configured x86-64 cross-linker and sysroot. It accepts Swan-only source projects. C ABI inputs, custom linker arguments, runtime-lazy imports, and `--no-heap` are not supported in this mode. The same source must use features supported by all three backends; target feature parity is not complete.
 
 Emit one target artifact per Swan source in a multi-file project. The extension follows the selected backend (`.s` or `.wasm`):
 
@@ -219,7 +219,7 @@ The typed-IR generator currently handles scalar integer/boolean expressions, dir
 | Target | Current status |
 |---|---|
 | x86-64 System V Linux | Native executable and assembly; typed-IR scalar path plus AST compatibility path |
-| AArch64 / ARM64 Linux | Swan-owned ELF object/assembly for a limited scalar IR subset |
+| AArch64 / ARM64 Linux | Native executable on an ARM64 host; Swan-owned ELF object/assembly when cross-compiling; signed i32/i64 scalar operations and calls |
 | WebAssembly 64 | Swan-owned memory64 module emission for its implemented subset |
 | SVM | Shared target-independent compilation engine; not a runtime target |
 
@@ -228,8 +228,12 @@ Object emission is not proof of execution or complete ABI integration on the des
 ### Cross-target examples
 
 ```sh
-# Swan-owned AArch64 / ARM64 ELF object
+# On an x86-64 host: Swan-owned AArch64 / ARM64 ELF object
 ./build/swanc build app.swan --target arm64 -o app-aarch64.o
+
+# On an ARM64 host: link and run natively
+./build/swanc build app.swan --target arm64 -o app-arm64
+./app-arm64
 
 # Swan-owned WebAssembly memory64 module
 ./build/swanc build app.swan --target wasm64 -o app.wasm
