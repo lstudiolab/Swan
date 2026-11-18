@@ -120,23 +120,29 @@ static inline bool swan_expr_calls_raw_stack(Program *p,Expr *e){
 }
 static inline bool swan_expr_uses_stack_pointer(Program *p,Expr *e,SwanSymbols *symbols){
  if(!e)return false;
- if(swan_expr_calls_raw_stack(p,e))return true;
  if(e->kind==E_NAME){size_t i;return swan_symbol_find(symbols,e->token.text,&i)&&symbols->items[i].stack_address;}
  if(e->kind==E_CALL){
-  Stmt *fn=swan_raw_call_function(p,e);
-  if(fn&&(!strcmp(fn->name,"load8")||!strcmp(fn->name,"load16")||
-     !strcmp(fn->name,"load32")||!strcmp(fn->name,"load64")||
-     !strcmp(fn->name,"store8")||!strcmp(fn->name,"store16")||
-     !strcmp(fn->name,"store32")||!strcmp(fn->name,"store64")||
-     !strcmp(fn->name,"arena_remaining")||!strcmp(fn->name,"arena_reset")))return false;
-  if(fn&&(!strcmp(fn->name,"copy")||!strcmp(fn->name,"move_bytes")||!strcmp(fn->name,"fill")))
-   return e->argc>0&&swan_expr_uses_stack_pointer(p,e->args[0],symbols);
-  for(size_t i=0;i<e->argc;i++)if(swan_expr_uses_stack_pointer(p,e->args[i],symbols))return true;
+  if(e->left&&e->left->kind==E_MEMBER&&e->left->left&&
+     e->left->left->kind==E_NAME&&!strcmp(e->left->left->token.text,"raw")){
+   const char *name=swan_expr_terminal_name(e->left);
+   if(name&&!strcmp(name,"stack"))return true;
+   if(name&&(!strcmp(name,"load8")||!strcmp(name,"load16")||
+      !strcmp(name,"load32")||!strcmp(name,"load64")||
+      !strcmp(name,"store8")||!strcmp(name,"store16")||
+      !strcmp(name,"store32")||!strcmp(name,"store64")||
+      !strcmp(name,"arena_remaining")||!strcmp(name,"arena_reset")))return false;
+   if(name&&(!strcmp(name,"copy")||!strcmp(name,"move_bytes")||!strcmp(name,"fill")))
+    return e->argc>0&&swan_expr_uses_stack_pointer(p,e->args[0],symbols);
+   return false;
+  }
+  const char *name=swan_expr_terminal_name(e->left);
+  Stmt *fn=name?swan_find_function(p,name):NULL;
+  if(fn&&fn->type&&!strcmp(fn->type,"i64"))
+   for(size_t i=0;i<e->argc;i++)if(swan_expr_uses_stack_pointer(p,e->args[i],symbols))return true;
   return false;
  }
- if(e->kind==E_BINARY&&e->token.kind>=T_EQ&&e->token.kind<=T_GE)return false;
- if(swan_expr_uses_stack_pointer(p,e->left,symbols)||swan_expr_uses_stack_pointer(p,e->right,symbols))return true;
- for(size_t i=0;i<e->argc;i++)if(swan_expr_uses_stack_pointer(p,e->args[i],symbols))return true;
+ if(e->kind==E_BINARY&&(e->token.kind==T_PLUS||e->token.kind==T_MINUS))
+  return swan_expr_uses_stack_pointer(p,e->left,symbols)||swan_expr_uses_stack_pointer(p,e->right,symbols);
  return false;
 }
 static inline bool swan_raw_stack_argument_safe(const char *name,size_t index){
