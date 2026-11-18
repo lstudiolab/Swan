@@ -1,5 +1,5 @@
 # Swan standard math
-# Every public function is called through the std: namespace.
+# Import this module, then call its functions by their ordinary names.
 # Import with: import std_math
 # These algorithms use Swan integer operations only.
 
