@@ -96,6 +96,14 @@ static inline Stmt *swan_raw_call_function(Program *p,Expr *e){
     strcmp(e->left->left->token.text,"raw"))return NULL;
  return swan_find_module_function(p,"raw",swan_expr_terminal_name(e->left));
 }
+static inline bool swan_expr_calls_raw_stack(Program *p,Expr *e){
+ if(!e)return false;
+ Stmt *fn=swan_raw_call_function(p,e);
+ if(fn&&!strcmp(fn->name,"stack"))return true;
+ if(swan_expr_calls_raw_stack(p,e->left)||swan_expr_calls_raw_stack(p,e->right))return true;
+ for(size_t i=0;i<e->argc;i++)if(swan_expr_calls_raw_stack(p,e->args[i]))return true;
+ return false;
+}
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
  if(!expression)return false;
  if(expression->kind==E_CALL){
@@ -166,16 +174,9 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_MOVE&&!raw_release&&!raw_resize){
      swan_error(err,&e->args[i]->token,"move may only initialize an owner or transfer into raw.release/raw.resize/raw.arena_release");return false;
     }
-    if(e->args[i]&&e->args[i]->kind==E_NAME){
-     size_t bi;
-     if(swan_symbol_find(symbols,e->args[i]->token.text,&bi)&&symbols->items[bi].manual_borrow&&
-        !(raw_module_function&&swan_raw_borrow_call(fn->name))){
-      swan_error(err,&e->args[i]->token,"borrowed pointers may only be passed to non-retaining raw memory operations");return false;
-     }
-    }
-    if(e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_BORROW&&
+    if((swan_expr_has_borrow_operator(e->args[i])||swan_expr_mentions_borrow(e->args[i],symbols))&&
        !(raw_module_function&&swan_raw_borrow_call(fn->name))){
-     swan_error(err,&e->args[i]->token,"temporary borrows may only be passed to non-retaining raw memory operations");return false;
+     swan_error(err,&e->args[i]->token,"borrowed pointers may only be passed to non-retaining raw memory operations");return false;
     }
     if(raw_release&&e->args[i]&&e->args[i]->kind==E_NAME){
      size_t index;if(swan_symbol_find(symbols,e->args[i]->token.text,&index)&&symbols->items[index].manual_borrow){
@@ -259,6 +260,9 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
  size_t scope_mark=symbols->count;
  for(size_t i=0;i<count;i++){
   Stmt *s=body[i];
+  if(loop_depth&&(swan_expr_calls_raw_stack(p,s->value)||swan_expr_calls_raw_stack(p,s->condition))){
+   swan_error(err,&s->token,"raw.stack allocation inside a loop can grow the stack on every iteration; allocate before the loop or use an arena");return false;
+  }
   switch(s->kind){
    case S_VARIABLE:{
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
