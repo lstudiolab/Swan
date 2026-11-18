@@ -18,79 +18,20 @@ jobs:
         include:
           - os: ubuntu-24.04
             asset: linux-x86_64
-            windows: false
           - os: ubuntu-24.04-arm
             asset: linux-aarch64
-            windows: false
-          - os: macos-15-intel
-            asset: macos-x86_64
-            windows: false
-          - os: macos-15
-            asset: macos-aarch64
-            windows: false
-          - os: windows-latest
-            asset: windows-x86_64
-            windows: true
     runs-on: ${{ matrix.os }}
     timeout-minutes: 20
-    defaults:
-      run:
-        shell: bash
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Windows POSIX build environment
-        if: matrix.windows
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: MSYS
-          update: true
-          install: base-devel gcc
-
-      - name: Build Swan
-        if: '!matrix.windows'
+      - name: Build Swan compiler
         run: |
           sh build.sh
           ./build/swanc --version
+          ./build/swanc --list-targets
 
-      - name: Build Swan (Windows)
-        if: matrix.windows
-        shell: msys2 {0}
-        run: |
-          sh build.sh
-          ./build/swanc --version
-
-      - name: Package Windows binary
-        if: matrix.windows
-        shell: msys2 {0}
-        run: |
-          mkdir -p dist/swan/bin
-          if [ -f build/swanc.exe ]; then
-            SWANC=build/swanc.exe
-          else
-            SWANC=build/swanc
-          fi
-          cp "$SWANC" dist/swan/bin/swanc.exe
-          ldd "$SWANC" | awk '{ for (i=1; i<=NF; i++) if (index($i, "/usr/bin/") == 1 && substr($i, length($i)-3) == ".dll") print $i }' | sort -u | while read -r dll; do
-            cp "$dll" dist/swan/bin/
-          done
-          cat > dist/swan/README-WINDOWS.txt <<'EOF'
-          Swan Windows x86_64 compiler
-
-          Add the bin directory to PATH to use swanc.exe.
-          The compiler runtime requires the MSYS2 GCC toolchain (cc) for native
-          executable linking. Install MSYS2 and run: pacman -S --needed gcc
-          The MSYS2 runtime DLL is included beside swanc.exe.
-          EOF
-      
-      - name: Archive Windows package
-        if: matrix.windows
-        shell: pwsh
-        run: |
-          Compress-Archive -Path dist/swan -DestinationPath swan-windows-x86_64.zip -Force
-
-      - name: Package Linux and macOS binary
-        if: '!matrix.windows'
+      - name: Package Linux compiler
         run: |
           mkdir -p dist/swan/bin
           cp build/swanc dist/swan/bin/swanc
@@ -102,9 +43,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: swan-${{ matrix.asset }}
-          path: |
-            swan-${{ matrix.asset }}.tar.gz
-            swan-${{ matrix.asset }}.zip
+          path: swan-${{ matrix.asset }}.tar.gz
           if-no-files-found: error
           retention-days: 14
 
