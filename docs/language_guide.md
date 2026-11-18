@@ -722,6 +722,7 @@ The table below describes their intended role and current implementation status.
 | `for` | Inclusive integer range loop | Implemented: `for name from start upto end:` |
 | `from` | Range-loop lower-bound introducer | Implemented with `for` |
 | `upto` | Inclusive range-loop upper-bound introducer | Implemented with `for` |
+| `for` | Inclusive integer range loop | Implemented: `for name from start upto end:` |
 | `while` | Condition-controlled loop | Implemented |
 | `loop` | Unconditional loop | Implemented as `loop:`; uses shared control-flow IR |
 | `true` | Boolean true literal | Implemented |
@@ -730,10 +731,10 @@ The table below describes their intended role and current implementation status.
 | `continue` | Continue nearest loop | Implemented |
 | `return` | Return from function | Implemented |
 | `as` | Conversion or type-ascription operator | Reserved; no general cast syntax is specified |
-| `from` | Import/source qualifier | Reserved; no standalone syntax is implemented |
+| `from` | Introduces the lower bound in a range loop | Implemented with `for` |
 | `self` | Current instance reference | Tokenized; instance/member semantics are not implemented |
 | `pass` | Empty/no-op statement | Implemented |
-| `upto` | Upper-bound loop/range word | Reserved; not implemented |
+| `upto` | Inclusive upper bound in a range loop | Implemented with `for` |
 | `init` | Initializer declaration | Reserved; not implemented |
 | `deinit` | Deinitializer declaration | Reserved; not implemented |
 | `enum` | Enumeration declaration | Reserved; not implemented |
