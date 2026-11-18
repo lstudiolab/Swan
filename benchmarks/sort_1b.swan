@@ -66,6 +66,6 @@ func main():
         if values[verify - 1] > values[verify]
             sorted = 0
         verify = verify + 1
-    !printin >> sorted;
+    print(sorted)
     return 0
 
