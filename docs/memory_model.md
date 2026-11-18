@@ -192,9 +192,12 @@ func main() -> int:
     return 0
 ```
 
-- `own var name: i64 = allocation` creates the unique owner of an allocation.
-- `borrow let view: i64 = owner` creates an immutable, lexical view. A view
-  cannot be copied into an ordinary variable or returned.
+- `own var name: i64 = allocation` creates the unique owner of a raw allocation.
+- `own var values: u32_array = array_u32(count)` explicitly owns a Swan array
+  in raw mode; ordinary array allocations in raw mode must use `own`.
+- `borrow let view: i64 = owner` creates an immutable, lexical view. Array
+  views use the `u32_array` view type. A view cannot be copied into an ordinary
+  variable or returned.
 - `borrow owner` creates a temporary borrow for a call argument.
 - `borrow let slice: i64 = raw.arena_alloc(borrow region, size)` creates a
   view whose lifetime is tied to the arena owner. The arena cannot be reset,
