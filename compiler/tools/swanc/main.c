@@ -449,6 +449,7 @@ static int swan_run(int argc,char **argv){
  if(target->architecture==SWAN_ARCH_WASM64){
   if(has_lazy){fprintf(stderr,"swan: WASM64 backend does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
   bool run_after_build=mode==SWAN_RUN||mode==SWAN_RUN_DEFAULT;
+  int result=0;
   char temporary_wasm[128];
   const char *dest=output;
   if(!dest){
