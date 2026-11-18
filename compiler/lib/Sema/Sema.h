@@ -242,6 +242,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
+    bool right_stack_address=swan_expr_uses_stack_pointer(p,e->right,symbols);
     if(e->right&&!swan_expr_borrow_use_is_scalar(p,e->right,symbols)){swan_error(err,&e->right->token,"borrowed pointers cannot escape into an ordinary assignment");return false;}
     if(e->right&&e->right->kind==E_UNARY&&(e->right->token.kind==T_MOVE||e->right->token.kind==T_BORROW)){swan_error(err,&e->right->token,"ownership transfers must use an own declaration or a direct call argument");return false;}
     if(e->right&&e->right->kind==E_NAME){size_t right_index;if(swan_symbol_find(symbols,e->right->token.text,&right_index)&&symbols->items[right_index].manual_checked){swan_error(err,&e->right->token,"manual ownership cannot be copied or aliased");return false;}}
@@ -261,7 +262,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(symbols->items[index].manual_checked){swan_error(err,&e->left->token,"manual variables cannot be reassigned or moved");return false;}
     if(!symbols->items[index].mutable_value){swan_error(err,&e->left->token,"cannot assign to immutable value '%s'",e->left->token.text);return false;}
     if(!swan_check_expr(p,e->right,symbols,err))return false;
-    symbols->items[index].stack_address=swan_expr_uses_stack_pointer(p,e->right,symbols);
+    symbols->items[index].stack_address=right_stack_address;
     bool right_is_array=swan_expr_is_array(e->right,symbols);
     if(symbols->items[index].initialized&&
        symbols->items[index].is_array!=right_is_array){
@@ -286,6 +287,7 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
   switch(s->kind){
    case S_VARIABLE:{
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
+    bool stack_address=swan_expr_uses_stack_pointer(p,s->value,symbols);
     const char *owner_name=NULL;
     if(s->manual_checked){
      if(!p->raw_mode){swan_error(err,&s->token,"own declarations require 'import raw'");return false;}
@@ -341,7 +343,6 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
      if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     }
     bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||swan_expr_is_array(s->value,symbols);
-    bool stack_address=swan_expr_uses_stack_pointer(p,s->value,symbols);
     if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked,s->manual_borrow,owner_name)){swan_error(err,&s->token,"too many local variables");return false;}
     symbols->items[symbols->count-1].stack_address=stack_address;
     break;
