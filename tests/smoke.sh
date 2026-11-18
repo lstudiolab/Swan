@@ -169,14 +169,14 @@ test "$("$TMP/keyword-operators")" = "keyword operators preserved"
 printf 'PASS: keyword operators and primitive types\n'
 
 # Tabs count as four indentation columns while occupying one source column.
-printf 'fn main():\n\t!printin >> "tab indentation";\n\treturn 0\n' > "$TMP/tabs.swan"
+printf 'fn main():\n\tprint("tab indentation")\n\treturn 0\n' > "$TMP/tabs.swan"
 "$SWAN" "$TMP/tabs.swan" --emit-asm -o "$TMP/tabs.s"
 ${CC:-cc} -x assembler "$TMP/tabs.s" -o "$TMP/tabs"
 test "$("$TMP/tabs")" = "tab indentation"
 printf 'PASS: tab indentation width and source scanning\n'
 
 # A dedent must match an existing indentation level exactly.
-printf 'fn main():\n    if true\n        !printin >> "nested";\n      !printin >> "invalid";\n' > "$TMP/bad-indent.swan"
+printf 'fn main():\n    if true\n        print("nested")\n      print("invalid")\n' > "$TMP/bad-indent.swan"
 if "$SWAN" "$TMP/bad-indent.swan" --emit-asm -o "$TMP/bad-indent.s" 2>/dev/null; then
   echo 'FAIL: inconsistent indentation accepted' >&2
   exit 1
