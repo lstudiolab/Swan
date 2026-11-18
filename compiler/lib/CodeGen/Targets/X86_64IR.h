@@ -98,7 +98,7 @@ static inline bool swan_codegen_x86_64_ir(const SwanIRModule *m,Text *o,char *er
      case SWAN_IR_UDIV:case SWAN_IR_UREM:{
       if(in->type==SWAN_IR_I32)
        text_add(o,"    mov eax, DWORD PTR [rbp-%d]\n    mov ecx, DWORD PTR [rbp-%d]\n    test ecx, ecx\n    jz .Lsw_x64_udivtrap32_%zu_%zu_%zu\n    xor edx, edx\n    div ecx\n    %s\n    mov QWORD PTR [rbp-%d], rax\n    jmp .Lsw_x64_udivdone32_%zu_%zu_%zu\n.Lsw_x64_udivtrap32_%zu_%zu_%zu:\n    ud2\n.Lsw_x64_udivdone32_%zu_%zu_%zu:\n",
-          a,z,f,b,i,in->op==SWAN_IR_UDIV?"mov eax, eax":"mov eax, edx",d,f,b,i,f,b,i,f,b,i);
+          a,z,f,b,i,in->op==SWAN_IR_UDIV?"movsxd rax, eax":"movsxd rax, edx",d,f,b,i,f,b,i,f,b,i);
       else
        text_add(o,"    mov rax, QWORD PTR [rbp-%d]\n    mov rcx, QWORD PTR [rbp-%d]\n    test rcx, rcx\n    jz .Lsw_x64_divtrap_%zu_%zu_%zu\n    xor edx, edx\n    div rcx\n    mov QWORD PTR [rbp-%d], %s\n    jmp .Lsw_x64_divdone_%zu_%zu_%zu\n.Lsw_x64_divtrap_%zu_%zu_%zu:\n    ud2\n.Lsw_x64_divdone_%zu_%zu_%zu:\n",
           a,z,f,b,i,d,in->op==SWAN_IR_UDIV?"rax":"rdx",f,b,i,f,b,i,f,b,i);
