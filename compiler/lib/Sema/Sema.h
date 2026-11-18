@@ -105,10 +105,18 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
     if(e->left&&e->left->kind==E_NAME){Token callee_token=e->left->token;callee_token.text=fn->link_name?fn->link_name:fn->name;e->left->kind=E_NAME;e->left->token=callee_token;e->left->left=NULL;e->left->right=NULL;}
    }
    if(fn->param_count!=e->argc){swan_error(err,&e->token,"function '%s' expects %zu arguments, got %zu",fn->name,fn->param_count,e->argc);return false;}
-   bool raw_release=fn->imported&&fn->module_index>=0&&
+   bool raw_module_function=fn->imported&&fn->module_index>=0&&
       (size_t)fn->module_index<p->module_count&&
-      !strcmp(p->module_names[fn->module_index],"raw")&&!strcmp(fn->name,"release");
+      !strcmp(p->module_names[fn->module_index],"raw");
+   bool raw_release=raw_module_function&&!strcmp(fn->name,"release");
+   bool raw_resize=raw_module_function&&!strcmp(fn->name,"resize");
    for(size_t i=0;i<e->argc;i++){
+    if(raw_release&&i==0&&e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_BORROW){
+     swan_error(err,&e->args[i]->token,"raw.release consumes a pointer; transfer an owner with move or use drop");return false;
+    }
+    if(raw_resize&&i==0&&e->args[i]&&e->args[i]->kind==E_UNARY&&e->args[i]->token.kind==T_BORROW){
+     swan_error(err,&e->args[i]->token,"raw.resize may invalidate its input; transfer an owner with move");return false;
+    }
     if(raw_release&&e->args[i]&&e->args[i]->kind==E_NAME){
      size_t index;if(swan_symbol_find(symbols,e->args[i]->token.text,&index)&&symbols->items[index].manual_borrow){
       swan_error(err,&e->args[i]->token,"a borrowed view cannot be released; drop its owner instead");return false;
