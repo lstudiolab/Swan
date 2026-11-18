@@ -40,6 +40,11 @@ func main():
     print(average_int(9223372036854775807, 9223372036854775807))
     print(average_int(-9223372036854775807 - 1, -9223372036854775807 - 1))
     print(average_int(-9223372036854775807 - 1, 9223372036854775807))
+    print(power_int(-2, 63))
+    print(power_int(-2, 64))
+    print(power_int(1, 9223372036854775807))
+    print(power_int(-1, 9223372036854775807))
+    print(power_int(0, 9223372036854775807))
     return 0
 SWAN
 
@@ -74,6 +79,11 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 0
 9223372036854775807
 -9223372036854775808
+0
+-9223372036854775808
+0
+1
+-1
 0
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
