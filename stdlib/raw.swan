@@ -1,0 +1,34 @@
+# Swan raw memory interface
+# Import with: import raw
+#
+# Raw addresses and byte counts use i64. This module exposes the native
+# allocator and byte-oriented libc operations without automatic ownership.
+
+external func malloc(size: i64) -> i64
+external func calloc(count: i64, size: i64) -> i64
+external func realloc(pointer: i64, size: i64) -> i64
+external func free(pointer: i64)
+external func memcpy(destination: i64, source: i64, size: i64) -> i64
+external func memmove(destination: i64, source: i64, size: i64) -> i64
+external func memset(destination: i64, value: i64, size: i64) -> i64
+
+func alloc(size: i64) -> i64:
+    return malloc(size)
+
+func alloc_zeroed(count: i64, size: i64) -> i64:
+    return calloc(count, size)
+
+func resize(pointer: i64, size: i64) -> i64:
+    return realloc(pointer, size)
+
+func release(pointer: i64):
+    free(pointer)
+
+func copy(destination: i64, source: i64, size: i64) -> i64:
+    return memcpy(destination, source, size)
+
+func move_bytes(destination: i64, source: i64, size: i64) -> i64:
+    return memmove(destination, source, size)
+
+func fill(destination: i64, value: i64, size: i64) -> i64:
+    return memset(destination, value, size)
