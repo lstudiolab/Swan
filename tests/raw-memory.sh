@@ -35,11 +35,11 @@ func main() -> int:
     raw.store8(stack_memory, 77)
     result = result + raw.load8(stack_memory)
     own var region: i64 = raw.arena(64)
-    let chunk: i64 = raw.arena_alloc(region, 16)
+    let chunk: i64 = raw.arena_alloc(borrow region, 16)
     raw.store64(chunk, 987654321)
     result = result + raw.load64(chunk)
-    raw.arena_reset(region)
-    if raw.arena_remaining(region) != 64:
+    raw.arena_reset(borrow region)
+    if raw.arena_remaining(borrow region) != 64:
         result = result + 1
     drop region
     return result - 1111177302
