@@ -1,7 +1,7 @@
 #ifndef SWAN_SEMA_H
 #define SWAN_SEMA_H
 #include "swan/parser.h"
-typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed; size_t previous; } SwanSymbol;
+typedef struct { const char *name; bool mutable_value,initialized,is_array,manual_memory,manual_checked,manual_freed,manual_borrow; const char *owner_name; size_t previous; } SwanSymbol;
 typedef struct { SwanSymbol *items; size_t count,capacity; size_t *buckets,bucket_count; } SwanSymbols;
 static inline unsigned swan_name_hash(const char *s){uint32_t h=2166136261u;for(;*s;s++)h=(h^(unsigned char)*s)*16777619u;return h;}
 static inline bool swan_symbols_rehash(SwanSymbols *s,size_t wanted){
@@ -60,11 +60,11 @@ static inline bool swan_symbol_find(SwanSymbols *s,const char *name,size_t *inde
  }
  return false;
 }
-static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array,bool manual,bool checked){
+static inline bool swan_symbol_add(SwanSymbols *s,const char *name,bool mut,bool initialized,bool is_array,bool manual,bool checked,bool borrow,const char *owner_name){
  if(s->count==SIZE_MAX||!swan_reserve_array((void**)&s->items,&s->capacity,s->count+1,sizeof(*s->items)))return false;
  if(s->count+1>s->bucket_count-s->bucket_count/4){if(s->bucket_count>SIZE_MAX/2||!swan_symbols_rehash(s,s->bucket_count*2))return false;}
  size_t b=swan_name_hash(name)&(s->bucket_count-1),i=s->count++;SwanSymbol *v=&s->items[i];
- v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->previous=s->buckets[b];s->buckets[b]=i;return true;
+ v->name=name;v->mutable_value=mut;v->initialized=initialized;v->is_array=is_array;v->manual_memory=manual;v->manual_checked=checked;v->manual_freed=false;v->manual_borrow=borrow;v->owner_name=owner_name;v->previous=s->buckets[b];s->buckets[b]=i;return true;
 }
 static inline void swan_symbols_leave(SwanSymbols *s,size_t mark){while(s->count>mark){size_t i=--s->count;size_t b=swan_name_hash(s->items[i].name)&(s->bucket_count-1);s->buckets[b]=s->items[i].previous;}}
 static inline bool swan_expr_is_array(Expr *expression,SwanSymbols *symbols){
@@ -85,7 +85,7 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
  if(!e)return true;
  switch(e->kind){
   case E_INT:case E_FLOAT:case E_STRING:case E_BOOL:return true;
-  case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(!v->initialized){swan_error(err,&e->token,"use of uninitialized variable '%s'",e->token.text);return false;}if(v->manual_checked){if(v->manual_freed){swan_error(err,&e->token,"use of manually freed variable '%s'",e->token.text);return false;}swan_error(err,&e->token,"manual allocation handles may only be indexed or released with free");return false;}return true;}
+  case E_NAME:{size_t index;if(!swan_symbol_find(symbols,e->token.text,&index)){swan_error(err,&e->token,"unknown name '%s'",e->token.text);return false;}SwanSymbol *v=&symbols->items[index];if(!v->initialized){swan_error(err,&e->token,"use of uninitialized variable '%s'",e->token.text);return false;}if(v->manual_checked){if(v->manual_freed){swan_error(err,&e->token,"use of moved or dropped owner '%s'",e->token.text);return false;}swan_error(err,&e->token,"owned values must be accessed through borrow or transferred with move");return false;}return true;}
   case E_CALL:{
    const char *callee=swan_expr_terminal_name(e->left);if(!callee){swan_error(err,&e->token,"call target must be a function name or module-qualified function path");return false;}
    if(e->left&&e->left->kind==E_NAME&&(!strcmp(callee,"array")||!strcmp(callee,"array_u32")||!strcmp(callee,"array_unchecked")||!strcmp(callee,"array_u32_unchecked"))){
@@ -122,7 +122,15 @@ static inline bool swan_check_expr(Program *p,Expr *e,SwanSymbols *symbols,SwanE
    }}
    {size_t base_index;if(swan_symbol_find(symbols,e->left->token.text,&base_index)&&symbols->items[base_index].manual_checked&&symbols->items[base_index].manual_freed){swan_error(err,&e->left->token,"use of manually freed variable '%s'",e->left->token.text);return false;}}
    return swan_check_expr(p,e->right,symbols,err);
-  case E_UNARY:return swan_check_expr(p,e->left,symbols,err);
+  case E_UNARY:
+   if(e->token.kind==T_BORROW){
+    if(!e->left||e->left->kind!=E_NAME){swan_error(err,&e->token,"borrow expects an owned variable name");return false;}
+    size_t index;if(!swan_symbol_find(symbols,e->left->token.text,&index)||!symbols->items[index].manual_checked){swan_error(err,&e->token,"borrow requires an owned value");return false;}
+    if(symbols->items[index].manual_freed){swan_error(err,&e->token,"cannot borrow a moved or dropped owner");return false;}
+    return true;
+   }
+   if(e->token.kind==T_MOVE){swan_error(err,&e->token,"move is only valid when initializing an own variable");return false;}
+   return swan_check_expr(p,e->left,symbols,err);
   case E_BINARY:
    if(e->token.kind==T_ASSIGN){
     if(e->right&&e->right->kind==E_NAME){size_t right_index;if(swan_symbol_find(symbols,e->right->token.text,&right_index)&&symbols->items[right_index].manual_checked){swan_error(err,&e->right->token,"manual ownership cannot be copied or aliased");return false;}}
@@ -162,16 +170,35 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
   Stmt *s=body[i];
   switch(s->kind){
    case S_VARIABLE:{
-    if(s->manual_checked&&(!s->mutable_value||!s->value||s->value->kind!=E_CALL||!s->value->left||s->value->left->kind!=E_NAME||
-      (strcmp(s->value->left->token.text,"array")&&strcmp(s->value->left->token.text,"array_u32")&&strcmp(s->value->left->token.text,"array_unchecked")&&strcmp(s->value->left->token.text,"array_u32_unchecked")))){
-     swan_error(err,&s->token,"manual var must initialize a mutable array allocation");return false;
-    }
-    if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_checked){swan_error(err,&s->value->token,"manual ownership cannot be copied or aliased");return false;}}
     if(swan_symbol_find(symbols,s->name,NULL)){swan_error(err,&s->token,"'%s' is already declared",s->name);return false;}
-    if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
-    bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||
-                  swan_expr_is_array(s->value,symbols);
-    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked)){swan_error(err,&s->token,"too many local variables");return false;}
+    const char *owner_name=NULL;
+    if(s->manual_checked){
+     if(!p->raw_mode){swan_error(err,&s->token,"own declarations require 'import raw'");return false;}
+     if(!s->mutable_value||!s->value){swan_error(err,&s->token,"own must declare an initialized mutable variable");return false;}
+     if(s->type&&strcmp(s->type,"i64")){swan_error(err,&s->token,"raw owners currently require the i64 address type");return false;}
+     if(s->value->kind==E_UNARY&&s->value->token.kind==T_MOVE){
+      Expr *source_expr=s->value->left;size_t source;
+      if(!source_expr||source_expr->kind!=E_NAME||!swan_symbol_find(symbols,source_expr->token.text,&source)||!symbols->items[source].manual_checked){
+       swan_error(err,&s->value->token,"move requires an owned variable");return false;
+      }
+      if(symbols->items[source].manual_freed){swan_error(err,&source_expr->token,"cannot move an owner that was already moved or dropped");return false;}
+      for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_borrow&&symbols->items[k].owner_name&&!strcmp(symbols->items[k].owner_name,source_expr->token.text)){
+       swan_error(err,&s->value->token,"cannot move '%s' while borrow '%s' is in scope",source_expr->token.text,symbols->items[k].name);return false;
+      }
+      symbols->items[source].manual_freed=true;
+     }else if(!swan_check_expr(p,s->value,symbols,err))return false;
+    }else if(s->manual_borrow){
+     if(!p->raw_mode){swan_error(err,&s->token,"borrow declarations require 'import raw'");return false;}
+     if(s->mutable_value||!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"borrow must declare an immutable view of an owned variable");return false;}
+     size_t owner;if(!swan_symbol_find(symbols,s->value->token.text,&owner)||!symbols->items[owner].manual_checked){swan_error(err,&s->value->token,"borrow source must be an owned variable");return false;}
+     if(symbols->items[owner].manual_freed){swan_error(err,&s->value->token,"cannot borrow a moved or dropped owner");return false;}
+     owner_name=s->value->token.text;
+    }else{
+     if(s->value&&s->value->kind==E_NAME){size_t source;if(swan_symbol_find(symbols,s->value->token.text,&source)&&symbols->items[source].manual_checked){swan_error(err,&s->value->token,"owned values cannot be copied; use borrow or move");return false;}}
+     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
+    }
+    bool is_array=(s->type&&!strcmp(s->type,"u32_array"))||swan_expr_is_array(s->value,symbols);
+    if(!swan_symbol_add(symbols,s->name,s->mutable_value,s->value!=NULL,is_array,s->manual_memory,s->manual_checked,s->manual_borrow,owner_name)){swan_error(err,&s->token,"too many local variables");return false;}
     break;
    }
    case S_LOG:
@@ -179,10 +206,20 @@ static inline bool swan_check_block(Program *p,Stmt **body,size_t count,SwanSymb
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
    case S_RETURN:
-    if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&symbols->items[index].manual_memory){swan_error(err,&s->value->token,"manual ownership cannot escape through a return value");return false;}}
+    if(s->value&&s->value->kind==E_NAME){size_t index;if(swan_symbol_find(symbols,s->value->token.text,&index)&&(symbols->items[index].manual_memory||symbols->items[index].manual_borrow)){swan_error(err,&s->value->token,"raw owners and borrows cannot escape through a return value");return false;}}
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_checked&&!symbols->items[k].manual_freed){swan_error(err,&s->token,"manual variable '%s' must be freed before returning",symbols->items[k].name);return false;}
     break;
+   case S_DROP:{
+    if(!p->raw_mode){swan_error(err,&s->token,"drop requires 'import raw'");return false;}
+    if(!s->value||s->value->kind!=E_NAME){swan_error(err,&s->token,"drop expects an owned variable");return false;}
+    size_t owner;if(!swan_symbol_find(symbols,s->value->token.text,&owner)||!symbols->items[owner].manual_checked){swan_error(err,&s->value->token,"drop requires an owned variable");return false;}
+    if(symbols->items[owner].manual_freed){swan_error(err,&s->value->token,"owner '%s' was already moved or dropped",s->value->token.text);return false;}
+    for(size_t k=0;k<symbols->count;k++)if(symbols->items[k].manual_borrow&&symbols->items[k].owner_name&&!strcmp(symbols->items[k].owner_name,s->value->token.text)){
+     swan_error(err,&s->value->token,"cannot drop '%s' while borrow '%s' is in scope",s->value->token.text,symbols->items[k].name);return false;
+    }
+    symbols->items[owner].manual_freed=true;break;
+   }
    case S_EXPR:
     if(s->value&&!swan_check_expr(p,s->value,symbols,err))return false;
     break;
