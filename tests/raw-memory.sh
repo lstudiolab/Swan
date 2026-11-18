@@ -143,6 +143,21 @@ if "$SWAN" build "$TMP/program.swan" --target aarch64 -o "$TMP/unsupported-targe
     exit 1
 fi
 
+cat > "$TMP/raw-target-without-intrinsics.swan" <<'SWAN'
+import raw
+func local_address() -> i64:
+    return 0
+func main() -> int:
+    own var address: i64 = local_address()
+    drop address
+    return 0
+SWAN
+if "$SWAN" build "$TMP/raw-target-without-intrinsics.swan" --target aarch64 -o "$TMP/raw-target-without-intrinsics" 2>"$TMP/raw-target-without-intrinsics.err"; then
+    echo "raw mode without external intrinsics unexpectedly compiled for AArch64" >&2
+    exit 1
+fi
+grep -q 'import raw currently requires the native x86-64 backend' "$TMP/raw-target-without-intrinsics.err"
+
 
 cat > "$TMP/double-drop.swan" <<'SWAN'
 import raw
