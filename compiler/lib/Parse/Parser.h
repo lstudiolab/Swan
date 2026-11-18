@@ -20,8 +20,7 @@ static inline Expr *prefix(Parser *p){
  if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
  else if(t.kind==T_NONE){swan_error(p->err,&t,"null literals are reserved but not yet supported by the current runtime");p->failed=true;return NULL;}
  else if(t.kind==T_MINUS||t.kind==T_NOT||(t.kind==T_IDENT&&!strcmp(t.text,"not"))){if(t.kind==T_IDENT)t.kind=T_NOT;e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
- else if(t.kind==T_BANG){Token member=take(p);if(member.kind!=T_IDENT){swan_error(p->err,&member,"expected a standard-library name after '!'");p->failed=true;return NULL;}Expr *base=new_expr(p,E_NAME,t);Expr *field=new_expr(p,E_NAME,member);e=new_expr(p,E_MEMBER,t);if(e){e->left=base;e->right=field;}}
- else if(t.kind==T_IDENT||t.kind==T_FREE||t.kind==T_SELF){e=new_expr(p,E_NAME,t);}
+  else if(t.kind==T_IDENT||t.kind==T_FREE||t.kind==T_SELF){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
  else{swan_error(p->err,&t,"expected expression, found token %d '%s'",(int)t.kind,t.text?t.text:"");p->failed=true;return NULL;}
  while(e&&!p->failed){
@@ -58,18 +57,6 @@ static inline Stmt *statement_impl(Parser *p){
   if(s)s->value=expression(p,1);
   if(!p->failed&&eat(p,T_COMMA)){swan_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;}
   if(!need(p,T_RP,"expected ')' after print argument"))return NULL;
-  return s;
- }
- /* Keep the previous spelling parseable during the syntax migration. */
- bool legacy_print=is(p,T_BANG)&&p->ts->pos+2<p->ts->count&&
-                   p->ts->items[p->ts->pos+1].kind==T_IDENT&&
-                   !strcmp(p->ts->items[p->ts->pos+1].text,"printin");
- if(legacy_print){
-  take(p);take(p);
-  if(!need(p,T_GT,"expected '>>' after !printin")||
-     !need(p,T_GT,"expected second '>' after !printin"))return NULL;
-  s=new_stmt(p,S_LOG,t);
-  if(s)s->value=expression(p,1);
   return s;
  }
  if(eat(p,T_RETURN)){s=new_stmt(p,S_RETURN,t);if(s&&!is(p,T_NEWLINE)&&!is(p,T_DEDENT)&&!is(p,T_EOF))s->value=expression(p,1);return s;}
