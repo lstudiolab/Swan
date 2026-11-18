@@ -134,7 +134,7 @@ A directory or explicit source list denotes one logical program, not a sequence 
 - Imported modules are deduplicated by canonical module identity and loaded once per compilation.
 - Parallel frontend work is permitted only for independent files and must merge results deterministically. Shared mutable compiler state must not be accessed concurrently without a defined synchronization/ownership model.
 
-The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. Native x86-64 project builds produce one object per Swan source file before linking. Explicit emission produces one target artifact per source across x86-64, AArch64, ARMv7, RISC-V64, WebAssembly, and LLVM IR/assembly. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
+The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. Native x86-64 project builds produce one object per Swan source file before linking. Explicit emission produces one target artifact per source for x86-64, AArch64/ARM64, or WASM64. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
 
 ### 4.2 Phase contracts
 
@@ -305,7 +305,7 @@ The repository currently has a C11 driver, header-oriented compiler implementati
 - project sources are concatenated before lexing, so per-file source identity is not fully preserved;
 - the driver contains target-specific output/link orchestration;
 - native assembly/object production still invokes external toolchain components;
-- the optional LLVM target bridge routes verified SVM IR through LLVM/Clang and is not part of the desired Swan-owned native backend;
+- Swan exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64; ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported;
 - target feature coverage and ABI completeness are unequal;
 - C header import relies on Clang AST output for its currently supported declaration subset.
 
