@@ -1,5 +1,5 @@
 #!/usr/bin/env sh
-set -eux
+set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 SWAN="$ROOT/build/swanc"
 TMP="$ROOT/build/test/raw-memory"
