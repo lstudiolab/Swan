@@ -277,13 +277,13 @@ fail:
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|aarch64|wasm64] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  Multi-file --emit-asm writes one target artifact per Swan source into the -o directory.\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n",SWAN_VERSION);return 0;}
  SwanDriverMode mode=SWAN_RUN_DEFAULT;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=SWAN_BUILD;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
- if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|aarch64|wasm64] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
+ if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|arm64|wasm64|all] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
  const char **swan_inputs=NULL,**c_inputs=NULL,**link_args=NULL;
  size_t swan_input_count=0,swan_input_capacity=0,c_input_count=0,c_input_capacity=0;
  size_t link_arg_count=0,link_arg_capacity=0;
