@@ -214,6 +214,66 @@ static void swan_release_cli_inputs(const char **swan_inputs,size_t swan_count,
  }
  free((void*)swan_inputs);free((void*)c_inputs);free((void*)link_args);
 }
+
+static bool swan_build_all_targets(Program *program,const char *directory,
+                                   const char *source_name,SwanError *error){
+ if(!program||!directory||!source_name||!swan_make_output_dir(directory))return false;
+ const char *base=swan_source_basename(source_name);
+ size_t length=strlen(base);
+ if(length>=5&&!strcmp(base+length-5,".swan"))length-=5;
+ if(!length||length>(size_t)INT_MAX)return false;
+ char native_path[4096],arm_path[4096],wasm_path[4096];
+ int a=snprintf(native_path,sizeof(native_path),"%s/%.*s-x86_64",directory,(int)length,base);
+ int b=snprintf(arm_path,sizeof(arm_path),"%s/%.*s-arm64.o",directory,(int)length,base);
+ int c=snprintf(wasm_path,sizeof(wasm_path),"%s/%.*s-wasm64.wasm",directory,(int)length,base);
+ if(a<0||b<0||c<0||(size_t)a>=sizeof(native_path)||(size_t)b>=sizeof(arm_path)||(size_t)c>=sizeof(wasm_path)){
+  swan_error(error,NULL,"target output path is too long");return false;
+ }
+ unlink(native_path);unlink(arm_path);unlink(wasm_path);
+ char **objects=NULL;size_t object_count=0;
+ if(!swan_compile_project_objects(program,&objects,&object_count,error))return false;
+ int linked=swan_link_project_objects(objects,object_count,NULL,0,NULL,0,native_path);
+ for(size_t i=0;i<object_count;i++){if(objects[i]){unlink(objects[i]);free(objects[i]);}}
+ free(objects);
+ if(linked!=0){swan_error(error,NULL,"x86-64 link failed while building target matrix");goto fail;}
+ const SwanTarget *arm=swan_target_find("arm64");
+ program->codegen_source_index=-1;
+ program->codegen_force_ast=false;
+ program->codegen_include_external_functions=false;
+ SwanSVMOutput generated={0};
+ if(!swan_svm_codegen(program,arm,&generated,error))goto fail;
+ char assembly_path[]="/tmp/swan-all-arm-XXXXXX";
+ int fd=mkstemp(assembly_path);
+ if(fd<0){free(generated.data);swan_error(error,NULL,"cannot create temporary ARM64 assembly");goto fail;}
+ FILE *assembly=fdopen(fd,"wb");
+
+ bool assembly_ok=assembly&&swan_emit_assembly(assembly,
+     &(Text){.data=generated.data,.len=generated.length});
+ if(assembly&&fclose(assembly)!=0)assembly_ok=false;
+ else if(!assembly)close(fd);
+ free(generated.data);
+ if(!assembly_ok){unlink(assembly_path);swan_error(error,NULL,"cannot write temporary ARM64 assembly");goto fail;}
+ char *arm_args[]={"clang","--target=aarch64-unknown-linux-gnu","-c","-x","assembler",assembly_path,"-o",arm_path,NULL};
+ int arm_result=swan_exec(arm_args,true);
+ unlink(assembly_path);
+ if(arm_result!=0){swan_error(error,NULL,"ARM64 object generation failed; install Clang with AArch64 support");goto fail;}
+ const SwanTarget *wasm=swan_target_find("wasm64");
+ memset(&generated,0,sizeof(generated));
+ if(!swan_svm_codegen(program,wasm,&generated,error))goto fail;
+ FILE *wf=fopen(wasm_path,"wb");
+ bool wasm_ok=wf&&fwrite(generated.data,1,generated.length,wf)==generated.length;
+ if(wf&&fclose(wf)!=0)wasm_ok=false;
+ free(generated.data);
+ if(!wasm_ok){swan_error(error,NULL,"cannot write WASM64 module '%s'",wasm_path);goto fail;}
+ printf("Built x86-64 executable: %s\n",native_path);
+ printf("Built ARM64 ELF object: %s\n",arm_path);
+ printf("Built WASM64 module: %s\n",wasm_path);
+ return true;
+fail:
+ unlink(native_path);unlink(arm_path);unlink(wasm_path);
+ return false;
+}
+
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
@@ -252,7 +312,7 @@ static int swan_run(int argc,char **argv){
  const char *output=NULL,*stdlib_dir=getenv("SWAN_STDLIB");
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
- bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false;size_t compile_jobs=1;
+ bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false,target_all=false;size_t compile_jobs=1;
  const SwanTarget *target=swan_target_find("x86_64");
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--low-resource"))compile_jobs=1;
@@ -269,12 +329,18 @@ static int swan_run(int argc,char **argv){
   else if((!strcmp(argv[i],"-L")||!strcmp(argv[i],"-l"))&&i+1<argc){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i])||!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[++i]))SWAN_RETURN(2);}
   else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(!swan_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i]))SWAN_RETURN(2);}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
-   const char *name=argv[++i];target=swan_target_find(name);
-   if(!target){fprintf(stderr,"swan: unknown target '%s'; use --list-targets\n",name);SWAN_RETURN(2);}
-   if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);SWAN_RETURN(2);}
+   const char *name=argv[++i];
+   if(!strcmp(name,"all")){target_all=true;target=swan_target_find("x86_64");}
+   else{
+    target=swan_target_find(name);
+    if(!target){fprintf(stderr,"swan: unknown target '%s'; use --list-targets\n",name);SWAN_RETURN(2);}
+    if(!target->backend_available){fprintf(stderr,"swan: target '%s' (%s) is recognized but its backend is not implemented yet\n",target->name,target->triple);SWAN_RETURN(2);}
+   }
   }else{fprintf(stderr,"swan: unknown option '%s'\n",argv[i]);SWAN_RETURN(2);}
  }
  if(compile_jobs!=1){fprintf(stderr,"swan: invalid compiler worker limit\n");SWAN_RETURN(2);}
+ if(target_all&&(mode!=SWAN_BUILD||emit_asm)){fprintf(stderr,"swan: --target all requires 'build' and cannot be combined with --emit-asm\n");SWAN_RETURN(2);}
+ if(target_all&&(c_input_count||link_arg_count||no_heap||lazy_imports)){fprintf(stderr,"swan: --target all currently requires Swan-only sources without C inputs, linker flags, --no-heap, or --lazy-imports\n");SWAN_RETURN(2);}
  if(link_arg_count&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: linker inputs are currently supported only by the native x86_64 executable path\n");SWAN_RETURN(2);}
  if(emit_asm)mode=SWAN_EMIT;
  if(no_heap&&target->architecture!=SWAN_ARCH_X86_64){fprintf(stderr,"swan: --no-heap is currently supported only by the native x86-64 backend\\n");SWAN_RETURN(2);}
@@ -339,6 +405,14 @@ static int swan_run(int argc,char **argv){
   }
  }
  bool has_lazy=swan_has_lazy_imports(&p);
+ if(target_all){
+  if(has_lazy){fprintf(stderr,"swan: --target all does not yet support runtime-lazy imports\n");swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);SWAN_RETURN(2);}
+  const char *directory=output?output:"build-all";
+  bool built=swan_build_all_targets(&p,directory,first,&err);
+  if(!built)swan_print_diagnostic("swan",&err);
+  swan_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);swan_program_destroy(&p);free(source);
+  SWAN_RETURN(built?0:1);
+ }
  if(!has_lazy&&mode==SWAN_EMIT&&
     (p.source_count>1||c_input_count>0)){
   const char *directory=output?output:"asm";
