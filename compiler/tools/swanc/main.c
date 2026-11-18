@@ -319,7 +319,7 @@ static int swan_run_wasm_file(const char *path,int argument_count,char **argumen
 static int swan_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Swan " SWAN_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){swan_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [compile|build|run] <file.swan|file.wasm|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'swan run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",SWAN_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Swan %s\nUsage: swanc [compile|build|run] <file.swan|file.wasm|directory> [more.swan ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  compile emits portable WASM64; run uses SIC to select native host JIT or browser WASM execution.\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'swan run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",SWAN_VERSION);return 0;}
  SwanDriverMode mode=SWAN_RUN_DEFAULT;
  bool sic_compile_command=false;
  int index=1;
@@ -327,7 +327,7 @@ static int swan_run(int argc,char **argv){
  else if(index<argc&&!strcmp(argv[index],"compile")){mode=SWAN_BUILD;sic_compile_command=true;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=SWAN_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){swan_profile_enabled=true;index++;}
- if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|arm64|wasm64|all] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
+ if(index>=argc){fprintf(stderr,"Swan %s\nUsage: swanc [compile|build|run] <file.swan|directory> [more.swan ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|arm64|wasm64|all] [--stdlib directory] [--module-path directory ...] [-o output]\n",SWAN_VERSION);return 2;}
  if(index<argc&&swan_has_suffix(argv[index],".wasm")){
   if(mode==SWAN_BUILD){fprintf(stderr,"swan: WebAssembly modules are executed with 'swan run', not 'swan build'\n");return 2;}
   return swan_run_wasm_file(argv[index],argc-index-1,&argv[index+1]);
