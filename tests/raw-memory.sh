@@ -271,4 +271,20 @@ if "$SWAN" build "$TMP/loop-ownership.swan" -o "$TMP/loop-ownership" 2>/dev/null
     exit 1
 fi
 
+
+cat > "$TMP/stack-escape.swan" <<'SWAN'
+import raw
+func escape() -> i64:
+    let pointer: i64 = raw.stack(16)
+    let alias: i64 = pointer
+    return alias
+func main() -> int:
+    let unused: i64 = 0
+    return 0
+SWAN
+if "$SWAN" build "$TMP/stack-escape.swan" -o "$TMP/stack-escape" 2>/dev/null; then
+    echo "stack pointer escaped its function unexpectedly" >&2
+    exit 1
+fi
+
 printf 'PASS: raw i64 access, own/borrow/move/drop, stack, heap, arena, and lifetime diagnostics\n'
