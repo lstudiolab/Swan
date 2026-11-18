@@ -9,7 +9,6 @@ cat > "$TMP/program.swan" <<'SWAN'
 import foundation
 import foundation
 func main():
-    foundation_hello()
     print(abs_int(-9))
     print(average_int(4, 7))
     print(is_even(12))
