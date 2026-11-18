@@ -13,8 +13,7 @@ This roadmap records the current production compiler and the remaining engineeri
 - General typed SSA IR, verifier, direct AST-to-IR lowering, and target-independent optimizer.
 - A bounded fixed-point optimizer with a maximum of 350 pass executions.
 - x86-64 typed-IR codegen plus AST compatibility codegen for additional implemented features.
-- Shared SVM compile core feeding Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
-- Optional explicit LLVM target-triple bridge.
+- Shared SVM compile core feeding exactly three supported backends: x86-64, AArch64/ARM64, and WASM64.
 - Automatic cleanup for eligible local arrays and a stack-array fast path for small fixed non-escaping arrays.
 
 ## Completed optimization work
@@ -43,11 +42,11 @@ This roadmap records the current production compiler and the remaining engineeri
 
 ## Priority 1: correctness and backend parity
 
-1. Keep the full test suite green, including C ABI, UTF-8, automatic array lifetime, contextual compatibility syntax, lazy imports, typed IR, and all target emission.
+1. Keep the full test suite green, including C ABI, UTF-8, automatic array lifetime, contextual compatibility syntax, lazy imports, typed IR, and x86-64, AArch64/ARM64, and WASM64 emission.
 2. Add differential execution tests for equivalent programs compiled through typed-IR and AST compatibility paths.
 3. Expand negative tests for unsupported source constructs and backend operation/type combinations.
-4. Verify ABI behavior with executable tests on native runners for AArch64, ARMv7, and RISC-V64.
-5. Validate WASM32 and WASM64 behavior with suitable runtimes, not only binary inspection.
+4. Verify ABI behavior with executable tests on native x86-64 and AArch64 runners.
+5. Validate WASM64 behavior with a memory64-capable runtime, not only binary inspection.
 
 ## Priority 2: generated-code performance
 
