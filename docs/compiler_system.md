@@ -199,8 +199,8 @@ The required flow is:
          Wasmtime runtime JIT -> host-native x86-64 / ARM64 code
          execute compiled code
          delete temporary WASM only after successful runtime completion
-       unsupported host or JIT failure:
-         retain WASM64 -> compatible WASM runtime fallback
+       unsupported native host or JIT failure:
+         retain WASM64 -> report the host/runtime limitation
 ```
 
 SIC requirements:
@@ -210,7 +210,7 @@ SIC requirements:
 3. On native hosts, identify x86-64 or ARM64. Wasmtime's runtime JIT must generate code for the actual host CPU, not for the machine that originally built the source.
 4. Keep portable WASM until native JIT execution has completed successfully.
 5. Never delete a user-supplied or explicitly emitted WASM file. Only temporary WASM generated for a source-to-run invocation may be removed after successful native runtime completion.
-6. If host detection or native runtime execution fails, retain the WASM module. A compatible WebAssembly runtime may execute it on hosts that support the required proposals.
+6. If host detection or native runtime execution fails, retain the WASM module and report the limitation. It remains portable and can be run on another compatible host or loaded by a browser that supports the required proposals.
 7. Do not treat host-native JIT output as a portable artifact. The WASM module remains the cross-platform deployment artifact.
 8. Browser deployments load the original WASM module through the browser loader. Browser support for the WASM64 memory64 proposal is a deployment requirement and must be checked separately from native support.
 
