@@ -1,7 +1,6 @@
 #include "swan/codegen_x86_64_ir.h"
 #include "swan/codegen_aarch64.h"
-#include "swan/codegen_riscv64.h"
-#include "swan/codegen_wasm32.h"
+#include "swan/codegen_wasm64.h"
 #include "swan/optimization.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,28 +118,10 @@ int main(int argc,char **argv){
         swan_ir_destroy(&module);
         return 12;
     }
-    Text riscv={0};
-    if(!swan_codegen_riscv64_ir(&module,&riscv,error,sizeof(error))){
-        fprintf(stderr,"RISC-V64 IR code generation failed: %s\n",error);
-        free(riscv.data);
-        free(aarch64.data);
-        free(assembly.data);
-        swan_ir_destroy(&module);
-        return 13;
-    }
-    if(!strstr(riscv.data,".Lsw_e")||!strstr(riscv.data,"sd t0, ")){
-        fprintf(stderr,"RISC-V64 phi edge-copy sequence was not emitted\n");
-        free(riscv.data);
-        free(aarch64.data);
-        free(assembly.data);
-        swan_ir_destroy(&module);
-        return 14;
-    }
     SwanWasmBuffer wasm={0};
-    if(!swan_codegen_wasm32(&module,&wasm,error,sizeof(error))||wasm.length<8){
+    if(!swan_codegen_wasm64(&module,&wasm,error,sizeof(error))||wasm.length<8){
         fprintf(stderr,"WebAssembly phi lowering failed: %s\n",error);
         free(wasm.data);
-        free(riscv.data);
         free(aarch64.data);
         free(assembly.data);
         swan_ir_destroy(&module);
@@ -150,7 +131,6 @@ int main(int argc,char **argv){
     bool written=output&&fwrite(assembly.data,1,assembly.len,output)==assembly.len;
     if(output&&fclose(output)!=0)written=false;
     free(wasm.data);
-    free(riscv.data);
     free(aarch64.data);
     free(assembly.data);
     swan_ir_destroy(&module);
