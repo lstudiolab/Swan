@@ -2,6 +2,7 @@
 #define SWAN_SIC_H
 
 #include <sys/utsname.h>
+#include <string.h>
 
 /*
  * SIC (Swan Integrated Compilation) coordinates the portable WASM artifact
