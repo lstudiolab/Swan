@@ -51,7 +51,7 @@ The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 indi
 
 BVM is the target-independent compilation engine, not a CPU target, runtime, or interpreter. It owns typed source lowering, IR verification, and optimization. The canonical `brewc compile` command emits WASM64 (memory64) ahead of execution. BIC then detects the host: browsers execute the WASM module directly, while native x86-64 and ARM64 hosts use Wasmtime's runtime JIT to generate host machine code. The explicit x86-64 and ARM64 AOT backends remain available as legacy/low-level targets, but they are not required for the canonical portable workflow.
 
-The legacy `--target bvm`, `brew vm`, `.bvm` serializer, and IR interpreter have been removed from the production CLI and target registry. BVM is the compiler engine shared by all compiled targets. See [BVM Compiler Architecture](docs/bvm_architecture.md).
+The legacy `--target bvm`, `brewc vm`, `.bvm` serializer, and IR interpreter have been removed from the production CLI and target registry. BVM is the compiler engine shared by all compiled targets. See [BVM Compiler Architecture](docs/bvm_architecture.md).
 
 ### Fail-fast behavior
 
@@ -77,12 +77,12 @@ Most developers should install a release binary. You do not need to clone this r
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/lstudiolab/Brew/main/scripts/install.sh | sh
-brew --version
+brewc --version
 brewc compile examples/hello.brew -o hello.wasm
-brew run hello.wasm
+brewc run hello.wasm
 ```
 
-The installer detects Linux x86-64/ARM64 and macOS Intel/Apple Silicon, downloads the matching release archive, and installs `brew` and `brewc` into `~/.local/bin`. Ensure that directory is on PATH. Release binaries are published automatically for version tags.
+The installer detects Linux x86-64/ARM64 and macOS Intel/Apple Silicon, downloads the matching release archive, and installs `brewc` into `~/.local/bin`. Ensure that directory is on PATH. Release binaries are published automatically for version tags.
 
 **Windows 10/11 (x86-64)**
 
@@ -162,10 +162,10 @@ sh build.sh
 mkdir -p ~/.local/bin
 cp build/brewc ~/.local/bin/brewcc
 export PATH="$HOME/.local/bin:$PATH"
-brew --version
+brewc --version
 ~~~
 
-Add the PATH export to your shell startup file so VS Code can find brew after restarting.
+Add the PATH export to your shell startup file so VS Code can find `brewc` after restarting.
 
 Build and install the VS Code extension:
 
@@ -176,7 +176,7 @@ npm run package
 code --install-extension brew-language-0.1.0.vsix
 ~~~
 
-Open a .brew file after reloading VS Code. The workspace build task uses the brew executable from PATH. On Windows, use WSL for the current POSIX compiler build.
+Open a .brew file after reloading VS Code. The workspace build task uses the `brewc` executable from PATH. On Windows, use WSL for the current POSIX compiler build.
 
 ## Brew syntax
 
@@ -243,10 +243,10 @@ Compile Brew source once to the portable WASM64 artifact:
 
 ```sh
 brewc compile app.brew -o app.wasm
-brew run app.wasm
+brewc run app.wasm
 
 # Or compile and run in one command
-brew run app.brew --target wasm64
+brewc run app.brew --target wasm64
 ```
 
 BIC selects Wasmtime's native JIT on supported x86-64/ARM64 hosts. Browser
