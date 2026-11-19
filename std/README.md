@@ -66,8 +66,8 @@ The current collection API operates on Brew's implemented `u32_array` type. Ever
 
 ### Native JSON runtime (C ABI)
 
-The JSON runtime is implemented in `runtime/json.h`, `runtime/json_abi.c`, and
-`runtime/json_writer.c`. Brew programs can import the ABI headers with
+The JSON runtime is implemented in `BrewRuntime/json.h`, `BrewRuntime/json_abi.c`, and
+`BrewRuntime/json_writer.c`. Brew programs can import the ABI headers with
 `import C` and link the runtime object. It provides reusable document handles,
 parsing, root-key integer lookup, key existence, compact/pretty serialization,
 parse-error retrieval, and a nested object/array writer with UTF-8 escaping.
@@ -78,7 +78,7 @@ have safe pointer or general string types. It is not yet a typed generic DOM, st
 
 ### Native HTTP JSON service (C ABI)
 
-`runtime/http_server.h` exposes a bounded HTTP/1.1 JSON echo/health server.
+`BrewRuntime/http_server.h` exposes a bounded HTTP/1.1 JSON echo/health server.
 It uses the POSIX worker pool, enforces request body limits and socket timeouts,
 returns 503 when its bounded queue is full, and exposes request/byte counters.
 The current service has fixed JSON echo behavior and closes each connection;
