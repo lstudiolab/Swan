@@ -25,7 +25,7 @@ typedef struct {
     BrewBICArchitecture architecture;
 } BrewBICHost;
 
-static inline BrewBICHost brew_sic_detect_host(void) {
+static inline BrewBICHost brew_bic_detect_host(void) {
     BrewBICHost host = {BREW_BIC_ENV_NATIVE, BREW_BIC_ARCH_UNKNOWN};
 #if defined(__wasm__) || defined(__wasm64__) || defined(__wasi__)
     host.environment = BREW_BIC_ENV_WEBASSEMBLY;
