@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible 1B-element heapsort comparison for Swan, Goose, Rust, C, C++, Swift."""
+"""Reproducible 1B-element heapsort comparison for Brew, Goose, Rust, C, C++, Swift."""
 from __future__ import annotations
 
 import json
@@ -18,9 +18,9 @@ ROOT = pathlib.Path(__file__).resolve().parents[1]
 BENCH = ROOT / "benchmarks" / "heapsort"
 COUNT = 1_000_000_000
 ROUNDS = 3
-SWAN = pathlib.Path(os.environ.get("SWAN", ROOT / "build" / "swanc"))
+BREW = pathlib.Path(os.environ.get("BREW", ROOT / "build" / "brewc"))
 GOOSE = pathlib.Path(os.environ.get("GOOSE", ROOT.parent / "goose" / "build" / "goose"))
-NAMES = ["Swan", "Goose", "Rust", "C", "C++", "Swift"]
+NAMES = ["Brew", "Goose", "Rust", "C", "C++", "Swift"]
 REPORT = ROOT / "heapsort-benchmark.json"
 
 
@@ -64,15 +64,15 @@ def save_report(report: dict) -> None:
 
 
 def main() -> int:
-    if not SWAN.is_file():
-        raise RuntimeError(f"Swan compiler not found: {SWAN}")
+    if not BREW.is_file():
+        raise RuntimeError(f"Brew compiler not found: {BREW}")
     if not GOOSE.is_file():
         raise RuntimeError(f"Goose compiler not found: {GOOSE}")
 
     with tempfile.TemporaryDirectory(prefix="heapsort-1b-") as temp:
         out = pathlib.Path(temp)
         binaries = {
-            "Swan": out / "swan",
+            "Brew": out / "brew",
             "Goose": out / "goose",
             "Rust": out / "rust",
             "C": out / "c",
@@ -80,7 +80,7 @@ def main() -> int:
             "Swift": out / "swift",
         }
         sources = {
-            "Swan": BENCH / "swan.swan",
+            "Brew": BENCH / "brew.brew",
             "Goose": BENCH / "goose.goose",
             "Rust": BENCH / "rust.rs",
             "C": BENCH / "c.c",
@@ -88,7 +88,7 @@ def main() -> int:
             "Swift": BENCH / "swift.swift",
         }
         compile_commands = {
-            "Swan": [str(SWAN), "build", str(sources["Swan"]), "-o", str(binaries["Swan"])],
+            "Brew": [str(BREW), "build", str(sources["Brew"]), "-o", str(binaries["Brew"])],
             "Goose": [str(GOOSE), "build", "--stack-reserve", "8G", "-o",
                       str(binaries["Goose"]), str(sources["Goose"])],
             "Rust": ["rustc", "-C", "opt-level=3", "-C", "target-cpu=native",
@@ -126,7 +126,7 @@ def main() -> int:
             "all_checksums_match": False,
         }
         for name, command in {
-            "Swan": [str(SWAN), "--version"],
+            "Brew": [str(BREW), "--version"],
             "Goose": [str(GOOSE), "version"],
             "Rust": ["rustc", "--version"],
             "C": ["cc", "--version"],
