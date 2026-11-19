@@ -10,7 +10,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 N = 20_000_000
 MODULUS = 2147483647
 SEED = 1
@@ -27,7 +27,7 @@ def expected_value():
 
 
 SOURCES = {
-    "Swan": f"""func main() -> int:
+    "Brew": f"""func main() -> int:
     var state = {SEED}
     var i = 0
     while i < {N}
@@ -88,13 +88,13 @@ def main():
     }
     if not all(tools.values()):
         raise SystemExit("Goose, rustc and cc are required")
-    if not SWAN.is_file():
-        raise SystemExit("Build Swan first: sh build.sh")
+    if not BREW.is_file():
+        raise SystemExit("Build Brew first: sh build.sh")
 
     expected = str(expected_value())
-    with tempfile.TemporaryDirectory(prefix="swan-dependency-bench-") as td:
+    with tempfile.TemporaryDirectory(prefix="brew-dependency-bench-") as td:
         work = pathlib.Path(td)
-        extensions = {"Swan": "swan", "Goose": "goose", "Rust": "rs", "C": "c"}
+        extensions = {"Brew": "brew", "Goose": "goose", "Rust": "rs", "C": "c"}
         sources = {}
         for name, source in SOURCES.items():
             sources[name] = work / f"dependency.{extensions[name]}"
@@ -104,8 +104,8 @@ def main():
         compile_times = {}
         for name in SOURCES:
             binary = work / name.lower()
-            if name == "Swan":
-                cmd = [str(SWAN), "build", str(sources[name]), "-o", str(binary)]
+            if name == "Brew":
+                cmd = [str(BREW), "build", str(sources[name]), "-o", str(binary)]
             elif name == "Goose":
                 cmd = [tools[name], "build", "-o", str(binary), str(sources[name])]
             elif name == "Rust":
@@ -132,7 +132,7 @@ def main():
                     raise RuntimeError(f"{name} checksum mismatch on sample {round_no + 1}")
                 samples[name].append(elapsed)
 
-        print("Swan dependency-chain benchmark")
+        print("Brew dependency-chain benchmark")
         print(f"Workload: {N:,} dependent modular LCG iterations")
         print(f"state = (state * {MULTIPLIER} + {INCREMENT}) % {MODULUS}")
         print(f"Verified final state: {expected}")

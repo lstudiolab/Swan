@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fresh stress benchmark for Swan's compiler pipeline.
+"""Fresh stress benchmark for Brew's compiler pipeline.
 
 Unlike compiler_pipeline.py, this benchmark scales generated programs and
 stresses frontend throughput, name resolution, call-graph traversal, control
@@ -21,9 +21,9 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_COMPILER = ROOT / "build" / "swan"
-HEADER = "Swan compiler pipeline profile (seconds)"
-RSS_MARKER = re.compile(r"^__SWAN_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
+DEFAULT_COMPILER = ROOT / "build" / "brew"
+HEADER = "Brew compiler pipeline profile (seconds)"
+RSS_MARKER = re.compile(r"^__BREW_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
 PROFILE_LINE = re.compile(
     r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*[0-9]+(?:\.[0-9]+)?%\))?\s*$"
 )
@@ -41,7 +41,7 @@ STAGES = (
 
 
 def write_source(directory: pathlib.Path, name: str, lines: list[str]) -> pathlib.Path:
-    path = directory / f"{name}.swan"
+    path = directory / f"{name}.brew"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 
@@ -140,7 +140,7 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
     time_bin = pathlib.Path("/usr/bin/time")
     if not time_bin.is_file():
         raise RuntimeError("GNU time is required to measure peak compiler RSS")
-    command = [str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
+    command = [str(time_bin), "-f", "__BREW_MAX_RSS_KB__%M",
                str(compiler), "build", "--profile", str(source), "--emit-asm", "-o", str(output)]
     start = time.perf_counter()
     proc = subprocess.run(command, cwd=ROOT, text=True, capture_output=True)
@@ -173,7 +173,7 @@ def main() -> None:
     if not compiler.is_file():
         raise SystemExit(f"Compiler not found: {compiler}. Run sh build.sh first.")
 
-    with tempfile.TemporaryDirectory(prefix="swan-pipeline-stress-") as temp:
+    with tempfile.TemporaryDirectory(prefix="brew-pipeline-stress-") as temp:
         directory = pathlib.Path(temp)
         cases = workloads(directory)
         results: dict[str, list[dict[str, float]]] = {}
@@ -188,7 +188,7 @@ def main() -> None:
                 for _ in range(args.repeats)
             ]
 
-    print("Swan compiler pipeline stress benchmark")
+    print("Brew compiler pipeline stress benchmark")
     print(f"Host: {platform.platform()} / {platform.machine()}")
     print(f"Compiler: {compiler}")
     print(f"Statistic: median of {args.repeats} measured runs; "

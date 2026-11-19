@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
-"""Attribute exclusive Clang frontend processing time to each Swan compiler header."""
+"""Attribute exclusive Clang frontend processing time to each Brew compiler header."""
 from __future__ import annotations
 import argparse, json, pathlib, platform, re, shutil, statistics, subprocess, tempfile, time
 from collections import defaultdict
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-HEADER = "Swan compiler pipeline profile (seconds)"
+HEADER = "Brew compiler pipeline profile (seconds)"
 PROFILE = re.compile(r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s")
-WORKLOAD = ROOT / "benchmarks" / "compiler_pipeline.swan"
+WORKLOAD = ROOT / "benchmarks" / "compiler_pipeline.brew"
 
 def stage_sample(compiler, source, output):
     started = time.perf_counter()
@@ -15,16 +15,16 @@ def stage_sample(compiler, source, output):
                           cwd=ROOT, text=True, capture_output=True)
     wall = time.perf_counter() - started
     if proc.returncode:
-        raise RuntimeError(f"Swan compile failed:\n{proc.stderr[-10000:]}")
+        raise RuntimeError(f"Brew compile failed:\n{proc.stderr[-10000:]}")
     if HEADER not in proc.stderr:
-        raise RuntimeError("Swan --profile output was missing.")
+        raise RuntimeError("Brew --profile output was missing.")
     values = {}
     for line in proc.stderr.splitlines():
         match = PROFILE.match(line)
         if match:
             values[match.group(1).strip()] = float(match.group(2))
     if "Total wall time" not in values:
-        raise RuntimeError("Swan profile omitted Total wall time.")
+        raise RuntimeError("Brew profile omitted Total wall time.")
     values["Compiler process wall time"] = wall
     return values
 
@@ -47,7 +47,7 @@ def clang_sample(clang, trace_dir, sample):
     cmd = [clang, "-std=c11", "-O2", "-DNDEBUG", "-Wall", "-Wextra", "-Wpedantic",
            f"-I{ROOT / 'compiler' / 'include'}",
            "-ftime-trace", "-ftime-trace-granularity=0",
-           "-c", str(ROOT / "compiler" / "tools" / "swanc" / "main.c"), "-o", str(obj)]
+           "-c", str(ROOT / "compiler" / "tools" / "brewc" / "main.c"), "-o", str(obj)]
     started = time.perf_counter()
     proc = subprocess.run(cmd, cwd=trace_dir, text=True, capture_output=True)
     wall = time.perf_counter() - started
@@ -82,7 +82,7 @@ def clang_sample(clang, trace_dir, sample):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--compiler", type=pathlib.Path, default=ROOT / "build" / "swan")
+    parser.add_argument("--compiler", type=pathlib.Path, default=ROOT / "build" / "brew")
     parser.add_argument("--repeats", type=int, default=5)
     parser.add_argument("--output-dir", type=pathlib.Path, default=ROOT / "benchmark-results")
     args = parser.parse_args()
@@ -95,7 +95,7 @@ def main():
     if args.repeats < 1:
         parser.error("--repeats must be at least 1")
 
-    with tempfile.TemporaryDirectory(prefix="swan-file-timing-") as temp:
+    with tempfile.TemporaryDirectory(prefix="brew-file-timing-") as temp:
         tmp = pathlib.Path(temp)
         trace_dir = tmp / "clang"
         trace_dir.mkdir()
@@ -128,12 +128,12 @@ def main():
         "compiler_file_total_exclusive_attributed_seconds": attributed_total,
         "compiler_file_rows": rows,
         "clang_translation_unit_wall_median_seconds": statistics.median(clang_walls),
-        "swan_pipeline_workload": str(WORKLOAD.relative_to(ROOT)),
-        "swan_pipeline_stage_medians_seconds": stages,
+        "brew_pipeline_workload": str(WORKLOAD.relative_to(ROOT)),
+        "brew_pipeline_stage_medians_seconds": stages,
         "note": "Per-file timings are exclusive frontend source-processing attribution, not runtime function costs. The C11 production compiler is compiled directly with no bootstrap or secondary compiler stage."
     }
     (output / "compiler-file-timing.json").write_text(json.dumps(result, indent=2) + "\n")
-    lines = ["# Swan compiler file timing benchmark", "",
+    lines = ["# Brew compiler file timing benchmark", "",
              f"- Host: {result['host']} ({result['machine']})",
              f"- Repeats: {args.repeats}; statistic: median; unit: seconds",
              "- Per-file method: Clang Source-event timing with nested include intervals subtracted (exclusive frontend attribution).",
@@ -144,13 +144,13 @@ def main():
              "|---:|---|---:|---:|---:|---:|"]
     for i, row in enumerate(rows, 1):
         lines.append(f"| {i} | {row['file']} | {row['median_seconds']:.6f} | {row['share_percent']:.2f}% | {row['min_seconds']:.6f} | {row['max_seconds']:.6f} |")
-    lines += ["", "## Actual Swan compile pipeline stages", "",
+    lines += ["", "## Actual Brew compile pipeline stages", "",
               f"Workload: {WORKLOAD.relative_to(ROOT)}; median of {args.repeats} builds.", "",
               "| Stage | Median time (s) |", "|---|---:|"]
     for name, seconds in stages.items():
         lines.append(f"| {name} | {seconds:.9f} |")
     lines += ["", "## Interpretation", "",
-              "Per-file values measure exclusive frontend processing attributed to each header during compilation of the production C11 compiler translation unit. The stage table measures Swan's actual source-compilation pipeline.",
+              "Per-file values measure exclusive frontend processing attributed to each header during compilation of the production C11 compiler translation unit. The stage table measures Brew's actual source-compilation pipeline.",
               "The compiler build is one direct C11 translation-unit compilation; there is no bootstrap compiler or generated secondary compiler object.",
               "", "Raw medians and host metadata are in compiler-file-timing.json."]
     (output / "compiler-file-timing.md").write_text("\n".join(lines) + "\n")
