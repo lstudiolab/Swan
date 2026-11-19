@@ -160,7 +160,7 @@ Build and install the compiler on Linux or macOS:
 ~~~sh
 sh build.sh
 mkdir -p ~/.local/bin
-cp build/brewc ~/.local/bin/brew
+cp build/brewc ~/.local/bin/brewc
 export PATH="$HOME/.local/bin:$PATH"
 brew --version
 ~~~
@@ -250,9 +250,9 @@ brew run app.brew --target wasm64
 ```
 
 BIC selects Wasmtime's native JIT on supported x86-64/ARM64 hosts. Browser
-deployments keep the WASM module and use [runtime/wasm64/browser.js](runtime/wasm64/browser.js)
+deployments keep the WASM module and use [BrewRuntime/wasm64/browser.js](BrewRuntime/wasm64/browser.js)
 to execute it through the browser's WebAssembly engine. Install Wasmtime
-separately for native execution; see the [WASM64 runtime guide](runtime/wasm64/README.md).
+separately for native execution; see the [WASM64 runtime guide](BrewRuntime/wasm64/README.md).
 
 Brew exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64. ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported. The compiler rejects other target names rather than silently routing them through another backend.
 
@@ -274,7 +274,7 @@ This is currently a limited x86-64 AST-backend lifetime optimization, not a comp
 
 ## Imports and Foundation
 
-The standard-library loader resolves and checks imported Brew modules. The Foundation source module is located at `stdlib/foundation.brew`. Imported Brew modules are bundled into the program's single assembly output by default, with unreachable imported functions omitted. Use `--lazy-imports` to opt into the alternative per-module shared-library model; its cached resolver stubs load a module on its first executed call, and the generated `.modules/` directory must remain beside the executable.
+The standard-library loader resolves and checks imported Brew modules. The Foundation source module is located at `std/foundation.brew`. Imported Brew modules are bundled into the program's single assembly output by default, with unreachable imported functions omitted. Use `--lazy-imports` to opt into the alternative per-module shared-library model; its cached resolver stubs load a module on its first executed call, and the generated `.modules/` directory must remain beside the executable.
 
 ```brew
 import foundation
@@ -303,7 +303,7 @@ func main() -> int:
     return 0
 ```
 
-`print(expression)` is Brew's standard output call. Other `name(...)` calls resolve to ordinary functions in explicitly imported Brew modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use ordinary function-call syntax. See [the standard-library reference](stdlib/readme.md) and [the language guide](docs/language_guide.md#121-standard-library-function-calls) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
+`print(expression)` is Brew's standard output call. Other `name(...)` calls resolve to ordinary functions in explicitly imported Brew modules. The current source modules are `std` (core integer helpers), `std_math` (integer number theory and arithmetic), and `std_collections` (algorithms over the currently supported `u32_array` type). Their public functions use ordinary function-call syntax. See [the standard-library reference](std/readme.md) and [the language guide](docs/language_guide.md#121-standard-library-function-calls) for APIs and current limitations. The Swift and Goose standard-library surface is not yet complete: generic collections, strings/Unicode, floating-point math, OS and file APIs, serialization, concurrency, FFI-safe memory, graphics, audio, physics, and UI need language/runtime capabilities that are not currently implemented.
 
 ## Low-resource compilation
 
@@ -385,7 +385,7 @@ The script builds the single production compiler directly, verifies that no boot
 - `main.c` — CLI orchestration and compiler entry point.
 - `compiler/include/brew/` — stable compatibility/public headers.
 - `compiler/lib/` — compiler implementation, organized by subsystem (AST, Basic, CodeGen, Driver, IR, Parse, Sema, Serialization).
-- `stdlib/` — source-level standard library.
+- `std/` — source-level standard library.
 - `tests/` — compiler, runtime, ABI, regression, and target tests.
 - `benchmarks/` — compiler and runtime measurement programs.
 - `docs/` — architecture, pipeline, performance, audit, and testing notes.
