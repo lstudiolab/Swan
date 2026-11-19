@@ -36,7 +36,7 @@ jobs:
           uname -a
           cc --version
           rustc --version
-      - name: Build Swan
+      - name: Build Brew
         run: sh build.sh
       - name: Run identical four-language benchmark
         run: python3 benchmarks/four_way_binary_search.py
