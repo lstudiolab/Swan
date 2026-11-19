@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Same-source-workload Swan vs Goose benchmark for Linux CI."""
+"""Same-source-workload Brew vs Goose benchmark for Linux CI."""
 from __future__ import annotations
 
 import os
@@ -10,7 +10,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 GOOSE = pathlib.Path(os.environ.get("GOOSE_BIN", "/tmp/goose-build/goose"))
 REPEATS = 5
 RUNTIME_REPEATS = 7
@@ -38,15 +38,15 @@ def median_build(command_factory, env: dict[str, str], work: pathlib.Path,
                  language: str, mode: str) -> float:
     samples = []
     for index in range(REPEATS):
-        source = work / f"{language}_{mode}_{index}{'.swan' if language == 'swan' else '.goose'}"
-        source.write_text(SWAN_SOURCE if language == "swan" else GOOSE_SOURCE,
+        source = work / f"{language}_{mode}_{index}{'.brew' if language == 'brew' else '.goose'}"
+        source.write_text(BREW_SOURCE if language == "brew" else GOOSE_SOURCE,
                           encoding="utf-8")
-        output = work / f"{language}_{mode}_{index}{'.s' if language == 'swan' else '.c'}"
+        output = work / f"{language}_{mode}_{index}{'.s' if language == 'brew' else '.c'}"
         samples.append(timed(command_factory(source, output), env))
     return statistics.median(samples)
 
 
-SWAN_SOURCE = """func main() -> int:
+BREW_SOURCE = """func main() -> int:
     var total = 0
     var i = 0
     while i < 1000
@@ -76,24 +76,24 @@ GOOSE_SOURCE = """fn main() {
 
 
 def main() -> None:
-    if not SWAN.is_file() or not GOOSE.is_file():
-        raise SystemExit("Build Swan and Goose compilers before running this benchmark.")
+    if not BREW.is_file() or not GOOSE.is_file():
+        raise SystemExit("Build Brew and Goose compilers before running this benchmark.")
 
     env = os.environ.copy()
     env.update({"CC": "cc", "GOOSE_CC": "cc"})
     expected = str(expected_checksum())
 
-    with tempfile.TemporaryDirectory(prefix="swan-goose-bench-") as directory:
+    with tempfile.TemporaryDirectory(prefix="brew-goose-bench-") as directory:
         work = pathlib.Path(directory)
 
-        def swan_emit(source: pathlib.Path, output: pathlib.Path) -> list[str]:
-            return [str(SWAN), str(source), "--emit-asm", "-o", str(output)]
+        def brew_emit(source: pathlib.Path, output: pathlib.Path) -> list[str]:
+            return [str(BREW), str(source), "--emit-asm", "-o", str(output)]
 
         def goose_emit(source: pathlib.Path, output: pathlib.Path) -> list[str]:
             return [str(GOOSE), "-o", str(output), str(source)]
 
-        def swan_build(source: pathlib.Path, output: pathlib.Path) -> list[str]:
-            return [str(SWAN), "build", str(source), "-o", str(output)]
+        def brew_build(source: pathlib.Path, output: pathlib.Path) -> list[str]:
+            return [str(BREW), "build", str(source), "-o", str(output)]
 
         def goose_build(source: pathlib.Path, output: pathlib.Path) -> list[str]:
             return [str(GOOSE), "build", str(source), "-o", str(output)]
@@ -101,7 +101,7 @@ def main() -> None:
         # Warm each compiler and Goose's one-time native runtime build outside
         # measured samples. Each measured source has a unique filename.
         for language, content, command in (
-            ("swan", SWAN_SOURCE, swan_build),
+            ("brew", BREW_SOURCE, brew_build),
             ("goose", GOOSE_SOURCE, goose_build),
         ):
             source = work / f"warmup.{language}"
@@ -113,15 +113,15 @@ def main() -> None:
             if actual != expected:
                 raise RuntimeError(f"{language} warm-up checksum mismatch: {actual} != {expected}")
 
-        swan_frontend = median_build(swan_emit, env, work, "swan", "frontend")
+        brew_frontend = median_build(brew_emit, env, work, "brew", "frontend")
         goose_frontend = median_build(goose_emit, env, work, "goose", "frontend")
-        swan_build_time = median_build(swan_build, env, work, "swan", "native")
+        brew_build_time = median_build(brew_build, env, work, "brew", "native")
         goose_build_time = median_build(goose_build, env, work, "goose", "native")
 
         # Rebuild one final executable for runtime timing; builds are not timed.
         runtime_binaries = {}
         for language, content, command in (
-            ("swan", SWAN_SOURCE, swan_build),
+            ("brew", BREW_SOURCE, brew_build),
             ("goose", GOOSE_SOURCE, goose_build),
         ):
             source = work / f"runtime.{language}"
@@ -147,17 +147,17 @@ def main() -> None:
                     )
             runtime_times[language] = statistics.median(samples)
 
-        print("Swan vs Goose — identical native benchmark")
+        print("Brew vs Goose — identical native benchmark")
         print(f"Workload: {I_LIMIT:,} x {J_LIMIT:,} = {I_LIMIT * J_LIMIT:,} loop iterations")
-        print("Swan: direct x86-64 assembly; Goose: native build with its default backend")
+        print("Brew: direct x86-64 assembly; Goose: native build with its default backend")
         print(f"Verified checksum: {expected}")
         print(f"Samples: {REPEATS} compile samples, {RUNTIME_REPEATS} runtime samples (median)")
         print()
-        print(f"{'Measurement':<30}{'Swan':>14}{'Goose':>14}")
+        print(f"{'Measurement':<30}{'Brew':>14}{'Goose':>14}")
         print("-" * 58)
-        print(f"{'Frontend + native-code emission':<30}{swan_frontend:>13.2f}s{goose_frontend:>13.2f}s")
-        print(f"{'Source to native executable':<30}{swan_build_time:>13.2f}s{goose_build_time:>13.2f}s")
-        print(f"{'Prebuilt executable runtime':<30}{runtime_times['swan']:>13.2f}s{runtime_times['goose']:>13.2f}s")
+        print(f"{'Frontend + native-code emission':<30}{brew_frontend:>13.2f}s{goose_frontend:>13.2f}s")
+        print(f"{'Source to native executable':<30}{brew_build_time:>13.2f}s{goose_build_time:>13.2f}s")
+        print(f"{'Prebuilt executable runtime':<30}{runtime_times['brew']:>13.2f}s{runtime_times['goose']:>13.2f}s")
         print()
         print("Correctness: PASS (both executables produced the same checksum)")
 

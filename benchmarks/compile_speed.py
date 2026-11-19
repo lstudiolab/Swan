@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Heavy, equivalent compile-time benchmark: Goose, Swan, Rust, C++, C, and x86-64 ASM.
+"""Heavy, equivalent compile-time benchmark: Goose, Brew, Rust, C++, C, and x86-64 ASM.
 
 Builds one generated translation unit per language. It measures cold source-to-
 native-executable time (compile + link), peak compiler-process RSS, source size,
@@ -8,7 +8,7 @@ incremental-build cache hits. No generated program is timed as part of compile
 time.
 
 Prerequisites:
-  - build/swan (or --swan / SWAN_BIN)
+  - build/brew (or --brew / BREW_BIN)
   - Goose compiler (or --goose / GOOSE_BIN)
   - rustc, a C compiler, a C++ compiler, and GNU-compatible assembler driver
 
@@ -50,14 +50,14 @@ def generate_sources(directory: pathlib.Path, functions: int,
 
     # Keep every generated helper reachable from main. Repeated dependent
     # arithmetic prevents the benchmark from being just declaration parsing.
-    swan = []
+    brew = []
     goose = []
     c = ["#include <stdint.h>", "#include <stddef.h>", ""]
     cpp = ["#include <cstdint>", "#include <cstddef>", ""]
     rust = ["#![allow(dead_code)]", ""]
 
     for i in range(functions):
-        swan.extend([f"func workload_{i}(value: int) -> int:",
+        brew.extend([f"func workload_{i}(value: int) -> int:",
                      "    var x = value"])
         goose.extend([f"fn workload_{i}(value: i64) -> i64 {{",
                       "    var x: i64 = value;"])
@@ -71,19 +71,19 @@ def generate_sources(directory: pathlib.Path, functions: int,
         for j in range(operations):
             k = ((i + 1) * (j + 3) * 17) % 999_983 + 1
             m = (j * 13 + i * 7) % 97 + 3
-            swan.append(f"    x = (x * {m} + {k}) % 1000003")
+            brew.append(f"    x = (x * {m} + {k}) % 1000003")
             goose.append(f"    x = (x * {m} + {k}) % 1000003;")
             c.append(f"    x = (x * UINT64_C({m}) + UINT64_C({k})) % UINT64_C(1000003);")
             cpp.append(f"    x = (x * UINT64_C({m}) + UINT64_C({k})) % UINT64_C(1000003);")
             rust.append(f"    x = (x * {m} + {k}) % 1000003;")
 
-        swan.extend(["    return x", ""])
+        brew.extend(["    return x", ""])
         goose.extend(["    return x;", "}", ""])
         c.extend(["    return x;", "}", ""])
         cpp.extend(["    return x;", "}", ""])
         rust.extend(["    x", "}", ""])
 
-    swan.extend(["func main() -> int:", "    var total = 0"])
+    brew.extend(["func main() -> int:", "    var total = 0"])
     goose.extend(["fn main() {", "    var total: i64 = 0;"])
     c.extend(["int main(void) {", "    uint64_t total = 0;"])
     cpp.extend(["int main() {", "    std::uint64_t total = 0;"])
@@ -91,20 +91,20 @@ def generate_sources(directory: pathlib.Path, functions: int,
 
     for i in range(functions):
         arg = i % 997 + 1
-        swan.append(f"    total = (total + workload_{i}({arg})) % 1000000007")
+        brew.append(f"    total = (total + workload_{i}({arg})) % 1000000007")
         goose.append(f"    total = (total + workload_{i}({arg})) % 1000000007;")
         c.append(f"    total = (total + workload_{i}(UINT64_C({arg}))) % UINT64_C(1000000007);")
         cpp.append(f"    total = (total + workload_{i}(UINT64_C({arg}))) % UINT64_C(1000000007);")
         rust.append(f"    total = (total + workload_{i}({arg})) % 1000000007;")
 
-    swan.extend(["    return 0", ""])
+    brew.extend(["    return 0", ""])
     goose.extend(["    print(total);", "}", ""])
     c.extend(["    return (int)(total == UINT64_MAX);", "}", ""])
     cpp.extend(["    return static_cast<int>(total == UINT64_MAX);", "}", ""])
     rust.extend(["    std::hint::black_box(total);", "}", ""])
 
     sources = {
-        "Swan": ("workload.swan", "\n".join(swan)),
+        "Brew": ("workload.brew", "\n".join(brew)),
         "Goose": ("workload.goose", "\n".join(goose)),
         "Rust": ("workload.rs", "\n".join(rust)),
         "C++": ("workload.cpp", "\n".join(cpp)),
@@ -187,7 +187,7 @@ def run_sample(command: list[str], cwd: pathlib.Path, output: pathlib.Path) -> t
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--swan", default=os.environ.get("SWAN_BIN", str(ROOT / "build" / "swan")))
+    parser.add_argument("--brew", default=os.environ.get("BREW_BIN", str(ROOT / "build" / "brew")))
     parser.add_argument("--goose", default=os.environ.get("GOOSE_BIN", "/tmp/goose-build/goose"))
     parser.add_argument("--cc", default=os.environ.get("CC", "cc"))
     parser.add_argument("--cxx", default=os.environ.get("CXX", "c++"))
@@ -203,7 +203,7 @@ def main() -> None:
         parser.error("repeats/functions/operations must be positive; warmups cannot be negative")
 
     configured = {
-        "Swan": resolve_tool(args.swan, args.swan),
+        "Brew": resolve_tool(args.brew, args.brew),
         "Goose": resolve_tool(args.goose, args.goose),
         "Rust": resolve_tool(args.rustc, args.rustc),
         "C++": resolve_tool(args.cxx, args.cxx),
@@ -216,16 +216,16 @@ def main() -> None:
                          + ". Install them or pass --allow-missing.")
 
     available = {name: exe for name, exe in configured.items() if exe}
-    if "Swan" not in available or "Goose" not in available:
-        raise SystemExit("Swan and Goose are required; set --swan and --goose/GOOSE_BIN.")
+    if "Brew" not in available or "Goose" not in available:
+        raise SystemExit("Brew and Goose are required; set --brew and --goose/GOOSE_BIN.")
 
-    with tempfile.TemporaryDirectory(prefix="swan-compile-speed-") as temp:
+    with tempfile.TemporaryDirectory(prefix="brew-compile-speed-") as temp:
         work = pathlib.Path(temp)
         generated = generate_sources(work, args.functions, args.operations)
         samples: dict[str, list[tuple[float, int, int]]] = {name: [] for name in available}
 
         def command_for(language: str, source: pathlib.Path, output: pathlib.Path) -> list[str]:
-            if language == "Swan":
+            if language == "Brew":
                 return [available[language], "build", str(source), "-o", str(output)]
             if language == "Goose":
                 return [available[language], "build", "-o", str(output), str(source)]
@@ -273,7 +273,7 @@ def main() -> None:
             }
 
     flags = {
-        "Swan": "native build defaults",
+        "Brew": "native build defaults",
         "Goose": "Goose native defaults",
         "Rust": "-C opt-level=2 -C codegen-units=1",
         "C++": "-std=c++20 -O2 -pipe",
@@ -293,7 +293,7 @@ def main() -> None:
     print()
     print(f"{'Language':<10} {'Median s':>12} {'Best s':>12} {'Peak RSS MiB':>14} {'Source KiB':>12} {'Binary KiB':>12}")
     print("-" * 76)
-    for language in ("Goose", "Swan", "Rust", "C++", "C", "ASM"):
+    for language in ("Goose", "Brew", "Rust", "C++", "C", "ASM"):
         if language not in rows:
             continue
         row = rows[language]
@@ -318,7 +318,7 @@ def main() -> None:
         "", "| Language | Median compile + link (s) | Best (s) | Median peak RSS (MiB) | Source (KiB) | Binary (KiB) | Toolchain | Flags |",
         "|---|---:|---:|---:|---:|---:|---|---|",
     ]
-    for language in ("Goose", "Swan", "Rust", "C++", "C", "ASM"):
+    for language in ("Goose", "Brew", "Rust", "C++", "C", "ASM"):
         if language not in rows:
             continue
         row = rows[language]
@@ -329,7 +329,7 @@ def main() -> None:
             f"{row['flags']} |"
         )
     lines += ["", "## Interpretation notes", "",
-              "This is a compile-time benchmark, not a runtime benchmark. The same generated arithmetic workload shape is used across Goose, Swan, Rust, C++, and C. Compiler versions, optimization flags, source sizes, and peak RSS are recorded so results can be interpreted rather than treated as a universal ranking.",
+              "This is a compile-time benchmark, not a runtime benchmark. The same generated arithmetic workload shape is used across Goose, Brew, Rust, C++, and C. Compiler versions, optimization flags, source sizes, and peak RSS are recorded so results can be interpreted rather than treated as a universal ranking.",
               "",
               "The assembly row measures the assembler and linker on handwritten machine-level source. It is a useful lower-level toolchain reference, but it does not measure a language frontend or compiler optimization pipeline.",
               "",

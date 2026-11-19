@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Reproducible Swan compiler and runtime benchmarks; reports medians in seconds."""
+"""Reproducible Brew compiler and runtime benchmarks; reports medians in seconds."""
 from __future__ import annotations
 
 import os
@@ -10,7 +10,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 CC = os.environ.get("CC", "cc")
 
 
@@ -50,12 +50,12 @@ def nested_expected_value(limit: int) -> int:
 
 
 def main() -> None:
-    if not SWAN.is_file():
-        raise SystemExit("Build Swan first with: sh build.sh")
+    if not BREW.is_file():
+        raise SystemExit("Build Brew first with: sh build.sh")
 
-    with tempfile.TemporaryDirectory(prefix="swan-bench-") as directory:
+    with tempfile.TemporaryDirectory(prefix="brew-bench-") as directory:
         work = pathlib.Path(directory)
-        source = work / "large.swan"
+        source = work / "large.brew"
         generated = work / "large.s"
         binary = work / "large"
         function_count = 400
@@ -73,7 +73,7 @@ def main() -> None:
         source.write_text("\n".join(lines), encoding="utf-8")
         source_bytes = source.stat().st_size
 
-        subprocess.run([str(SWAN), str(source), "--emit-asm", "-o", str(generated)],
+        subprocess.run([str(BREW), str(source), "--emit-asm", "-o", str(generated)],
                        check=True, stdout=subprocess.DEVNULL)
         subprocess.run([CC, "-x", "assembler", str(generated), "-o", str(binary)],
                        check=True, stdout=subprocess.DEVNULL)
@@ -83,17 +83,17 @@ def main() -> None:
             raise RuntimeError(f"Incorrect benchmark result: expected {expected}, got {actual}")
 
         frontend = median_seconds(
-            [str(SWAN), str(source), "--emit-asm", "-o", str(generated)], 7, work
+            [str(BREW), str(source), "--emit-asm", "-o", str(generated)], 7, work
         )
         native_link = median_seconds(
             [CC, "-x", "assembler", str(generated), "-o", str(binary)], 7, work
         )
-        end_to_end = median_seconds([str(SWAN), str(source)], 5, work)
+        end_to_end = median_seconds([str(BREW), str(source)], 5, work)
         runtime = median_seconds([str(binary)], 21, work, expected)
 
         # Three nested loops execute 1B bodies. The modulo checksum prevents
         # the C optimizer from replacing the complete loop nest with a constant.
-        nested_source = work / "nested_1b.swan"
+        nested_source = work / "nested_1b.brew"
         nested_binary = work / "nested_1b"
         limit = 1000
         nested_source.write_text(
@@ -114,7 +114,7 @@ def main() -> None:
             encoding="utf-8",
         )
         subprocess.run(
-            [str(SWAN), "build", str(nested_source), "-o", str(nested_binary)],
+            [str(BREW), "build", str(nested_source), "-o", str(nested_binary)],
             check=True, stdout=subprocess.DEVNULL,
         )
         nested_expected = str(nested_expected_value(limit))
@@ -122,7 +122,7 @@ def main() -> None:
             [str(nested_binary)], 3, work, nested_expected
         )
 
-        print("Swan benchmark (median wall-clock; seconds; lower is better)")
+        print("Brew benchmark (median wall-clock; seconds; lower is better)")
         print(f"Frontend + assembly emission:       {frontend:.2f} seconds")
         print(f"Assembly + native link:     {native_link:.2f} seconds")
         print(f"Direct compile + execute:    {end_to_end:.2f} seconds")
