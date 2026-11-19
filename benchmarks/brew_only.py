@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Transparent Swan-only benchmark with wall/CPU time and peak-RSS measurements."""
+"""Transparent Brew-only benchmark with wall/CPU time and peak-RSS measurements."""
 from __future__ import annotations
 
 import json
@@ -14,7 +14,7 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 ITERATIONS = 1_000_000_000
 COMPILE_REPEATS = 5
 RUNTIME_REPEATS = 7
@@ -65,14 +65,14 @@ def machine_info() -> dict:
 def measured(command: list[str], expected: str | None = None) -> tuple[dict, str]:
     if not pathlib.Path(TIME_BIN).exists():
         raise RuntimeError("GNU /usr/bin/time is required for transparent resource measurements")
-    fmt = "SWAN_TIME_JSON:%e,%U,%S,%M,%P,%F,%R,%w,%c"
+    fmt = "BREW_TIME_JSON:%e,%U,%S,%M,%P,%F,%R,%w,%c"
     wall_start = time.perf_counter()
     result = subprocess.run(
         [TIME_BIN, "-f", fmt, *command],
         cwd=ROOT, text=True, capture_output=True,
     )
     high_resolution_wall = time.perf_counter() - wall_start
-    match = re.search(r"SWAN_TIME_JSON:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", result.stderr)
+    match = re.search(r"BREW_TIME_JSON:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", result.stderr)
     if result.returncode:
         raise RuntimeError(f"{command} failed ({result.returncode}):\n{result.stderr}")
     if not match:
@@ -106,9 +106,9 @@ def main() -> None:
     host = machine_info()
     build, _ = measured(["sh", str(ROOT / "build.sh")])
     expected = str(expected_checksum(1000))
-    with tempfile.TemporaryDirectory(prefix="swan-only-bench-") as td:
+    with tempfile.TemporaryDirectory(prefix="brew-only-bench-") as td:
         work = pathlib.Path(td)
-        source = work / "one-billion.swan"
+        source = work / "one-billion.brew"
         assembly = work / "one-billion.s"
         executable = work / "one-billion"
         source.write_text(
@@ -130,7 +130,7 @@ def main() -> None:
         )
         compile_samples = []
         for _ in range(COMPILE_REPEATS):
-            metrics, _ = measured([str(SWAN), str(source), "--emit-asm", "-o", str(assembly)])
+            metrics, _ = measured([str(BREW), str(source), "--emit-asm", "-o", str(assembly)])
             compile_samples.append(metrics)
         assemble_samples = []
         for _ in range(3):
@@ -146,15 +146,15 @@ def main() -> None:
                   f"wall, {metrics['total_cpu_seconds']:.6f}s CPU, "
                   f"{metrics['peak_rss_mib']:.3f} MiB peak RSS", flush=True)
 
-        shutil.copyfile(assembly, ROOT / "swan-only-benchmark.s")
+        shutil.copyfile(assembly, ROOT / "brew-only-benchmark.s")
 
         report = {
-            "benchmark": "Swan-only one-billion nested-loop stress test",
+            "benchmark": "Brew-only one-billion nested-loop stress test",
             "commit": os.environ.get("GITHUB_SHA"),
             "host": host,
             "compiler": {
-                "implementation": "Swan C11 frontend + Swan-owned x86-64 System V assembly backend",
-                "compiler_binary_bytes": SWAN.stat().st_size,
+                "implementation": "Brew C11 frontend + Brew-owned x86-64 System V assembly backend",
+                "compiler_binary_bytes": BREW.stat().st_size,
                 "build_measurement": build,
                 "compile_samples": compile_samples,
                 "compile_wall_seconds_median": median_metric(compile_samples, "wall_seconds"),
@@ -163,7 +163,7 @@ def main() -> None:
                 "assembly_bytes": assembly.stat().st_size,
             },
             "assembler_linker": {
-                "command": "cc -x assembler (host assembler/linker; not a Swan compiler backend)",
+                "command": "cc -x assembler (host assembler/linker; not a Brew compiler backend)",
                 "samples": assemble_samples,
                 "wall_seconds_median": median_metric(assemble_samples, "wall_seconds"),
                 "cpu_seconds_median": median_metric(assemble_samples, "total_cpu_seconds"),
@@ -202,7 +202,7 @@ def main() -> None:
                 "No other language is compiled or run in this benchmark.",
             ],
         }
-        out = ROOT / "swan-only-benchmark.json"
+        out = ROOT / "brew-only-benchmark.json"
         out.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(report, indent=2), flush=True)
 
