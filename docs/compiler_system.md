@@ -80,7 +80,7 @@ compiler/
     Link/       native link driver and link-input model
     Driver/     options, project loading, pipeline and diagnostics
   include/      stable public/compatibility headers
-stdlib/
+std/
 tests/
 benchmarks/
 docs/
