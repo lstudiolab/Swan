@@ -2,7 +2,7 @@
 
 # Brew Standard Library
 
-The standard library is implemented in Brew source under `stdlib/`. Import it explicitly, then call functions by their ordinary names:
+The standard library is implemented in Brew source under `std/`. Import it explicitly, then call functions by their ordinary names:
 
 ```brew
 import std
@@ -20,7 +20,7 @@ func main() -> int:
 
 ### `std` — core integer helpers
 
-Source: `stdlib/std.brew`
+Source: `std/std.brew`
 
 Integer helpers that can overflow return `0` as an overflow sentinel. This includes
 `abs(INT64_MIN)`, out-of-range `square`/`cube`, overflowing `power`,
@@ -35,7 +35,7 @@ need to distinguish overflow from a mathematical zero must validate inputs first
 
 ### `foundation` — compatibility integer helpers
 
-Source: `stdlib/foundation.brew`
+Source: `std/foundation.brew`
 
 This module preserves the earlier `*_int` helper names for existing programs.
 Its arithmetic has the same signed 64-bit overflow sentinel behavior as `std`.
@@ -44,7 +44,7 @@ compatibility and is not a separate platform API.
 
 ### `std_math` — integer mathematics
 
-Source: `stdlib/std_math.brew`
+Source: `std/std_math.brew`
 
 - Number theory: `gcd`, `lcm`, `is_prime`, `is_composite`
 - Division and remainder: `floor_div`, `ceil_div`, `euclidean_mod`
@@ -55,7 +55,7 @@ Import `std_math` to use these functions. The module uses only Brew integer expr
 
 ### `std_collections` — u32 arrays and sequence algorithms
 
-Source: `stdlib/std_collections.brew`
+Source: `std/std_collections.brew`
 
 - Queries: `array_sum`, `array_min`, `array_max`, `array_contains`, `array_index_of`, `array_count`, `array_average`, `array_is_sorted`
 - Mutation: `array_fill`, `array_copy`, `array_reverse`
