@@ -41,7 +41,7 @@ jobs:
           rustc --version
           go version
           zig version
-      - name: Build Swan compiler
+      - name: Build Brew compiler
         run: sh build.sh
       - name: Run balanced 20M x 20M benchmark
         run: python3 benchmarks/binary_search.py
@@ -53,13 +53,13 @@ jobs:
           else
             echo "Benchmark failed before producing results; inspect the preceding logs." >> "$GITHUB_STEP_SUMMARY"
           fi
-      - name: Upload benchmark report and generated Swan assembly
+      - name: Upload benchmark report and generated Brew assembly
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: binary-search-benchmark
           path: |
             binary-search-benchmark.json
-            binary-search-swan-checked.s
-            binary-search-swan-unchecked.s
+            binary-search-brew-checked.s
+            binary-search-brew-unchecked.s
           if-no-files-found: warn
