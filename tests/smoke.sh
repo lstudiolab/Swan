@@ -3,7 +3,7 @@ set -eu
 # Exercise the low-latency direct x86-64 backend explicitly.
 export BREW_FAST_COMPILE=1
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BREW="$ROOT/build/brew"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/test"
 mkdir -p "$TMP"
 
