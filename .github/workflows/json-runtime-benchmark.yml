@@ -4,8 +4,8 @@ on:
   push:
     paths:
       - 'benchmarks/json/**'
-      - 'runtime/**'
-      - 'stdlib/std_json.brew'
+      - 'BrewRuntime/**'
+      - 'std/std_json.brew'
       - '.github/workflows/json-runtime-benchmark.yml'
   workflow_dispatch:
 
