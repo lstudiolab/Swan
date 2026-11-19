@@ -18,7 +18,7 @@ This document records the implementation boundary visible in the production sour
 - Typed, target-independent SSA IR with checked storage growth, overflow guards, SSA/dominance verification, operation-specific operand contracts, integer-only arithmetic typing, and leading-PHI validation.
 - Direct AST-to-typed-IR lowering for the supported scalar/control-flow subset.
 - Typed-IR optimizer with constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, LICM, and worklist DCE.
-- Shared SVM lowering/verification/optimization core feeding Brew-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
+- Shared BVM lowering/verification/optimization core feeding Brew-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
 - Optional, explicit LLVM IR bridge for target triples supported by the installed toolchain.
 - x86-64 AST compatibility backend for supported features not yet covered by typed IR.
 - Stage profiling for frontend, IR, optimization, target code generation, assembly, linking, and runtime, plus per-pass timing and optimization pass counts.
@@ -51,7 +51,7 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 | WASM64 | Memory64 module emission for its implemented subset; runtime interoperability must be tested with a compatible engine |
 | Explicit LLVM triple | LLVM IR, assembly, or relocatable object for the subset lowerable to Brew IR and supported by the installed toolchain |
 
-SVM is the target-independent compiler engine, not a runtime target. The old IR interpreter and `.swvm` artifact have been removed. Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
+BVM is the target-independent compiler engine, not a runtime target. The old IR interpreter and `.swvm` artifact have been removed. Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
 
 ## Important limitations
 
