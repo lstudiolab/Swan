@@ -14,10 +14,10 @@ static inline bool brew_compile_ir_program(Program *program,BrewIRModule *module
     return brew_irgen_program(program,module,error);
 }
 
-/* SVM is the shared compile engine: every machine target starts from the
+/* BVM is the shared compile engine: every machine target starts from the
    same verified, optimized, target-independent IR. Target backends only lower
    that IR; they never interpret it at runtime. */
-static inline bool brew_svm_prepare_ir(Program *program,BrewIRModule *module,
+static inline bool brew_bvm_prepare_ir(Program *program,BrewIRModule *module,
                                        BrewError *error,char *detail,size_t cap){
     /* Swift-style SIL is a mandatory checked and optimized high-level IR stage. */
     uint64_t stage=brew_profile_start();
@@ -33,12 +33,12 @@ static inline bool brew_svm_prepare_ir(Program *program,BrewIRModule *module,
     bool optimized=brew_ir_optimize(module,detail,cap);
     brew_profile_end(BREW_PROFILE_IR_OPT,stage);
     if(!optimized){
-        if(error&&!error->message[0])brew_error(error,NULL,"%s",detail&&detail[0]?detail:"SVM optimization failed");
+        if(error&&!error->message[0])brew_error(error,NULL,"%s",detail&&detail[0]?detail:"BVM optimization failed");
         return false;
     }
     char verify[256]={0};
     if(!brew_ir_verify(module,verify,sizeof(verify))){
-        if(error)brew_error(error,NULL,"SVM produced invalid optimized IR: %s",verify);
+        if(error)brew_error(error,NULL,"BVM produced invalid optimized IR: %s",verify);
         if(detail&&cap)snprintf(detail,cap,"%s",verify);
         return false;
     }
@@ -130,7 +130,7 @@ static inline bool brew_codegen(Program *program, Text *output,
         Text ir_output={0};
         BrewError ir_error={0};
         char detail[256]={0};
-        bool prepared=brew_svm_prepare_ir(program,&module,&ir_error,detail,sizeof(detail));
+        bool prepared=brew_bvm_prepare_ir(program,&module,&ir_error,detail,sizeof(detail));
         if(!prepared){
             if(error)*error=ir_error;
             if(error&&!error->message[0])
@@ -162,30 +162,30 @@ static inline bool brew_codegen(Program *program, Text *output,
 }
 
 typedef enum {
-    BREW_SVM_OUTPUT_ASSEMBLY,
-    BREW_SVM_OUTPUT_WASM
-} BrewSVMOutputKind;
+    BREW_BVM_OUTPUT_ASSEMBLY,
+    BREW_BVM_OUTPUT_WASM
+} BrewBVMOutputKind;
 
 typedef struct {
-    BrewSVMOutputKind kind;
+    BrewBVMOutputKind kind;
     char *data;
     size_t length;
-} BrewSVMOutput;
+} BrewBVMOutput;
 
-static inline void brew_svm_output_destroy(BrewSVMOutput *output) {
+static inline void brew_bvm_output_destroy(BrewBVMOutput *output) {
     if(!output)return;
     free(output->data);
     memset(output,0,sizeof(*output));
 }
 
-/* SVM owns the target-independent pipeline and dispatches to one target
+/* BVM owns the target-independent pipeline and dispatches to one target
    backend. Each backend emits native assembly or its target module format. */
-static inline bool brew_svm_codegen(Program *program,const BrewTarget *target,
-                                    BrewSVMOutput *output,BrewError *error) {
+static inline bool brew_bvm_codegen(Program *program,const BrewTarget *target,
+                                    BrewBVMOutput *output,BrewError *error) {
     if(error)memset(error,0,sizeof(*error));
     if(output)memset(output,0,sizeof(*output));
     if(!program||!target||!output){
-        brew_error(error,NULL,"SVM requires a program, target, and output buffer");
+        brew_error(error,NULL,"BVM requires a program, target, and output buffer");
         return false;
     }
     char detail[256]={0};
@@ -193,25 +193,25 @@ static inline bool brew_svm_codegen(Program *program,const BrewTarget *target,
     bool ok=false;
     if(target->architecture==BREW_ARCH_X86_64){
         ok=brew_codegen(program,&text,target,error);
-        output->kind=BREW_SVM_OUTPUT_ASSEMBLY;
+        output->kind=BREW_BVM_OUTPUT_ASSEMBLY;
     }else{
         BrewIRModule module={0};
-        ok=brew_svm_prepare_ir(program,&module,error,detail,sizeof(detail));
+        ok=brew_bvm_prepare_ir(program,&module,error,detail,sizeof(detail));
         uint64_t stage=brew_profile_start();
         if(ok)switch(target->architecture){
             case BREW_ARCH_AARCH64:
                 ok=brew_codegen_aarch64_ir(&module,&text,detail,sizeof(detail));
-                output->kind=BREW_SVM_OUTPUT_ASSEMBLY;break;
+                output->kind=BREW_BVM_OUTPUT_ASSEMBLY;break;
             case BREW_ARCH_WASM64:{
                 BrewWasmBuffer wasm={0};
                 ok=brew_codegen_wasm64(&module,&wasm,detail,sizeof(detail));
-                if(ok){output->kind=BREW_SVM_OUTPUT_WASM;output->data=(char*)wasm.data;output->length=wasm.length;}
+                if(ok){output->kind=BREW_BVM_OUTPUT_WASM;output->data=(char*)wasm.data;output->length=wasm.length;}
                 else free(wasm.data);
                 break;
             }
             default:
                 ok=false;
-                snprintf(detail,sizeof(detail),"SVM has no backend registered for target '%s'",target->name?target->name:"unknown");
+                snprintf(detail,sizeof(detail),"BVM has no backend registered for target '%s'",target->name?target->name:"unknown");
                 break;
         }
         brew_profile_end(BREW_PROFILE_CODEGEN,stage);
@@ -219,10 +219,10 @@ static inline bool brew_svm_codegen(Program *program,const BrewTarget *target,
     }
     if(!ok){
         free(text.data);
-        if(error&&!error->message[0])brew_error(error,NULL,"%s",detail[0]?detail:"SVM target compilation failed");
+        if(error&&!error->message[0])brew_error(error,NULL,"%s",detail[0]?detail:"BVM target compilation failed");
         return false;
     }
-    if(output->kind!=BREW_SVM_OUTPUT_WASM){
+    if(output->kind!=BREW_BVM_OUTPUT_WASM){
         output->data=text.data;
         output->length=text.len;
     }else free(text.data);
