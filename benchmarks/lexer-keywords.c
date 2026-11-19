@@ -1,4 +1,4 @@
-#include "swan/lexer.h"
+#include "brew/lexer.h"
 #include <stdio.h>
 #include <string.h>
 #include <time.h>
@@ -26,7 +26,7 @@ int main(void) {
     unsigned sum = 0;
     double start = seconds();
     for (unsigned r=0; r<rounds; ++r)
-        sum += (unsigned)swan_keyword(words[r % (sizeof(words)/sizeof(words[0]))],
+        sum += (unsigned)brew_keyword(words[r % (sizeof(words)/sizeof(words[0]))],
                                      strlen(words[r % (sizeof(words)/sizeof(words[0]))]));
     double dispatch = seconds() - start;
     sink = sum;

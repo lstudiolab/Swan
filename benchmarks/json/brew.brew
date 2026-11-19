@@ -1,0 +1,12 @@
+import C "benchmarks/json/brew_payload.h"
+
+func main() -> int:
+    let payload = brew_json_benchmark_payload(0)
+    let result = brew_json_benchmark_run(payload, 100000)
+    if result == 0:
+        return 1
+    let checksum = brew_json_benchmark_checksum(result)
+    let bytes = brew_json_benchmark_bytes(result)
+    !printin >> checksum
+    !printin >> bytes
+    return 0
