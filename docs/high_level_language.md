@@ -102,7 +102,7 @@ This table is a design target, not an implementation checklist. See `docs/compil
 
 ## 7. Compiler architecture remains internal
 
-Brew may continue to use typed IR, SIL, SVM, LLVM interoperability, native backends, ABI lowering, register allocation, and machine-code generation internally. These are compiler engineering mechanisms. They do not justify exposing manual memory management or hardware-oriented syntax to ordinary Brew developers.
+Brew may continue to use typed IR, SIL, BVM, LLVM interoperability, native backends, ABI lowering, register allocation, and machine-code generation internally. These are compiler engineering mechanisms. They do not justify exposing manual memory management or hardware-oriented syntax to ordinary Brew developers.
 
 The compiler can optimize storage and execution aggressively, but optimizations must preserve the language's defined behavior. The source language must not become low-level merely because its compiler has low-level components.
 
