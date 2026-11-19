@@ -99,7 +99,7 @@ static inline int brew_exec(char *const args[],bool search_path){
  return brew_wait_child(pid);
 }
 
-#include "SIC.h"
+#include "BIC.h"
 
 static inline size_t brew_function_index(Program *p,Stmt *fn){for(size_t i=0;i<p->count;i++)if(p->functions[i]==fn)return i;return SIZE_MAX;}
 static inline void brew_mark_block(Program *p,Stmt **body,size_t count);
