@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "Swan",
-  "scopeName": "source.swan",
+  "name": "Brew",
+  "scopeName": "source.brew",
   "patterns": [
     {
       "include": "#comments"
@@ -41,7 +41,7 @@
     "comments": {
       "patterns": [
         {
-          "name": "comment.line.number-sign.swan",
+          "name": "comment.line.number-sign.brew",
           "match": "#.*$"
         }
       ]
@@ -49,12 +49,12 @@
     "strings": {
       "patterns": [
         {
-          "name": "string.quoted.double.swan",
+          "name": "string.quoted.double.brew",
           "begin": "\"",
           "end": "\"",
           "patterns": [
             {
-              "name": "constant.character.escape.swan",
+              "name": "constant.character.escape.brew",
               "match": "\\\\."
             }
           ]
@@ -64,11 +64,11 @@
     "numbers": {
       "patterns": [
         {
-          "name": "constant.numeric.float.swan",
+          "name": "constant.numeric.float.brew",
           "match": "\\b[0-9]+\\.[0-9]+\\b"
         },
         {
-          "name": "constant.numeric.integer.swan",
+          "name": "constant.numeric.integer.brew",
           "match": "\\b[0-9]+\\b"
         }
       ]
@@ -76,7 +76,7 @@
     "constants": {
       "patterns": [
         {
-          "name": "constant.language.swan",
+          "name": "constant.language.brew",
           "match": "\\b(true|false|null)\\b"
         }
       ]
@@ -84,39 +84,39 @@
     "declarations": {
       "patterns": [
         {
-          "name": "meta.function.declaration.swan",
+          "name": "meta.function.declaration.brew",
           "match": "\\b(func)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
-              "name": "storage.type.function.swan"
+              "name": "storage.type.function.brew"
             },
             "2": {
-              "name": "entity.name.function.swan"
+              "name": "entity.name.function.brew"
             }
           }
         },
         {
-          "name": "meta.variable.declaration.swan",
+          "name": "meta.variable.declaration.brew",
           "match": "\\b(let|var|const)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
-              "name": "storage.modifier.swan"
+              "name": "storage.modifier.brew"
             },
             "2": {
-              "name": "variable.other.readwrite.swan"
+              "name": "variable.other.readwrite.brew"
             }
           }
         },
         {
-          "name": "storage.type.function.swan",
+          "name": "storage.type.function.brew",
           "match": "\\b(func)\\b"
         },
         {
-          "name": "storage.modifier.swan",
+          "name": "storage.modifier.brew",
           "match": "\\b(let|var|const)\\b"
         },
         {
-          "name": "keyword.other.swan",
+          "name": "keyword.other.brew",
           "match": "\\b(from|as|self)\\b"
         }
       ]
@@ -124,7 +124,7 @@
     "control": {
       "patterns": [
         {
-          "name": "keyword.control.swan",
+          "name": "keyword.control.brew",
           "match": "\\b(if|else|while|loop|block|guard|match|return|break|continue|pass|throw|throws|rethrow|catch)\\b"
         }
       ]
@@ -132,19 +132,19 @@
     "types": {
       "patterns": [
         {
-          "name": "meta.type.declaration.swan",
+          "name": "meta.type.declaration.brew",
           "match": "\\b(struct|enum|type)\\s+([A-Za-z_][A-Za-z0-9_]*)",
           "captures": {
             "1": {
-              "name": "storage.type.swan"
+              "name": "storage.type.brew"
             },
             "2": {
-              "name": "entity.name.type.swan"
+              "name": "entity.name.type.brew"
             }
           }
         },
         {
-          "name": "storage.type.swan",
+          "name": "storage.type.brew",
           "match": "\\b(struct|enum|type)\\b"
         }
       ]
@@ -152,7 +152,7 @@
     "builtins": {
       "patterns": [
         {
-          "name": "support.function.builtin.swan",
+          "name": "support.function.builtin.brew",
           "match": "\\bprint\\b(?=\\s*\\()"
         }
       ]
@@ -160,11 +160,11 @@
     "functions": {
       "patterns": [
         {
-          "name": "entity.name.function.swan",
+          "name": "entity.name.function.brew",
           "match": "\\b[A-Za-z_][A-Za-z0-9_]*(?=\\s*\\()"
         },
         {
-          "name": "variable.other.member.swan",
+          "name": "variable.other.member.brew",
           "match": "(?<=\\.)[A-Za-z_][A-Za-z0-9_]*"
         }
       ]
@@ -172,7 +172,7 @@
     "operators": {
       "patterns": [
         {
-          "name": "keyword.operator.swan",
+          "name": "keyword.operator.brew",
           "match": "->|==|!=|<=|>=|=|\\+|-|\\*|/|%|<|>|!|&&|\\|\\||\\b(and|or|not)\\b"
         }
       ]
@@ -180,11 +180,11 @@
     "punctuation": {
       "patterns": [
         {
-          "name": "punctuation.separator.swan",
+          "name": "punctuation.separator.brew",
           "match": "[,:;.]"
         },
         {
-          "name": "punctuation.section.brackets.swan",
+          "name": "punctuation.section.brackets.brew",
           "match": "[()\\[\\]]"
         }
       ]
