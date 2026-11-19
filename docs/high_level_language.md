@@ -1,22 +1,22 @@
-# Swan High-Level Language Contract
+# Brew High-Level Language Contract
 
 **Status: Normative language direction; compiler implementation is in progress.**
 
-Swan is a high-level, general-purpose programming language. Its source language is designed around values, abstractions, and developer intent. Hardware details, memory layout, register allocation, object lifetimes, and target-specific instructions belong to the compiler and runtime—not ordinary Swan programs.
+Brew is a high-level, general-purpose programming language. Its source language is designed around values, abstractions, and developer intent. Hardware details, memory layout, register allocation, object lifetimes, and target-specific instructions belong to the compiler and runtime—not ordinary Brew programs.
 
-This document supersedes any earlier proposal that exposed manual memory management or raw hardware control as ordinary Swan language features.
+This document supersedes any earlier proposal that exposed manual memory management or raw hardware control as ordinary Brew language features.
 
 ## 1. Core principles
 
-1. **Automatic memory management:** Swan manages the lifetime of ordinary values and objects. Application code does not allocate and free memory manually.
+1. **Automatic memory management:** Brew manages the lifetime of ordinary values and objects. Application code does not allocate and free memory manually.
 2. **Safe by default:** ordinary imports, libraries, and modules preserve the language's safety and memory rules. A dependency cannot silently disable them.
 3. **Readable syntax:** common programs should require few annotations and little boilerplate.
 4. **Type inference:** infer local types from expressions; allow explicit annotations where they improve clarity or are needed at boundaries.
 5. **Useful abstractions:** strings, collections, functions, structures, enums, modules, errors, and concurrency should be first-class language/library concepts.
 6. **Portable semantics:** a program should behave consistently across supported targets. Platform-specific capabilities are exposed through libraries and explicit platform modules.
-7. **Native compilation:** Swan may compile ahead of time to native code or portable target formats. Compiler internals are not source-language concepts.
+7. **Native compilation:** Brew may compile ahead of time to native code or portable target formats. Compiler internals are not source-language concepts.
 
-## 2. Not ordinary Swan syntax
+## 2. Not ordinary Brew syntax
 
 The following are not part of the ordinary high-level language and must not be required in application code:
 
@@ -31,7 +31,7 @@ These words must not be advertised as supported high-level language keywords. If
 
 ## 3. Memory model
 
-Swan's ordinary managed-value model is automatic reference counting (ARC), with compiler/runtime lifetime analysis and optimizations. The implementation may use stack slots, registers, heap allocation, pooling, arenas, or other strategies internally when those strategies preserve observable Swan semantics.
+Brew's ordinary managed-value model is automatic reference counting (ARC), with compiler/runtime lifetime analysis and optimizations. The implementation may use stack slots, registers, heap allocation, pooling, arenas, or other strategies internally when those strategies preserve observable Brew semantics.
 
 The compiler/runtime is responsible for:
 
@@ -44,7 +44,7 @@ The compiler/runtime is responsible for:
 
 ARC does not itself close files, sockets, or operating-system handles. High-level resource APIs must provide deterministic cleanup abstractions without exposing manual memory management as the normal object-lifetime model.
 
-**Implementation status:** ARC is not yet complete across Swan's types and targets. The compiler completion matrix remains authoritative for what is actually implemented. Do not claim universal ARC until the acceptance tests pass.
+**Implementation status:** ARC is not yet complete across Brew's types and targets. The compiler completion matrix remains authoritative for what is actually implemented. Do not claim universal ARC until the acceptance tests pass.
 
 ## 4. Types
 
@@ -63,7 +63,7 @@ Fixed-width types such as `i8`, `i16`, `i32`, `i64`, `u8`, `u16`, `u32`, and `u6
 
 The following is the intended high-level style. Examples describe the language direction; individual constructs must not be considered implemented until listed as complete in the compiler completion matrix.
 
-```swan
+```brew
 import std
 
 func average(values: list<int>) -> float:
@@ -102,13 +102,13 @@ This table is a design target, not an implementation checklist. See `docs/compil
 
 ## 7. Compiler architecture remains internal
 
-Swan may continue to use typed IR, SIL, SVM, LLVM interoperability, native backends, ABI lowering, register allocation, and machine-code generation internally. These are compiler engineering mechanisms. They do not justify exposing manual memory management or hardware-oriented syntax to ordinary Swan developers.
+Brew may continue to use typed IR, SIL, SVM, LLVM interoperability, native backends, ABI lowering, register allocation, and machine-code generation internally. These are compiler engineering mechanisms. They do not justify exposing manual memory management or hardware-oriented syntax to ordinary Brew developers.
 
 The compiler can optimize storage and execution aggressively, but optimizations must preserve the language's defined behavior. The source language must not become low-level merely because its compiler has low-level components.
 
 ## 8. Compatibility and migration
 
-- New examples and documentation must use high-level Swan syntax.
+- New examples and documentation must use high-level Brew syntax.
 - Remove manual-memory and raw-mode syntax from the public language surface.
 - Keep fixed-width types only where explicit representation matters.
 - Do not silently reinterpret old ownership keywords as active memory-management controls.
@@ -129,4 +129,4 @@ The high-level direction is fully implemented only when:
 8. Old low-level source keywords are removed from the public grammar or produce deliberate migration diagnostics.
 9. Documentation, compiler completion matrix, tests, and editor support agree.
 
-Until these gates pass, Swan's high-level design is established but its implementation remains in progress.
+Until these gates pass, Brew's high-level design is established but its implementation remains in progress.

@@ -1,6 +1,6 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler System Contract
+# Brew Compiler System Contract
 
 Status: normative architecture and implementation contract.
 
@@ -10,25 +10,25 @@ Implementation conventions for C11 ownership, naming, formatting, diagnostics, h
 
 ## 1. Non-negotiable execution model
 
-Swan uses a portable two-stage compilation and execution architecture.
+Brew uses a portable two-stage compilation and execution architecture.
 
-- `swanc compile` compiles Swan source ahead of execution into a portable WASM64 module.
-- SIC (Swan Integrated Compilation) is an internal compiler/runtime coordination layer. It detects the environment in which the compiled module is being executed and selects the correct path.
-- In browser/WebAssembly environments, SIC leaves the module as WASM. The browser's WebAssembly engine validates, compiles, and executes it; Swan does not run a native JIT in the browser.
+- `brewc compile` compiles Brew source ahead of execution into a portable WASM64 module.
+- SIC (Brew Integrated Compilation) is an internal compiler/runtime coordination layer. It detects the environment in which the compiled module is being executed and selects the correct path.
+- In browser/WebAssembly environments, SIC leaves the module as WASM. The browser's WebAssembly engine validates, compiles, and executes it; Brew does not run a native JIT in the browser.
 - On native x86-64 and ARM64 hosts, SIC invokes Wasmtime's runtime, which JIT-compiles the portable module into native machine code for the detected CPU before execution.
 - A temporary WASM module generated for a source-to-run invocation is removed only after successful runtime completion. Explicitly emitted or user-supplied WASM files are retained.
 - If native runtime execution fails, the portable WASM input is retained for diagnosis or execution on another compatible host.
-- SVM is Swan's target-independent typed compiler IR. It is not a runtime machine, executable format, or bytecode.
-- Wasmtime performs native code generation inside its runtime process; Swan does not emit a separate architecture-specific executable for this execution path.
+- SVM is Brew's target-independent typed compiler IR. It is not a runtime machine, executable format, or bytecode.
+- Wasmtime performs native code generation inside its runtime process; Brew does not emit a separate architecture-specific executable for this execution path.
 - No performance claim may conflate compiler throughput, host JIT compilation time, executable startup, and generated-program runtime.
 
 SIC's native compilation is an intentional runtime code-generation stage, not source/IR interpretation or a bytecode dispatch loop.
 
 ## 2. Compiler ownership
 
-Swan owns its compiler pipeline and native backends. The production path must not depend on LLVM, LLVM IR, Clang code generation, or another compiler framework to perform Swan IR optimization, instruction selection, register allocation, machine-code generation, or object emission.
+Brew owns its compiler pipeline and native backends. The production path must not depend on LLVM, LLVM IR, Clang code generation, or another compiler framework to perform Brew IR optimization, instruction selection, register allocation, machine-code generation, or object emission.
 
-Swan-owned components include:
+Brew-owned components include:
 
 1. Source manager and diagnostics.
 2. Lexer and parser.
@@ -42,9 +42,9 @@ Swan-owned components include:
 10. Machine instruction encoding and object-file emission.
 11. Native linking orchestration and executable validation.
 
-Operating-system assemblers/linkers and system libraries may be used as explicitly documented platform tools during the transition. They are not substitutes for Swan's compiler middle-end or backend. The long-term native path must be able to emit relocatable object files without routing Swan IR through another compiler's backend.
+Operating-system assemblers/linkers and system libraries may be used as explicitly documented platform tools during the transition. They are not substitutes for Brew's compiler middle-end or backend. The long-term native path must be able to emit relocatable object files without routing Brew IR through another compiler's backend.
 
-C interoperability is a separate frontend/ABI concern. A C header parser or platform C compiler used to compile explicitly supplied C translation units must not be mistaken for Swan's backend. The supported C ABI subset, required tools, and target restrictions must be stated exactly.
+C interoperability is a separate frontend/ABI concern. A C header parser or platform C compiler used to compile explicitly supplied C translation units must not be mistaken for Brew's backend. The supported C ABI subset, required tools, and target restrictions must be stated exactly.
 
 ## 3. Translation-unit architecture
 
@@ -59,7 +59,7 @@ The C compiler implementation uses a single production translation unit.
 - Header isolation tests must compile each public/implementation header in its documented inclusion context.
 - Keep headers small enough to audit; split by cohesive responsibility, not arbitrary line count.
 
-The current repository has a compatibility root `main.c` that includes `compiler/tools/swanc/main.c`. Consolidating the driver into the canonical root entry point is a migration task. Until that is completed, the included driver remains the one and only executable entry point; a second `main` must never be introduced.
+The current repository has a compatibility root `main.c` that includes `compiler/tools/brewc/main.c`. Consolidating the driver into the canonical root entry point is a migration task. Until that is completed, the included driver remains the one and only executable entry point; a second `main` must never be introduced.
 
 Recommended subsystem boundaries:
 
@@ -135,7 +135,7 @@ A directory or explicit source list denotes one logical program, not a sequence 
 - Imported modules are deduplicated by canonical module identity and loaded once per compilation.
 - Parallel frontend work is permitted only for independent files and must merge results deterministically. Shared mutable compiler state must not be accessed concurrently without a defined synchronization/ownership model.
 
-The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. SIC host detection selects WASM64 for WebAssembly-hosted builds, ARM64 as the default native target on ARM64 hosts, and x86-64 on x86-64 hosts. Native x86-64 project builds produce one object per Swan source file before linking. Native ARM64 single-file builds link host executables and `run` executes them; ARM64 cross-builds on other hosts emit ELF objects. Explicit emission produces one target artifact per source for x86-64, AArch64/ARM64, or WASM64. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
+The driver now lexes and parses each source buffer independently and retains its source text and token storage in the project source manager. SIC host detection selects WASM64 for WebAssembly-hosted builds, ARM64 as the default native target on ARM64 hosts, and x86-64 on x86-64 hosts. Native x86-64 project builds produce one object per Brew source file before linking. Native ARM64 single-file builds link host executables and `run` executes them; ARM64 cross-builds on other hosts emit ELF objects. Explicit emission produces one target artifact per source for x86-64, AArch64/ARM64, or WASM64. Cross-target `build` still emits one project-wide artifact; per-source cross-target object linking remains unfinished. Source identity is retained on declarations and diagnostics.
 
 ### 4.2 Phase contracts
 
@@ -182,13 +182,13 @@ The C11 production compiler is built directly. No bootstrap compiler or secondar
 
 ## 5.1 SIC environment detection and host compilation
 
-SIC is part of the `swanc` pipeline and runtime entry path; it is not a second source-language compiler and does not define a distributable instruction format.
+SIC is part of the `brewc` pipeline and runtime entry path; it is not a second source-language compiler and does not define a distributable instruction format.
 
 The required flow is:
 
 ```text
-.swan source
-  -> swanc frontend and semantic analysis
+.brew source
+  -> brewc frontend and semantic analysis
   -> SVM typed IR
   -> SVM verification and optimization
   -> WASM64 AOT module
@@ -206,7 +206,7 @@ The required flow is:
 SIC requirements:
 
 1. Detect the execution environment before selecting a compilation path.
-2. Treat a WebAssembly/browser host as WASM-only. Do not attempt native CPU detection or Swan native recompilation there.
+2. Treat a WebAssembly/browser host as WASM-only. Do not attempt native CPU detection or Brew native recompilation there.
 3. On native hosts, identify x86-64 or ARM64. Wasmtime's runtime JIT must generate code for the actual host CPU, not for the machine that originally built the source.
 4. Keep portable WASM until native JIT execution has completed successfully.
 5. Never delete a user-supplied or explicitly emitted WASM file. Only temporary WASM generated for a source-to-run invocation may be removed after successful native runtime completion.
@@ -214,7 +214,7 @@ SIC requirements:
 7. Do not treat host-native JIT output as a portable artifact. The WASM module remains the cross-platform deployment artifact.
 8. Browser deployments load the original WASM module through the browser loader. Browser support for the WASM64 memory64 proposal is a deployment requirement and must be checked separately from native support.
 
-The current implementation delegates native JIT compilation to Wasmtime's `run` engine. This produces native machine code in the runtime process rather than a standalone OS executable. A future Swan-owned JIT may replace the engine integration without changing the SIC contract.
+The current implementation delegates native JIT compilation to Wasmtime's `run` engine. This produces native machine code in the runtime process rather than a standalone OS executable. A future Brew-owned JIT may replace the engine integration without changing the SIC contract.
 
 ## 6. Optimization and pass management
 
@@ -271,7 +271,7 @@ The supported source/IR subset must be recorded per backend. A backend's existen
 
 ## 8. Object emission and linking
 
-The long-term native path emits object files directly from Swan machine instructions. The object writer owns section layout, symbol tables, relocation records, alignment, visibility, and target object metadata for each supported format.
+The long-term native path emits object files directly from Brew machine instructions. The object writer owns section layout, symbol tables, relocation records, alignment, visibility, and target object metadata for each supported format.
 
 The linker driver may invoke the platform's native linker. It must:
 - pass explicit target and ABI information;
@@ -288,10 +288,10 @@ Cross-compilation is AOT. It selects the destination target before target loweri
 C interoperability must remain an explicit ABI feature, not an accidental consequence of parsing C syntax.
 
 - Imported C declarations have external linkage and a validated C ABI signature.
-- Exported Swan functions use a documented, target-specific C ABI.
+- Exported Brew functions use a documented, target-specific C ABI.
 - The compiler validates argument/return types, layout, alignment, variadic rules, callbacks, and pointer semantics before claiming support.
 - Unsupported aggregates, variadics, callbacks, floating-point ABI classes, or platform calling conventions are diagnosed.
-- C translation units may be compiled by a platform C compiler as external project inputs, then linked with Swan-generated objects. This does not make the C compiler part of Swan's implementation.
+- C translation units may be compiled by a platform C compiler as external project inputs, then linked with Brew-generated objects. This does not make the C compiler part of Brew's implementation.
 - The current importer/toolchain subset and its Clang dependency must be documented as a tool requirement until replaced or deliberately retained as a frontend-only dependency.
 
 ## 10. Performance and resource model
@@ -306,7 +306,7 @@ Required practices:
 - Avoid repeated linear scans in hot compiler paths when an index is justified.
 - Keep pass analyses reusable and invalidate them precisely.
 - Parallelize only independent work and preserve deterministic output.
-- Avoid external assembler round-trips where Swan has a verified native encoder/object writer for the target.
+- Avoid external assembler round-trips where Brew has a verified native encoder/object writer for the target.
 - Keep diagnostic construction and profiling overhead out of optimized hot paths when disabled.
 
 Measure separately:
@@ -317,7 +317,7 @@ Measure separately:
 5. Object and executable size.
 6. Generated program runtime and startup time.
 
-Benchmarks require warmups, repeated runs, medians and dispersion, pinned/recorded hardware and toolchain versions, correctness checksums, and identical optimization/target settings. Never claim Swan is faster than C, Rust, Swift, or another compiler from a single workload or compile-time number.
+Benchmarks require warmups, repeated runs, medians and dispersion, pinned/recorded hardware and toolchain versions, correctness checksums, and identical optimization/target settings. Never claim Brew is faster than C, Rust, Swift, or another compiler from a single workload or compile-time number.
 
 ## 11. Testing and release gates
 
@@ -336,13 +336,13 @@ A target is marked production-supported only when its documented source subset p
 
 ## 12. Current implementation facts and migration order
 
-The repository currently has a C11 driver, header-oriented compiler implementation, typed SSA IR, an SVM verifier/optimizer, several Swan-owned target emitters, and project-directory source collection. It also has transitional behavior that does not yet satisfy this contract:
+The repository currently has a C11 driver, header-oriented compiler implementation, typed SSA IR, an SVM verifier/optimizer, several Brew-owned target emitters, and project-directory source collection. It also has transitional behavior that does not yet satisfy this contract:
 
-- root `main.c` is a compatibility include; the actual driver is `compiler/tools/swanc/main.c`;
+- root `main.c` is a compatibility include; the actual driver is `compiler/tools/brewc/main.c`;
 - project sources are concatenated before lexing, so per-file source identity is not fully preserved;
 - the driver contains target-specific output/link orchestration;
 - native assembly/object production still invokes external toolchain components;
-- Swan exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64; ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported;
+- Brew exposes exactly three code-generation targets: x86-64, AArch64/ARM64, and WASM64; ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported;
 - target feature coverage and ABI completeness are unequal;
 - C header import relies on Clang AST output for its currently supported declaration subset.
 
@@ -352,9 +352,9 @@ Migration order:
 2. Make phase timing, allocation volume, peak RSS, and pass statistics observable in repeatable benchmarks.
 3. Consolidate SVM pass management, reusable analyses, and verifier checkpoints.
 4. Define a shared machine IR and target backend interface.
-5. Complete one native backend end-to-end, including register allocation and Swan-owned object emission.
+5. Complete one native backend end-to-end, including register allocation and Brew-owned object emission.
 6. Migrate other backends to the same interface with per-target ABI tests.
-7. Remove the LLVM code-generation bridge only after required target support has a Swan-owned implementation and compatibility tests pass.
+7. Remove the LLVM code-generation bridge only after required target support has a Brew-owned implementation and compatibility tests pass.
 8. Consolidate object/link handling and preserve the single direct C11 production build.
 9. Expand C ABI coverage only alongside layout, ABI, and integration tests.
 

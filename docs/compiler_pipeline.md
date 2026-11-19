@@ -1,17 +1,17 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler Pipeline
+# Brew Compiler Pipeline
 
 ## One production compiler
 
-Swan has one production compiler: Compiler 1, the C11 implementation in `compiler/tools/swanc/main.c`. `build.sh` compiles that translation unit directly into `build/swanc` and creates `build/swan` as a compatibility alias.
+Brew has one production compiler: Compiler 1, the C11 implementation in `compiler/tools/brewc/main.c`. `build.sh` compiles that translation unit directly into `build/brewc` and creates `build/brew` as a compatibility alias.
 
 There is no second compiler, self-hosting compiler, bootstrap executable, generated secondary source bundle, or generated secondary object. The production compiler is not used to compile another compiler.
 
 ## User-program compilation
 
 ```text
-.swan files
+.brew files
   -> deterministic source discovery
   -> source buffers and source identity
   -> UTF-8 validation and lexing
@@ -42,14 +42,14 @@ The compiler verifies IR at pipeline boundaries. Debug builds also verify after 
 Run a single compilation with profiling:
 
 ```sh
-./build/swanc build --profile examples/hello.swan -o build/hello
+./build/brewc build --profile examples/hello.brew -o build/hello
 ```
 
 The report includes source read, lexing, parsing, imports, semantic analysis, reachability, typed-IR generation, IR verification, total optimization, each optimization pass, target code generation, AST compatibility code generation, assembly output, native linking, execution where applicable, and optimization pass/round counts.
 
 ## GitHub Actions benchmark
 
-The `Swan Compiler Pipeline Benchmark` workflow runs on compiler/benchmark changes to `main` and can also be started manually. It builds the production compiler directly, measures build time, and benchmarks generated frontend-, call-graph-, expression-, control-flow-, and runtime-heavy workloads.
+The `Brew Compiler Pipeline Benchmark` workflow runs on compiler/benchmark changes to `main` and can also be started manually. It builds the production compiler directly, measures build time, and benchmarks generated frontend-, call-graph-, expression-, control-flow-, and runtime-heavy workloads.
 
 Each workload uses warmups and repeated measurements. The report includes median stage durations, end-to-end wall time, compile-only peak compiler RSS (measured with --emit-asm to exclude native linking), per-header C frontend attribution from Clang `-ftime-trace`, host metadata, CSV, JSON, and Markdown output. GitHub Actions publishes the Markdown report in the run summary and uploads the raw reports as an artifact.
 

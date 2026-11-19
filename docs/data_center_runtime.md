@@ -1,6 +1,6 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Data-Center Runtime and Backend Contract
+# Brew Data-Center Runtime and Backend Contract
 
 **Status:** Runtime capability snapshot and implementation contract. The table distinguishes working components from their explicit boundaries.
 
@@ -11,28 +11,28 @@ suite:
 
 | Component | Implemented surface | Boundary |
 |---|---|---|
-| Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Swan slice/string type |\n| Fixed-capacity arena | Caller-owned bump allocator with aligned allocation, zeroing, marks, rewind, and reset; no heap growth | Runtime primitive only; compiler scratch allocation and automatic object ownership are not yet routed through it |
+| Byte buffer | Overflow-checked C buffer with amortized growth and self-append | C API only; not a Brew slice/string type |\n| Fixed-capacity arena | Caller-owned bump allocator with aligned allocation, zeroing, marks, rewind, and reset; no heap growth | Runtime primitive only; compiler scratch allocation and automatic object ownership are not yet routed through it |
 | JSON parser | Token-tree DOM over borrowed input; strict UTF-8, escapes, surrogate pairs, number grammar, depth/input/token limits | C API; i64 and finite f64 accessors; caller-controlled token preallocation, caller-owned fixed-capacity storage for zero-heap parsing, and reuse; original token spans remain available for exact-decimal handling |
-| JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point writer values and a typed Swan DOM remain open |
-| Swan JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
-| JSON writer | Swan-importable C ABI for nested objects/arrays, escaped UTF-8 strings, i64, booleans, and null | C ABI only; one root value, max depth 128; no float writer or typed DTO generation |
-| Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Swan task scheduler |
-| HTTP JSON server | Bounded POSIX HTTP/1.1 JSON echo/health server, worker-pool dispatch, queue backpressure, body limits, socket timeouts, counters | JSON-only fixed handler; one request per connection; no TLS, chunked transfer, keep-alive, or user-defined Swan route callbacks |
+| JSON output | Compact/pretty serialization plus a nested object/array writer with UTF-8 escaping | Writer supports strings, i64, booleans, null, and containers; floating-point writer values and a typed Brew DOM remain open |
+| Brew JSON bridge | direct `import C` root-key lookup, integer access, key existence, encode, error and close | x86-64 C ABI with opaque integer handles; no safe pointer/string types |
+| JSON writer | Brew-importable C ABI for nested objects/arrays, escaped UTF-8 strings, i64, booleans, and null | C ABI only; one root value, max depth 128; no float writer or typed DTO generation |
+| Worker pool | Bounded POSIX queue, nonblocking submit/backpressure, drain or discard shutdown | C/POSIX primitive only; no Brew task scheduler |
+| HTTP JSON server | Bounded POSIX HTTP/1.1 JSON echo/health server, worker-pool dispatch, queue backpressure, body limits, socket timeouts, counters | JSON-only fixed handler; one request per connection; no TLS, chunked transfer, keep-alive, or user-defined Brew route callbacks |
 | HTTP/1 parser | Bounded HTTP/1.0/1.1 request-line/header parser, Content-Length framing, case-insensitive header lookup, safe response framing | C API only; chunked transfer and keep-alive are not supported |
 | String FFI | NUL-terminated literals passed to imported C pointer parameters | x86-64 AST compatibility backend only |
 
 TLS, chunked transfer, generic route dispatch, SQL drivers, streaming JSONL, generic dynamic collections,
 aggregate ABI/lifetimes, and language-level async remain unimplemented. The
 benchmark work must report the exact runtime path used by each language; a C
-runtime call from Swan must not be described as a pure Swan JSON implementation.
+runtime call from Brew must not be described as a pure Brew JSON implementation.
 
 ## Goal
 
-Make Swan a native, ahead-of-time compiled language suitable for long-running backend services, database-heavy applications, JSON APIs, and data-center workloads. The target is Go-class practicality and throughput, measured on equivalent workloads. No performance ranking is claimed until repeatable benchmarks exist.
+Make Brew a native, ahead-of-time compiled language suitable for long-running backend services, database-heavy applications, JSON APIs, and data-center workloads. The target is Go-class practicality and throughput, measured on equivalent workloads. No performance ranking is claimed until repeatable benchmarks exist.
 
 Preserve the production compiler model:
 
-- C11 compiler frontend and Swan-owned typed IR/SVM pipeline.
+- C11 compiler frontend and Brew-owned typed IR/SVM pipeline.
 - Native code generation; no interpreter, bytecode VM, or mandatory managed runtime.
 - Whole-project compilation and the existing C interoperability path.
 - Explicit, phase-gated diagnostics. Unsupported source constructs must fail compilation.
@@ -78,7 +78,7 @@ JSON is a core backend workload. Implement both a DOM-style API for convenient a
 - Provide compact and pretty output.
 - Support JSON Lines without loading the entire file.
 - Support incremental parsing from a byte buffer or reader.
-- Provide typed decoding/encoding once Swan's struct/type metadata is implemented.
+- Provide typed decoding/encoding once Brew's struct/type metadata is implemented.
 - Enforce configurable nesting, input-size, and token limits to defend services against hostile payloads.
 - Return structured errors with byte offset, line, column, and reason.
 - Avoid copying source string slices where their lifetime can safely be tied to the input buffer. Provide an owned form when data must outlive the input.
@@ -97,11 +97,11 @@ JSON is a core backend workload. Implement both a DOM-style API for convenient a
 
 The following is a design sketch, not currently compilable API:
 
-```swan
+```brew
 import std_json
 
 func main() -> int:
-    let document = !json_parse("{\"service\":\"swan\",\"workers\":128}")
+    let document = !json_parse("{\"service\":\"brew\",\"workers\":128}")
     let workers = !json_get_int(document, "workers")
     let output = !json_encode(document)
     !printin >> workers
@@ -137,7 +137,7 @@ Provide a shared database contract with separately maintained drivers. Initial d
 
 The following is a design sketch, not currently compilable API:
 
-```swan
+```brew
 import std_sql
 
 func main() -> int:
@@ -151,7 +151,7 @@ func main() -> int:
     return 0
 ```
 
-The production API should replace untyped handles and placeholder row values with typed statements, row decoders, and scoped transactions when Swan's type, aggregate, and lifetime systems can enforce those contracts. Driver handles must not be exposed as forgeable raw pointers.
+The production API should replace untyped handles and placeholder row values with typed statements, row decoders, and scoped transactions when Brew's type, aggregate, and lifetime systems can enforce those contracts. Driver handles must not be exposed as forgeable raw pointers.
 
 ## Compiler prerequisites
 
@@ -203,6 +203,6 @@ The compiler must reject unsupported aggregate, pointer, or async operations on 
 
 ## Benchmark policy
 
-Every performance-sensitive subsystem gets an isolated microbenchmark and at least one end-to-end workload. Compare Swan with Go using equivalent algorithms, data, concurrency, compiler optimization, and machine settings. Include warmup and repeated runs; use medians and tail latency. Keep correctness checks enabled outside timed regions and verify identical output checksums.
+Every performance-sensitive subsystem gets an isolated microbenchmark and at least one end-to-end workload. Compare Brew with Go using equivalent algorithms, data, concurrency, compiler optimization, and machine settings. Include warmup and repeated runs; use medians and tail latency. Keep correctness checks enabled outside timed regions and verify identical output checksums.
 
 A faster parser is not enough to make a backend language. End-to-end service throughput, tail latency under contention, memory stability, cancellation behavior, and operational reliability are release gates.
