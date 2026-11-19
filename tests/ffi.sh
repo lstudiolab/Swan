@@ -35,7 +35,7 @@ C
 
 cat > "$TMP/ffi.brew" <<BREW
 import C "$TMP/c_api.h"
-import C "$ROOT/runtime/json_abi.h"
+import C "$ROOT/BrewRuntime/json_abi.h"
 func sil_identity(value: i64) -> i64:
     return value
 
