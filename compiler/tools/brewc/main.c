@@ -114,7 +114,7 @@ static bool brew_emit_project_sources(Program *program,const char *directory,
   }
   program->codegen_source_index=(int)i;
   BrewBVMOutput generated={0};
-  if(!brew_svm_codegen(program,target,&generated,error))goto fail;
+  if(!brew_bvm_codegen(program,target,&generated,error))goto fail;
   bool ok=false;
   if(generated.kind==BREW_BVM_OUTPUT_WASM){
    FILE *file=fopen(path,"wb");
@@ -163,7 +163,7 @@ static bool brew_compile_project_objects(Program *program,char ***objects_out,
   if(assembly_fd<0){brew_error(error,NULL,"cannot create temporary translation-unit assembly");goto fail;}
   program->codegen_source_index=(int)i;
   BrewBVMOutput generated={0};
-  if(!brew_svm_codegen(program,brew_target_find("x86_64"),&generated,error)){
+  if(!brew_bvm_codegen(program,brew_target_find("x86_64"),&generated,error)){
    program->codegen_source_index=-1;close(assembly_fd);unlink(assembly_path);goto fail;
   }
   program->codegen_source_index=-1;
@@ -242,7 +242,7 @@ static bool brew_build_all_targets(Program *program,const char *directory,
  program->codegen_force_ast=false;
  program->codegen_include_external_functions=false;
  BrewBVMOutput generated={0};
- if(!brew_svm_codegen(program,arm,&generated,error))goto fail;
+ if(!brew_bvm_codegen(program,arm,&generated,error))goto fail;
  char assembly_path[]="/tmp/brew-all-arm-XXXXXX";
  int fd=mkstemp(assembly_path);
  if(fd<0){free(generated.data);brew_error(error,NULL,"cannot create temporary ARM64 assembly");goto fail;}
@@ -260,7 +260,7 @@ static bool brew_build_all_targets(Program *program,const char *directory,
  if(arm_result!=0){brew_error(error,NULL,"ARM64 object generation failed; install Clang with AArch64 support");goto fail;}
  const BrewTarget *wasm=brew_target_find("wasm64");
  memset(&generated,0,sizeof(generated));
- if(!brew_svm_codegen(program,wasm,&generated,error))goto fail;
+ if(!brew_bvm_codegen(program,wasm,&generated,error))goto fail;
  FILE *wf=fopen(wasm_path,"wb");
  bool wasm_ok=wf&&fwrite(generated.data,1,generated.length,wf)==generated.length;
  if(wf&&fclose(wf)!=0)wasm_ok=false;
@@ -286,7 +286,7 @@ static int brew_run_wasm_file(const char *path,int argument_count,char **argumen
   * A WebAssembly-hosted build must leave the module as WASM; browser.js is
   * the browser entry point and uses the browser's own WebAssembly engine.
   */
- BrewBICHost host=brew_sic_detect_host();
+ BrewBICHost host=brew_bic_detect_host();
  if(getenv("BREW_BIC_DEBUG")){
   const char *architecture=host.architecture==BREW_BIC_ARCH_X86_64?"x86-64":
       host.architecture==BREW_BIC_ARCH_ARM64?"ARM64":"unknown";
@@ -332,10 +332,10 @@ static int brew_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--list-targets")){brew_target_list(stdout);return 0;}
  if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Brew %s\nUsage: brewc [compile|build|run] <file.brew|file.wasm|directory> [more.brew ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  compile emits portable WASM64; run uses BIC to select native host JIT or browser WASM execution.\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'brew run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",BREW_VERSION);return 0;}
  BrewDriverMode mode=BREW_RUN_DEFAULT;
- bool sic_compile_command=false;
+ bool bic_compile_command=false;
  int index=1;
  if(index<argc&&!strcmp(argv[index],"build")){mode=BREW_BUILD;index++;}
- else if(index<argc&&!strcmp(argv[index],"compile")){mode=BREW_BUILD;sic_compile_command=true;index++;}
+ else if(index<argc&&!strcmp(argv[index],"compile")){mode=BREW_BUILD;bic_compile_command=true;index++;}
  else if(index<argc&&!strcmp(argv[index],"run")){mode=BREW_RUN;index++;}
  if(index<argc&&!strcmp(argv[index],"--profile")){brew_profile_enabled=true;index++;}
  if(index>=argc){fprintf(stderr,"Brew %s\nUsage: brewc [compile|build|run] <file.brew|directory> [more.brew ...] [--low-resource | --jobs 1] [--emit-asm] [--target x86_64|arm64|wasm64|all] [--stdlib directory] [--module-path directory ...] [-o output]\n",BREW_VERSION);return 2;}
@@ -372,8 +372,8 @@ static int brew_run(int argc,char **argv){
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
  bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false,target_all=false;size_t compile_jobs=1;
- BrewBICHost detected_host=brew_sic_detect_host();
- const char *default_target_name=sic_compile_command||detected_host.environment==BREW_BIC_ENV_WEBASSEMBLY?"wasm64":
+ BrewBICHost detected_host=brew_bic_detect_host();
+ const char *default_target_name=bic_compile_command||detected_host.environment==BREW_BIC_ENV_WEBASSEMBLY?"wasm64":
      detected_host.architecture==BREW_BIC_ARCH_ARM64?"arm64":"x86_64";
  const BrewTarget *target=brew_target_find(default_target_name);
  for(int i=index;i<argc;i++){
@@ -392,7 +392,7 @@ static int brew_run(int argc,char **argv){
   else if((!strncmp(argv[i],"-L",2)||!strncmp(argv[i],"-l",2))&&argv[i][2]){if(!brew_append_input(&link_args,&link_arg_count,&link_arg_capacity,argv[i]))BREW_RETURN(2);}
   else if(!strcmp(argv[i],"--target")&&i+1<argc){
    const char *name=argv[++i];
-   if(sic_compile_command&&strcmp(name,"wasm64")){
+   if(bic_compile_command&&strcmp(name,"wasm64")){
     fprintf(stderr,"brew: compile always produces portable WASM64; use build --target %s for an explicit legacy backend\n",name);
     BREW_RETURN(2);
    }
@@ -499,7 +499,7 @@ static int brew_run(int argc,char **argv){
    else dest="a.wasm";
   }
   BrewBVMOutput compiled={0};
-  bool backend_ok=brew_svm_codegen(&p,target,&compiled,&err);
+  bool backend_ok=brew_bvm_codegen(&p,target,&compiled,&err);
   if(!backend_ok){
    fprintf(stderr,"brew: %s\n",err.message[0]?err.message:"BVM backend failed");
    free(compiled.data);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(1);
@@ -519,14 +519,14 @@ static int brew_run(int argc,char **argv){
   BREW_RETURN(result);
  }
  if(target->architecture==BREW_ARCH_AARCH64){
-  BrewBICHost host=brew_sic_detect_host();
+  BrewBICHost host=brew_bic_detect_host();
   bool native_arm64=host.environment==BREW_BIC_ENV_NATIVE&&host.architecture==BREW_BIC_ARCH_ARM64;
   if((mode==BREW_RUN||mode==BREW_RUN_DEFAULT)&&!native_arm64){
    fprintf(stderr,"brew: AArch64 execution requires an ARM64 host; cross-target output must be linked and run on ARM64\n");
    brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(2);
   }
   BrewBVMOutput compiled={0};
-  bool generated=brew_svm_codegen(&p,target,&compiled,&err);
+  bool generated=brew_bvm_codegen(&p,target,&compiled,&err);
   Text assembly={.data=compiled.data,.len=compiled.length};
   if(!generated){
    fprintf(stderr,"brew: %s\n",err.message[0]?err.message:"BVM backend failed");free(assembly.data);
@@ -611,7 +611,7 @@ static int brew_run(int argc,char **argv){
  else exe_len=snprintf(exe,sizeof(exe),"/tmp/brew-run-%ld",(long)getpid());
  if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"brew: output path is too long\n");brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(1);}
  BrewBVMOutput compiled={0};
- if(!brew_svm_codegen(&p,target,&compiled,&err)){brew_print_diagnostic("brew",&err);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);free(compiled.data);BREW_RETURN(1);}
+ if(!brew_bvm_codegen(&p,target,&compiled,&err)){brew_print_diagnostic("brew",&err);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);free(compiled.data);BREW_RETURN(1);}
  Text assembly={.data=compiled.data,.len=compiled.length};
  if(has_lazy&&!brew_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"brew: %s\n",err.message);brew_remove_lazy_modules(exe,&p);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);free(assembly.data);BREW_RETURN(1);}
  char runtime_source[64]={0};if(has_lazy&&!brew_write_lazy_runtime(runtime_source)){fprintf(stderr,"brew: cannot create lazy import runtime support\n");brew_remove_lazy_modules(exe,&p);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);free(assembly.data);BREW_RETURN(1);}
