@@ -1,6 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" role="img" aria-labelledby="title">
   <title id="title">Brew programming language</title>
   <rect width="800" height="800" rx="176" fill="#111111"/>
-  <path d="M400 118C264 118 154 250 154 402c0 153 111 280 246 280s246-127 246-280C646 250 536 118 400 118Z" fill="#f5f5f5"/>
-  <path d="M523 178C461 239 405 315 371 397c-35 84-49 170-42 253" fill="none" stroke="#111111" stroke-width="30" stroke-linecap="round"/>
+  <g fill="none" stroke="#f5f5f5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M310 250c-38-42 35-68 0-112" stroke-width="28"/>
+    <path d="M410 230c-38-42 35-68 0-112" stroke-width="28"/>
+    <path d="M510 250c-38-42 35-68 0-112" stroke-width="28"/>
+    <path d="M585 360h34c58 0 92 42 92 94s-34 94-92 94h-54" stroke-width="34"/>
+  </g>
+  <path d="M205 330h380v104c0 116-94 210-210 210s-170-94-170-210V330Z" fill="#f5f5f5"/>
+  <path d="M395 405c-52 0-82 42-82 91s30 91 82 91 82-42 82-91-30-91-82-91Z" fill="#111111"/>
+  <path d="M365 470c24-18 48-18 72 0" fill="none" stroke="#f5f5f5" stroke-width="16" stroke-linecap="round"/>
 </svg>
