@@ -35,11 +35,10 @@ fi
 tar -xzf "$TMP_DIR/brew.tar.gz" -C "$TMP_DIR"
 mkdir -p "$BIN_DIR"
 install -m 755 "$TMP_DIR/brew/bin/brewc" "$BIN_DIR/brewc"
-ln -sf "$BIN_DIR/brewc" "$BIN_DIR/brew"
 
 echo "Installed Brew to $BIN_DIR"
 case ":$PATH:" in
   *":$BIN_DIR:"*) ;;
   *) echo "Add this to your shell profile: export PATH=\"$BIN_DIR:\$PATH\"" ;;
 esac
-echo "Run: brew --version"
+echo "Run: brewc --version"
