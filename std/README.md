@@ -1,4 +1,4 @@
-<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.svg" alt="Brew" width="180"></p>
 
 # Brew Standard Library
 
