@@ -110,7 +110,7 @@ lifetime cleanup for selected array forms, including stack placement for small
 fixed-size non-escaping arrays and conservative cleanup for eligible heap
 arrays.
 
-That implementation is not a complete ARC runtime. The typed SVM IR, SIL,
+That implementation is not a complete ARC runtime. The typed BVM IR, SIL,
 other backends, general strings, structs, closures, collections, and imported
 library wrappers do not yet share a complete retain/release implementation.
 Do not claim universal automatic memory management until the compiler/runtime
