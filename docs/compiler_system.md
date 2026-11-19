@@ -161,7 +161,7 @@ A phase must not continue after a failed prerequisite. Errors must carry a sourc
 
 Warnings are non-fatal by default and must identify suspicious but not provably invalid source constructs. The driver may promote warnings to errors with `--warnings-as-errors`; when promoted, compilation stops before code generation and must not leave a newly generated output artifact. Warning checks must avoid claiming certainty where control-flow or alias information is incomplete.
 
-## 5. Svm responsibilities
+## 5. BVM responsibilities
 
 BVM is the compiler's single target-independent typed SSA representation. The production compiler lowers supported source constructs directly from the checked AST into BVM. It owns IR construction, structural and type verification, optimization pass management, and the verified representation passed to target backends.
 
