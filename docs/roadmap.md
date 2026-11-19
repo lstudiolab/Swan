@@ -1,12 +1,12 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Engineering Roadmap
+# Brew Engineering Roadmap
 
 This roadmap records the current production compiler and the remaining engineering work. Planned capabilities are not claims of completed support.
 
 ## Current baseline
 
-- One production compiler: the C11 implementation in `compiler/tools/swanc/main.c`.
+- One production compiler: the C11 implementation in `compiler/tools/brewc/main.c`.
 - `build.sh` builds that compiler directly. No bootstrap compiler or second compiler is built.
 - UTF-8-aware lexer and indentation-based parser.
 - AST semantic analysis, standard-library module loading, limited scalar C-header import, and reachability analysis.
@@ -32,7 +32,7 @@ This roadmap records the current production compiler and the remaining engineeri
 
 ## Priority 0: measure and reduce compiler resource use
 
-1. Establish repeatable GitHub Actions baselines for small, medium, and stress-sized Swan programs.
+1. Establish repeatable GitHub Actions baselines for small, medium, and stress-sized Brew programs.
 2. Record per-stage and per-optimization-pass time, end-to-end wall time, compiler peak RSS, compiler build time, and generated artifact size.
 3. Use the measured bottlenecks to prioritize work; do not guess based on source size or pass count.
 4. Reduce avoidable token, AST, IR, and optimizer temporary allocations while preserving ownership and diagnostics.
@@ -74,7 +74,7 @@ A change is not a performance win merely because it reduces source lines, instru
 
 ## Memory-model decision
 
-Swan uses automatic reference counting as its only ordinary source-level memory
+Brew uses automatic reference counting as its only ordinary source-level memory
 model. There is no raw-library mode and no import operation that disables ARC.
 Manual ownership keywords are not part of the intended everyday language
 surface. Native libraries are integrated through typed interfaces and managed

@@ -1,4 +1,4 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
 # Svm Compiler Architecture
 
@@ -6,9 +6,9 @@ The normative compiler design is defined in [COMPILER_SYSTEM.md](compiler_system
 
 ## Definition
 
-SVM is Swan's **target-independent compiler middle-end**. It is not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
+SVM is Brew's **target-independent compiler middle-end**. It is not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
 
-Swan source is lowered directly from the checked AST into typed SVM IR. SVM verifies and optimizes that IR before the WASM64 backend emits the portable AOT module. SIC then coordinates host detection: browser hosts keep and execute WASM, while supported native hosts use Wasmtime's JIT to compile it into host machine code. No production executable dispatches over SVM instructions at runtime.
+Brew source is lowered directly from the checked AST into typed SVM IR. SVM verifies and optimizes that IR before the WASM64 backend emits the portable AOT module. SIC then coordinates host detection: browser hosts keep and execute WASM, while supported native hosts use Wasmtime's JIT to compile it into host machine code. No production executable dispatches over SVM instructions at runtime.
 
 ## Canonical pipeline
 
@@ -73,14 +73,14 @@ A backend consumes only verified, optimized SVM IR. It owns target-specific lega
 
 A backend is not considered production-complete merely because it emits assembly or an object. Completion requires target-specific compile, link, ABI, and execution tests (or WebAssembly module validation and execution tests).
 
-Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not part of the intended production architecture. The existing optional LLVM bridge is transitional compatibility code; it must not be used as the native SVM implementation and must not be removed until replacement target coverage and migration tests exist.
+Brew's long-term native backend is Brew-owned. LLVM/Clang code generation is not part of the intended production architecture. The existing optional LLVM bridge is transitional compatibility code; it must not be used as the native SVM implementation and must not be removed until replacement target coverage and migration tests exist.
 
 ## Aot and performance rules
 
 1. No interpreter dispatch loop, VM, or bytecode execution path in production.
-2. `swanc compile` emits a portable WASM64 module ahead of execution.
+2. `brewc compile` emits a portable WASM64 module ahead of execution.
 3. SIC detects browser/WebAssembly versus native execution environments before selecting the execution path.
-4. Browser execution remains WebAssembly end to end; no Swan native JIT runs in the browser.
+4. Browser execution remains WebAssembly end to end; no Brew native JIT runs in the browser.
 5. Native x86-64 and ARM64 execution uses Wasmtime's runtime JIT to generate code for the detected host CPU.
 6. Temporary WASM is removed only after successful native runtime completion; explicit portable WASM outputs are retained.
 7. Optimize target-independent IR before WASM emission and preserve all ABI, memory64, and host-runtime constraints.
@@ -89,9 +89,9 @@ Swan's long-term native backend is Swan-owned. LLVM/Clang code generation is not
 
 ## Current repository status
 
-The repository has a single C11 production compiler, a header-oriented implementation, typed SSA IR, a verifier and optimizer, and Swan-owned emitters for several target families. It is not yet fully compliant with the long-term contract:
+The repository has a single C11 production compiler, a header-oriented implementation, typed SSA IR, a verifier and optimizer, and Brew-owned emitters for several target families. It is not yet fully compliant with the long-term contract:
 
-- the root `main.c` is a compatibility include of `compiler/tools/swanc/main.c`;
+- the root `main.c` is a compatibility include of `compiler/tools/brewc/main.c`;
 - source files are lexed and parsed independently and retain stable source paths; native x86-64 project builds emit one assembly/object translation unit per source file, while cross-target backends still consume a project-wide IR module;
 - backend and object/link orchestration remains target-specific in the driver;
 - native assembly/object production still uses external toolchain components;

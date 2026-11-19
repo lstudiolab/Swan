@@ -1,22 +1,22 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler Pipeline Design
+# Brew Compiler Pipeline Design
 
 ## Implemented pipeline
 
 ```text
-.swan
+.brew
   -> source reader and UTF-8 validation
   -> lexer
   -> parser and AST
-  -> C-header importer and Swan module loader
+  -> C-header importer and Brew module loader
   -> semantic analysis
   -> reachability analysis
   -> direct AST -> SVM typed SSA IR lowering
   -> SVM verifier
   -> target-independent optimization
   -> final SVM verification
-  -> Swan-owned target code generation or explicit LLVM portability bridge
+  -> Brew-owned target code generation or explicit LLVM portability bridge
   -> assembly / object / WebAssembly emission
   -> assembler and linker where applicable
 ```
@@ -63,16 +63,16 @@ The pass manager repeats its ordered pass list until a full round makes no chang
 ## Target boundaries
 
 - x86-64 System V: native executable and assembly; typed IR plus AST compatibility path.
-- AArch64, ARMv7, RISC-V64: Swan-owned limited scalar IR object/assembly.
-- WASM32 and WASM64: Swan-owned limited scalar WebAssembly emitters.
+- AArch64, ARMv7, RISC-V64: Brew-owned limited scalar IR object/assembly.
+- WASM32 and WASM64: Brew-owned limited scalar WebAssembly emitters.
 - LLVM target triple: explicit portability path for the supported typed-IR subset and installed Clang/LLVM targets.
 
 Object emission is not equivalent to native execution or complete platform ABI support. Cross-target runtime integration remains separate work.
 
 ## Required invariants
 
-1. Do not transpile Swan to C.
-2. Keep the native backend path Swan-owned.
+1. Do not transpile Brew to C.
+2. Keep the native backend path Brew-owned.
 3. Keep the LLVM bridge explicit through `--target-triple`; it is not a silent fallback.
 4. Do not silently lower unknown AST/IR kinds to empty or zero code.
 5. Verify IR before backend use and after optimizer transformations.

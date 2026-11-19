@@ -1,12 +1,12 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler and Runtime Performance
+# Brew Compiler and Runtime Performance
 
 This document records optimizations present in the implementation. It does not claim a speed ranking over C, Rust, Goose, or other languages. Performance claims require reproducible measurements on identical workloads.
 
 ## Compile-time architecture
 
-Swan reduces frontend and code-generation overhead with:
+Brew reduces frontend and code-generation overhead with:
 
 - Arena-backed AST allocation and bulk teardown.
 - Compact token records backed by shared token text storage.
@@ -96,4 +96,4 @@ The runtime benchmark suite includes binary search and other language-comparison
 6. Complete cross-target runtime linking and ABI tests on native runners.
 7. Measure each optimization independently; remove complexity that does not produce a repeatable benefit.
 
-Do not describe Swan as faster than another compiler without current, reproducible benchmark evidence.
+Do not describe Brew as faster than another compiler without current, reproducible benchmark evidence.
