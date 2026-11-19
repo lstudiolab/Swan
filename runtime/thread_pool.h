@@ -1,5 +1,5 @@
-#ifndef SWAN_RUNTIME_THREAD_POOL_H
-#define SWAN_RUNTIME_THREAD_POOL_H
+#ifndef BREW_RUNTIME_THREAD_POOL_H
+#define BREW_RUNTIME_THREAD_POOL_H
 
 /*
  * Bounded POSIX worker pool. Submission never blocks: a full queue returns
@@ -16,25 +16,25 @@
 extern "C" {
 #endif
 
-typedef void (*SwanTaskFunction)(void *);
+typedef void (*BrewTaskFunction)(void *);
 
 typedef struct {
-    SwanTaskFunction function;
+    BrewTaskFunction function;
     void *context;
-} SwanTask;
+} BrewTask;
 
 typedef struct {
     pthread_t *workers;
     size_t worker_count, workers_started;
-    SwanTask *queue;
+    BrewTask *queue;
     size_t queue_capacity, queue_head, queue_length;
     pthread_mutex_t mutex;
     pthread_cond_t ready;
     bool initialized, stopping, drain;
-} SwanThreadPool;
+} BrewThreadPool;
 
-static inline void *swan_thread_pool_worker(void *argument) {
-    SwanThreadPool *pool = (SwanThreadPool *)argument;
+static inline void *brew_thread_pool_worker(void *argument) {
+    BrewThreadPool *pool = (BrewThreadPool *)argument;
     for (;;) {
         pthread_mutex_lock(&pool->mutex);
         while (!pool->queue_length && !pool->stopping)
@@ -43,7 +43,7 @@ static inline void *swan_thread_pool_worker(void *argument) {
             pthread_mutex_unlock(&pool->mutex);
             return NULL;
         }
-        SwanTask task = pool->queue[pool->queue_head];
+        BrewTask task = pool->queue[pool->queue_head];
         pool->queue_head = (pool->queue_head + 1) % pool->queue_capacity;
         pool->queue_length--;
         pthread_mutex_unlock(&pool->mutex);
@@ -51,15 +51,15 @@ static inline void *swan_thread_pool_worker(void *argument) {
     }
 }
 
-static inline bool swan_thread_pool_init(SwanThreadPool *pool,
+static inline bool brew_thread_pool_init(BrewThreadPool *pool,
                                           size_t worker_count,
                                           size_t queue_capacity) {
     if (!pool || !worker_count || !queue_capacity) return false;
-    *pool = (SwanThreadPool){0};
+    *pool = (BrewThreadPool){0};
     if (worker_count > SIZE_MAX / sizeof(*pool->workers) ||
         queue_capacity > SIZE_MAX / sizeof(*pool->queue)) return false;
     pool->workers = (pthread_t *)calloc(worker_count, sizeof(*pool->workers));
-    pool->queue = (SwanTask *)calloc(queue_capacity, sizeof(*pool->queue));
+    pool->queue = (BrewTask *)calloc(queue_capacity, sizeof(*pool->queue));
     if (!pool->workers || !pool->queue) goto fail_memory;
     if (pthread_mutex_init(&pool->mutex, NULL) != 0) goto fail_memory;
     if (pthread_cond_init(&pool->ready, NULL) != 0) {
@@ -71,7 +71,7 @@ static inline bool swan_thread_pool_init(SwanThreadPool *pool,
     pool->initialized = true;
     for (size_t i = 0; i < worker_count; i++) {
         if (pthread_create(&pool->workers[i], NULL,
-                           swan_thread_pool_worker, pool) != 0) {
+                           brew_thread_pool_worker, pool) != 0) {
             pthread_mutex_lock(&pool->mutex);
             pool->stopping = true;
             pool->drain = false;
@@ -90,13 +90,13 @@ static inline bool swan_thread_pool_init(SwanThreadPool *pool,
 fail_memory:
     free(pool->workers);
     free(pool->queue);
-    *pool = (SwanThreadPool){0};
+    *pool = (BrewThreadPool){0};
     return false;
 }
 
 /* False means invalid task, stopped pool, or full queue. */
-static inline bool swan_thread_pool_submit(SwanThreadPool *pool,
-                                            SwanTaskFunction function,
+static inline bool brew_thread_pool_submit(BrewThreadPool *pool,
+                                            BrewTaskFunction function,
                                             void *context) {
     if (!pool || !pool->initialized || !function) return false;
     pthread_mutex_lock(&pool->mutex);
@@ -106,7 +106,7 @@ static inline bool swan_thread_pool_submit(SwanThreadPool *pool,
     }
     size_t tail = (pool->queue_head + pool->queue_length) %
                   pool->queue_capacity;
-    pool->queue[tail] = (SwanTask){ function, context };
+    pool->queue[tail] = (BrewTask){ function, context };
     pool->queue_length++;
     pthread_cond_signal(&pool->ready);
     pthread_mutex_unlock(&pool->mutex);
@@ -114,7 +114,7 @@ static inline bool swan_thread_pool_submit(SwanThreadPool *pool,
 }
 
 /* drain=true completes queued work; false discards work not yet started. */
-static inline void swan_thread_pool_shutdown(SwanThreadPool *pool, bool drain) {
+static inline void brew_thread_pool_shutdown(BrewThreadPool *pool, bool drain) {
     if (!pool || !pool->initialized) return;
     pthread_mutex_lock(&pool->mutex);
     pool->stopping = true;
@@ -133,12 +133,12 @@ static inline void swan_thread_pool_shutdown(SwanThreadPool *pool, bool drain) {
     pool->initialized = false;
 }
 
-static inline void swan_thread_pool_destroy(SwanThreadPool *pool) {
+static inline void brew_thread_pool_destroy(BrewThreadPool *pool) {
     if (!pool) return;
-    if (pool->initialized) swan_thread_pool_shutdown(pool, true);
+    if (pool->initialized) brew_thread_pool_shutdown(pool, true);
     free(pool->workers);
     free(pool->queue);
-    *pool = (SwanThreadPool){0};
+    *pool = (BrewThreadPool){0};
 }
 
 #ifdef __cplusplus

@@ -1,13 +1,13 @@
 /*
- * Browser-side Swan WASM64 entry point.
+ * Browser-side Brew WASM64 entry point.
  *
  * Browsers execute the portable WebAssembly module directly. SIC's native
  * host-compilation path is deliberately not involved in this environment.
  */
-export async function runSwanWasm(url, imports = {}) {
+export async function runBrewWasm(url, imports = {}) {
   const response = await fetch(url);
   if (!response.ok) {
-    throw new Error(`Unable to load Swan module: HTTP ${response.status}`);
+    throw new Error(`Unable to load Brew module: HTTP ${response.status}`);
   }
 
   let result;
@@ -22,7 +22,7 @@ export async function runSwanWasm(url, imports = {}) {
 
   const main = result.instance.exports.main;
   if (typeof main !== "function") {
-    throw new Error("Swan WASM module does not export main()");
+    throw new Error("Brew WASM module does not export main()");
   }
   return main();
 }

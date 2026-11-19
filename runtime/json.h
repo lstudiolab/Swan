@@ -1,8 +1,8 @@
-#ifndef SWAN_RUNTIME_JSON_H
-#define SWAN_RUNTIME_JSON_H
+#ifndef BREW_RUNTIME_JSON_H
+#define BREW_RUNTIME_JSON_H
 
 /*
- * Swan JSON runtime, C11.
+ * Brew JSON runtime, C11.
  *
  * The parser builds a compact token tree over borrowed input bytes. String and
  * number tokens retain source spans; parsing does not allocate per character.
@@ -23,41 +23,41 @@ extern "C" {
 #endif
 
 typedef enum {
-    SWAN_JSON_OBJECT, SWAN_JSON_ARRAY, SWAN_JSON_STRING,
-    SWAN_JSON_NUMBER, SWAN_JSON_TRUE, SWAN_JSON_FALSE, SWAN_JSON_NULL
-} SwanJsonKind;
+    BREW_JSON_OBJECT, BREW_JSON_ARRAY, BREW_JSON_STRING,
+    BREW_JSON_NUMBER, BREW_JSON_TRUE, BREW_JSON_FALSE, BREW_JSON_NULL
+} BrewJsonKind;
 
 typedef struct {
-    SwanJsonKind kind;
+    BrewJsonKind kind;
     size_t start, end;
     size_t first_child, last_child, next_sibling, child_count;
-} SwanJsonToken;
+} BrewJsonToken;
 
 typedef struct {
     size_t max_depth;
     size_t max_tokens;
     size_t max_input_bytes;
-} SwanJsonLimits;
+} BrewJsonLimits;
 
 typedef struct {
     const unsigned char *input;
     size_t input_length;
-    SwanJsonToken *tokens;
+    BrewJsonToken *tokens;
     size_t token_count, token_capacity;
     bool owns_tokens;
-    SwanJsonLimits limits;
+    BrewJsonLimits limits;
     size_t error_offset;
     char error[128];
-} SwanJsonDocument;
+} BrewJsonDocument;
 
 typedef struct {
     char *data;
     size_t length, capacity;
-} SwanJsonBuffer;
+} BrewJsonBuffer;
 
-#define SWAN_JSON_NONE SIZE_MAX
+#define BREW_JSON_NONE SIZE_MAX
 
-static inline void swan_json_document_init(SwanJsonDocument *doc) {
+static inline void brew_json_document_init(BrewJsonDocument *doc) {
     if (!doc) return;
     memset(doc, 0, sizeof(*doc));
     doc->limits.max_depth = 128;
@@ -65,13 +65,13 @@ static inline void swan_json_document_init(SwanJsonDocument *doc) {
     doc->limits.max_input_bytes = 64u * 1024u * 1024u;
 }
 
-static inline void swan_json_document_destroy(SwanJsonDocument *doc) {
+static inline void brew_json_document_destroy(BrewJsonDocument *doc) {
     if (!doc) return;
     if (doc->owns_tokens) free(doc->tokens);
     memset(doc, 0, sizeof(*doc));
 }
 
-static inline bool swan_json_fail(SwanJsonDocument *doc, size_t offset,
+static inline bool brew_json_fail(BrewJsonDocument *doc, size_t offset,
                                   const char *message) {
     if (doc) {
         doc->error_offset = offset;
@@ -83,8 +83,8 @@ static inline bool swan_json_fail(SwanJsonDocument *doc, size_t offset,
 /* Attach caller-owned token storage for allocation-free parsing. The storage
  * must remain alive until replaced or the document is destroyed. When the
  * capacity is exhausted, parsing fails instead of falling back to heap. */
-static inline bool swan_json_document_use_token_storage(
-    SwanJsonDocument *doc, SwanJsonToken *storage, size_t capacity) {
+static inline bool brew_json_document_use_token_storage(
+    BrewJsonDocument *doc, BrewJsonToken *storage, size_t capacity) {
     if (!doc || !storage || !capacity || doc->token_count != 0 ||
         capacity < doc->token_capacity)
         return false;
@@ -97,59 +97,59 @@ static inline bool swan_json_document_use_token_storage(
 
 /* Reserve token storage before parsing to avoid repeated growth reallocations.
  * Existing tokens are retained; parse_reuse resets the count, not capacity. */
-static inline bool swan_json_document_reserve_tokens(SwanJsonDocument *doc,
+static inline bool brew_json_document_reserve_tokens(BrewJsonDocument *doc,
                                                        size_t requested) {
     if (!doc) return false;
     if (requested > doc->limits.max_tokens)
-        return swan_json_fail(doc, doc->input_length, "token limit exceeded");
+        return brew_json_fail(doc, doc->input_length, "token limit exceeded");
     if (requested <= doc->token_capacity) return true;
     if (doc->tokens && !doc->owns_tokens)
-        return swan_json_fail(doc, doc->input_length, "caller token buffer exhausted");
+        return brew_json_fail(doc, doc->input_length, "caller token buffer exhausted");
     if (requested > SIZE_MAX / sizeof(*doc->tokens))
-        return swan_json_fail(doc, doc->input_length, "token allocation overflow");
-    SwanJsonToken *tokens = (SwanJsonToken *)realloc(
+        return brew_json_fail(doc, doc->input_length, "token allocation overflow");
+    BrewJsonToken *tokens = (BrewJsonToken *)realloc(
         doc->tokens, requested * sizeof(*doc->tokens));
     if (!tokens)
-        return swan_json_fail(doc, doc->input_length, "out of memory");
+        return brew_json_fail(doc, doc->input_length, "out of memory");
     doc->tokens = tokens;
     doc->token_capacity = requested;
     doc->owns_tokens = true;
     return true;
 }
 
-static inline bool swan_json_reserve_tokens(SwanJsonDocument *doc) {
+static inline bool brew_json_reserve_tokens(BrewJsonDocument *doc) {
     if (doc->token_count >= doc->limits.max_tokens)
-        return swan_json_fail(doc, doc->input_length, "token limit exceeded");
+        return brew_json_fail(doc, doc->input_length, "token limit exceeded");
     if (doc->token_count < doc->token_capacity) return true;
     size_t next = doc->token_capacity ? doc->token_capacity * 2 : 64;
     if (next < doc->token_capacity || next > doc->limits.max_tokens)
         next = doc->limits.max_tokens;
     if (next <= doc->token_capacity)
-        return swan_json_fail(doc, doc->input_length, "token allocation overflow");
-    return swan_json_document_reserve_tokens(doc, next);
+        return brew_json_fail(doc, doc->input_length, "token allocation overflow");
+    return brew_json_document_reserve_tokens(doc, next);
 }
 
-static inline size_t swan_json_add_token(SwanJsonDocument *doc,
-                                          SwanJsonKind kind, size_t start) {
-    if (!swan_json_reserve_tokens(doc)) return SWAN_JSON_NONE;
+static inline size_t brew_json_add_token(BrewJsonDocument *doc,
+                                          BrewJsonKind kind, size_t start) {
+    if (!brew_json_reserve_tokens(doc)) return BREW_JSON_NONE;
     size_t id = doc->token_count++;
-    doc->tokens[id] = (SwanJsonToken){
-        kind, start, start, SWAN_JSON_NONE, SWAN_JSON_NONE,
-        SWAN_JSON_NONE, 0
+    doc->tokens[id] = (BrewJsonToken){
+        kind, start, start, BREW_JSON_NONE, BREW_JSON_NONE,
+        BREW_JSON_NONE, 0
     };
     return id;
 }
 
-static inline void swan_json_add_child(SwanJsonDocument *doc,
+static inline void brew_json_add_child(BrewJsonDocument *doc,
                                         size_t parent, size_t child) {
-    SwanJsonToken *p = &doc->tokens[parent];
-    if (p->last_child == SWAN_JSON_NONE) p->first_child = child;
+    BrewJsonToken *p = &doc->tokens[parent];
+    if (p->last_child == BREW_JSON_NONE) p->first_child = child;
     else doc->tokens[p->last_child].next_sibling = child;
     p->last_child = child;
     p->child_count++;
 }
 
-static inline bool swan_json_utf8(const unsigned char *s, size_t n,
+static inline bool brew_json_utf8(const unsigned char *s, size_t n,
                                    size_t *width) {
     if (!n) return false;
     unsigned char a = s[0];
@@ -177,29 +177,29 @@ static inline bool swan_json_utf8(const unsigned char *s, size_t n,
 }
 
 typedef struct {
-    SwanJsonDocument *doc;
+    BrewJsonDocument *doc;
     size_t pos;
-} SwanJsonParser;
+} BrewJsonParser;
 
-static inline void swan_json_ws(SwanJsonParser *p) {
+static inline void brew_json_ws(BrewJsonParser *p) {
     const unsigned char *s = p->doc->input;
     while (p->pos < p->doc->input_length &&
            (s[p->pos] == ' ' || s[p->pos] == '\t' ||
             s[p->pos] == '\r' || s[p->pos] == '\n')) p->pos++;
 }
 
-static inline int swan_json_hex(unsigned char c) {
+static inline int brew_json_hex(unsigned char c) {
     if (c >= '0' && c <= '9') return c - '0';
     if (c >= 'a' && c <= 'f') return c - 'a' + 10;
     if (c >= 'A' && c <= 'F') return c - 'A' + 10;
     return -1;
 }
 
-static inline bool swan_json_u16(SwanJsonParser *p, uint32_t *value) {
+static inline bool brew_json_u16(BrewJsonParser *p, uint32_t *value) {
     if (p->doc->input_length - p->pos < 4) return false;
     uint32_t v = 0;
     for (unsigned i = 0; i < 4; i++) {
-        int h = swan_json_hex(p->doc->input[p->pos++]);
+        int h = brew_json_hex(p->doc->input[p->pos++]);
         if (h < 0) return false;
         v = (v << 4) | (uint32_t)h;
     }
@@ -207,7 +207,7 @@ static inline bool swan_json_u16(SwanJsonParser *p, uint32_t *value) {
     return true;
 }
 
-static inline bool swan_json_string_scan(SwanJsonParser *p) {
+static inline bool brew_json_string_scan(BrewJsonParser *p) {
     const unsigned char *s = p->doc->input;
     size_t n = p->doc->input_length;
     if (p->pos >= n || s[p->pos] != '"') return false;
@@ -224,13 +224,13 @@ static inline bool swan_json_string_scan(SwanJsonParser *p) {
                 c == 'r' || c == 't') continue;
             if (c != 'u') return false;
             uint32_t u;
-            if (!swan_json_u16(p, &u)) return false;
+            if (!brew_json_u16(p, &u)) return false;
             if (u >= 0xD800 && u <= 0xDBFF) {
                 if (n - p->pos < 6 || s[p->pos] != '\\' ||
                     s[p->pos + 1] != 'u') return false;
                 p->pos += 2;
                 uint32_t low;
-                if (!swan_json_u16(p, &low) ||
+                if (!brew_json_u16(p, &low) ||
                     low < 0xDC00 || low > 0xDFFF) return false;
             } else if (u >= 0xDC00 && u <= 0xDFFF) return false;
             continue;
@@ -238,7 +238,7 @@ static inline bool swan_json_string_scan(SwanJsonParser *p) {
         if (c >= 0x80) {
             size_t width;
             p->pos--;
-            if (!swan_json_utf8(s + p->pos, n - p->pos, &width))
+            if (!brew_json_utf8(s + p->pos, n - p->pos, &width))
                 return false;
             p->pos += width;
         }
@@ -246,19 +246,19 @@ static inline bool swan_json_string_scan(SwanJsonParser *p) {
     return false;
 }
 
-static inline bool swan_json_parse_value(SwanJsonParser *p, size_t depth,
+static inline bool brew_json_parse_value(BrewJsonParser *p, size_t depth,
                                           size_t *result);
 
-static inline bool swan_json_parse_compound(SwanJsonParser *p, size_t depth,
+static inline bool brew_json_parse_compound(BrewJsonParser *p, size_t depth,
                                              size_t *result, bool object) {
-    SwanJsonDocument *d = p->doc;
+    BrewJsonDocument *d = p->doc;
     const unsigned char *s = d->input;
-    size_t id = swan_json_add_token(d, object ? SWAN_JSON_OBJECT : SWAN_JSON_ARRAY,
+    size_t id = brew_json_add_token(d, object ? BREW_JSON_OBJECT : BREW_JSON_ARRAY,
                                     p->pos);
-    if (id == SWAN_JSON_NONE) return false;
+    if (id == BREW_JSON_NONE) return false;
     unsigned char close = object ? '}' : ']';
     p->pos++;
-    swan_json_ws(p);
+    brew_json_ws(p);
     if (p->pos < d->input_length && s[p->pos] == close) {
         p->pos++;
         d->tokens[id].end = p->pos;
@@ -268,37 +268,37 @@ static inline bool swan_json_parse_compound(SwanJsonParser *p, size_t depth,
     for (;;) {
         if (object) {
             size_t key_start = p->pos;
-            if (!swan_json_string_scan(p))
-                return swan_json_fail(d, p->pos, "invalid object key string");
-            size_t key = swan_json_add_token(d, SWAN_JSON_STRING, key_start);
-            if (key == SWAN_JSON_NONE) return false;
+            if (!brew_json_string_scan(p))
+                return brew_json_fail(d, p->pos, "invalid object key string");
+            size_t key = brew_json_add_token(d, BREW_JSON_STRING, key_start);
+            if (key == BREW_JSON_NONE) return false;
             d->tokens[key].end = p->pos;
-            swan_json_add_child(d, id, key);
-            swan_json_ws(p);
+            brew_json_add_child(d, id, key);
+            brew_json_ws(p);
             if (p->pos >= d->input_length || s[p->pos++] != ':')
-                return swan_json_fail(d, p->pos, "expected ':' after object key");
-            swan_json_ws(p);
+                return brew_json_fail(d, p->pos, "expected ':' after object key");
+            brew_json_ws(p);
         }
         size_t child;
-        if (!swan_json_parse_value(p, depth + 1, &child)) return false;
-        swan_json_add_child(d, id, child);
-        swan_json_ws(p);
+        if (!brew_json_parse_value(p, depth + 1, &child)) return false;
+        brew_json_add_child(d, id, child);
+        brew_json_ws(p);
         if (p->pos >= d->input_length)
-            return swan_json_fail(d, p->pos, "unterminated array or object");
+            return brew_json_fail(d, p->pos, "unterminated array or object");
         unsigned char c = s[p->pos++];
         if (c == close) break;
         if (c != ',')
-            return swan_json_fail(d, p->pos - 1, "expected ',' or closing delimiter");
-        swan_json_ws(p);
+            return brew_json_fail(d, p->pos - 1, "expected ',' or closing delimiter");
+        brew_json_ws(p);
     }
     if (object && (d->tokens[id].child_count & 1u))
-        return swan_json_fail(d, p->pos, "object key has no value");
+        return brew_json_fail(d, p->pos, "object key has no value");
     d->tokens[id].end = p->pos;
     *result = id;
     return true;
 }
 
-static inline bool swan_json_number_scan(SwanJsonParser *p) {
+static inline bool brew_json_number_scan(BrewJsonParser *p) {
     const unsigned char *s = p->doc->input;
     size_t n = p->doc->input_length, i = p->pos;
     if (i < n && s[i] == '-') i++;
@@ -324,45 +324,45 @@ static inline bool swan_json_number_scan(SwanJsonParser *p) {
     return true;
 }
 
-static inline bool swan_json_parse_value(SwanJsonParser *p, size_t depth,
+static inline bool brew_json_parse_value(BrewJsonParser *p, size_t depth,
                                           size_t *result) {
-    SwanJsonDocument *d = p->doc;
+    BrewJsonDocument *d = p->doc;
     const unsigned char *s = d->input;
-    swan_json_ws(p);
+    brew_json_ws(p);
     if (depth > d->limits.max_depth)
-        return swan_json_fail(d, p->pos, "maximum nesting depth exceeded");
+        return brew_json_fail(d, p->pos, "maximum nesting depth exceeded");
     if (p->pos >= d->input_length)
-        return swan_json_fail(d, p->pos, "expected JSON value");
+        return brew_json_fail(d, p->pos, "expected JSON value");
     size_t start = p->pos, id;
     unsigned char c = s[p->pos];
-    if (c == '{') return swan_json_parse_compound(p, depth, result, true);
-    if (c == '[') return swan_json_parse_compound(p, depth, result, false);
+    if (c == '{') return brew_json_parse_compound(p, depth, result, true);
+    if (c == '[') return brew_json_parse_compound(p, depth, result, false);
     if (c == '"') {
-        if (!swan_json_string_scan(p))
-            return swan_json_fail(d, p->pos, "invalid JSON string or Unicode escape");
-        id = swan_json_add_token(d, SWAN_JSON_STRING, start);
-        if (id == SWAN_JSON_NONE) return false;
+        if (!brew_json_string_scan(p))
+            return brew_json_fail(d, p->pos, "invalid JSON string or Unicode escape");
+        id = brew_json_add_token(d, BREW_JSON_STRING, start);
+        if (id == BREW_JSON_NONE) return false;
         d->tokens[id].end = p->pos;
     } else if (c == '-' || (c >= '0' && c <= '9')) {
-        if (!swan_json_number_scan(p))
-            return swan_json_fail(d, p->pos, "invalid JSON number");
-        id = swan_json_add_token(d, SWAN_JSON_NUMBER, start);
-        if (id == SWAN_JSON_NONE) return false;
+        if (!brew_json_number_scan(p))
+            return brew_json_fail(d, p->pos, "invalid JSON number");
+        id = brew_json_add_token(d, BREW_JSON_NUMBER, start);
+        if (id == BREW_JSON_NONE) return false;
         d->tokens[id].end = p->pos;
     } else {
-        SwanJsonKind kind;
+        BrewJsonKind kind;
         const char *word;
         size_t length;
-        if (c == 't') { kind = SWAN_JSON_TRUE; word = "true"; length = 4; }
-        else if (c == 'f') { kind = SWAN_JSON_FALSE; word = "false"; length = 5; }
-        else if (c == 'n') { kind = SWAN_JSON_NULL; word = "null"; length = 4; }
-        else return swan_json_fail(d, p->pos, "unexpected character");
+        if (c == 't') { kind = BREW_JSON_TRUE; word = "true"; length = 4; }
+        else if (c == 'f') { kind = BREW_JSON_FALSE; word = "false"; length = 5; }
+        else if (c == 'n') { kind = BREW_JSON_NULL; word = "null"; length = 4; }
+        else return brew_json_fail(d, p->pos, "unexpected character");
         if (length > d->input_length - p->pos ||
             memcmp(s + p->pos, word, length) != 0)
-            return swan_json_fail(d, p->pos, "invalid JSON literal");
+            return brew_json_fail(d, p->pos, "invalid JSON literal");
         p->pos += length;
-        id = swan_json_add_token(d, kind, start);
-        if (id == SWAN_JSON_NONE) return false;
+        id = brew_json_add_token(d, kind, start);
+        if (id == BREW_JSON_NONE) return false;
         d->tokens[id].end = p->pos;
     }
     *result = id;
@@ -370,7 +370,7 @@ static inline bool swan_json_parse_value(SwanJsonParser *p, size_t depth,
 }
 
 /* Input is borrowed; it must remain alive until document_destroy or reparse. */
-static inline bool swan_json_parse_reuse(SwanJsonDocument *doc,
+static inline bool brew_json_parse_reuse(BrewJsonDocument *doc,
                                           const void *input, size_t length) {
     if (!doc || (!input && length)) return false;
     doc->input = (const unsigned char *)input;
@@ -382,47 +382,47 @@ static inline bool swan_json_parse_reuse(SwanJsonDocument *doc,
     if (!doc->limits.max_tokens) doc->limits.max_tokens = 1000000;
     if (!doc->limits.max_input_bytes) doc->limits.max_input_bytes = 64u * 1024u * 1024u;
     if (length > doc->limits.max_input_bytes)
-        return swan_json_fail(doc, 0, "input size limit exceeded");
-    SwanJsonParser parser = { doc, 0 };
+        return brew_json_fail(doc, 0, "input size limit exceeded");
+    BrewJsonParser parser = { doc, 0 };
     size_t root;
-    if (!swan_json_parse_value(&parser, 0, &root)) return false;
-    swan_json_ws(&parser);
+    if (!brew_json_parse_value(&parser, 0, &root)) return false;
+    brew_json_ws(&parser);
     if (parser.pos != length)
-        return swan_json_fail(doc, parser.pos, "trailing data after JSON value");
+        return brew_json_fail(doc, parser.pos, "trailing data after JSON value");
     return root == 0;
 }
 
 /* Reset and parse while retaining allocated token capacity. */
-static inline bool swan_json_parse(SwanJsonDocument *doc,
+static inline bool brew_json_parse(BrewJsonDocument *doc,
                                     const void *input, size_t length) {
-    return swan_json_parse_reuse(doc, input, length);
+    return brew_json_parse_reuse(doc, input, length);
 }
-static inline bool swan_json_token_text(const SwanJsonDocument *doc,
+static inline bool brew_json_token_text(const BrewJsonDocument *doc,
                                          size_t token, const char **text,
                                          size_t *length) {
     if (!doc || token >= doc->token_count) return false;
-    const SwanJsonToken *t = &doc->tokens[token];
-    if (t->kind != SWAN_JSON_STRING && t->kind != SWAN_JSON_NUMBER)
+    const BrewJsonToken *t = &doc->tokens[token];
+    if (t->kind != BREW_JSON_STRING && t->kind != BREW_JSON_NUMBER)
         return false;
     size_t start = t->start, end = t->end;
-    if (t->kind == SWAN_JSON_STRING) { start++; end--; }
+    if (t->kind == BREW_JSON_STRING) { start++; end--; }
     if (text) *text = (const char *)doc->input + start;
     if (length) *length = end - start;
     return true;
 }
 
-static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
+static inline bool brew_json_key_equals(const BrewJsonDocument *doc,
                                          size_t token, const char *key) {
     const char *text;
     size_t length;
-    if (!key || !swan_json_token_text(doc, token, &text, &length)) return false;
+    if (!key || !brew_json_token_text(doc, token, &text, &length)) return false;
     size_t i = 0, j = 0, key_length = strlen(key);
     while (i < length) {
         size_t raw_start = i;
         uint32_t cp = (unsigned char)text[i++];
         if (cp >= 0x80) {
             size_t width;
-            if (!swan_json_utf8((const unsigned char *)text + raw_start,
+            if (!brew_json_utf8((const unsigned char *)text + raw_start,
                                 length - raw_start, &width)) return false;
             if (width == 2) {
                 cp = ((uint32_t)(unsigned char)text[raw_start] & 0x1Fu) << 6;
@@ -455,7 +455,7 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
                     if (length - i < 4) return false;
                     cp = 0;
                     for (unsigned n = 0; n < 4; n++) {
-                        int h = swan_json_hex((unsigned char)text[i++]);
+                        int h = brew_json_hex((unsigned char)text[i++]);
                         if (h < 0) return false;
                         cp = (cp << 4) | (uint32_t)h;
                     }
@@ -464,7 +464,7 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
                             text[i++] != 'u') return false;
                         uint32_t low = 0;
                         for (unsigned n = 0; n < 4; n++) {
-                            int h = swan_json_hex((unsigned char)text[i++]);
+                            int h = brew_json_hex((unsigned char)text[i++]);
                             if (h < 0) return false;
                             low = (low << 4) | (uint32_t)h;
                         }
@@ -497,25 +497,25 @@ static inline bool swan_json_key_equals(const SwanJsonDocument *doc,
     }
     return j == key_length;
 }
-static inline size_t swan_json_object_get(const SwanJsonDocument *doc,
+static inline size_t brew_json_object_get(const BrewJsonDocument *doc,
                                            size_t object, const char *key) {
     if (!doc || object >= doc->token_count ||
-        doc->tokens[object].kind != SWAN_JSON_OBJECT) return SWAN_JSON_NONE;
+        doc->tokens[object].kind != BREW_JSON_OBJECT) return BREW_JSON_NONE;
     size_t k = doc->tokens[object].first_child;
-    while (k != SWAN_JSON_NONE) {
+    while (k != BREW_JSON_NONE) {
         size_t value = doc->tokens[k].next_sibling;
-        if (value == SWAN_JSON_NONE) return SWAN_JSON_NONE;
-        if (swan_json_key_equals(doc, k, key)) return value;
+        if (value == BREW_JSON_NONE) return BREW_JSON_NONE;
+        if (brew_json_key_equals(doc, k, key)) return value;
         k = doc->tokens[value].next_sibling;
     }
-    return SWAN_JSON_NONE;
+    return BREW_JSON_NONE;
 }
 
-static inline bool swan_json_as_i64(const SwanJsonDocument *doc,
+static inline bool brew_json_as_i64(const BrewJsonDocument *doc,
                                      size_t token, int64_t *value) {
     const char *text;
     size_t length;
-    if (!value || !swan_json_token_text(doc, token, &text, &length) ||
+    if (!value || !brew_json_token_text(doc, token, &text, &length) ||
         !length || length >= 64) return false;
     char tmp[64];
     memcpy(tmp, text, length); tmp[length] = 0;
@@ -532,11 +532,11 @@ static inline bool swan_json_as_i64(const SwanJsonDocument *doc,
  * overflowing/underflowing the host representation. JSON itself permits
  * exponent and fractional forms; callers needing exact decimal arithmetic
  * should retain the original token text instead. */
-static inline bool swan_json_as_f64(const SwanJsonDocument *doc,
+static inline bool brew_json_as_f64(const BrewJsonDocument *doc,
                                      size_t token, double *value) {
     const char *text;
     size_t length;
-    if (!value || !swan_json_token_text(doc, token, &text, &length) ||
+    if (!value || !brew_json_token_text(doc, token, &text, &length) ||
         !length || length >= 128) return false;
     char tmp[128];
     memcpy(tmp, text, length);
@@ -550,16 +550,16 @@ static inline bool swan_json_as_f64(const SwanJsonDocument *doc,
     return true;
 }
 
-static inline bool swan_json_as_bool(const SwanJsonDocument *doc,
+static inline bool brew_json_as_bool(const BrewJsonDocument *doc,
                                       size_t token, bool *value) {
     if (!doc || !value || token >= doc->token_count) return false;
-    SwanJsonKind kind = doc->tokens[token].kind;
-    if (kind != SWAN_JSON_TRUE && kind != SWAN_JSON_FALSE) return false;
-    *value = kind == SWAN_JSON_TRUE;
+    BrewJsonKind kind = doc->tokens[token].kind;
+    if (kind != BREW_JSON_TRUE && kind != BREW_JSON_FALSE) return false;
+    *value = kind == BREW_JSON_TRUE;
     return true;
 }
 
-static inline bool swan_json_buffer_reserve(SwanJsonBuffer *b, size_t extra) {
+static inline bool brew_json_buffer_reserve(BrewJsonBuffer *b, size_t extra) {
     if (!b || b->length == SIZE_MAX || extra > SIZE_MAX - b->length - 1) return false;
     size_t need = b->length + extra + 1;
     if (need <= b->capacity) return true;
@@ -574,63 +574,63 @@ static inline bool swan_json_buffer_reserve(SwanJsonBuffer *b, size_t extra) {
     return true;
 }
 
-static inline bool swan_json_buffer_append(SwanJsonBuffer *b,
+static inline bool brew_json_buffer_append(BrewJsonBuffer *b,
                                             const void *data, size_t length) {
-    if (!swan_json_buffer_reserve(b, length)) return false;
+    if (!brew_json_buffer_reserve(b, length)) return false;
     if (length) memcpy(b->data + b->length, data, length);
     b->length += length;
     b->data[b->length] = 0;
     return true;
 }
 
-static inline bool swan_json_encode_token(const SwanJsonDocument *doc,
-                                           size_t id, SwanJsonBuffer *out,
+static inline bool brew_json_encode_token(const BrewJsonDocument *doc,
+                                           size_t id, BrewJsonBuffer *out,
                                            bool pretty, size_t depth) {
     if (id >= doc->token_count) return false;
-    const SwanJsonToken *t = &doc->tokens[id];
-    if (t->kind == SWAN_JSON_STRING || t->kind == SWAN_JSON_NUMBER ||
-        t->kind == SWAN_JSON_TRUE || t->kind == SWAN_JSON_FALSE ||
-        t->kind == SWAN_JSON_NULL)
-        return swan_json_buffer_append(out, doc->input + t->start, t->end - t->start);
-    bool object = t->kind == SWAN_JSON_OBJECT;
+    const BrewJsonToken *t = &doc->tokens[id];
+    if (t->kind == BREW_JSON_STRING || t->kind == BREW_JSON_NUMBER ||
+        t->kind == BREW_JSON_TRUE || t->kind == BREW_JSON_FALSE ||
+        t->kind == BREW_JSON_NULL)
+        return brew_json_buffer_append(out, doc->input + t->start, t->end - t->start);
+    bool object = t->kind == BREW_JSON_OBJECT;
     char open = object ? '{' : '[', close = object ? '}' : ']';
-    if (!swan_json_buffer_append(out, &open, 1)) return false;
+    if (!brew_json_buffer_append(out, &open, 1)) return false;
     size_t child = t->first_child, index = 0;
-    while (child != SWAN_JSON_NONE) {
-        if (index && !swan_json_buffer_append(out, ",", 1)) return false;
+    while (child != BREW_JSON_NONE) {
+        if (index && !brew_json_buffer_append(out, ",", 1)) return false;
         if (pretty) {
-            if (!swan_json_buffer_append(out, "\n", 1)) return false;
+            if (!brew_json_buffer_append(out, "\n", 1)) return false;
             for (size_t n = 0; n < depth + 1; n++)
-                if (!swan_json_buffer_append(out, "  ", 2)) return false;
+                if (!brew_json_buffer_append(out, "  ", 2)) return false;
         }
-        if (!swan_json_encode_token(doc, child, out, pretty, depth + 1)) return false;
+        if (!brew_json_encode_token(doc, child, out, pretty, depth + 1)) return false;
         child = doc->tokens[child].next_sibling;
         if (object) {
-            if (child == SWAN_JSON_NONE ||
-                !swan_json_buffer_append(out, pretty ? ": " : ":", pretty ? 2 : 1))
+            if (child == BREW_JSON_NONE ||
+                !brew_json_buffer_append(out, pretty ? ": " : ":", pretty ? 2 : 1))
                 return false;
-            if (!swan_json_encode_token(doc, child, out, pretty, depth + 1)) return false;
+            if (!brew_json_encode_token(doc, child, out, pretty, depth + 1)) return false;
             child = doc->tokens[child].next_sibling;
         }
         index++;
     }
     if (pretty && index) {
-        if (!swan_json_buffer_append(out, "\n", 1)) return false;
+        if (!brew_json_buffer_append(out, "\n", 1)) return false;
         for (size_t n = 0; n < depth; n++)
-            if (!swan_json_buffer_append(out, "  ", 2)) return false;
+            if (!brew_json_buffer_append(out, "  ", 2)) return false;
     }
-    return swan_json_buffer_append(out, &close, 1);
+    return brew_json_buffer_append(out, &close, 1);
 }
 
-static inline bool swan_json_encode(const SwanJsonDocument *doc,
-                                     SwanJsonBuffer *out, bool pretty) {
+static inline bool brew_json_encode(const BrewJsonDocument *doc,
+                                     BrewJsonBuffer *out, bool pretty) {
     if (!doc || !out || !doc->token_count) return false;
     out->length = 0;
     if (out->data && out->capacity) out->data[0] = 0;
-    return swan_json_encode_token(doc, 0, out, pretty, 0);
+    return brew_json_encode_token(doc, 0, out, pretty, 0);
 }
 
-static inline void swan_json_buffer_destroy(SwanJsonBuffer *buffer) {
+static inline void brew_json_buffer_destroy(BrewJsonBuffer *buffer) {
     if (!buffer) return;
     free(buffer->data);
     memset(buffer, 0, sizeof(*buffer));

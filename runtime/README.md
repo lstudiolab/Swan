@@ -1,8 +1,8 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan native runtime components
+# Brew native runtime components
 
-This directory contains the first C11/POSIX runtime primitives. They have direct C tests; the JSON handle API is exposed to Swan through `import C` and the x86-64 C ABI.
+This directory contains the first C11/POSIX runtime primitives. They have direct C tests; the JSON handle API is exposed to Brew through `import C` and the x86-64 C ABI.
 
 ## Available
 
@@ -41,38 +41,38 @@ sh tests/http-runtime.sh
 sh tests/http-server.sh
 ```
 
-The full `sh test.sh` suite includes all runtime and Swan C-ABI integration tests.
+The full `sh test.sh` suite includes all runtime and Brew C-ABI integration tests.
 
 ## Not yet available
 
-The JSON C ABI is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Swan does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
+The JSON C ABI is a deliberately low-level bridge. String literals are emitted as read-only NUL-terminated bytes and can be passed to imported C pointer parameters on the x86-64 AST compatibility backend. The C importer still represents pointer values as machine-word integers; Brew does not yet have safe pointer types, owned string values, slices, or aggregate ABI lowering.
 
 TLS, chunked transfer decoding, keep-alive/pipelining, generic route handlers, cancellation,
-structured task scopes, streaming JSON/JSONL, typed JSON values, and a Swan-level
+structured task scopes, streaming JSON/JSONL, typed JSON values, and a Brew-level
 async scheduler are not implemented. Do not use the C worker pool as evidence
-that Swan async semantics exist.
+that Brew async semantics exist.
 
 
-## Minimal Swan HTTP JSON server
+## Minimal Brew HTTP JSON server
 
-A Swan executable can import `runtime/http_server.h`, link the runtime object,
+A Brew executable can import `runtime/http_server.h`, link the runtime object,
 and run the built-in JSON echo server:
 
-```swan
+```brew
 import C "runtime/http_server.h"
 
 func main() -> int:
-    let server = swan_http_json_server_create(8080, 8, 256)
+    let server = brew_http_json_server_create(8080, 8, 256)
     if server == 0:
         return 1
-    return swan_http_json_server_run(server)
+    return brew_http_json_server_run(server)
 ```
 
-Build the combined runtime object and link it with the Swan program:
+Build the combined runtime object and link it with the Brew program:
 
 ```sh
 cc -std=c11 -O2 -pthread -c runtime/http_json.c -o http_json.o
-swan build server.swan --link http_json.o -o server
+brew build server.brew --link http_json.o -o server
 ```
 
 The server binds all interfaces. It accepts one request per connection, parses
