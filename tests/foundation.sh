@@ -47,7 +47,7 @@ func main():
     return 0
 BREW
 
-"$BREW" build "$TMP/program.brew" -o "$TMP/program"
+"${BREW}" build "$TMP/program.brew" --stdlib "$ROOT/std" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
 9
 5
