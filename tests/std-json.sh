@@ -5,7 +5,7 @@ TMP="$ROOT/build/std-json"
 mkdir -p "$TMP"
 cc -std=c11 -O2 -Wall -Wextra -Wpedantic -Werror -I"$ROOT/runtime" \
     -c "$ROOT/runtime/json_abi.c" -o "$TMP/json_abi.o"
-cat > "$TMP/json.swan" <<SWAN
+cat > "$TMP/json.brew" <<BREW
 import C "$ROOT/runtime/json_abi.h"
 
 func main() -> int:
@@ -30,7 +30,7 @@ func main() -> int:
         return 9
     swan_json_close(document)
     return 0
-SWAN
-"$ROOT/build/swan" build "$TMP/json.swan" --link "$TMP/json_abi.o" -o "$TMP/json"
+BREW
+"$ROOT/build/brew" build "$TMP/json.brew" --link "$TMP/json_abi.o" -o "$TMP/json"
 "$TMP/json"
-printf 'PASS: Swan C ABI JSON parsing, lookup, compact encoding, and handle reuse\n'
+printf 'PASS: Brew C ABI JSON parsing, lookup, compact encoding, and handle reuse\n'
