@@ -2,7 +2,7 @@
 set -eu
 set -x
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BREW="$ROOT/build/brew"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/test/lazy-imports"
 mkdir -p "$TMP"
 rm -rf "$TMP"/*
