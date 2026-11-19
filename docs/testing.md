@@ -34,7 +34,7 @@ The current `test.sh` runs:
 
 The source test suite covers compiler construction, parser/semantic diagnostics, UTF-8 handling, local bindings, function calls, control flow, arrays, bounds checks, output, Foundation imports, lazy module loading, automatic local-array cleanup and legacy syntax compatibility.
 
-The typed-IR tests cover SSA construction and verification, CFG and PHI invariants, scalar lowering, optimization passes, SVM execution, and module serialization. Architecture tests cover the implemented target emitters, including WebAssembly module validation and ELF object identification where configured by the test scripts.
+The typed-IR tests cover SSA construction and verification, CFG and PHI invariants, scalar lowering, optimization passes, BVM execution, and module serialization. Architecture tests cover the implemented target emitters, including WebAssembly module validation and ELF object identification where configured by the test scripts.
 
 The C ABI test compiles a C implementation to an object, imports its header declarations, links the object through Brew's native executable path, and checks the resulting process exit status.
 
@@ -45,7 +45,7 @@ The C ABI test compiles a C implementation to an object, imports its header decl
 - An IR verifier test proves the relevant IR invariant.
 - An object-header test proves object emission for that architecture, not execution or ABI correctness on that machine.
 - A WebAssembly structural validation test proves module validity; runtime execution is a stronger check.
-- An SVM test proves the verified lowering and generated behavior for the tested IR operations; it does not establish complete language or target parity.
+- An BVM test proves the verified lowering and generated behavior for the tested IR operations; it does not establish complete language or target parity.
 - A successful compile does not establish that every language feature is implemented on every target.
 
 ## Cross-target policy
