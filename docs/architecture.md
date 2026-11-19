@@ -17,7 +17,7 @@ Brew source
   -> indentation-aware parser and AST
   -> imports and shared project/module graph
   -> semantic analysis and reachability
-  -> AST -> typed SVM IR
+  -> AST -> typed BVM IR
   -> IR verification
   -> target-independent optimization
   -> final IR verification
@@ -40,7 +40,7 @@ The x86-64 AST compatibility backend remains for supported language features not
 | `Driver/Compiler.h` | Module loading, source ownership, semantic pipeline and CLI orchestration helpers |
 | `IR/IR.h` / `IR/IRGen.h` | Typed SSA data model, verifier and AST-to-IR lowering |
 | `IR/Optimization.h` | Target-independent typed-IR optimization passes and pass manager |
-| `CodeGen/CodeGen.h` | Shared SVM compile engine and target dispatcher |
+| `CodeGen/CodeGen.h` | Shared BVM compile engine and target dispatcher |
 | `CodeGen/Targets/` | Brew-owned target-specific lowering and emission |
 | `Basic/Linker.h` / `Serialization/AssemblyEmitter.h` | Platform linker invocation and assembly serialization |
 
@@ -54,7 +54,7 @@ The optimizer performs width-aware constant folding, select and CFG simplificati
 
 ## Runtime and memory
 
-SVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `brew vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WASM64 emits a memory64 WebAssembly module.
+BVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `brew vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WASM64 emits a memory64 WebAssembly module.
 
 The x86-64 compatibility backend supports the currently implemented u32 array forms and automatic cleanup for eligible local arrays. Small fixed-size non-escaping arrays can use a stack-frame fast path. This is not yet a general ownership or borrow-checking system.
 
@@ -78,7 +78,7 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 6. Describe parser, semantic, IR, and backend support separately.
 7. Treat performance as unproven until measured on reproducible workloads.
 
-See [SVM Compiler Architecture](svm_architecture.md) for the target-independent compiler design and performance requirements.
+See [BVM Compiler Architecture](svm_architecture.md) for the target-independent compiler design and performance requirements.
 
 
 ## Building every supported target
