@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Swan vs Goose: print one billion deterministic pseudo-random integers."""
+"""Brew vs Goose: print one billion deterministic pseudo-random integers."""
 import json, os, pathlib, platform, statistics, subprocess, tempfile, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 GOOSE = pathlib.Path(os.environ.get("GOOSE", "goose"))
 COUNT = int(os.environ.get("RANDOM_PRINT_COUNT", "1000000000"))
 SEED, MULTIPLIER, MODULUS, CHECK_MOD = 1, 48271, 2147483647, 1000000007
@@ -11,7 +11,7 @@ COMPILE_REPEATS, RUNTIME_REPEATS = 3, 3
 
 
 def source(language, emit):
-    if language == "Swan":
+    if language == "Brew":
         output = "        !printin >> state\n" if emit else ""
         return f"""func main() -> int:
     var i = 0
@@ -40,8 +40,8 @@ def source(language, emit):
 
 
 def command(language, src, binary):
-    if language == "Swan":
-        return [str(SWAN), "build", str(src), "-o", str(binary)]
+    if language == "Brew":
+        return [str(BREW), "build", str(src), "-o", str(binary)]
     return [str(GOOSE), "build", "-o", str(binary), str(src)]
 
 
@@ -74,26 +74,26 @@ def runtime(binary):
 
 
 def main():
-    if COUNT < 1 or not SWAN.is_file():
-        raise SystemExit("Set a positive RANDOM_PRINT_COUNT and build Swan with sh build.sh")
+    if COUNT < 1 or not BREW.is_file():
+        raise SystemExit("Set a positive RANDOM_PRINT_COUNT and build Brew with sh build.sh")
     if not GOOSE.is_file() and not os.environ.get("GOOSE"):
         raise SystemExit("Goose not found; set GOOSE to the Goose executable")
-    languages = ("Swan", "Goose")
+    languages = ("Brew", "Goose")
     compiles = {name: [] for name in languages}
     runs = {name: [] for name in languages}
 
-    with tempfile.TemporaryDirectory(prefix="swan-goose-random-print-") as td:
+    with tempfile.TemporaryDirectory(prefix="brew-goose-random-print-") as td:
         work = pathlib.Path(td)
         for sample in range(COMPILE_REPEATS):
             for name in languages:
-                ext = "swan" if name == "Swan" else "goose"
+                ext = "brew" if name == "Brew" else "goose"
                 src, binary = work / f"{name}-{sample}.{ext}", work / f"{name}-{sample}"
                 src.write_text(source(name, True), encoding="utf-8")
                 compiles[name].append(compile_one(name, src, binary))
 
         checksums, binaries = {}, {}
         for name in languages:
-            ext = "swan" if name == "Swan" else "goose"
+            ext = "brew" if name == "Brew" else "goose"
             verify_src, verify_bin = work / f"verify.{ext}", work / f"verify-{name}"
             verify_src.write_text(source(name, False), encoding="utf-8")
             compile_one(name, verify_src, verify_bin)
@@ -103,8 +103,8 @@ def main():
             compile_one(name, run_src, run_bin)
             binaries[name] = run_bin
 
-        if checksums["Swan"] != checksums["Goose"]:
-            raise RuntimeError(f"Checksum mismatch: Swan={checksums['Swan']} Goose={checksums['Goose']}")
+        if checksums["Brew"] != checksums["Goose"]:
+            raise RuntimeError(f"Checksum mismatch: Brew={checksums['Brew']} Goose={checksums['Goose']}")
 
         for name in languages:
             runtime(binaries[name])
@@ -122,7 +122,7 @@ def main():
         "iterations": COUNT,
         "generator": f"Park-Miller LCG: state = state * {MULTIPLIER} mod {MODULUS}",
         "seed": SEED,
-        "checksum": checksums["Swan"],
+        "checksum": checksums["Brew"],
         "host": {"platform": platform.platform(), "machine": platform.machine(),
                  "processor": platform.processor() or "not reported"},
         "samples": {"compile": compiles, "runtime": runs},
@@ -136,13 +136,13 @@ def main():
     out.mkdir(exist_ok=True)
     (out / "random-print-1b.json").write_text(json.dumps(result, indent=2) + "\n")
     lines = [
-        "# Swan vs Goose — 1 billion random-number prints", "",
+        "# Brew vs Goose — 1 billion random-number prints", "",
         f"- Workload: **{COUNT:,} pseudo-random integers**, one decimal integer per line",
         f"- Generator: Park–Miller LCG (seed {SEED}, multiplier {MULTIPLIER}, modulus {MODULUS:,})",
         f"- Host: {platform.platform()} / {platform.machine()}",
         "- Samples: 3 compile medians, 3 runtime medians, one runtime warm-up per language",
         "- Runtime output redirected to /dev/null; all print calls execute, terminal and disk speed excluded.",
-        f"- Correctness: **PASS** — matching checksum {checksums['Swan']}", "",
+        f"- Correctness: **PASS** — matching checksum {checksums['Brew']}", "",
         "| Language | Compile time (s, median) | Runtime (s, median) |",
         "|---|---:|---:|"
     ]

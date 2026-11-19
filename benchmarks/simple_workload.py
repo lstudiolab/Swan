@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Small identical integer-loop benchmark for Swan, Goose, Rust and C."""
+"""Small identical integer-loop benchmark for Brew, Goose, Rust and C."""
 import os
 import pathlib
 import platform
@@ -10,13 +10,13 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 N = 10_000_000
 EXPECTED = 479_999_984
 REPEATS = 5
 
 SOURCES = {
-    "Swan": f"""func main() -> int:
+    "Brew": f"""func main() -> int:
     var total = 0
     var i = 0
     while i < {N}
@@ -77,23 +77,23 @@ def main():
     }
     if not tools["Rust"] or not tools["C"]:
         raise SystemExit("rustc and cc are required")
-    if not SWAN.is_file():
-        raise SystemExit("Build Swan first: sh build.sh")
+    if not BREW.is_file():
+        raise SystemExit("Build Brew first: sh build.sh")
 
-    with tempfile.TemporaryDirectory(prefix="swan-simple-bench-") as td:
+    with tempfile.TemporaryDirectory(prefix="brew-simple-bench-") as td:
         work = pathlib.Path(td)
         paths = {}
         for name, source in SOURCES.items():
-            ext = {"Swan": "swan", "Goose": "goose", "Rust": "rs", "C": "c"}[name]
+            ext = {"Brew": "brew", "Goose": "goose", "Rust": "rs", "C": "c"}[name]
             paths[name] = work / f"workload.{ext}"
             paths[name].write_text(source, encoding="utf-8")
 
         binaries = {}
         compile_times = {}
-        for name in ("Swan", "Goose", "Rust", "C"):
+        for name in ("Brew", "Goose", "Rust", "C"):
             binary = work / name.lower()
-            if name == "Swan":
-                cmd = [str(SWAN), "build", str(paths[name]), "-o", str(binary)]
+            if name == "Brew":
+                cmd = [str(BREW), "build", str(paths[name]), "-o", str(binary)]
             elif name == "Goose":
                 cmd = [tools[name], "build", "-o", str(binary), str(paths[name])]
             elif name == "Rust":
@@ -118,7 +118,7 @@ def main():
                     raise RuntimeError(f"{name} checksum mismatch in run {round_no + 1}: {output!r}")
                 samples[name].append(elapsed)
 
-        print("Swan simple workload benchmark")
+        print("Brew simple workload benchmark")
         print(f"Workload: {N:,} integer iterations; total += (i * 13 + 7) % 97")
         print(f"Expected checksum: {EXPECTED:,} (verified for every run)")
         print(f"Host: {platform.platform()} / {platform.machine()}")

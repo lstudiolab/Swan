@@ -4,9 +4,9 @@ ROOT=$(cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 mkdir -p build
 
-echo "=== Swan ==="
-/usr/bin/time -f 'Swan compile: %e seconds | compiler peak RSS: %M KiB' ./build/swan benchmarks/sort_1b.swan --emit-asm -o build/sort_swan.s
-/usr/bin/time -f 'Swan link: %e seconds | linker peak RSS: %M KiB' cc -x assembler build/sort_swan.s -o build/sort_swan
+echo "=== Brew ==="
+/usr/bin/time -f 'Brew compile: %e seconds | compiler peak RSS: %M KiB' ./build/brew benchmarks/sort_1b.brew --emit-asm -o build/sort_brew.s
+/usr/bin/time -f 'Brew link: %e seconds | linker peak RSS: %M KiB' cc -x assembler build/sort_brew.s -o build/sort_brew
 
 run_and_check() {
   local name="$1"; shift
@@ -26,7 +26,7 @@ run_and_check() {
   fi
   echo "$name verification: PASS"
 }
-run_and_check Swan ./build/sort_swan
+run_and_check Brew ./build/sort_brew
 
 echo "=== Goose ==="
 /usr/bin/time -f 'Goose compile + link: %e seconds | compiler peak RSS: %M KiB' ./goose-build/goose build --cc gcc --stack-reserve 8G -o build/sort_goose benchmarks/sort_1b.goose

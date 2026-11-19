@@ -3,8 +3,8 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 cd "$ROOT"
 mkdir -p build
-/usr/bin/time -f 'Swan compiler build: %e seconds | peak RSS: %M KiB' sh build.sh
-/usr/bin/time -f 'Swan source compilation: %e seconds | peak RSS: %M KiB' ./build/swan benchmarks/sort_1b.swan --emit-asm -o build/sort_1b.s
+/usr/bin/time -f 'Brew compiler build: %e seconds | peak RSS: %M KiB' sh build.sh
+/usr/bin/time -f 'Brew source compilation: %e seconds | peak RSS: %M KiB' ./build/brew benchmarks/sort_1b.brew --emit-asm -o build/sort_1b.s
 /usr/bin/time -f 'Assembly and link: %e seconds | peak RSS: %M KiB' cc -x assembler build/sort_1b.s -o build/sort_1b
 echo 'Starting 1,000,000,000-element sort; requires approximately 4 GB for the array.'
 result=$(/usr/bin/time -f 'Sort + verification: %e seconds | user CPU: %U seconds | system CPU: %S seconds | peak RSS: %M KiB' ./build/sort_1b)
