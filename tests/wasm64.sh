@@ -1,17 +1,17 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BIN="$ROOT/build/swan"
+BIN="$ROOT/build/brew"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-cat > "$TMP/main.swan" <<'SWAN'
+cat > "$TMP/main.brew" <<'BREW'
 fn main() -> int:
     var count = 0
     while count < 3:
         count = count + 1
     return count
-SWAN
-"$BIN" build "$TMP/main.swan" --target wasm64 -o "$TMP/main.wasm"
+BREW
+"$BIN" build "$TMP/main.brew" --target wasm64 -o "$TMP/main.wasm"
 test -s "$TMP/main.wasm"
 python3 - "$TMP/main.wasm" <<'PY'
 import sys
@@ -37,4 +37,4 @@ while pos<len(data):
     pos=end
 assert found, "expected memory64 linear memory section"
 PY
-printf 'PASS: Swan emits a memory64 WebAssembly module with mutable locals and loop lowering\n'
+printf 'PASS: Brew emits a memory64 WebAssembly module with mutable locals and loop lowering\n'
