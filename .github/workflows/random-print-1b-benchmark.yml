@@ -1,4 +1,4 @@
-name: Swan vs Goose — 1B random print benchmark
+name: Brew vs Goose — 1B random print benchmark
 
 on:
   workflow_dispatch:
@@ -32,7 +32,7 @@ jobs:
           lscpu
           free -h
           uname -a
-      - name: Build Swan
+      - name: Build Brew
         run: sh build.sh
       - name: Run the one-billion random-number print comparison
         env:
@@ -50,7 +50,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swan-goose-random-print-1b
+          name: brew-goose-random-print-1b
           path: |
             benchmark-results/random-print-1b.md
             benchmark-results/random-print-1b.json

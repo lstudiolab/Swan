@@ -1,4 +1,4 @@
-name: Swan Release Builds
+name: Brew Release Builds
 
 on:
   push:
@@ -25,25 +25,25 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build Swan compiler
+      - name: Build Brew compiler
         run: |
           sh build.sh
-          ./build/swanc --version
-          ./build/swanc --list-targets
+          ./build/brewc --version
+          ./build/brewc --list-targets
 
       - name: Package Linux compiler
         run: |
-          mkdir -p dist/swan/bin
-          cp build/swanc dist/swan/bin/swanc
-          cp README.md dist/swan/
-          cp -R stdlib dist/swan/
-          tar -C dist -czf "swan-${{ matrix.asset }}.tar.gz" swan
+          mkdir -p dist/brew/bin
+          cp build/brewc dist/brew/bin/brewc
+          cp README.md dist/brew/
+          cp -R stdlib dist/brew/
+          tar -C dist -czf "brew-${{ matrix.asset }}.tar.gz" brew
 
       - name: Upload platform package
         uses: actions/upload-artifact@v4
         with:
-          name: swan-${{ matrix.asset }}
-          path: swan-${{ matrix.asset }}.tar.gz
+          name: brew-${{ matrix.asset }}
+          path: brew-${{ matrix.asset }}.tar.gz
           if-no-files-found: error
           retention-days: 14
 

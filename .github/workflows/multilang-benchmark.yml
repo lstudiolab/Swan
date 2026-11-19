@@ -10,7 +10,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: swan
+          path: brew
       - uses: actions/checkout@v4
         with:
           repository: aardappel/goose
@@ -22,15 +22,15 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential cmake gobjc libobjc-12-dev python3 time
-      - name: Build Swan
-        working-directory: swan
+      - name: Build Brew
+        working-directory: brew
         run: sh build.sh
       - name: Build Goose
         run: |
           cmake -S goose -B goose/build -DCMAKE_BUILD_TYPE=Release
           cmake --build goose/build --parallel 2
       - name: Run benchmark
-        run: python3 swan/benchmarks/multilang.py
+        run: python3 brew/benchmarks/multilang.py
       - name: Publish summary
         if: always()
         run: |
