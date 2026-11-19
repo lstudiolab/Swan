@@ -1,0 +1,84 @@
+name: Complete Brew rebrand
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  rebrand:
+    if: "!contains(github.event.head_commit.message, '[brew-rebrand]')"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Rename the complete toolchain and project
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import os
+          import subprocess
+
+          replacements = [
+              ("swanc", "brewc"),
+              ("SWAN", "BREW"),
+              ("Swan", "Brew"),
+              ("swan", "brew"),
+              ("SVM", "BVM"),
+              ("svm", "bvm"),
+              ("SIC", "BIC"),
+              ("sic", "bic"),
+              (".swvm", ".bvm"),
+              (".swan", ".brew"),
+          ]
+
+          tracked = subprocess.check_output(["git", "ls-files", "-z"]).decode().split("\0")
+          tracked = [p for p in tracked if p]
+          moves = []
+          for old in tracked:
+              new = old
+              for before, after in replacements:
+                  new = new.replace(before, after)
+              new = new.replace("/stdlib/", "/std/").replace("stdlib/", "std/")
+              new = new.replace("/runtime/", "/BrewRuntime/").replace("runtime/", "BrewRuntime/")
+              if new != old:
+                  moves.append((old, new))
+
+          for old, new in sorted(moves, key=lambda pair: pair[0].count("/"), reverse=True):
+              if not os.path.exists(old):
+                  continue
+              os.makedirs(os.path.dirname(new) or ".", exist_ok=True)
+              if os.path.exists(new):
+                  raise SystemExit(f"Refusing to overwrite rename target: {new}")
+              os.replace(old, new)
+
+          for root, dirs, files in os.walk(".", topdown=True):
+              dirs[:] = [d for d in dirs if d != ".git"]
+              for name in files:
+                  path = os.path.join(root, name)
+                  try:
+                      with open(path, "rb") as f:
+                          raw = f.read()
+                      text = raw.decode("utf-8")
+                  except (UnicodeDecodeError, OSError):
+                      continue
+                  updated = text
+                  for before, after in replacements:
+                      updated = updated.replace(before, after)
+                  updated = updated.replace("stdlib/", "std/")
+                  updated = updated.replace("runtime/", "BrewRuntime/")
+                  updated = updated.replace("SWAN_STDLIB", "BREW_STDLIB")
+                  if updated != text:
+                      with open(path, "w", encoding="utf-8", newline="") as f:
+                          f.write(updated)
+
+          # The source tree is now Brew-native; preserve executable bits through git.
+          PY
+          git add -A
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "chore: complete Brew rebrand [brew-rebrand]"
+          git push
