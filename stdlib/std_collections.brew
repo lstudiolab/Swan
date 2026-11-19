@@ -1,4 +1,4 @@
-# Swan collections and sequence algorithms.
+# Brew collections and sequence algorithms.
 # The current language exposes checked/unchecked u32 arrays rather than
 # generic Array<T>. Pass the logical length explicitly with every array.
 

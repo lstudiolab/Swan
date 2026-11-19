@@ -1,4 +1,4 @@
-# Swan Foundation
+# Brew Foundation
 # Dependency-free integer helpers.
 
 func abs_int(value: int) -> int:

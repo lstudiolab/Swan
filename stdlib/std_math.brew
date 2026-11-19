@@ -1,7 +1,7 @@
-# Swan standard math
+# Brew standard math
 # Import this module, then call its functions by their ordinary names.
 # Import with: import std_math
-# These algorithms use Swan integer operations only.
+# These algorithms use Brew integer operations only.
 
 func gcd(left: int, right: int) -> int:
     var a = left

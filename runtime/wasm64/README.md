@@ -1,6 +1,6 @@
-# Swan WASM64 runtime
+# Brew WASM64 runtime
 
-Swan's portable compilation artifact is a WebAssembly 64-bit module. The Swan
+Brew's portable compilation artifact is a WebAssembly 64-bit module. The Brew
 Integrated Compilation layer (SIC) detects the host when that module is run:
 
 - In a browser/WebAssembly host, the module stays WebAssembly and the browser's
@@ -15,7 +15,7 @@ Integrated Compilation layer (SIC) detects the host when that module is run:
   or native host.
 
 Wasmtime supplies validation, native JIT code generation, memory64 execution,
-traps, and host integration. Swan does not produce a separate ARM64 or x86-64
+traps, and host integration. Brew does not produce a separate ARM64 or x86-64
 build artifact for this execution path.
 
 ## Requirements
@@ -26,23 +26,23 @@ build artifact for this execution path.
 Install Wasmtime using the official instructions:
 https://docs.wasmtime.dev/cli-install.html
 
-## Compile and run a portable Swan module
+## Compile and run a portable Brew module
 
 ```sh
 # Compile source ahead of time to portable WASM64
-swanc compile app.swan -o app.wasm
+brewc compile app.brew -o app.wasm
 
 # SIC detects the host and selects native compilation or WASM execution
-swan run app.wasm
+brew run app.wasm
 
 # Compile and execute in one step
-swan run app.swan --target wasm64
+brew run app.brew --target wasm64
 ```
 
 On native hosts, Wasmtime JIT-compiles the module for the detected CPU during
 execution. An explicitly supplied `.wasm` file is retained so it remains
 portable. Browser deployments use the original `.wasm` file and
-`browser.js`; they do not use Swan's native execution path.
+`browser.js`; they do not use Brew's native execution path.
 
 The runtime invokes the module's exported `main` function. Integer return values
 are printed by Wasmtime's `--invoke` interface. Wasmtime JIT-compiles and
@@ -50,29 +50,29 @@ executes the module with `memory64=y`, so modules using 64-bit linear memory
 are accepted.
 
 For browser hosts, import `runtime/wasm64/browser.js` and call
-`runSwanWasm("/path/to/app.wasm")`. The browser engine owns WebAssembly
-validation, compilation, and execution; Swan does not emit native machine code
-or run a Swan JIT in the browser.
+`runBrewWasm("/path/to/app.wasm")`. The browser engine owns WebAssembly
+validation, compilation, and execution; Brew does not emit native machine code
+or run a Brew JIT in the browser.
 
-Set `SWAN_WASM_ENGINE` to use a Wasmtime-compatible executable at a custom
+Set `BREW_WASM_ENGINE` to use a Wasmtime-compatible executable at a custom
 path:
 
 ```sh
-SWAN_WASM_ENGINE=/opt/wasmtime/bin/wasmtime swan run app.wasm
+BREW_WASM_ENGINE=/opt/wasmtime/bin/wasmtime brew run app.wasm
 ```
 
 ## Current runtime boundary
 
-- Swan's current WASM backend emits a limited scalar/control-flow subset.
+- Brew's current WASM backend emits a limited scalar/control-flow subset.
 - The runtime currently invokes an exported zero-argument `main`; arguments are
   forwarded to Wasmtime's invoke interface but source-level argv support is not
   implemented in the compiler.
-- WASI imports are provided by Wasmtime where supported. The current Swan
-  backend does not yet lower Swan `print`, general external imports, or the
+- WASI imports are provided by Wasmtime where supported. The current Brew
+  backend does not yet lower Brew `print`, general external imports, or the
   complete standard library to WASI host calls.
-- The runtime engine is Wasmtime, not a Swan-authored WebAssembly interpreter.
-  This avoids introducing an incomplete or unsafe bytecode engine into Swan.
-- Runtime engine installation is separate from the Swan compiler installation.
+- The runtime engine is Wasmtime, not a Brew-authored WebAssembly interpreter.
+  This avoids introducing an incomplete or unsafe bytecode engine into Brew.
+- Runtime engine installation is separate from the Brew compiler installation.
 
-The runtime integration is considered supported only for modules that the Swan
+The runtime integration is considered supported only for modules that the Brew
 backend can emit and Wasmtime can instantiate with memory64 enabled.
