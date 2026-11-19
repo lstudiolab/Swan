@@ -55,11 +55,11 @@ that Brew async semantics exist.
 
 ## Minimal Brew HTTP JSON server
 
-A Brew executable can import `runtime/http_server.h`, link the runtime object,
+A Brew executable can import `BrewRuntime/http_server.h`, link the runtime object,
 and run the built-in JSON echo server:
 
 ```brew
-import C "runtime/http_server.h"
+import C "BrewRuntime/http_server.h"
 
 func main() -> int:
     let server = brew_http_json_server_create(8080, 8, 256)
@@ -71,7 +71,7 @@ func main() -> int:
 Build the combined runtime object and link it with the Brew program:
 
 ```sh
-cc -std=c11 -O2 -pthread -c runtime/http_json.c -o http_json.o
+cc -std=c11 -O2 -pthread -c BrewRuntime/http_json.c -o http_json.o
 brew build server.brew --link http_json.o -o server
 ```
 
