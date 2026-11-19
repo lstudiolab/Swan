@@ -1,6 +1,6 @@
 <p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Svm Compiler Architecture
+# BVM Compiler Architecture
 
 The normative compiler design is defined in [COMPILER_SYSTEM.md](compiler_system.md). This document summarizes BVM's role and current implementation boundary.
 
