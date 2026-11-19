@@ -1,5 +1,5 @@
-#include "swan/lexer.h"
-#include "swan/ast.h"
+#include "brew/lexer.h"
+#include "brew/ast.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -49,6 +49,6 @@ int main(void) {
         }
     }
     free(ts.items);free(ts.text_storage);
-    puts("PASS: exact 33-word Swan keyword set; all other tested spellings are identifiers");
+    puts("PASS: exact 33-word Brew keyword set; all other tested spellings are identifiers");
     return 0;
 }
