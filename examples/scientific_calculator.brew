@@ -1,7 +1,7 @@
-# Swan Scientific Calculator
+# Brew Scientific Calculator
 # Fixed-point arithmetic: 1.0000 is represented as 10000.
 # All public results use the same scale unless documented otherwise.
-# This module is deliberately integer-only because the current Swan
+# This module is deliberately integer-only because the current Brew
 # native numeric pipeline does not yet provide end-to-end floating point.
 
 import std
@@ -390,11 +390,11 @@ func calc_permutations(n: int, r: int) -> int:
 # ---------------------------------------------------------------------------
 # Demonstration entry point. The public functions above form the calculator
 # engine; interactive input and decimal text formatting are not yet available
-# in the current Swan runtime.
+# in the current Brew runtime.
 # ---------------------------------------------------------------------------
 
 func main() -> int:
-    print("Swan Scientific Calculator")
+    print("Brew Scientific Calculator")
     print("Fixed-point scale: 10000 = 1.0000")
     print("sin(90 degrees), scaled:")
     print(calc_sin(calc_degrees_to_radians(90 * CALC_SCALE)))

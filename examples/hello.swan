@@ -1,4 +1,0 @@
-func main():
-    print("Hello from Swan")
-    return 0
-
