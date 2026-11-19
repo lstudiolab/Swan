@@ -10,7 +10,7 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 - **Complete (scoped):** implemented and tested within the explicitly stated boundary.
 - **Partial:** a working subset exists, but important language, target, or runtime cases remain.
 - **Not implemented:** no complete production implementation is documented.
-- **Validation needed:** implementation exists, but runtime/cross-target evidence is insufficient.
+- **Validation needed:** implementation exists, but BrewRuntime/cross-target evidence is insufficient.
 
 ## Frontend and project model
 
