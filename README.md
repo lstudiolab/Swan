@@ -160,7 +160,7 @@ Build and install the compiler on Linux or macOS:
 ~~~sh
 sh build.sh
 mkdir -p ~/.local/bin
-cp build/brewc ~/.local/bin/brewcc
+cp build/brewc ~/.local/bin/brewc
 export PATH="$HOME/.local/bin:$PATH"
 brewc --version
 ~~~
