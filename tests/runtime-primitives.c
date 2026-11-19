@@ -14,43 +14,43 @@ static void count_task(void *context) {
 }
 
 int main(void) {
-    SwanByteBuffer bytes;
-    swan_bytes_init(&bytes);
-    const char payload[] = "swan";
-    assert(swan_bytes_append(&bytes, payload, sizeof(payload) - 1));
-    assert(bytes.length == 4 && memcmp(bytes.data, "swan", 4) == 0);
-    assert(swan_bytes_append(&bytes, bytes.data, bytes.length));
-    assert(bytes.length == 8 && memcmp(bytes.data, "swanswan", 8) == 0);
-    assert(swan_bytes_resize(&bytes, 12, 0));
+    BrewByteBuffer bytes;
+    brew_bytes_init(&bytes);
+    const char payload[] = "brew";
+    assert(brew_bytes_append(&bytes, payload, sizeof(payload) - 1));
+    assert(bytes.length == 4 && memcmp(bytes.data, "brew", 4) == 0);
+    assert(brew_bytes_append(&bytes, bytes.data, bytes.length));
+    assert(bytes.length == 8 && memcmp(bytes.data, "brewbrew", 8) == 0);
+    assert(brew_bytes_resize(&bytes, 12, 0));
     assert(bytes.length == 12 && bytes.data[11] == 0);
-    swan_bytes_clear(&bytes);
+    brew_bytes_clear(&bytes);
     assert(bytes.length == 0);
-    swan_bytes_destroy(&bytes);
+    brew_bytes_destroy(&bytes);
 
     /* Fixed caller-owned storage must never fall back to heap allocation. */
-    SwanByteBuffer fixed;
+    BrewByteBuffer fixed;
     unsigned char fixed_storage[8];
-    swan_bytes_init(&fixed);
-    assert(swan_bytes_use_storage(&fixed, fixed_storage, sizeof(fixed_storage)));
-    assert(swan_bytes_append(&fixed, "12345678", 8));
+    brew_bytes_init(&fixed);
+    assert(brew_bytes_use_storage(&fixed, fixed_storage, sizeof(fixed_storage)));
+    assert(brew_bytes_append(&fixed, "12345678", 8));
     assert(fixed.data == fixed_storage && fixed.length == 8);
-    assert(!swan_bytes_append_byte(&fixed, '!'));
-    assert(!swan_bytes_resize(&fixed, 9, 0));
-    swan_bytes_clear(&fixed);
+    assert(!brew_bytes_append_byte(&fixed, '!'));
+    assert(!brew_bytes_resize(&fixed, 9, 0));
+    brew_bytes_clear(&fixed);
     assert(fixed.length == 0 && fixed.data == fixed_storage);
-    swan_bytes_destroy(&fixed);
+    brew_bytes_destroy(&fixed);
     fixed_storage[0] = 'S';
     assert(fixed_storage[0] == 'S');
 
-    SwanThreadPool pool;
+    BrewThreadPool pool;
     atomic_init(&completed, 0);
-    assert(swan_thread_pool_init(&pool, 4, 256));
+    assert(brew_thread_pool_init(&pool, 4, 256));
     for (size_t i = 0; i < 1000; i++) {
-        while (!swan_thread_pool_submit(&pool, count_task, NULL)) sched_yield();
+        while (!brew_thread_pool_submit(&pool, count_task, NULL)) sched_yield();
     }
-    swan_thread_pool_shutdown(&pool, true);
+    brew_thread_pool_shutdown(&pool, true);
     assert(atomic_load_explicit(&completed, memory_order_relaxed) == 1000);
-    swan_thread_pool_destroy(&pool);
+    brew_thread_pool_destroy(&pool);
     puts("Runtime primitive tests passed");
     return 0;
 }
