@@ -19,7 +19,7 @@ typedef struct {
 } ClientArgs;
 
 static void *run_server(void *context) {
-    int status = swan_http_json_server_run(context);
+    int status = brew_http_json_server_run(context);
     return (void *)(intptr_t)status;
 }
 
@@ -93,9 +93,9 @@ static void *run_client(void *context) {
 }
 
 int main(void) {
-    void *server = swan_http_json_server_create(0, 4, 32);
+    void *server = brew_http_json_server_create(0, 4, 32);
     assert(server != NULL);
-    int64_t port = swan_http_json_server_port(server);
+    int64_t port = brew_http_json_server_port(server);
     assert(port > 0 && port <= 65535);
 
     pthread_t server_thread;
@@ -118,17 +118,17 @@ int main(void) {
         assert((intptr_t)result == 1);
     }
 
-    assert(swan_http_json_server_completed(server) == CLIENTS + 2);
-    assert(swan_http_json_server_rejected(server) == 0);
-    assert(swan_http_json_server_input_bytes(server) > 0);
-    assert(swan_http_json_server_output_bytes(server) > 0);
+    assert(brew_http_json_server_completed(server) == CLIENTS + 2);
+    assert(brew_http_json_server_rejected(server) == 0);
+    assert(brew_http_json_server_input_bytes(server) > 0);
+    assert(brew_http_json_server_output_bytes(server) > 0);
 
-    swan_http_json_server_stop(server);
+    brew_http_json_server_stop(server);
     void *run_result = NULL;
     assert(pthread_join(server_thread, &run_result) == 0);
     assert((intptr_t)run_result == 0);
-    assert(swan_http_json_server_run(server) == -1);
-    swan_http_json_server_destroy(server);
+    assert(brew_http_json_server_run(server) == -1);
+    brew_http_json_server_destroy(server);
 
     puts("HTTP JSON server tests passed");
     return 0;
