@@ -73,7 +73,7 @@ jobs:
       - name: Run heavy compilation benchmark
         working-directory: brew
         env:
-          BREW_BIN: ${{ github.workspace }}/brew/build/brew
+          BREW_BIN: ${{ github.workspace }}/brew/build/brewc
           GOOSE_BIN: ${{ github.workspace }}/goose/build/goose
         run: |
           python3 benchmarks/compile_speed.py             --repeats 5             --warmups 1             --functions 384             --operations 96             --output benchmark-results/compile-speed.md
