@@ -1,4 +1,4 @@
-name: Swan-only stress benchmark
+name: Brew-only stress benchmark
 on:
   workflow_dispatch:
 permissions:
@@ -22,13 +22,13 @@ jobs:
           echo "=== COMPILER TOOLCHAIN ==="
           cc --version
           python3 --version
-      - name: Build, measure and run Swan benchmark
-        run: python3 benchmarks/swan_only.py
+      - name: Build, measure and run Brew benchmark
+        run: python3 benchmarks/brew_only.py
       - name: Upload complete measurement report
         uses: actions/upload-artifact@v4
         with:
-          name: swan-only-benchmark
+          name: brew-only-benchmark
           path: |
-            swan-only-benchmark.json
-            swan-only-benchmark.s
+            brew-only-benchmark.json
+            brew-only-benchmark.s
           if-no-files-found: error
