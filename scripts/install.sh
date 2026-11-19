@@ -4,6 +4,7 @@ set -eu
 REPO="lstudiolab/Brew"
 VERSION="${BREW_VERSION:-latest}"
 BIN_DIR="${BREW_INSTALL_DIR:-$HOME/.local/bin}"
+DATA_DIR="${BREW_DATA_DIR:-$HOME/.local/share/brew}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -33,8 +34,21 @@ else
 fi
 
 tar -xzf "$TMP_DIR/brew.tar.gz" -C "$TMP_DIR"
-mkdir -p "$BIN_DIR"
-install -m 755 "$TMP_DIR/brew/bin/brewc" "$BIN_DIR/brewc"
+mkdir -p "$BIN_DIR" "$DATA_DIR"
+install -m 755 "$TMP_DIR/brew/bin/brewc" "$BIN_DIR/brewc-bin"
+cp -R "$TMP_DIR/brew/std" "$DATA_DIR/std"
+cp -R "$TMP_DIR/brew/BrewRuntime" "$DATA_DIR/BrewRuntime"
+cat > "$BIN_DIR/brewc" <<'WRAPPER'
+#!/usr/bin/env sh
+set -eu
+BASE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+if [ -z "${BREW_STDLIB:-}" ]; then
+  BREW_STDLIB="${BREW_DATA_DIR:-$HOME/.local/share/brew}/std"
+  export BREW_STDLIB
+fi
+exec "$BASE/brewc-bin" "$@"
+WRAPPER
+chmod 755 "$BIN_DIR/brewc"
 
 echo "Installed Brew to $BIN_DIR"
 case ":$PATH:" in
