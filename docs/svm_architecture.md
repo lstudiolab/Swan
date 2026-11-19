@@ -2,13 +2,13 @@
 
 # Svm Compiler Architecture
 
-The normative compiler design is defined in [COMPILER_SYSTEM.md](compiler_system.md). This document summarizes SVM's role and current implementation boundary.
+The normative compiler design is defined in [COMPILER_SYSTEM.md](compiler_system.md). This document summarizes BVM's role and current implementation boundary.
 
 ## Definition
 
-SVM is Brew's **target-independent compiler middle-end**. It is not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
+BVM is Brew's **target-independent compiler middle-end**. It is not a virtual machine, runtime, bytecode format, interpreter, JIT, or target CPU.
 
-Brew source is lowered directly from the checked AST into typed SVM IR. SVM verifies and optimizes that IR before the WASM64 backend emits the portable AOT module. SIC then coordinates host detection: browser hosts keep and execute WASM, while supported native hosts use Wasmtime's JIT to compile it into host machine code. No production executable dispatches over SVM instructions at runtime.
+Brew source is lowered directly from the checked AST into typed BVM IR. BVM verifies and optimizes that IR before the WASM64 backend emits the portable AOT module. BIC then coordinates host detection: browser hosts keep and execute WASM, while supported native hosts use Wasmtime's JIT to compile it into host machine code. No production executable dispatches over BVM instructions at runtime.
 
 ## Canonical pipeline
 
@@ -17,10 +17,10 @@ Project source files
   -> per-file source manager, lexer and parser
   -> shared project/module graph
   -> name resolution and semantic/type analysis
-  -> direct AST-to-SVM typed SSA lowering
-  -> SVM verification
-  -> target-independent SVM optimization
-  -> final SVM verification and analysis rebuild
+  -> direct AST-to-BVM typed SSA lowering
+  -> BVM verification
+  -> target-independent BVM optimization
+  -> final BVM verification and analysis rebuild
   -> target legalization
   -> instruction selection
   -> machine IR verification
@@ -33,13 +33,13 @@ Project source files
   -> standalone AOT executable
 ```
 
-WASM64 is the portable AOT artifact used by the canonical SIC path. A browser executes it through its native WebAssembly engine; a native host uses Wasmtime's runtime JIT to generate machine code for the detected CPU.
+WASM64 is the portable AOT artifact used by the canonical BIC path. A browser executes it through its native WebAssembly engine; a native host uses Wasmtime's runtime JIT to generate machine code for the detected CPU.
 
 ## Ownership boundaries
 
 - **Frontend:** source identity, UTF-8 validation, lexing, parsing, AST, module graph, imports and diagnostics.
 - **Semantic analysis:** declaration collection, name resolution, type checking, visibility, control-flow rules and ABI validation.
-- **SVM:** target-independent typed SSA representation, verification, pass management and optimization.
+- **BVM:** target-independent typed SSA representation, verification, pass management and optimization.
 - **Target backend:** target data layout, legalization, instruction selection, machine IR, register allocation, frame layout, ABI lowering and machine code.
 - **Object writer:** sections, symbols, relocations and target object metadata.
 - **Driver/linker:** deterministic input collection, command-line policy, native link orchestration and executable validation.
@@ -48,7 +48,7 @@ Each phase has explicit invariants and must fail with a diagnostic when its inpu
 
 ## Ir contract
 
-SVM IR is typed SSA. The verifier is responsible for at least:
+BVM IR is typed SSA. The verifier is responsible for at least:
 
 - valid function signatures and value types;
 - unique and valid SSA definitions;
@@ -69,17 +69,17 @@ Every pass must declare required and preserved analyses, whether it mutates CFG 
 
 ## Backend contract
 
-A backend consumes only verified, optimized SVM IR. It owns target-specific legalization and machine lowering, and must document its supported operation subset, ABI, data layout, register model, relocation model and object format.
+A backend consumes only verified, optimized BVM IR. It owns target-specific legalization and machine lowering, and must document its supported operation subset, ABI, data layout, register model, relocation model and object format.
 
 A backend is not considered production-complete merely because it emits assembly or an object. Completion requires target-specific compile, link, ABI, and execution tests (or WebAssembly module validation and execution tests).
 
-Brew's long-term native backend is Brew-owned. LLVM/Clang code generation is not part of the intended production architecture. The existing optional LLVM bridge is transitional compatibility code; it must not be used as the native SVM implementation and must not be removed until replacement target coverage and migration tests exist.
+Brew's long-term native backend is Brew-owned. LLVM/Clang code generation is not part of the intended production architecture. The existing optional LLVM bridge is transitional compatibility code; it must not be used as the native BVM implementation and must not be removed until replacement target coverage and migration tests exist.
 
 ## Aot and performance rules
 
 1. No interpreter dispatch loop, VM, or bytecode execution path in production.
 2. `brewc compile` emits a portable WASM64 module ahead of execution.
-3. SIC detects browser/WebAssembly versus native execution environments before selecting the execution path.
+3. BIC detects browser/WebAssembly versus native execution environments before selecting the execution path.
 4. Browser execution remains WebAssembly end to end; no Brew native JIT runs in the browser.
 5. Native x86-64 and ARM64 execution uses Wasmtime's runtime JIT to generate code for the detected host CPU.
 6. Temporary WASM is removed only after successful native runtime completion; explicit portable WASM outputs are retained.
