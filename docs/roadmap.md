@@ -13,7 +13,7 @@ This roadmap records the current production compiler and the remaining engineeri
 - General typed SSA IR, verifier, direct AST-to-IR lowering, and target-independent optimizer.
 - A bounded fixed-point optimizer with a maximum of 350 pass executions.
 - x86-64 typed-IR codegen plus AST compatibility codegen for additional implemented features.
-- Shared SVM compile core feeding exactly three supported backends: x86-64, AArch64/ARM64, and WASM64.
+- Shared BVM compile core feeding exactly three supported backends: x86-64, AArch64/ARM64, and WASM64.
 - Automatic cleanup for eligible local arrays and a stack-array fast path for small fixed non-escaping arrays.
 
 ## Completed optimization work
