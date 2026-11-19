@@ -28,17 +28,17 @@ implementation boundaries; it is not a claim that every path has been runtime-te
 
 | Subsystem | Status | Implemented | Still required |
 |---|---|---|---|
-| Typed SVM IR data model | Partial | Typed SSA values, blocks, operations, calls, PHIs and memory operations | Complete source lowering for every supported Brew type and construct |
+| Typed BVM IR data model | Partial | Typed SSA values, blocks, operations, calls, PHIs and memory operations | Complete source lowering for every supported Brew type and construct |
 | IR generation | Partial | Integer/boolean scalar subset, direct calls, locals, assignment, if/else, loops and short-circuit logic | Arrays, strings, floats, aggregates, member access, indirect calls and full import lowering |
 | IR verifier | Complete (scoped) | SSA/dominance, PHI placement, operation contracts, signatures and malformed storage checks | Expand adversarial/property tests as new operations are added |
 | IR optimizer | Complete (scoped) | Constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, conservative LICM and DCE | More analyses/passes, compile-time budgets, differential testing and proof of semantics preservation |
 | SIL | Partial / integration unclear | Repository references SIL in build messaging and memory-model plans | A single documented, independently verifiable SIL contract; ARC retain/release lifetime analysis, verifier, lowering and integration tests |
-| SVM common pipeline | Partial | Shared verification/optimization and backend dispatch | One mandatory path for all source features; retire the AST compatibility route |
-| SIC environment detection | Complete (scoped) | Detects WebAssembly-hosted builds and native x86-64/ARM64 hosts; selects browser-WASM or native Wasmtime execution | End-to-end browser integration tests and broader host/OS detection matrix |
+| BVM common pipeline | Partial | Shared verification/optimization and backend dispatch | One mandatory path for all source features; retire the AST compatibility route |
+| BIC environment detection | Complete (scoped) | Detects WebAssembly-hosted builds and native x86-64/ARM64 hosts; selects browser-WASM or native Wasmtime execution | End-to-end browser integration tests and broader host/OS detection matrix |
 | Portable WASM64 AOT command | Complete (scoped) | `brewc compile` emits a WASM64 module using the existing backend | Expand source-feature coverage and memory64 browser interoperability |
 | Native runtime JIT | Partial / validation needed | Native WASM execution delegates to Wasmtime, which JIT-compiles for the host CPU; CI now executes WASM64 on native ARM64 | Keep x86-64/ARM64 runtime conformance, startup/cache benchmarks, and broader import coverage |
 | Browser WASM execution | Partial / validation needed | Browser loader instantiates the portable module without Brew native recompilation | Validate memory64 support and imports across target browsers |
-| Serialization / bytecode runtime | Not implemented by design | SVM is the compiler IR; WASM64 is the portable executable artifact | No Brew bytecode interpreter or dispatch loop is required |
+| Serialization / bytecode runtime | Not implemented by design | BVM is the compiler IR; WASM64 is the portable executable artifact | No Brew bytecode interpreter or dispatch loop is required |
 
 ## Memory and language semantics
 
