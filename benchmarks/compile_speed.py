@@ -8,7 +8,7 @@ incremental-build cache hits. No generated program is timed as part of compile
 time.
 
 Prerequisites:
-  - build/brew (or --brew / BREW_BIN)
+  - build/brewc (or --brew / BREW_BIN)
   - Goose compiler (or --goose / GOOSE_BIN)
   - rustc, a C compiler, a C++ compiler, and GNU-compatible assembler driver
 
