@@ -294,7 +294,7 @@ static int brew_run_wasm_file(const char *path,int argument_count,char **argumen
       host.environment==BREW_BIC_ENV_WEBASSEMBLY?"WebAssembly":"native",architecture);
  }
  if(host.environment==BREW_BIC_ENV_WEBASSEMBLY){
-  fprintf(stderr,"brew: BIC detected a WebAssembly host; load the module with runtime/wasm64/browser.js instead of native recompilation\n");
+  fprintf(stderr,"brew: BIC detected a WebAssembly host; load the module with BrewRuntime/wasm64/browser.js instead of native recompilation\n");
   return 2;
  }
  if(host.architecture!=BREW_BIC_ARCH_X86_64&&host.architecture!=BREW_BIC_ARCH_ARM64){
