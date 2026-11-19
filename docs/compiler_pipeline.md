@@ -31,7 +31,7 @@ There is no second compiler, self-hosting compiler, bootstrap executable, genera
 
 The x86-64 AST compatibility backend remains for supported features not yet represented in typed IR, including the current array/output and runtime-lazy import paths. It is selected based on source features before typed-IR compilation. It is never used to recover from a verifier, optimizer, or code-generation failure.
 
-## Svm optimization
+## BVM optimization
 
 SIL and BVM IR share a single compiler-wide ceiling of 350 optimization-pass executions. The current implementation consumes this budget in SIL and BVM IR; lexer, parser, semantic-analysis, machine-level, and final-emission pass registries are not yet connected. The typed-IR optimizer runs a bounded, change-driven fixed-point pass pipeline. Its current pass sequence includes constant folding, CFG simplification, algebraic simplification, copy propagation, common-subexpression elimination, loop-invariant code motion, a second CSE pass, and dead-code elimination. The pass manager stops when a complete round makes no changes and rejects failure to converge within 350 pass executions.
 
