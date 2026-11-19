@@ -875,4 +875,4 @@ For compiler architecture and implementation requirements, see:
 
 - [Compiler System Contract](compiler_system.md)
 - [Compiler Engineering Style](engineering_style.md)
-- [BVM Compiler Architecture](svm_architecture.md)
+- [BVM Compiler Architecture](bvm_architecture.md)
