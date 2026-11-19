@@ -18,22 +18,22 @@
 #include <sys/time.h>
 #include <unistd.h>
 
-#define SWAN_HTTP_HEADER_LIMIT 16384u
-#define SWAN_HTTP_BODY_LIMIT (8u * 1024u * 1024u)
+#define BREW_HTTP_HEADER_LIMIT 16384u
+#define BREW_HTTP_BODY_LIMIT (8u * 1024u * 1024u)
 #ifndef MSG_NOSIGNAL
 #define MSG_NOSIGNAL 0
 #endif
 
-typedef struct SwanHttpServer SwanHttpServer;
+typedef struct BrewHttpServer BrewHttpServer;
 typedef struct {
-    SwanHttpServer *server;
+    BrewHttpServer *server;
     int socket_fd;
-} SwanHttpClient;
+} BrewHttpClient;
 
-struct SwanHttpServer {
+struct BrewHttpServer {
     int listen_fd;
     uint16_t port;
-    SwanThreadPool pool;
+    BrewThreadPool pool;
     atomic_bool stopping;
     atomic_bool running;
     atomic_bool started;
@@ -43,7 +43,7 @@ struct SwanHttpServer {
     atomic_int_fast64_t output_bytes;
 };
 
-static bool swan_http_send_all(int fd, const void *data, size_t length) {
+static bool brew_http_send_all(int fd, const void *data, size_t length) {
     const char *p = (const char *)data;
     while (length) {
         ssize_t sent = send(fd, p, length, MSG_NOSIGNAL);
@@ -58,7 +58,7 @@ static bool swan_http_send_all(int fd, const void *data, size_t length) {
     return true;
 }
 
-static const char *swan_http_reason(int status) {
+static const char *brew_http_reason(int status) {
     switch (status) {
         case 200: return "OK";
         case 400: return "Bad Request";
@@ -71,7 +71,7 @@ static const char *swan_http_reason(int status) {
     }
 }
 
-static void swan_http_reply(int fd, int status, const char *body, size_t length) {
+static void brew_http_reply(int fd, int status, const char *body, size_t length) {
     char header[512];
     int n = snprintf(header, sizeof(header),
         "HTTP/1.1 %d %s\r\n"
@@ -79,18 +79,18 @@ static void swan_http_reply(int fd, int status, const char *body, size_t length)
         "Content-Length: %zu\r\n"
         "Connection: close\r\n"
         "Cache-Control: no-store\r\n\r\n",
-        status, swan_http_reason(status), length);
+        status, brew_http_reason(status), length);
     if (n > 0 && (size_t)n < sizeof(header)) {
-        (void)swan_http_send_all(fd, header, (size_t)n);
-        if (length) (void)swan_http_send_all(fd, body, length);
+        (void)brew_http_send_all(fd, header, (size_t)n);
+        if (length) (void)brew_http_send_all(fd, body, length);
     }
 }
 
-static void swan_http_reply_text(int fd, int status, const char *body) {
-    swan_http_reply(fd, status, body, strlen(body));
+static void brew_http_reply_text(int fd, int status, const char *body) {
+    brew_http_reply(fd, status, body, strlen(body));
 }
 
-static char *swan_http_header_end(char *data, size_t length) {
+static char *brew_http_header_end(char *data, size_t length) {
     if (length < 4) return NULL;
     for (size_t i = 0; i + 3 < length; i++)
         if (data[i] == '\r' && data[i + 1] == '\n' &&
@@ -99,7 +99,7 @@ static char *swan_http_header_end(char *data, size_t length) {
     return NULL;
 }
 
-static bool swan_http_header_token_char(unsigned char c) {
+static bool brew_http_header_token_char(unsigned char c) {
     if ((c >= '0' && c <= '9') || (c >= 'A' && c <= 'Z') ||
         (c >= 'a' && c <= 'z')) return true;
     switch (c) {
@@ -110,7 +110,7 @@ static bool swan_http_header_token_char(unsigned char c) {
     }
 }
 
-static int swan_http_parse_content_length(char *headers,
+static int brew_http_parse_content_length(char *headers,
                                            size_t *content_length,
                                            bool *host_found) {
     bool found = false;
@@ -127,7 +127,7 @@ static int swan_http_parse_content_length(char *headers,
         char *colon = strchr(line, ':');
         if (!colon || colon == line) return -1;
         for (char *p = line; p < colon; p++)
-            if (!swan_http_header_token_char((unsigned char)*p)) return -1;
+            if (!brew_http_header_token_char((unsigned char)*p)) return -1;
         *colon++ = 0;
         while (*colon == ' ' || *colon == '\t') colon++;
         char *value_end = colon + strlen(colon);
@@ -158,9 +158,9 @@ static int swan_http_parse_content_length(char *headers,
     }
     return found ? 1 : 0;
 }
-static void swan_http_process_client(void *context) {
-    SwanHttpClient *client = (SwanHttpClient *)context;
-    SwanHttpServer *server = client->server;
+static void brew_http_process_client(void *context) {
+    BrewHttpClient *client = (BrewHttpClient *)context;
+    BrewHttpServer *server = client->server;
     int fd = client->socket_fd;
     free(client);
 
@@ -168,20 +168,20 @@ static void swan_http_process_client(void *context) {
     (void)setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
     (void)setsockopt(fd, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
 
-    char headers[SWAN_HTTP_HEADER_LIMIT + 1];
+    char headers[BREW_HTTP_HEADER_LIMIT + 1];
     size_t used = 0;
     char *separator = NULL;
-    while (used < SWAN_HTTP_HEADER_LIMIT) {
-        ssize_t n = recv(fd, headers + used, SWAN_HTTP_HEADER_LIMIT - used, 0);
+    while (used < BREW_HTTP_HEADER_LIMIT) {
+        ssize_t n = recv(fd, headers + used, BREW_HTTP_HEADER_LIMIT - used, 0);
         if (n < 0 && errno == EINTR) continue;
         if (n <= 0) { close(fd); return; }
         used += (size_t)n;
-        separator = swan_http_header_end(headers, used);
+        separator = brew_http_header_end(headers, used);
         if (separator) break;
     }
     headers[used] = 0;
     if (!separator) {
-        swan_http_reply_text(fd, 431, "{\"error\":\"headers_too_large\"}");
+        brew_http_reply_text(fd, 431, "{\"error\":\"headers_too_large\"}");
         close(fd);
         return;
     }
@@ -200,56 +200,56 @@ static void swan_http_process_client(void *context) {
         headers + request_line_bytes != request_line_end ||
         (strcmp(version, "HTTP/1.0") && strcmp(version, "HTTP/1.1")) ||
         target[0] != '/') {
-        swan_http_reply_text(fd, 400, "{\"error\":\"bad_request_line\"}");
+        brew_http_reply_text(fd, 400, "{\"error\":\"bad_request_line\"}");
         close(fd);
         return;
     }
     for (const unsigned char *p = (const unsigned char *)method; *p; p++)
-        if (!swan_http_header_token_char(*p)) {
-            swan_http_reply_text(fd, 400, "{\"error\":\"bad_method\"}");
+        if (!brew_http_header_token_char(*p)) {
+            brew_http_reply_text(fd, 400, "{\"error\":\"bad_method\"}");
             close(fd);
             return;
         }
     for (const unsigned char *p = (const unsigned char *)target; *p; p++)
         if (*p <= 32 || *p == 127) {
-            swan_http_reply_text(fd, 400, "{\"error\":\"bad_target\"}");
+            brew_http_reply_text(fd, 400, "{\"error\":\"bad_target\"}");
             close(fd);
             return;
         }
 
     bool host_found = false;
     size_t body_length = 0;
-    int length_status = swan_http_parse_content_length(headers, &body_length,
+    int length_status = brew_http_parse_content_length(headers, &body_length,
                                                         &host_found);
     if (!strcmp(version, "HTTP/1.1") && !host_found) {
-        swan_http_reply_text(fd, 400, "{\"error\":\"missing_host\"}");
+        brew_http_reply_text(fd, 400, "{\"error\":\"missing_host\"}");
         close(fd);
         return;
     }
     if (length_status == -2) {
-        swan_http_reply_text(fd, 501, "{\"error\":\"chunked_not_supported\"}");
+        brew_http_reply_text(fd, 501, "{\"error\":\"chunked_not_supported\"}");
         close(fd);
         return;
     }
     if (length_status < 0 || (length_status == 0 && already_read != 0)) {
-        swan_http_reply_text(fd, 400, "{\"error\":\"invalid_content_length\"}");
+        brew_http_reply_text(fd, 400, "{\"error\":\"invalid_content_length\"}");
         close(fd);
         return;
     }
     if (already_read > body_length) {
-        swan_http_reply_text(fd, 400, "{\"error\":\"unexpected_body_bytes\"}");
+        brew_http_reply_text(fd, 400, "{\"error\":\"unexpected_body_bytes\"}");
         close(fd);
         return;
     }
-    if (body_length > SWAN_HTTP_BODY_LIMIT) {
-        swan_http_reply_text(fd, 413, "{\"error\":\"body_too_large\"}");
+    if (body_length > BREW_HTTP_BODY_LIMIT) {
+        brew_http_reply_text(fd, 413, "{\"error\":\"body_too_large\"}");
         close(fd);
         return;
     }
 
     char *body = (char *)malloc(body_length + 1);
     if (!body) {
-        swan_http_reply_text(fd, 500, "{\"error\":\"out_of_memory\"}");
+        brew_http_reply_text(fd, 500, "{\"error\":\"out_of_memory\"}");
         close(fd);
         return;
     }
@@ -261,7 +261,7 @@ static void swan_http_process_client(void *context) {
         if (n < 0 && errno == EINTR) continue;
         if (n <= 0) {
             free(body);
-            swan_http_reply_text(fd, 400, "{\"error\":\"incomplete_body\"}");
+            brew_http_reply_text(fd, 400, "{\"error\":\"incomplete_body\"}");
             close(fd);
             return;
         }
@@ -273,7 +273,7 @@ static void swan_http_process_client(void *context) {
 
     if (!strcmp(method, "GET") && body_length == 0) {
         static const char ok[] = "{\"ok\":true}";
-        swan_http_reply(fd, 200, ok, sizeof(ok) - 1);
+        brew_http_reply(fd, 200, ok, sizeof(ok) - 1);
         atomic_fetch_add_explicit(&server->output_bytes, sizeof(ok) - 1,
                                   memory_order_relaxed);
         atomic_fetch_add_explicit(&server->completed, 1, memory_order_relaxed);
@@ -282,44 +282,44 @@ static void swan_http_process_client(void *context) {
         return;
     }
 
-    void *document = swan_json_create(64);
+    void *document = brew_json_create(64);
     if (!document) {
         free(body);
-        swan_http_reply_text(fd, 500, "{\"error\":\"out_of_memory\"}");
+        brew_http_reply_text(fd, 500, "{\"error\":\"out_of_memory\"}");
         close(fd);
         return;
     }
-    if (!swan_json_parse_text(document, body)) {
-        swan_json_close(document);
+    if (!brew_json_parse_text(document, body)) {
+        brew_json_close(document);
         free(body);
         static const char invalid[] = "{\"error\":\"invalid_json\"}";
-        swan_http_reply(fd, 400, invalid, sizeof(invalid) - 1);
+        brew_http_reply(fd, 400, invalid, sizeof(invalid) - 1);
         close(fd);
         return;
     }
-    const char *output = swan_json_compact(document);
+    const char *output = brew_json_compact(document);
     size_t output_length = output ? strlen(output) : 0;
     if (!output) {
-        swan_json_close(document);
+        brew_json_close(document);
         free(body);
-        swan_http_reply_text(fd, 500, "{\"error\":\"encode_failed\"}");
+        brew_http_reply_text(fd, 500, "{\"error\":\"encode_failed\"}");
         close(fd);
         return;
     }
-    swan_http_reply(fd, 200, output, (size_t)output_length);
+    brew_http_reply(fd, 200, output, (size_t)output_length);
     atomic_fetch_add_explicit(&server->output_bytes, (int64_t)output_length,
                               memory_order_relaxed);
     atomic_fetch_add_explicit(&server->completed, 1, memory_order_relaxed);
-    swan_json_close(document);
+    brew_json_close(document);
     free(body);
     close(fd);
 }
 
-void *swan_http_json_server_create(int64_t port, int64_t workers,
+void *brew_http_json_server_create(int64_t port, int64_t workers,
                                    int64_t queue_capacity) {
     if (port < 0 || port > 65535 || workers < 1 || workers > 256 ||
         queue_capacity < 1 || queue_capacity > 65536) return NULL;
-    SwanHttpServer *server = (SwanHttpServer *)calloc(1, sizeof(*server));
+    BrewHttpServer *server = (BrewHttpServer *)calloc(1, sizeof(*server));
     if (!server) return NULL;
     server->listen_fd = socket(AF_INET, SOCK_STREAM, 0);
     if (server->listen_fd < 0) { free(server); return NULL; }
@@ -353,7 +353,7 @@ void *swan_http_json_server_create(int64_t port, int64_t workers,
     atomic_init(&server->rejected, 0);
     atomic_init(&server->input_bytes, 0);
     atomic_init(&server->output_bytes, 0);
-    if (!swan_thread_pool_init(&server->pool, (size_t)workers,
+    if (!brew_thread_pool_init(&server->pool, (size_t)workers,
                                (size_t)queue_capacity)) {
         close(server->listen_fd);
         free(server);
@@ -362,8 +362,8 @@ void *swan_http_json_server_create(int64_t port, int64_t workers,
     return server;
 }
 
-int32_t swan_http_json_server_run(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+int32_t brew_http_json_server_run(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     if (!server) return -1;
     bool expected = false;
     if (!atomic_compare_exchange_strong(&server->started, &expected, true))
@@ -377,65 +377,65 @@ int32_t swan_http_json_server_run(void *value) {
                 break;
             continue;
         }
-        SwanHttpClient *client = (SwanHttpClient *)malloc(sizeof(*client));
+        BrewHttpClient *client = (BrewHttpClient *)malloc(sizeof(*client));
         if (!client) {
             static const char busy[] = "{\"error\":\"busy\"}";
-            swan_http_reply(fd, 503, busy, sizeof(busy) - 1);
+            brew_http_reply(fd, 503, busy, sizeof(busy) - 1);
             close(fd);
             atomic_fetch_add_explicit(&server->rejected, 1, memory_order_relaxed);
             continue;
         }
         client->server = server;
         client->socket_fd = fd;
-        if (!swan_thread_pool_submit(&server->pool, swan_http_process_client,
+        if (!brew_thread_pool_submit(&server->pool, brew_http_process_client,
                                      client)) {
             static const char busy[] = "{\"error\":\"busy\"}";
-            swan_http_reply(fd, 503, busy, sizeof(busy) - 1);
+            brew_http_reply(fd, 503, busy, sizeof(busy) - 1);
             close(fd);
             free(client);
             atomic_fetch_add_explicit(&server->rejected, 1, memory_order_relaxed);
         }
     }
-    swan_thread_pool_shutdown(&server->pool, true);
+    brew_thread_pool_shutdown(&server->pool, true);
     atomic_store_explicit(&server->running, false, memory_order_relaxed);
     return 0;
 }
 
-void swan_http_json_server_stop(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+void brew_http_json_server_stop(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     if (!server) return;
     atomic_store_explicit(&server->stopping, true, memory_order_relaxed);
     if (server->listen_fd >= 0)
         (void)shutdown(server->listen_fd, SHUT_RDWR);
 }
 
-void swan_http_json_server_destroy(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+void brew_http_json_server_destroy(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     if (!server) return;
-    swan_http_json_server_stop(server);
+    brew_http_json_server_stop(server);
     if (atomic_load_explicit(&server->running, memory_order_relaxed)) return;
-    if (server->pool.initialized) swan_thread_pool_destroy(&server->pool);
+    if (server->pool.initialized) brew_thread_pool_destroy(&server->pool);
     if (server->listen_fd >= 0) close(server->listen_fd);
     free(server);
 }
 
-int64_t swan_http_json_server_port(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+int64_t brew_http_json_server_port(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     return server ? server->port : -1;
 }
-int64_t swan_http_json_server_completed(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+int64_t brew_http_json_server_completed(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     return server ? atomic_load_explicit(&server->completed, memory_order_relaxed) : -1;
 }
-int64_t swan_http_json_server_rejected(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+int64_t brew_http_json_server_rejected(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     return server ? atomic_load_explicit(&server->rejected, memory_order_relaxed) : -1;
 }
-int64_t swan_http_json_server_input_bytes(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+int64_t brew_http_json_server_input_bytes(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     return server ? atomic_load_explicit(&server->input_bytes, memory_order_relaxed) : -1;
 }
-int64_t swan_http_json_server_output_bytes(void *value) {
-    SwanHttpServer *server = (SwanHttpServer *)value;
+int64_t brew_http_json_server_output_bytes(void *value) {
+    BrewHttpServer *server = (BrewHttpServer *)value;
     return server ? atomic_load_explicit(&server->output_bytes, memory_order_relaxed) : -1;
 }

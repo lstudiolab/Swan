@@ -1,5 +1,5 @@
-#ifndef SWAN_RUNTIME_BYTES_H
-#define SWAN_RUNTIME_BYTES_H
+#ifndef BREW_RUNTIME_BYTES_H
+#define BREW_RUNTIME_BYTES_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -16,13 +16,13 @@ typedef struct {
     size_t length;
     size_t capacity;
     bool owns_data;
-} SwanByteBuffer;
+} BrewByteBuffer;
 
-static inline void swan_bytes_init(SwanByteBuffer *buffer) {
+static inline void brew_bytes_init(BrewByteBuffer *buffer) {
     if (buffer) memset(buffer, 0, sizeof(*buffer));
 }
 
-static inline void swan_bytes_destroy(SwanByteBuffer *buffer) {
+static inline void brew_bytes_destroy(BrewByteBuffer *buffer) {
     if (!buffer) return;
     if (buffer->owns_data) free(buffer->data);
     memset(buffer, 0, sizeof(*buffer));
@@ -30,7 +30,7 @@ static inline void swan_bytes_destroy(SwanByteBuffer *buffer) {
 
 /* Attach caller-owned storage. The caller must keep it alive until the
  * buffer is destroyed or reinitialized. Capacity exhaustion never allocates. */
-static inline bool swan_bytes_use_storage(SwanByteBuffer *buffer,
+static inline bool brew_bytes_use_storage(BrewByteBuffer *buffer,
                                            unsigned char *storage,
                                            size_t capacity) {
     if (!buffer || !storage || !capacity || buffer->length != 0) return false;
@@ -41,7 +41,7 @@ static inline bool swan_bytes_use_storage(SwanByteBuffer *buffer,
     return true;
 }
 
-static inline bool swan_bytes_reserve(SwanByteBuffer *buffer, size_t capacity) {
+static inline bool brew_bytes_reserve(BrewByteBuffer *buffer, size_t capacity) {
     if (!buffer) return false;
     if (capacity <= buffer->capacity) return true;
     if (buffer->data && !buffer->owns_data) return false;
@@ -58,16 +58,16 @@ static inline bool swan_bytes_reserve(SwanByteBuffer *buffer, size_t capacity) {
     return true;
 }
 
-static inline bool swan_bytes_resize(SwanByteBuffer *buffer, size_t length,
+static inline bool brew_bytes_resize(BrewByteBuffer *buffer, size_t length,
                                       unsigned char fill) {
-    if (!buffer || !swan_bytes_reserve(buffer, length)) return false;
+    if (!buffer || !brew_bytes_reserve(buffer, length)) return false;
     if (length > buffer->length)
         memset(buffer->data + buffer->length, fill, length - buffer->length);
     buffer->length = length;
     return true;
 }
 
-static inline bool swan_bytes_append(SwanByteBuffer *buffer,
+static inline bool brew_bytes_append(BrewByteBuffer *buffer,
                                       const void *data, size_t length) {
     if (!buffer || (!data && length) ||
         length > SIZE_MAX - buffer->length) return false;
@@ -83,19 +83,19 @@ static inline bool swan_bytes_append(SwanByteBuffer *buffer,
             aliases = true;
         }
     }
-    if (!swan_bytes_reserve(buffer, old_length + length)) return false;
+    if (!brew_bytes_reserve(buffer, old_length + length)) return false;
     if (aliases) data = buffer->data + source_offset;
     if (length) memmove(buffer->data + old_length, data, length);
     buffer->length += length;
     return true;
 }
 
-static inline bool swan_bytes_append_byte(SwanByteBuffer *buffer,
+static inline bool brew_bytes_append_byte(BrewByteBuffer *buffer,
                                            unsigned char value) {
-    return swan_bytes_append(buffer, &value, 1);
+    return brew_bytes_append(buffer, &value, 1);
 }
 
-static inline void swan_bytes_clear(SwanByteBuffer *buffer) {
+static inline void brew_bytes_clear(BrewByteBuffer *buffer) {
     if (buffer) buffer->length = 0;
 }
 

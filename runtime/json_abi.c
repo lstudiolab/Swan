@@ -3,32 +3,32 @@
 #include <stdlib.h>
 #include <string.h>
 
-typedef struct SwanJsonHandle SwanJsonHandle;
+typedef struct BrewJsonHandle BrewJsonHandle;
 
-struct SwanJsonHandle {
-    SwanJsonDocument document;
+struct BrewJsonHandle {
+    BrewJsonDocument document;
     char *input;
-    SwanJsonBuffer compact;
-    SwanJsonBuffer pretty;
+    BrewJsonBuffer compact;
+    BrewJsonBuffer pretty;
     char error[128];
 };
 
-void *swan_json_create(int64_t initial_token_capacity) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)calloc(1, sizeof(*handle));
+void *brew_json_create(int64_t initial_token_capacity) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)calloc(1, sizeof(*handle));
     if (!handle) return NULL;
-    swan_json_document_init(&handle->document);
+    brew_json_document_init(&handle->document);
     if (initial_token_capacity > 0 &&
         (uint64_t)initial_token_capacity <= handle->document.limits.max_tokens) {
         size_t capacity = (size_t)initial_token_capacity;
         if (capacity > SIZE_MAX / sizeof(*handle->document.tokens)) {
-            swan_json_document_destroy(&handle->document);
+            brew_json_document_destroy(&handle->document);
             free(handle);
             return NULL;
         }
-        handle->document.tokens = (SwanJsonToken *)malloc(
+        handle->document.tokens = (BrewJsonToken *)malloc(
             capacity * sizeof(*handle->document.tokens));
         if (!handle->document.tokens) {
-            swan_json_document_destroy(&handle->document);
+            brew_json_document_destroy(&handle->document);
             free(handle);
             return NULL;
         }
@@ -37,8 +37,8 @@ void *swan_json_create(int64_t initial_token_capacity) {
     return handle;
 }
 
-int32_t swan_json_parse_text(void *document, const char *input) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+int32_t brew_json_parse_text(void *document, const char *input) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle || !input) return 0;
     size_t length = strlen(input);
     if (length == SIZE_MAX) return 0;
@@ -49,7 +49,7 @@ int32_t swan_json_parse_text(void *document, const char *input) {
     }
     handle->input = next;
     memcpy(handle->input, input, length + 1);
-    bool ok = swan_json_parse_reuse(&handle->document, handle->input, length);
+    bool ok = brew_json_parse_reuse(&handle->document, handle->input, length);
     handle->error[0] = 0;
     if (!ok) {
         snprintf(handle->error, sizeof(handle->error), "%s",
@@ -62,63 +62,63 @@ int32_t swan_json_parse_text(void *document, const char *input) {
     return 1;
 }
 
-int64_t swan_json_input_length(void *document) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+int64_t brew_json_input_length(void *document) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     return handle && !handle->error[0] ? (int64_t)handle->document.input_length : -1;
 }
 
-int64_t swan_json_get_i64(void *document, const char *key,
+int64_t brew_json_get_i64(void *document, const char *key,
                           int64_t fallback) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle || !handle->document.token_count || !key ||
         handle->error[0]) return fallback;
-    size_t token = swan_json_object_get(&handle->document, 0, key);
+    size_t token = brew_json_object_get(&handle->document, 0, key);
     int64_t value;
-    return token != SWAN_JSON_NONE &&
-           swan_json_as_i64(&handle->document, token, &value) ? value : fallback;
+    return token != BREW_JSON_NONE &&
+           brew_json_as_i64(&handle->document, token, &value) ? value : fallback;
 }
 
-int32_t swan_json_has_key(void *document, const char *key) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+int32_t brew_json_has_key(void *document, const char *key) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle || !handle->document.token_count || !key ||
         handle->error[0]) return 0;
-    return swan_json_object_get(&handle->document, 0, key) != SWAN_JSON_NONE;
+    return brew_json_object_get(&handle->document, 0, key) != BREW_JSON_NONE;
 }
 
-const char *swan_json_compact(void *document) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+const char *brew_json_compact(void *document) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle || handle->error[0] ||
-        !swan_json_encode(&handle->document, &handle->compact, false))
+        !brew_json_encode(&handle->document, &handle->compact, false))
         return NULL;
     return handle->compact.data;
 }
 
-int64_t swan_json_compact_length(void *document) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
-    const char *text = swan_json_compact(document);
+int64_t brew_json_compact_length(void *document) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
+    const char *text = brew_json_compact(document);
     return text ? (int64_t)handle->compact.length : -1;
 }
 
-const char *swan_json_pretty(void *document) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+const char *brew_json_pretty(void *document) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle || handle->error[0] ||
-        !swan_json_encode(&handle->document, &handle->pretty, true))
+        !brew_json_encode(&handle->document, &handle->pretty, true))
         return NULL;
     return handle->pretty.data;
 }
 
-const char *swan_json_error(void *document) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+const char *brew_json_error(void *document) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle) return "invalid JSON handle";
     return handle->error;
 }
 
-void swan_json_close(void *document) {
-    SwanJsonHandle *handle = (SwanJsonHandle *)document;
+void brew_json_close(void *document) {
+    BrewJsonHandle *handle = (BrewJsonHandle *)document;
     if (!handle) return;
-    swan_json_document_destroy(&handle->document);
-    swan_json_buffer_destroy(&handle->compact);
-    swan_json_buffer_destroy(&handle->pretty);
+    brew_json_document_destroy(&handle->document);
+    brew_json_buffer_destroy(&handle->compact);
+    brew_json_buffer_destroy(&handle->pretty);
     free(handle->input);
     free(handle);
 }

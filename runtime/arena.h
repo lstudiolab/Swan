@@ -1,5 +1,5 @@
-#ifndef SWAN_ARENA_H
-#define SWAN_ARENA_H
+#ifndef BREW_ARENA_H
+#define BREW_ARENA_H
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -21,11 +21,11 @@ typedef struct {
     unsigned char *data;
     size_t capacity;
     size_t used;
-} SwanArena;
+} BrewArena;
 
-typedef size_t SwanArenaMark;
+typedef size_t BrewArenaMark;
 
-static inline bool swan_arena_init(SwanArena *arena, void *storage,
+static inline bool brew_arena_init(BrewArena *arena, void *storage,
                                    size_t capacity) {
     if (!arena || (!storage && capacity)) return false;
     arena->data = (unsigned char *)storage;
@@ -34,26 +34,26 @@ static inline bool swan_arena_init(SwanArena *arena, void *storage,
     return true;
 }
 
-static inline SwanArenaMark swan_arena_mark(const SwanArena *arena) {
+static inline BrewArenaMark brew_arena_mark(const BrewArena *arena) {
     return arena ? arena->used : 0;
 }
 
-static inline bool swan_arena_rewind(SwanArena *arena, SwanArenaMark mark) {
+static inline bool brew_arena_rewind(BrewArena *arena, BrewArenaMark mark) {
     if (!arena || mark > arena->used) return false;
     arena->used = mark;
     return true;
 }
 
-static inline void swan_arena_reset(SwanArena *arena) {
+static inline void brew_arena_reset(BrewArena *arena) {
     if (arena) arena->used = 0;
 }
 
-static inline size_t swan_arena_remaining(const SwanArena *arena) {
+static inline size_t brew_arena_remaining(const BrewArena *arena) {
     return arena && arena->used <= arena->capacity
         ? arena->capacity - arena->used : 0;
 }
 
-static inline void *swan_arena_alloc_aligned(SwanArena *arena, size_t size,
+static inline void *brew_arena_alloc_aligned(BrewArena *arena, size_t size,
                                               size_t alignment) {
     if (!arena || !alignment || (alignment & (alignment - 1)) != 0)
         return NULL;
@@ -71,15 +71,15 @@ static inline void *swan_arena_alloc_aligned(SwanArena *arena, size_t size,
     return result;
 }
 
-static inline void *swan_arena_alloc(SwanArena *arena, size_t size) {
-    return swan_arena_alloc_aligned(arena, size, _Alignof(max_align_t));
+static inline void *brew_arena_alloc(BrewArena *arena, size_t size) {
+    return brew_arena_alloc_aligned(arena, size, _Alignof(max_align_t));
 }
 
-static inline void *swan_arena_calloc(SwanArena *arena, size_t count,
+static inline void *brew_arena_calloc(BrewArena *arena, size_t count,
                                        size_t size) {
     if (size && count > SIZE_MAX / size) return NULL;
     size_t bytes = count * size;
-    void *result = swan_arena_alloc(arena, bytes);
+    void *result = brew_arena_alloc(arena, bytes);
     if (result) memset(result, 0, bytes);
     return result;
 }
