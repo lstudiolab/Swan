@@ -51,7 +51,7 @@ The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 indi
 
 BVM is the target-independent compilation engine, not a CPU target, runtime, or interpreter. It owns typed source lowering, IR verification, and optimization. The canonical `brewc compile` command emits WASM64 (memory64) ahead of execution. BIC then detects the host: browsers execute the WASM module directly, while native x86-64 and ARM64 hosts use Wasmtime's runtime JIT to generate host machine code. The explicit x86-64 and ARM64 AOT backends remain available as legacy/low-level targets, but they are not required for the canonical portable workflow.
 
-The legacy `--target svm`, `brew vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. BVM is the compiler engine shared by all compiled targets. See [BVM Compiler Architecture](docs/svm_architecture.md).
+The legacy `--target bvm`, `brew vm`, `.bvm` serializer, and IR interpreter have been removed from the production CLI and target registry. BVM is the compiler engine shared by all compiled targets. See [BVM Compiler Architecture](docs/bvm_architecture.md).
 
 ### Fail-fast behavior
 
