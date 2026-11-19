@@ -10,9 +10,10 @@ else
     DEST="$HOME/.local/bin"
     DATA="$HOME/.local/share/brew"
 fi
-mkdir -p "$DEST" "$DATA/std"
+mkdir -p "$DEST" "$DATA/std" "$DATA/BrewRuntime"
 install -m 755 "$ROOT/build/brewc" "$DEST/brewc-bin"
 cp -R "$ROOT/std/." "$DATA/std/"
+cp -R "$ROOT/BrewRuntime/." "$DATA/BrewRuntime/"
 cat > "$DEST/brewc" <<'WRAPPER'
 #!/usr/bin/env sh
 set -eu
