@@ -36,7 +36,8 @@ jobs:
           mkdir -p dist/brew/bin
           cp build/brewc dist/brew/bin/brewc
           cp README.md dist/brew/
-          cp -R stdlib dist/brew/
+          cp -R std dist/brew/
+          cp -R BrewRuntime dist/brew/
           tar -C dist -czf "brew-${{ matrix.asset }}.tar.gz" brew
 
       - name: Upload platform package
