@@ -1,6 +1,6 @@
 #define _POSIX_C_SOURCE 200809L
 #include "brew/compiler.h"
-#include "../../lib/Driver/SIC.h"
+#include "../../lib/Driver/BIC.h"
 #include <glob.h>
 
 /* The executable entry point owns command-line orchestration. */
@@ -113,10 +113,10 @@ static bool brew_emit_project_sources(Program *program,const char *directory,
    }
   }
   program->codegen_source_index=(int)i;
-  BrewSVMOutput generated={0};
+  BrewBVMOutput generated={0};
   if(!brew_svm_codegen(program,target,&generated,error))goto fail;
   bool ok=false;
-  if(generated.kind==BREW_SVM_OUTPUT_WASM){
+  if(generated.kind==BREW_BVM_OUTPUT_WASM){
    FILE *file=fopen(path,"wb");
    ok=file&&fwrite(generated.data,1,generated.length,file)==generated.length;
    if(file&&fclose(file)!=0)ok=false;
@@ -162,7 +162,7 @@ static bool brew_compile_project_objects(Program *program,char ***objects_out,
   int assembly_fd=mkstemp(assembly_path);
   if(assembly_fd<0){brew_error(error,NULL,"cannot create temporary translation-unit assembly");goto fail;}
   program->codegen_source_index=(int)i;
-  BrewSVMOutput generated={0};
+  BrewBVMOutput generated={0};
   if(!brew_svm_codegen(program,brew_target_find("x86_64"),&generated,error)){
    program->codegen_source_index=-1;close(assembly_fd);unlink(assembly_path);goto fail;
   }
@@ -241,7 +241,7 @@ static bool brew_build_all_targets(Program *program,const char *directory,
  program->codegen_source_index=-1;
  program->codegen_force_ast=false;
  program->codegen_include_external_functions=false;
- BrewSVMOutput generated={0};
+ BrewBVMOutput generated={0};
  if(!brew_svm_codegen(program,arm,&generated,error))goto fail;
  char assembly_path[]="/tmp/brew-all-arm-XXXXXX";
  int fd=mkstemp(assembly_path);
@@ -281,29 +281,29 @@ static int brew_run_wasm_file(const char *path,int argument_count,char **argumen
  if(argument_count<0||(size_t)argument_count>SIZE_MAX/sizeof(char*)-8)return 1;
 
  /*
-  * SIC selects execution by host. Wasmtime's run command performs the JIT
+  * BIC selects execution by host. Wasmtime's run command performs the JIT
   * compilation from portable WASM to the current native CPU (x86-64/ARM64).
   * A WebAssembly-hosted build must leave the module as WASM; browser.js is
   * the browser entry point and uses the browser's own WebAssembly engine.
   */
- BrewSICHost host=brew_sic_detect_host();
- if(getenv("BREW_SIC_DEBUG")){
-  const char *architecture=host.architecture==BREW_SIC_ARCH_X86_64?"x86-64":
-      host.architecture==BREW_SIC_ARCH_ARM64?"ARM64":"unknown";
-  fprintf(stderr,"SIC: environment=%s architecture=%s\n",
-      host.environment==BREW_SIC_ENV_WEBASSEMBLY?"WebAssembly":"native",architecture);
+ BrewBICHost host=brew_sic_detect_host();
+ if(getenv("BREW_BIC_DEBUG")){
+  const char *architecture=host.architecture==BREW_BIC_ARCH_X86_64?"x86-64":
+      host.architecture==BREW_BIC_ARCH_ARM64?"ARM64":"unknown";
+  fprintf(stderr,"BIC: environment=%s architecture=%s\n",
+      host.environment==BREW_BIC_ENV_WEBASSEMBLY?"WebAssembly":"native",architecture);
  }
- if(host.environment==BREW_SIC_ENV_WEBASSEMBLY){
-  fprintf(stderr,"brew: SIC detected a WebAssembly host; load the module with runtime/wasm64/browser.js instead of native recompilation\n");
+ if(host.environment==BREW_BIC_ENV_WEBASSEMBLY){
+  fprintf(stderr,"brew: BIC detected a WebAssembly host; load the module with runtime/wasm64/browser.js instead of native recompilation\n");
   return 2;
  }
- if(host.architecture!=BREW_SIC_ARCH_X86_64&&host.architecture!=BREW_SIC_ARCH_ARM64){
-  fprintf(stderr,"brew: SIC supports native JIT on x86-64 and ARM64; retained portable WASM module at '%s'\n",path);
+ if(host.architecture!=BREW_BIC_ARCH_X86_64&&host.architecture!=BREW_BIC_ARCH_ARM64){
+  fprintf(stderr,"brew: BIC supports native JIT on x86-64 and ARM64; retained portable WASM module at '%s'\n",path);
   return 2;
  }
  bool temporary_wasm=!strncmp(path,"/tmp/brew-wasm-run-",19);
  char **args=calloc((size_t)argument_count+8,sizeof(*args));
- if(!args){fprintf(stderr,"brew: out of memory preparing SIC runtime invocation\n");return 1;}
+ if(!args){fprintf(stderr,"brew: out of memory preparing BIC runtime invocation\n");return 1;}
  size_t n=0;
  args[n++]=(char*)engine;
  args[n++]="run";
@@ -322,7 +322,7 @@ static int brew_run_wasm_file(const char *path,int argument_count,char **argumen
  }
  if(temporary_wasm&&result==0)unlink(path);
  else if(temporary_wasm&&result!=0)
-  fprintf(stderr,"brew: SIC retained temporary WASM module '%s' because native JIT execution did not complete successfully\n",path);
+  fprintf(stderr,"brew: BIC retained temporary WASM module '%s' because native JIT execution did not complete successfully\n",path);
  free(args);
  return result;
 }
@@ -330,7 +330,7 @@ static int brew_run_wasm_file(const char *path,int argument_count,char **argumen
 static int brew_run(int argc,char **argv){
  if(argc==2&&!strcmp(argv[1],"--version")){puts("Brew " BREW_VERSION);return 0;}
  if(argc==2&&!strcmp(argv[1],"--list-targets")){brew_target_list(stdout);return 0;}
- if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Brew %s\nUsage: brewc [compile|build|run] <file.brew|file.wasm|directory> [more.brew ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  compile emits portable WASM64; run uses SIC to select native host JIT or browser WASM execution.\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'brew run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",BREW_VERSION);return 0;}
+ if(argc==2&&(!strcmp(argv[1],"--help")||!strcmp(argv[1],"-h"))){printf("Brew %s\nUsage: brewc [compile|build|run] <file.brew|file.wasm|directory> [more.brew ...] [native.c ...] [--low-resource | --jobs 1] [--target x86_64|arm64|wasm64|all] [--module-path directory ...] [--lazy-imports] [--no-heap] [--warnings-as-errors] [--link object] [-L dir] [-l library] [-o output]\n  compile emits portable WASM64; run uses BIC to select native host JIT or browser WASM execution.\n  --target all builds one shared source project for x86-64, ARM64, and WASM64 into the -o directory.\n  'brew run file.wasm' executes the exported main function with Wasmtime memory64 enabled.\n",BREW_VERSION);return 0;}
  BrewDriverMode mode=BREW_RUN_DEFAULT;
  bool sic_compile_command=false;
  int index=1;
@@ -372,9 +372,9 @@ static int brew_run(int argc,char **argv){
  if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
  bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false,target_all=false;size_t compile_jobs=1;
- BrewSICHost detected_host=brew_sic_detect_host();
- const char *default_target_name=sic_compile_command||detected_host.environment==BREW_SIC_ENV_WEBASSEMBLY?"wasm64":
-     detected_host.architecture==BREW_SIC_ARCH_ARM64?"arm64":"x86_64";
+ BrewBICHost detected_host=brew_sic_detect_host();
+ const char *default_target_name=sic_compile_command||detected_host.environment==BREW_BIC_ENV_WEBASSEMBLY?"wasm64":
+     detected_host.architecture==BREW_BIC_ARCH_ARM64?"arm64":"x86_64";
  const BrewTarget *target=brew_target_find(default_target_name);
  for(int i=index;i<argc;i++){
   if(!strcmp(argv[i],"--low-resource"))compile_jobs=1;
@@ -407,7 +407,7 @@ static int brew_run(int argc,char **argv){
  if(compile_jobs!=1){fprintf(stderr,"brew: invalid compiler worker limit\n");BREW_RETURN(2);}
  if(target_all&&(mode!=BREW_BUILD||emit_asm)){fprintf(stderr,"brew: --target all requires 'build' and cannot be combined with --emit-asm\n");BREW_RETURN(2);}
  if(target_all&&(c_input_count||link_arg_count||no_heap||lazy_imports)){fprintf(stderr,"brew: --target all currently requires Brew-only sources without C inputs, linker flags, --no-heap, or --lazy-imports\n");BREW_RETURN(2);}
- bool native_arm64_target=target->architecture==BREW_ARCH_AARCH64&&detected_host.environment==BREW_SIC_ENV_NATIVE&&detected_host.architecture==BREW_SIC_ARCH_ARM64;
+ bool native_arm64_target=target->architecture==BREW_ARCH_AARCH64&&detected_host.environment==BREW_BIC_ENV_NATIVE&&detected_host.architecture==BREW_BIC_ARCH_ARM64;
  if(link_arg_count&&target->architecture!=BREW_ARCH_X86_64&&!native_arm64_target){fprintf(stderr,"brew: linker inputs require a native x86-64 or ARM64 execution target\n");BREW_RETURN(2);}
  if(emit_asm)mode=BREW_EMIT;
  if(no_heap&&target->architecture!=BREW_ARCH_X86_64){fprintf(stderr,"brew: --no-heap is currently supported only by the native x86-64 backend\\n");BREW_RETURN(2);}
@@ -498,10 +498,10 @@ static int brew_run(int argc,char **argv){
    if(run_after_build){snprintf(temporary_wasm,sizeof(temporary_wasm),"/tmp/brew-wasm-run-%ld.wasm",(long)getpid());dest=temporary_wasm;}
    else dest="a.wasm";
   }
-  BrewSVMOutput compiled={0};
+  BrewBVMOutput compiled={0};
   bool backend_ok=brew_svm_codegen(&p,target,&compiled,&err);
   if(!backend_ok){
-   fprintf(stderr,"brew: %s\n",err.message[0]?err.message:"SVM backend failed");
+   fprintf(stderr,"brew: %s\n",err.message[0]?err.message:"BVM backend failed");
    free(compiled.data);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(1);
   }
   FILE *wf=fopen(dest,"wb");
@@ -519,17 +519,17 @@ static int brew_run(int argc,char **argv){
   BREW_RETURN(result);
  }
  if(target->architecture==BREW_ARCH_AARCH64){
-  BrewSICHost host=brew_sic_detect_host();
-  bool native_arm64=host.environment==BREW_SIC_ENV_NATIVE&&host.architecture==BREW_SIC_ARCH_ARM64;
+  BrewBICHost host=brew_sic_detect_host();
+  bool native_arm64=host.environment==BREW_BIC_ENV_NATIVE&&host.architecture==BREW_BIC_ARCH_ARM64;
   if((mode==BREW_RUN||mode==BREW_RUN_DEFAULT)&&!native_arm64){
    fprintf(stderr,"brew: AArch64 execution requires an ARM64 host; cross-target output must be linked and run on ARM64\n");
    brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(2);
   }
-  BrewSVMOutput compiled={0};
+  BrewBVMOutput compiled={0};
   bool generated=brew_svm_codegen(&p,target,&compiled,&err);
   Text assembly={.data=compiled.data,.len=compiled.length};
   if(!generated){
-   fprintf(stderr,"brew: %s\n",err.message[0]?err.message:"SVM backend failed");free(assembly.data);
+   fprintf(stderr,"brew: %s\n",err.message[0]?err.message:"BVM backend failed");free(assembly.data);
    brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(1);
   }
   int result=0;
@@ -610,7 +610,7 @@ static int brew_run(int argc,char **argv){
  else if(mode==BREW_BUILD)exe_len=snprintf(exe,sizeof(exe),"a.out");
  else exe_len=snprintf(exe,sizeof(exe),"/tmp/brew-run-%ld",(long)getpid());
  if(exe_len<0||(size_t)exe_len>=sizeof(exe)){fprintf(stderr,"brew: output path is too long\n");brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);BREW_RETURN(1);}
- BrewSVMOutput compiled={0};
+ BrewBVMOutput compiled={0};
  if(!brew_svm_codegen(&p,target,&compiled,&err)){brew_print_diagnostic("brew",&err);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);free(compiled.data);BREW_RETURN(1);}
  Text assembly={.data=compiled.data,.len=compiled.length};
  if(has_lazy&&!brew_build_lazy_modules(&p,exe,&err)){fprintf(stderr,"brew: %s\n",err.message);brew_remove_lazy_modules(exe,&p);brew_release_modules(module_sources,module_texts,module_count);free(ts.text_storage);brew_program_destroy(&p);free(source);free(assembly.data);BREW_RETURN(1);}
