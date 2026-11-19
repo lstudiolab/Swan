@@ -1,7 +1,7 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BREW="$ROOT/build/brew"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/utf8-tests"
 mkdir -p "$TMP"
 
