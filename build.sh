@@ -24,4 +24,4 @@ ln -sf brewc "$ROOT/build/brew"
 printf 'Built Brew production compiler: %s\n' "$ROOT/build/brewc"
 printf 'Compiler implementation: C11 (single production compiler)\n'
 printf 'Bootstrap: none\n'
-printf 'Pipeline: frontend -> typed SVM IR -> verifier -> optimizer -> Brew target backend (feature coverage is documented in docs/compiler_completion_matrix.md)\n'
+printf 'Pipeline: frontend -> typed BVM IR -> verifier -> optimizer -> Brew target backend (feature coverage is documented in docs/compiler_completion_matrix.md)\n'

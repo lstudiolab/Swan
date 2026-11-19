@@ -2,13 +2,13 @@
 
 # Brew
 
-Brew is a compiled programming language. Its production compiler, `brewc`, is implemented in C11 and owns the lexer, parser, semantic analysis, typed IR, optimizer, SVM pipeline, and native/cross-target backends. Brew source is compiled ahead of execution; it is not interpreted.
+Brew is a compiled programming language. Its production compiler, `brewc`, is implemented in C11 and owns the lexer, parser, semantic analysis, typed IR, optimizer, BVM pipeline, and native/cross-target backends. Brew source is compiled ahead of execution; it is not interpreted.
 
 Licensed under Apache-2.0.
 
 ## Compiler system contract
 
-The production architecture is specified in [docs/compiler_system.md](docs/compiler_system.md). The current implementation boundary and unfinished work are tracked in [the compiler completion matrix](docs/compiler_completion_matrix.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/engineering_style.md](docs/engineering_style.md). The canonical portable path is source -> SVM typed IR -> WASM64 AOT -> SIC environment detection -> browser WASM execution or native Wasmtime JIT on x86-64/ARM64. The document distinguishes this path from the retained explicit native backends and records the remaining runtime and feature-parity limits.
+The production architecture is specified in [docs/compiler_system.md](docs/compiler_system.md). The current implementation boundary and unfinished work are tracked in [the compiler completion matrix](docs/compiler_completion_matrix.md). The C11 implementation follows the code ownership, subsystem, diagnostics, and review standards in [docs/engineering_style.md](docs/engineering_style.md). The canonical portable path is source -> BVM typed IR -> WASM64 AOT -> BIC environment detection -> browser WASM execution or native Wasmtime JIT on x86-64/ARM64. The document distinguishes this path from the retained explicit native backends and records the remaining runtime and feature-parity limits.
 
 ## Language guide
 
@@ -34,10 +34,10 @@ The compatibility path is intentional. A construct supported by the x86-64 front
   -> source lowering:
        general AST -> typed SSA IR (fallback)
        AST -> x86-64 compatibility backend (where required)
-  -> SVM verification
+  -> BVM verification
   -> target-independent optimization
   -> WASM64 AOT emission (canonical portable path)
-  -> SIC host detection:
+  -> BIC host detection:
        browser / WebAssembly -> keep and execute WASM64
        native x86-64 / ARM64 -> Wasmtime runtime JIT -> host machine code
   -> explicit legacy native backend (x86-64 / ARM64) only when selected
@@ -47,11 +47,11 @@ The compatibility path is intentional. A construct supported by the x86-64 front
 
 The optimizer runs a bounded, change-driven fixed-point pipeline (up to 350 individual pass executions) and performs width-aware constant folding, constant-select folding, CFG and constant-branch simplification, unreachable-block removal, algebraic simplification, trivial-PHI copy propagation, dominance-aware common-subexpression elimination, conservative loop-invariant code motion, post-hoisting CSE, and dead-code elimination. DCE propagates liveness through a value worklist. IR verification runs before optimization and after final cleanup; debug builds additionally verify every pass boundary. These passes apply to the typed-IR path; the AST compatibility backend has separate optimizations.
 
-### SVM compiler core
+### BVM compiler core
 
-SVM is the target-independent compilation engine, not a CPU target, runtime, or interpreter. It owns typed source lowering, IR verification, and optimization. The canonical `brewc compile` command emits WASM64 (memory64) ahead of execution. SIC then detects the host: browsers execute the WASM module directly, while native x86-64 and ARM64 hosts use Wasmtime's runtime JIT to generate host machine code. The explicit x86-64 and ARM64 AOT backends remain available as legacy/low-level targets, but they are not required for the canonical portable workflow.
+BVM is the target-independent compilation engine, not a CPU target, runtime, or interpreter. It owns typed source lowering, IR verification, and optimization. The canonical `brewc compile` command emits WASM64 (memory64) ahead of execution. BIC then detects the host: browsers execute the WASM module directly, while native x86-64 and ARM64 hosts use Wasmtime's runtime JIT to generate host machine code. The explicit x86-64 and ARM64 AOT backends remain available as legacy/low-level targets, but they are not required for the canonical portable workflow.
 
-The legacy `--target svm`, `brew vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. SVM is the compiler engine shared by all compiled targets. See [SVM Compiler Architecture](docs/svm_architecture.md).
+The legacy `--target svm`, `brew vm`, `.swvm` serializer, and IR interpreter have been removed from the production CLI and target registry. BVM is the compiler engine shared by all compiled targets. See [BVM Compiler Architecture](docs/svm_architecture.md).
 
 ### Fail-fast behavior
 
@@ -221,7 +221,7 @@ The typed-IR generator currently handles scalar integer/boolean expressions, dir
 | x86-64 System V Linux | Native executable and assembly; typed-IR scalar path plus AST compatibility path |
 | AArch64 / ARM64 Linux | Native executable on an ARM64 host; Brew-owned ELF object/assembly when cross-compiling; signed i32/i64 operations, calls, and scalar C ABI linking |
 | WebAssembly 64 | Brew-owned memory64 module emission for its implemented subset |
-| SVM | Shared target-independent compilation engine; not a runtime target |
+| BVM | Shared target-independent compilation engine; not a runtime target |
 
 Object emission is not proof of execution or complete ABI integration on the destination platform. Cross-target runtime linking, full standard-library support, aggregate ABI lowering, and complete feature parity are not implemented.
 
@@ -249,7 +249,7 @@ brew run app.wasm
 brew run app.brew --target wasm64
 ```
 
-SIC selects Wasmtime's native JIT on supported x86-64/ARM64 hosts. Browser
+BIC selects Wasmtime's native JIT on supported x86-64/ARM64 hosts. Browser
 deployments keep the WASM module and use [runtime/wasm64/browser.js](runtime/wasm64/browser.js)
 to execute it through the browser's WebAssembly engine. Install Wasmtime
 separately for native execution; see the [WASM64 runtime guide](runtime/wasm64/README.md).
@@ -440,7 +440,7 @@ compiler/
     CodeGen/          Shared code generation and target backends
       Targets/
     Driver/            Compilation pipeline and orchestration
-    IR/                Typed SVM IR, IR generation, optimization
+    IR/                Typed BVM IR, IR generation, optimization
     Parse/             UTF-8 lexer and parser
     Sema/              Name/type checking and C header import
     Serialization/     Assembly output
