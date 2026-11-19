@@ -1,4 +1,4 @@
-<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.svg" alt="Brew" width="180"></p>
 
 # Brew for Visual Studio Code
 
@@ -13,7 +13,7 @@ This extension adds basic editor support for Brew source files.
 
 ## Requirements
 
-Install the Brew compiler separately and ensure `brew` is available on your `PATH`. The compiler installation and usage instructions are in the repository root README.
+Install the Brew compiler separately and ensure `brewc` is available on your `PATH`. The compiler installation and usage instructions are in the repository root README.
 
 ## Install the compiler
 
@@ -22,9 +22,9 @@ From the repository root, build the single production compiler and put it on PAT
 ~~~sh
 sh build.sh
 mkdir -p ~/.local/bin
-cp build/brewc ~/.local/bin/brew
+cp build/brewc ~/.local/bin/brewc
 export PATH="$HOME/.local/bin:$PATH"
-brew --version
+brewc --version
 ~~~
 
 Add the PATH export to ~/.bashrc, ~/.zshrc, or your shell's startup file so VS Code can find the compiler after restarting.
