@@ -19,7 +19,6 @@ rm -f "$ROOT/build/brew-bootstrap" \
     -Werror=return-type -Werror=incompatible-pointer-types \
     -I"$ROOT/compiler/include" "$ROOT/compiler/tools/brewc/main.c" \
     -o "$ROOT/build/brewc"
-ln -sf brewc "$ROOT/build/brew"
 
 printf 'Built Brew production compiler: %s\n' "$ROOT/build/brewc"
 printf 'Compiler implementation: C11 (single production compiler)\n'
