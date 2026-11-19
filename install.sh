@@ -12,7 +12,7 @@ else
 fi
 mkdir -p "$DEST" "$DATA/stdlib"
 install -m 755 "$ROOT/build/brewc" "$DEST/brewc-bin"
-cp -R "$ROOT/stdlib/." "$DATA/stdlib/"
+cp -R "$ROOT/std/." "$DATA/std/"
 cat > "$DEST/brewc" <<'WRAPPER'
 #!/usr/bin/env sh
 set -eu
