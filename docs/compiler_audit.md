@@ -1,6 +1,6 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler Implementation Audit
+# Brew Compiler Implementation Audit
 
 This document records the implementation boundary visible in the production source tree. Syntax, semantic checking, lowering, and target support are separate milestones.
 
@@ -8,8 +8,8 @@ This document records the implementation boundary visible in the production sour
 
 - Compiler 1, implemented in C11, is the only compiler.
 - `build.sh` compiles the production compiler directly. It does not bootstrap or generate another compiler.
-- The root `main.c` remains a compatibility include of `compiler/tools/swanc/main.c`.
-- Compiler subsystems are organized under `compiler/lib/`, with stable compatibility headers under `compiler/include/swan/`.
+- The root `main.c` remains a compatibility include of `compiler/tools/brewc/main.c`.
+- Compiler subsystems are organized under `compiler/lib/`, with stable compatibility headers under `compiler/include/brew/`.
 
 ## Confirmed architecture
 
@@ -18,7 +18,7 @@ This document records the implementation boundary visible in the production sour
 - Typed, target-independent SSA IR with checked storage growth, overflow guards, SSA/dominance verification, operation-specific operand contracts, integer-only arithmetic typing, and leading-PHI validation.
 - Direct AST-to-typed-IR lowering for the supported scalar/control-flow subset.
 - Typed-IR optimizer with constant folding, CFG simplification, algebraic simplification, PHI propagation, CSE, LICM, and worklist DCE.
-- Shared SVM lowering/verification/optimization core feeding Swan-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
+- Shared SVM lowering/verification/optimization core feeding Brew-owned x86-64, AArch64, ARMv7, RISC-V64, WASM32, and WASM64 backends.
 - Optional, explicit LLVM IR bridge for target triples supported by the installed toolchain.
 - x86-64 AST compatibility backend for supported features not yet covered by typed IR.
 - Stage profiling for frontend, IR, optimization, target code generation, assembly, linking, and runtime, plus per-pass timing and optimization pass counts.
@@ -44,12 +44,12 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 | Backend | Verified implementation boundary |
 |---|---|
 | x86-64 System V Linux | Native executable/assembly; scalar typed-IR path and AST compatibility path for supported arrays, output, and lazy imports |
-| AArch64 Linux | Swan-owned object/assembly for a limited scalar typed-IR subset |
-| ARMv7 Linux, ARM state | Swan-owned object/assembly for a limited i32/i1 subset |
-| RISC-V64 Linux | Swan-owned object/assembly for a limited scalar typed-IR subset |
-| WASM32 | Swan-owned WebAssembly module for the implemented scalar/control-flow subset |
+| AArch64 Linux | Brew-owned object/assembly for a limited scalar typed-IR subset |
+| ARMv7 Linux, ARM state | Brew-owned object/assembly for a limited i32/i1 subset |
+| RISC-V64 Linux | Brew-owned object/assembly for a limited scalar typed-IR subset |
+| WASM32 | Brew-owned WebAssembly module for the implemented scalar/control-flow subset |
 | WASM64 | Memory64 module emission for its implemented subset; runtime interoperability must be tested with a compatible engine |
-| Explicit LLVM triple | LLVM IR, assembly, or relocatable object for the subset lowerable to Swan IR and supported by the installed toolchain |
+| Explicit LLVM triple | LLVM IR, assembly, or relocatable object for the subset lowerable to Brew IR and supported by the installed toolchain |
 
 SVM is the target-independent compiler engine, not a runtime target. The old IR interpreter and `.swvm` artifact have been removed. Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
 

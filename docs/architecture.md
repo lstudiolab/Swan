@@ -1,17 +1,17 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler Architecture
+# Brew Compiler Architecture
 
 ## Production compiler
 
-Swan has one production compiler: Compiler 1, implemented in C11. The sole compiled compiler translation unit is `compiler/tools/swanc/main.c`; focused subsystem headers live under `compiler/lib/` and stable compatibility headers live under `compiler/include/swan/`.
+Brew has one production compiler: Compiler 1, implemented in C11. The sole compiled compiler translation unit is `compiler/tools/brewc/main.c`; focused subsystem headers live under `compiler/lib/` and stable compatibility headers live under `compiler/include/brew/`.
 
-`build.sh` compiles the production executable directly to `build/swanc`. `build/swan` is a compatibility alias to that same executable. The build does not create a temporary bootstrap compiler, compile a second compiler, concatenate Swan compiler sources, or link generated compiler objects.
+`build.sh` compiles the production executable directly to `build/brewc`. `build/brew` is a compatibility alias to that same executable. The build does not create a temporary bootstrap compiler, compile a second compiler, concatenate Brew compiler sources, or link generated compiler objects.
 
 ## Compiler pipeline
 
 ```text
-Swan source
+Brew source
   -> source manager and UTF-8 validation
   -> lexer
   -> indentation-aware parser and AST
@@ -21,7 +21,7 @@ Swan source
   -> IR verification
   -> target-independent optimization
   -> final IR verification
-  -> selected Swan target backend (x86-64, AArch64/ARM64, or WASM64)
+  -> selected Brew target backend (x86-64, AArch64/ARM64, or WASM64)
   -> assembly/object/WebAssembly emission
   -> platform assembler and linker where applicable
 ```
@@ -41,7 +41,7 @@ The x86-64 AST compatibility backend remains for supported language features not
 | `IR/IR.h` / `IR/IRGen.h` | Typed SSA data model, verifier and AST-to-IR lowering |
 | `IR/Optimization.h` | Target-independent typed-IR optimization passes and pass manager |
 | `CodeGen/CodeGen.h` | Shared SVM compile engine and target dispatcher |
-| `CodeGen/Targets/` | Swan-owned target-specific lowering and emission |
+| `CodeGen/Targets/` | Brew-owned target-specific lowering and emission |
 | `Basic/Linker.h` / `Serialization/AssemblyEmitter.h` | Platform linker invocation and assembly serialization |
 
 ## Typed Ir
@@ -54,7 +54,7 @@ The optimizer performs width-aware constant folding, select and CFG simplificati
 
 ## Runtime and memory
 
-SVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `swan vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WASM64 emits a memory64 WebAssembly module.
+SVM emits target machine code or target modules; it does not interpret IR at runtime. The legacy IR interpreter, `.swvm` serializer, `brew vm` command, and `--target svm` target have been removed. Normal execution compiles to the selected native target; WASM64 emits a memory64 WebAssembly module.
 
 The x86-64 compatibility backend supports the currently implemented u32 array forms and automatic cleanup for eligible local arrays. Small fixed-size non-escaping arrays can use a stack-frame fast path. This is not yet a general ownership or borrow-checking system.
 
@@ -70,8 +70,8 @@ Successful object emission is not proof of runtime ABI compatibility. Cross-targ
 
 ## Engineering invariants
 
-1. Do not transpile Swan source to C.
-2. Keep the native backend path Swan-owned.
+1. Do not transpile Brew source to C.
+2. Keep the native backend path Brew-owned.
 3. Expose only the x86-64, AArch64/ARM64, and WASM64 target backends.
 4. Reject unsupported constructs with diagnostics rather than emitting partial code.
 5. Verify typed IR before and after transformations.
@@ -83,4 +83,4 @@ See [SVM Compiler Architecture](svm_architecture.md) for the target-independent 
 
 ## Building every supported target
 
-Use `swanc build <source.swan> --target all -o <directory>` to compile one source project for all registered backends. The compiler parses and semantically checks the source once, then emits a native x86-64 executable, an ARM64 ELF object, and a WASM64 memory64 module. The ARM64 object still requires target linking, and the WebAssembly module requires a memory64 runtime. This mode currently rejects C ABI inputs, custom linker arguments, runtime-lazy imports, and `--no-heap`; source constructs must be supported by each backend.
+Use `brewc build <source.brew> --target all -o <directory>` to compile one source project for all registered backends. The compiler parses and semantically checks the source once, then emits a native x86-64 executable, an ARM64 ELF object, and a WASM64 memory64 module. The ARM64 object still requires target linking, and the WebAssembly module requires a memory64 runtime. This mode currently rejects C ABI inputs, custom linker arguments, runtime-lazy imports, and `--no-heap`; source constructs must be supported by each backend.
