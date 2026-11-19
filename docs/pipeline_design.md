@@ -12,10 +12,10 @@
   -> C-header importer and Brew module loader
   -> semantic analysis
   -> reachability analysis
-  -> direct AST -> SVM typed SSA IR lowering
-  -> SVM verifier
+  -> direct AST -> BVM typed SSA IR lowering
+  -> BVM verifier
   -> target-independent optimization
-  -> final SVM verification
+  -> final BVM verification
   -> Brew-owned target code generation or explicit LLVM portability bridge
   -> assembly / object / WebAssembly emission
   -> assembler and linker where applicable
@@ -36,7 +36,7 @@ The x86-64 AST compatibility route remains for implemented features not yet repr
 | Module loader | Import declarations | Loaded module functions | Resolve canonical module identities and avoid duplicate loads |
 | Semantic analysis | Project AST | Checked program | Validate supported names, scopes, declarations, calls, and control flow |
 | Reachability | Checked program | Reachability map | Identify functions/modules reachable from the entry point |
-| SVM lowering | Checked AST | Typed SSA IR | Represent each supported operation or return a diagnostic |
+| BVM lowering | Checked AST | Typed SSA IR | Represent each supported operation or return a diagnostic |
 | IR verifier | Typed SSA IR | Verified IR or diagnostic | Enforce SSA, CFG, PHI, call, type, and terminator invariants |
 | IR optimizer | Verified IR | Optimized IR | Run bounded, semantics-preserving passes and preserve verifier invariants |
 | Target codegen | Optimized IR and target | Assembly/module/object | Lower only operations supported by the selected backend |
@@ -46,7 +46,7 @@ The x86-64 AST compatibility route remains for implemented features not yet repr
 
 ## Typed Ir and verifier
 
-SVM IR uses function-local SSA value IDs, typed instructions, basic blocks, explicit terminators, and PHI incoming edges. The verifier checks definition uniqueness, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage and types, operand types, and call signatures.
+BVM IR uses function-local SSA value IDs, typed instructions, basic blocks, explicit terminators, and PHI incoming edges. The verifier checks definition uniqueness, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage and types, operand types, and call signatures.
 
 A supported IR opcode does not imply that every source construct or target backend can generate it. Unsupported source/target combinations must produce precise diagnostics.
 
