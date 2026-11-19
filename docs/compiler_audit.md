@@ -51,7 +51,7 @@ The x86-64 AST compatibility path retains features that are not yet lowered thro
 | WASM64 | Memory64 module emission for its implemented subset; runtime interoperability must be tested with a compatible engine |
 | Explicit LLVM triple | LLVM IR, assembly, or relocatable object for the subset lowerable to Brew IR and supported by the installed toolchain |
 
-BVM is the target-independent compiler engine, not a runtime target. The old IR interpreter and `.swvm` artifact have been removed. Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
+BVM is the target-independent compiler engine, not a runtime target. The old IR interpreter and `.bvm` artifact have been removed. Cross-target object-format checks establish emission, not execution on the target CPU. The typed-IR backend subset is narrower than the full x86-64 compatibility path. C header imports and native external calls currently target x86-64 System V; the importer supports scalar integer/bool declarations, not general C types.
 
 ## Important limitations
 
