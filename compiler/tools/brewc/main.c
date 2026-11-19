@@ -369,7 +369,7 @@ static int brew_run(int argc,char **argv){
  }
  if(!brew_input_count){fprintf(stderr,"brewc: source directory contains no .brew files\n");BREW_RETURN(2);}
  const char *output=NULL,*stdlib_dir=getenv("BREW_STDLIB");
- if(!stdlib_dir||!*stdlib_dir)stdlib_dir="stdlib";
+ if(!stdlib_dir||!*stdlib_dir)stdlib_dir="std";
  const char *module_paths[64];size_t module_path_count=1;module_paths[0]=stdlib_dir;
  bool emit_asm=false,lazy_imports=false,warnings_as_errors=false,no_heap=false,target_all=false;size_t compile_jobs=1;
  BrewBICHost detected_host=brew_bic_detect_host();
