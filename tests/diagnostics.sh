@@ -1,12 +1,12 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swanc"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/diagnostics"
 mkdir -p "$TMP"
 rm -f "$TMP/warnings-as-errors.s" "$TMP/error.s"
 
-cat > "$TMP/warnings.swan" <<'SWAN'
+cat > "$TMP/warnings.brew" <<'BREW'
 func unused_helper() -> int:
     return 7
 
@@ -17,9 +17,9 @@ func main() -> int:
     if true:
         print(value)
     return 0
-SWAN
+BREW
 
-if ! "$SWAN" "$TMP/warnings.swan" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"; then
+if ! "$BREW" "$TMP/warnings.brew" --emit-asm -o "$TMP/warnings.s" 2>"$TMP/warnings.err"; then
     cat "$TMP/warnings.err" >&2
     exit 1
 fi
@@ -29,7 +29,7 @@ grep -q "literal zero" "$TMP/warnings.err"
 grep -q "function 'unused_helper' is never reached from main" "$TMP/warnings.err"
 printf 'PASS: semantic warnings identify suspicious constructs without stopping compilation\n'
 
-if "$SWAN" "$TMP/warnings.swan" --emit-asm --warnings-as-errors -o "$TMP/warnings-as-errors.s" 2>"$TMP/warnings-as-errors.err"; then
+if "$BREW" "$TMP/warnings.brew" --emit-asm --warnings-as-errors -o "$TMP/warnings-as-errors.s" 2>"$TMP/warnings-as-errors.err"; then
     echo 'FAIL: --warnings-as-errors allowed compilation to continue' >&2
     exit 1
 fi
@@ -37,12 +37,12 @@ grep -q "compilation stopped" "$TMP/warnings-as-errors.err"
 test ! -e "$TMP/warnings-as-errors.s"
 printf 'PASS: --warnings-as-errors stops before code generation\n'
 
-cat > "$TMP/error.swan" <<'SWAN'
+cat > "$TMP/error.brew" <<'BREW'
 func main() -> int:
     print(missing_symbol)
     return 0
-SWAN
-if "$SWAN" "$TMP/error.swan" --emit-asm -o "$TMP/error.s" 2>"$TMP/error.err"; then
+BREW
+if "$BREW" "$TMP/error.brew" --emit-asm -o "$TMP/error.s" 2>"$TMP/error.err"; then
     echo 'FAIL: semantic error was accepted' >&2
     exit 1
 fi

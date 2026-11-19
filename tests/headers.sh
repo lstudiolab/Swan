@@ -3,9 +3,9 @@ set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 CC=${CC:-cc}
 COUNT=$(find "$ROOT/compiler" -type f -name '*.c' | wc -l | tr -d ' ')
-DRIVER="$ROOT/compiler/tools/swanc/main.c"
+DRIVER="$ROOT/compiler/tools/brewc/main.c"
 if [ "$COUNT" -ne 1 ] || [ ! -f "$DRIVER" ] || [ ! -f "$ROOT/main.c" ]; then
-    echo "FAIL: expected one compiler translation unit at compiler/tools/swanc/main.c and the root compatibility entry point" >&2
+    echo "FAIL: expected one compiler translation unit at compiler/tools/brewc/main.c and the root compatibility entry point" >&2
     exit 1
 fi
 CPP_FILES=$(find "$ROOT" -type f | grep -E '\.(cpp|cc|cxx|hpp)$' || true)
@@ -14,7 +14,7 @@ if [ -n "$CPP_FILES" ]; then
     echo "$CPP_FILES" >&2
     exit 1
 fi
-find "$ROOT/compiler/include/swan" -type f -name '*.h' -print | sort |
+find "$ROOT/compiler/include/brew" -type f -name '*.h' -print | sort |
 while IFS= read -r header; do
     relative=${header#"$ROOT/compiler/include/"}
     printf '#include "%s"\nint main(void) { return 0; }\n' "$relative" |

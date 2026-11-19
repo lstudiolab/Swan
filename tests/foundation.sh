@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swan"
+BREW="$ROOT/build/brew"
 TMP="$ROOT/build/test/foundation"
 mkdir -p "$TMP"
 
-cat > "$TMP/program.swan" <<'SWAN'
+cat > "$TMP/program.brew" <<'BREW'
 import foundation
 import foundation
 func main():
@@ -45,9 +45,9 @@ func main():
     print(power_int(-1, 9223372036854775807))
     print(power_int(0, 9223372036854775807))
     return 0
-SWAN
+BREW
 
-"$SWAN" build "$TMP/program.swan" -o "$TMP/program"
+"$BREW" build "$TMP/program.brew" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
 9
 5
