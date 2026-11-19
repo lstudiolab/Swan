@@ -4,7 +4,7 @@
     {
       "label": "Brew: Build current file",
       "type": "process",
-      "command": "brew",
+      "command": "brewc",
       "args": [
         "build",
         "${file}",
@@ -20,7 +20,7 @@
     {
       "label": "Brew: Run current file",
       "type": "process",
-      "command": "brew",
+      "command": "brewc",
       "args": [
         "run",
         "${file}"
