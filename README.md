@@ -149,7 +149,7 @@ Inspect supported target names:
 ./build/brewc --list-targets
 ```
 
-`build.sh` compiles the C11 production compiler directly into `build/brewc`. No bootstrap compiler or secondary compiler is built. `build/brew` remains a compatibility alias to the same executable.
+`build.sh` compiles the C11 production compiler directly into `build/brewc`. No bootstrap compiler or secondary compiler is built. `brewc` is the sole compiler executable.
 
 ## VS Code
 
