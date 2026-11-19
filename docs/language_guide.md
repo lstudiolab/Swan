@@ -5,7 +5,7 @@
 
 **Status:** This guide describes the current compiler implementation. The normative high-level language direction is in [the High-Level Language Contract](high_level_language.md).
 
-> Brew is a high-level, ahead-of-time compiled language. Programmers work with values, functions, data structures, collections, and libraries. Memory management and hardware-specific execution are compiler/runtime responsibilities. SVM is Brew's compiler middle-end, not a virtual machine or runtime.
+> Brew is a high-level, ahead-of-time compiled language. Programmers work with values, functions, data structures, collections, and libraries. Memory management and hardware-specific execution are compiler/runtime responsibilities. BVM is Brew's compiler middle-end, not a virtual machine or runtime.
 
 The language contract is the intended public design; this guide and the [compiler completion matrix](compiler_completion_matrix.md) distinguish that design from constructs that are currently implemented. Reserved words, parsed syntax, and IR operations are not proof of complete end-to-end support.
 
@@ -444,7 +444,7 @@ A bare `return` is also accepted by the parser.
 
 ### 9.4 Infinite loops
 
-`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared SVM control flow and is supported by the x86-64, AArch64/ARM64, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
+`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared BVM control flow and is supported by the x86-64, AArch64/ARM64, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
 
 ```brew
 func count_to(limit: int) -> int:
@@ -541,7 +541,7 @@ C interoperability is limited to the documented importer and ABI subset in Secti
 
 ## 12. Foundation standard library
 
-The repository's current `stdlib/foundation.brew` provides:
+The repository's current `std/foundation.brew` provides:
 
 | Function | Purpose |
 |---|---|
@@ -614,7 +614,7 @@ func main() -> int:
     return 0
 ```
 
-The Brew-authored `stdlib/std_math.brew` module currently provides:
+The Brew-authored `std/std_math.brew` module currently provides:
 
 | API | Behavior |
 |---|---|
@@ -806,7 +806,7 @@ The production model is:
 12. Link a native executable when requested.
 13. Execute the resulting native program as a normal operating-system process.
 
-Typed IR and SVM are compiler representations. SVM is not a CPU, runtime, interpreter, or bytecode format. The executable must not need a Brew VM.
+Typed IR and BVM are compiler representations. BVM is not a CPU, runtime, interpreter, or bytecode format. The executable must not need a Brew VM.
 
 Optimization is required to preserve the language's semantics. Integer transformations must respect width, signedness, and overflow rules. Memory and call transformations must preserve observable side effects. Backends must reject unsupported operations rather than emit placeholders.
 
@@ -875,4 +875,4 @@ For compiler architecture and implementation requirements, see:
 
 - [Compiler System Contract](compiler_system.md)
 - [Compiler Engineering Style](engineering_style.md)
-- [SVM Compiler Architecture](svm_architecture.md)
+- [BVM Compiler Architecture](svm_architecture.md)
