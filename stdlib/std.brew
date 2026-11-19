@@ -1,4 +1,4 @@
-# Swan standard library
+# Brew standard library
 # Import with: import std
 # Public functions use ordinary calls, e.g. abs(-42).
 # Output uses print(expression).
