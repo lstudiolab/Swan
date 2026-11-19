@@ -1,28 +1,28 @@
-#ifndef SWAN_PARSER_H
-#define SWAN_PARSER_H
-#include "swan/lexer.h"
-#include "swan/ast.h"
-typedef struct { TokenStream *ts; Program *program; SwanError *err; bool failed; unsigned recursion_depth; } Parser;
+#ifndef BREW_PARSER_H
+#define BREW_PARSER_H
+#include "brew/lexer.h"
+#include "brew/ast.h"
+typedef struct { TokenStream *ts; Program *program; BrewError *err; bool failed; unsigned recursion_depth; } Parser;
 static inline Token *pk(Parser *p){return &p->ts->items[p->ts->pos<p->ts->count?p->ts->pos:p->ts->count-1];}
 static inline bool is(Parser *p,TokenKind k){return pk(p)->kind==k;}
 static inline Token take(Parser *p){Token t=*pk(p);if(t.kind!=T_EOF)p->ts->pos++;return t;}
 static inline bool eat(Parser *p,TokenKind k){if(!is(p,k))return false;take(p);return true;}
-static inline bool need(Parser *p,TokenKind k,const char *message){if(eat(p,k))return true;swan_error(p->err,pk(p),"%s",message);p->failed=true;return false;}
+static inline bool need(Parser *p,TokenKind k,const char *message){if(eat(p,k))return true;brew_error(p->err,pk(p),"%s",message);p->failed=true;return false;}
 static inline void separators(Parser *p){while(eat(p,T_NEWLINE)||eat(p,T_SEMI)){}}
-static inline Expr *new_expr(Parser *p,ExprKind k,Token t){Expr *e=swan_arena_alloc(p->program,sizeof(*e));if(!e){swan_error(p->err,&t,"out of memory allocating AST expression");p->failed=true;return NULL;}e->kind=k;e->token=t;return e;}
-static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=swan_arena_alloc(p->program,sizeof(*s));if(!s){swan_error(p->err,&t,"out of memory allocating AST statement");p->failed=true;return NULL;}s->kind=k;s->token=t;s->source_index=p->program->current_source_index;return s;}
-static inline bool swan_type_token(const Token *t){return t&&(t->kind==T_IDENT||t->kind==T_BOOL_TYPE||(t->kind==T_INT&&t->text&&!strcmp(t->text,"int")));}
+static inline Expr *new_expr(Parser *p,ExprKind k,Token t){Expr *e=brew_arena_alloc(p->program,sizeof(*e));if(!e){brew_error(p->err,&t,"out of memory allocating AST expression");p->failed=true;return NULL;}e->kind=k;e->token=t;return e;}
+static inline Stmt *new_stmt(Parser *p,StmtKind k,Token t){Stmt *s=brew_arena_alloc(p->program,sizeof(*s));if(!s){brew_error(p->err,&t,"out of memory allocating AST statement");p->failed=true;return NULL;}s->kind=k;s->token=t;s->source_index=p->program->current_source_index;return s;}
+static inline bool brew_type_token(const Token *t){return t&&(t->kind==T_IDENT||t->kind==T_BOOL_TYPE||(t->kind==T_INT&&t->text&&!strcmp(t->text,"int")));}
 static inline int precedence(TokenKind k){switch(k){case T_ASSIGN:return 1;case T_OR:return 2;case T_AND:return 3;case T_EQ:case T_NE:return 4;case T_LT:case T_GT:case T_LE:case T_GE:return 5;case T_PLUS:case T_MINUS:return 6;case T_STAR:case T_SLASH:case T_FLOORDIV:case T_PERCENT:return 7;default:return 0;}}
 static inline Expr *expression(Parser *p,int min);
 static inline Expr *expression_impl(Parser *p,int min);
 static inline Expr *prefix(Parser *p){
  Token t=take(p);Expr *e=NULL;
  if(t.kind==T_INT||t.kind==T_FLOAT||t.kind==T_STRING||t.kind==T_TRUE||t.kind==T_FALSE){e=new_expr(p,t.kind==T_INT?E_INT:t.kind==T_FLOAT?E_FLOAT:t.kind==T_STRING?E_STRING:E_BOOL,t);}
- else if(t.kind==T_NONE){swan_error(p->err,&t,"null literals are reserved but not yet supported by the current runtime");p->failed=true;return NULL;}
+ else if(t.kind==T_NONE){brew_error(p->err,&t,"null literals are reserved but not yet supported by the current runtime");p->failed=true;return NULL;}
  else if(t.kind==T_MINUS||t.kind==T_NOT||(t.kind==T_IDENT&&!strcmp(t.text,"not"))){if(t.kind==T_IDENT)t.kind=T_NOT;e=new_expr(p,E_UNARY,t);if(e){e->left=expression(p,8);e->contains_call=e->left&&e->left->contains_call;}}
   else if(t.kind==T_IDENT||t.kind==T_SELF){e=new_expr(p,E_NAME,t);}
  else if(t.kind==T_LP){e=expression(p,1);need(p,T_RP,"expected ')'");}
- else{swan_error(p->err,&t,"expected expression, found token %d '%s'",(int)t.kind,t.text?t.text:"");p->failed=true;return NULL;}
+ else{brew_error(p->err,&t,"expected expression, found token %d '%s'",(int)t.kind,t.text?t.text:"");p->failed=true;return NULL;}
  while(e&&!p->failed){
   if(eat(p,T_LB)){
    Expr *index=expression(p,1);
@@ -31,31 +31,31 @@ static inline Expr *prefix(Parser *p){
    if(item){item->left=e;item->right=index;item->contains_call=(e&&e->contains_call)||(index&&index->contains_call);}
    e=item;
   }
-  else if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){do{if(call->argc==call->arg_capacity){size_t cap=call->arg_capacity?call->arg_capacity*2:8;if(cap<call->arg_capacity||!swan_arena_grow(p->program,(void**)&call->args,call->argc,cap,sizeof(*call->args))){swan_error(p->err,&call->token,"out of memory growing call arguments");p->failed=true;return e;}call->arg_capacity=cap;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(!p->failed&&eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
-  else if(eat(p,T_DOT)){Token member=take(p);if(!member.text||member.kind==T_EOF||member.kind==T_NEWLINE||member.kind==T_DOT){swan_error(p->err,&member,"expected a member name after '.'");p->failed=true;break;}Expr *field=new_expr(p,E_NAME,member);Expr *access=new_expr(p,E_MEMBER,e->token);if(access){access->left=e;access->right=field;access->contains_call=e->contains_call;}e=access;}
+  else if(eat(p,T_LP)){Expr *call=new_expr(p,E_CALL,e->token);if(!call)return e;call->left=e;call->contains_call=true;if(!is(p,T_RP)){do{if(call->argc==call->arg_capacity){size_t cap=call->arg_capacity?call->arg_capacity*2:8;if(cap<call->arg_capacity||!brew_arena_grow(p->program,(void**)&call->args,call->argc,cap,sizeof(*call->args))){brew_error(p->err,&call->token,"out of memory growing call arguments");p->failed=true;return e;}call->arg_capacity=cap;}call->args[call->argc]=expression(p,1);if(call->args[call->argc])call->contains_call|=call->args[call->argc]->contains_call;call->argc++;}while(!p->failed&&eat(p,T_COMMA));}need(p,T_RP,"expected ')' after arguments");e=call;}
+  else if(eat(p,T_DOT)){Token member=take(p);if(!member.text||member.kind==T_EOF||member.kind==T_NEWLINE||member.kind==T_DOT){brew_error(p->err,&member,"expected a member name after '.'");p->failed=true;break;}Expr *field=new_expr(p,E_NAME,member);Expr *access=new_expr(p,E_MEMBER,e->token);if(access){access->left=e;access->right=field;access->contains_call=e->contains_call;}e=access;}
   else break;
  }
  return e;
 }
 static inline int precedence_token(Token *t){if(t->kind==T_IDENT){if(!strcmp(t->text,"or"))return 2;if(!strcmp(t->text,"and"))return 3;}return precedence(t->kind);}
 static inline Expr *expression_impl(Parser *p,int min){Expr *left=prefix(p);while(left&&!p->failed){int prec=precedence_token(pk(p));if(prec<min)break;Token op=take(p);if(op.kind==T_IDENT){if(!strcmp(op.text,"or"))op.kind=T_OR;else if(!strcmp(op.text,"and"))op.kind=T_AND;}Expr *right=expression(p,op.kind==T_ASSIGN?prec:prec+1);Expr *e=new_expr(p,E_BINARY,op);if(!e)return left;e->left=left;e->right=right;e->contains_call=(left&&left->contains_call)||(right&&right->contains_call);left=e;}return left;}
-static inline Expr *expression(Parser *p,int min){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing an expression");p->failed=true;return NULL;}p->recursion_depth++;Expr *result=expression_impl(p,min);p->recursion_depth--;return result;}
+static inline Expr *expression(Parser *p,int min){if(p->recursion_depth>=256){brew_error(p->err,pk(p),"parser recursion limit exceeded while parsing an expression");p->failed=true;return NULL;}p->recursion_depth++;Expr *result=expression_impl(p,min);p->recursion_depth--;return result;}
 static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity);
 static inline Stmt *statement(Parser *p);
 static inline Stmt *statement_impl(Parser *p){
  Token t=*pk(p);Stmt *s=NULL;
- if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;Token n=take(p);if(n.kind!=T_IDENT){swan_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!swan_type_token(&ty)){swan_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){swan_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
- /* print(value) is Swan's ordinary, concise output call. It lowers to the
+ if(eat(p,T_LET)||eat(p,T_VAR)||eat(p,T_CONST)){bool mut=t.kind==T_VAR;s=new_stmt(p,S_VARIABLE,t);if(!s)return NULL;s->mutable_value=mut;Token n=take(p);if(n.kind!=T_IDENT){brew_error(p->err,&n,"expected variable name");p->failed=true;return s;} s->name=n.text;if(eat(p,T_COLON)){Token ty=take(p);if(!brew_type_token(&ty)){brew_error(p->err,&ty,"expected type name");p->failed=true;}else s->type=ty.text;}if(eat(p,T_ASSIGN))s->value=expression(p,1);if(!mut&&!s->value){brew_error(p->err,&t,"immutable declaration requires a value");p->failed=true;}return s;}
+ /* print(value) is Brew's ordinary, concise output call. It lowers to the
   * existing output statement so both compiler backends share one implementation. */
  bool print_call=is(p,T_IDENT)&&!strcmp(pk(p)->text,"print")&&
                  p->ts->pos+1<p->ts->count&&p->ts->items[p->ts->pos+1].kind==T_LP;
  if(print_call){
   take(p);
   if(!need(p,T_LP,"expected '(' after print"))return NULL;
-  if(is(p,T_RP)){swan_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;return NULL;}
+  if(is(p,T_RP)){brew_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;return NULL;}
   s=new_stmt(p,S_LOG,t);
   if(s)s->value=expression(p,1);
-  if(!p->failed&&eat(p,T_COMMA)){swan_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;}
+  if(!p->failed&&eat(p,T_COMMA)){brew_error(p->err,pk(p),"print expects exactly one argument");p->failed=true;}
   if(!need(p,T_RP,"expected ')' after print argument"))return NULL;
   return s;
  }
@@ -64,10 +64,10 @@ static inline Stmt *statement_impl(Parser *p){
  if(eat(p,T_CONTINUE))return new_stmt(p,S_CONTINUE,t);
  if(eat(p,T_PASS))return new_stmt(p,S_PASS,t);
  if(eat(p,T_LOOP)){s=new_stmt(p,S_WHILE,t);Token truth=t;truth.kind=T_TRUE;truth.text="true";s->condition=new_expr(p,E_BOOL,truth);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;return s;}
- if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=swan_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){swan_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
+ if(eat(p,T_IF)||eat(p,T_WHILE)){bool cond=t.kind==T_IF;s=new_stmt(p,cond?S_IF:S_WHILE,t);s->condition=expression(p,1);if(!block(p,&s->body,&s->body_count,&s->body_cap))return s;if(cond){separators(p);}if(cond&&eat(p,T_ELSE)){if(is(p,T_IF)){ s->alternate=brew_arena_alloc(p->program,sizeof(*s->alternate));if(!s->alternate){brew_error(p->err,&t,"out of memory allocating else branch");p->failed=true;return s;}s->alt_cap=1;s->alternate[0]=statement(p);s->alt_count=1;}else block(p,&s->alternate,&s->alt_count,&s->alt_cap);}return s;}
  s=new_stmt(p,S_EXPR,t);if(s)s->value=expression(p,1);return s;
 }
-static inline Stmt *statement(Parser *p){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing statements");p->failed=true;return NULL;}p->recursion_depth++;Stmt *result=statement_impl(p);p->recursion_depth--;return result;}
+static inline Stmt *statement(Parser *p){if(p->recursion_depth>=256){brew_error(p->err,pk(p),"parser recursion limit exceeded while parsing statements");p->failed=true;return NULL;}p->recursion_depth++;Stmt *result=statement_impl(p);p->recursion_depth--;return result;}
 static inline bool block_impl(Parser *p,Stmt ***out,size_t *count,size_t *capacity){
  bool colon=eat(p,T_COLON);
  if(!need(p,T_NEWLINE,"expected newline"))return false;
@@ -76,20 +76,20 @@ static inline bool block_impl(Parser *p,Stmt ***out,size_t *count,size_t *capaci
  separators(p);
  while(!is(p,T_DEDENT)&&!is(p,T_EOF)&&!p->failed){
   if(*count==*capacity){
-   size_t cap=*capacity?*capacity*2:8;if(cap<*capacity||cap>SIZE_MAX/sizeof(**out)){swan_error(p->err,pk(p),"block capacity overflow");p->failed=true;break;}
-   Stmt **items=swan_arena_alloc(p->program,cap*sizeof(*items));
-   if(!items){swan_error(p->err,pk(p),"out of memory while parsing block");p->failed=true;break;}
+   size_t cap=*capacity?*capacity*2:8;if(cap<*capacity||cap>SIZE_MAX/sizeof(**out)){brew_error(p->err,pk(p),"block capacity overflow");p->failed=true;break;}
+   Stmt **items=brew_arena_alloc(p->program,cap*sizeof(*items));
+   if(!items){brew_error(p->err,pk(p),"out of memory while parsing block");p->failed=true;break;}
    if(*count)memcpy(items,*out,*count*sizeof(*items));
     *out=items;
     *capacity=cap;
   }
   size_t before=p->ts->pos;(*out)[(*count)++]=statement(p);separators(p);
-  if(before==p->ts->pos){swan_error(p->err,pk(p),"parser made no progress");p->failed=true;}
+  if(before==p->ts->pos){brew_error(p->err,pk(p),"parser made no progress");p->failed=true;}
  }
  if(p->failed)return false;
  if(!need(p,T_DEDENT,"expected dedent to close block"))return false;
  return true;
 }
-static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){if(p->recursion_depth>=256){swan_error(p->err,pk(p),"parser recursion limit exceeded while parsing blocks");p->failed=true;return false;}p->recursion_depth++;bool result=block_impl(p,out,count,capacity);p->recursion_depth--;return result;}
-static inline bool swan_parse(TokenStream *ts,Program *program,SwanError *err){if(err)memset(err,0,sizeof(*err));if(!ts||!program||!ts->items||!ts->count){swan_error(err,NULL,"parser requires a non-empty token stream and a program");return false;}Parser p={0};p.ts=ts;p.program=program;p.err=err;separators(&p);while(!is(&p,T_EOF)&&!p.failed){bool lazy_import=is(&p,T_IDENT)&&pk(&p)->text&&!strcmp(pk(&p)->text,"lazy");if(lazy_import)take(&p);Token t=take(&p);if(lazy_import&&!(t.kind==T_IMPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"import")))){swan_error(err,&t,"lazy must modify an import declaration");return false;}if(t.kind==T_IMPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"import"))){Token module=take(&p);if(module.kind!=T_IDENT){swan_error(err,&module,"expected module name after import");return false;}if(!strcmp(module.text,"C")){Token header=take(&p);if(header.kind!=T_STRING){swan_error(err,&header,"expected C header path after import C");return false;}if(!swan_program_add_c_header(program,header.text)){swan_error(err,&header,"out of memory recording C header import");return false;}}else if(!swan_program_add_import(program,module.text)){swan_error(err,&module,"out of memory recording module import");return false;}eat(&p,T_SEMI);separators(&p);continue;}bool exported=t.kind==T_EXPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"export"));if(exported){t=take(&p);if(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"C"))t=take(&p);}bool external=t.kind==T_EXTERN||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"external"));if(external)t=take(&p);if(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"fn"))t.kind=T_FN;if(t.kind!=T_FN){swan_error(err,&t,"only func declarations, external declarations, and imports are currently supported at file scope");return false;}Stmt *fn=new_stmt(&p,S_FUNCTION,t);if(!fn)return false;Token name=take(&p);if(name.kind!=T_IDENT){swan_error(err,&name,"expected function name");return false;}fn->name=name.text;fn->link_name=name.text;fn->external=external;fn->exported=exported;need(&p,T_LP,"expected '('");if(!is(&p,T_RP)){do{Token a=take(&p);if(a.kind!=T_IDENT){swan_error(err,&a,"expected parameter name");return false;}if(fn->param_count==fn->param_capacity){size_t cap=fn->param_capacity?fn->param_capacity*2:8;if(cap<fn->param_capacity||cap>SIZE_MAX/sizeof(*fn->params)){swan_error(err,&a,"function parameter capacity overflow");return false;}if(!swan_arena_grow(program,(void**)&fn->params,fn->param_count,cap,sizeof(*fn->params))||!swan_arena_grow(program,(void**)&fn->param_types,fn->param_count,cap,sizeof(*fn->param_types))){swan_error(err,&a,"out of memory growing function parameters");return false;}fn->param_capacity=cap;}fn->params[fn->param_count]=a.text;fn->param_types[fn->param_count]=NULL;fn->param_count++;if(eat(&p,T_COLON)){Token ty=take(&p);if(!swan_type_token(&ty)){swan_error(err,&ty,"expected parameter type");return false;}fn->param_types[fn->param_count-1]=ty.text;}}while(eat(&p,T_COMMA));}need(&p,T_RP,"expected ')'");if(eat(&p,T_ARROW)){Token ret=take(&p);if(!swan_type_token(&ret)){swan_error(err,&ret,"expected return type");return false;}fn->type=ret.text;}if(external){if(!is(&p,T_NEWLINE)&&!is(&p,T_EOF)){swan_error(err,pk(&p),"external function declarations cannot have a body");return false;}separators(&p);}else if(!block(&p,&fn->body,&fn->body_count,&fn->body_cap))return false;if(!swan_program_add_function(program,fn)){swan_error(err,&t,"out of memory recording function declaration");return false;}separators(&p);}return !p.failed;}
+static inline bool block(Parser *p,Stmt ***out,size_t *count,size_t *capacity){if(p->recursion_depth>=256){brew_error(p->err,pk(p),"parser recursion limit exceeded while parsing blocks");p->failed=true;return false;}p->recursion_depth++;bool result=block_impl(p,out,count,capacity);p->recursion_depth--;return result;}
+static inline bool brew_parse(TokenStream *ts,Program *program,BrewError *err){if(err)memset(err,0,sizeof(*err));if(!ts||!program||!ts->items||!ts->count){brew_error(err,NULL,"parser requires a non-empty token stream and a program");return false;}Parser p={0};p.ts=ts;p.program=program;p.err=err;separators(&p);while(!is(&p,T_EOF)&&!p.failed){bool lazy_import=is(&p,T_IDENT)&&pk(&p)->text&&!strcmp(pk(&p)->text,"lazy");if(lazy_import)take(&p);Token t=take(&p);if(lazy_import&&!(t.kind==T_IMPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"import")))){brew_error(err,&t,"lazy must modify an import declaration");return false;}if(t.kind==T_IMPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"import"))){Token module=take(&p);if(module.kind!=T_IDENT){brew_error(err,&module,"expected module name after import");return false;}if(!strcmp(module.text,"C")){Token header=take(&p);if(header.kind!=T_STRING){brew_error(err,&header,"expected C header path after import C");return false;}if(!brew_program_add_c_header(program,header.text)){brew_error(err,&header,"out of memory recording C header import");return false;}}else if(!brew_program_add_import(program,module.text)){brew_error(err,&module,"out of memory recording module import");return false;}eat(&p,T_SEMI);separators(&p);continue;}bool exported=t.kind==T_EXPORT||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"export"));if(exported){t=take(&p);if(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"C"))t=take(&p);}bool external=t.kind==T_EXTERN||(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"external"));if(external)t=take(&p);if(t.kind==T_IDENT&&t.text&&!strcmp(t.text,"fn"))t.kind=T_FN;if(t.kind!=T_FN){brew_error(err,&t,"only func declarations, external declarations, and imports are currently supported at file scope");return false;}Stmt *fn=new_stmt(&p,S_FUNCTION,t);if(!fn)return false;Token name=take(&p);if(name.kind!=T_IDENT){brew_error(err,&name,"expected function name");return false;}fn->name=name.text;fn->link_name=name.text;fn->external=external;fn->exported=exported;need(&p,T_LP,"expected '('");if(!is(&p,T_RP)){do{Token a=take(&p);if(a.kind!=T_IDENT){brew_error(err,&a,"expected parameter name");return false;}if(fn->param_count==fn->param_capacity){size_t cap=fn->param_capacity?fn->param_capacity*2:8;if(cap<fn->param_capacity||cap>SIZE_MAX/sizeof(*fn->params)){brew_error(err,&a,"function parameter capacity overflow");return false;}if(!brew_arena_grow(program,(void**)&fn->params,fn->param_count,cap,sizeof(*fn->params))||!brew_arena_grow(program,(void**)&fn->param_types,fn->param_count,cap,sizeof(*fn->param_types))){brew_error(err,&a,"out of memory growing function parameters");return false;}fn->param_capacity=cap;}fn->params[fn->param_count]=a.text;fn->param_types[fn->param_count]=NULL;fn->param_count++;if(eat(&p,T_COLON)){Token ty=take(&p);if(!brew_type_token(&ty)){brew_error(err,&ty,"expected parameter type");return false;}fn->param_types[fn->param_count-1]=ty.text;}}while(eat(&p,T_COMMA));}need(&p,T_RP,"expected ')'");if(eat(&p,T_ARROW)){Token ret=take(&p);if(!brew_type_token(&ret)){brew_error(err,&ret,"expected return type");return false;}fn->type=ret.text;}if(external){if(!is(&p,T_NEWLINE)&&!is(&p,T_EOF)){brew_error(err,pk(&p),"external function declarations cannot have a body");return false;}separators(&p);}else if(!block(&p,&fn->body,&fn->body_count,&fn->body_cap))return false;if(!brew_program_add_function(program,fn)){brew_error(err,&t,"out of memory recording function declaration");return false;}separators(&p);}return !p.failed;}
 #endif
