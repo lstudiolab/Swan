@@ -195,7 +195,7 @@ def main() -> None:
           f"{args.warmups} warm-up run(s)")
     print("Unit: seconds (lower is faster); peak compiler RSS is KiB (lower is smaller)")
     print("Workloads are generated afresh for each benchmark invocation.")
-    print("Production compiler uses direct AST-to-SVM typed-IR lowering; AST compatibility codegen is reported separately.")
+    print("Production compiler uses direct AST-to-BVM typed-IR lowering; AST compatibility codegen is reported separately.")
     for name, samples in results.items():
         print(f"\n[{name}] source={source_sizes[name]} bytes")
         keys = set().union(*(sample.keys() for sample in samples))
