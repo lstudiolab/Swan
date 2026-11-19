@@ -132,7 +132,7 @@ expected=$(printf '0\n21')
 test "$("$TMP/boolean-abi")" = "$expected"
 printf 'PASS: x86-64 AST backend normalizes boolean parameters and return values\n'
 
-mkdir -p "$TMP/stdlib"
+mkdir -p "$TMP/std"
 cat > "$TMP/std/helper.brew" <<'BREW'
 fn helper_value() -> int:
     return 21
@@ -142,7 +142,7 @@ import helper
 fn main() -> int:
     return helper_value()
 BREW
-"$BREW" build "$TMP/imported-module.brew" --stdlib "$TMP/stdlib" -o "$TMP/imported-module"
+"$BREW" build "$TMP/imported-module.brew" --stdlib "$TMP/std" -o "$TMP/imported-module"
 set +e
 "$TMP/imported-module"
 import_status=$?
