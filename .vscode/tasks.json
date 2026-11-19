@@ -2,9 +2,9 @@
   "version": "2.0.0",
   "tasks": [
     {
-      "label": "Swan: Build current file",
+      "label": "Brew: Build current file",
       "type": "process",
-      "command": "swan",
+      "command": "brewc",
       "args": [
         "build",
         "${file}",
@@ -18,9 +18,9 @@
       }
     },
     {
-      "label": "Swan: Run current file",
+      "label": "Brew: Run current file",
       "type": "process",
-      "command": "swan",
+      "command": "brewc",
       "args": [
         "run",
         "${file}"

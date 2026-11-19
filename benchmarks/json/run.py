@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Equivalent JSON parse + compact-encode workload for Swan, Go, Goose and Rust."""
+"""Equivalent JSON parse + compact-encode workload for Brew, Go, Goose and Rust."""
 from __future__ import annotations
 
 import json
@@ -17,7 +17,7 @@ BENCH = pathlib.Path(__file__).resolve().parent
 REQUESTS = 100_000
 REPEATS = 7
 PAYLOAD = (
-    '{"id":42,"workers":128,"enabled":true,"service":"swan",'
+    '{"id":42,"workers":128,"enabled":true,"service":"brew",'
     '"items":[1,2,3,4,5],"meta":{"region":"ap-southeast-1","version":1}}'
 )
 EXPECTED_CHECKSUM = REQUESTS * (42 + 128)
@@ -91,7 +91,7 @@ def main() -> None:
         raise SystemExit("Required tools: cc, go, cargo/rustc, and Goose (GOOSE or PATH)")
 
     versions = {
-        "Swan": "repository compiler",
+        "Brew": "repository compiler",
         "Go": version([go, "version"]),
         "Goose": version([goose, "version"]),
         "Rust": version(["rustc", "--version"]),
@@ -100,27 +100,27 @@ def main() -> None:
     compile_seconds: dict[str, float] = {}
     flags: dict[str, str] = {}
 
-    with tempfile.TemporaryDirectory(prefix="swan-json-bench-") as temp:
+    with tempfile.TemporaryDirectory(prefix="brew-json-bench-") as temp:
         tmp = pathlib.Path(temp)
-        swan = ROOT / "build" / "swan"
-        if not swan.exists():
+        brew = ROOT / "build" / "brew"
+        if not brew.exists():
             checked(["sh", "build.sh"], ROOT)
 
-        # Swan uses the actual JSON runtime that its standard module calls.
-        swan_obj = tmp / "json_abi.o"
+        # Brew uses the actual JSON runtime that its standard module calls.
+        brew_obj = tmp / "json_abi.o"
         t0 = time.perf_counter()
         checked(
             [cc, "-O3", "-DNDEBUG", "-std=c11", "-I", str(ROOT / "runtime"),
-             "-c", str(BENCH / "swan_payload.c"), "-o", str(swan_obj)], ROOT,
+             "-c", str(BENCH / "brew_payload.c"), "-o", str(brew_obj)], ROOT,
         )
-        swan_bin = tmp / "swan-json"
+        brew_bin = tmp / "brew-json"
         checked(
-            [str(swan), "build", str(BENCH / "swan.swan"), "--link",
-             str(swan_obj), "-o", str(swan_bin)], ROOT,
+            [str(brew), "build", str(BENCH / "brew.brew"), "--link",
+             str(brew_obj), "-o", str(brew_bin)], ROOT,
         )
-        compile_seconds["Swan"] = time.perf_counter() - t0
-        outputs["Swan"] = swan_bin
-        flags["Swan"] = "Swan x86-64 C ABI dispatch + C11 JSON runtime driver (-O3)"
+        compile_seconds["Brew"] = time.perf_counter() - t0
+        outputs["Brew"] = brew_bin
+        flags["Brew"] = "Brew x86-64 C ABI dispatch + C11 JSON runtime driver (-O3)"
 
         go_bin = tmp / "go-json"
         t0 = time.perf_counter()
@@ -145,7 +145,7 @@ def main() -> None:
              "--target-dir", str(rust_target)], ROOT,
         )
         compile_seconds["Rust"] = time.perf_counter() - t0
-        outputs["Rust"] = rust_target / "release" / "swan-json-benchmark"
+        outputs["Rust"] = rust_target / "release" / "brew-json-benchmark"
         flags["Rust"] = "cargo build --release; serde_json preserve_order"
 
         for name, binary in outputs.items():
@@ -187,7 +187,7 @@ def main() -> None:
             }
 
         report = {
-            "benchmark": "JSON parse + compact encode: Swan / Go / Goose / Rust",
+            "benchmark": "JSON parse + compact encode: Brew / Go / Goose / Rust",
             "host": host(),
             "toolchains": versions,
             "workload": {
@@ -204,7 +204,7 @@ def main() -> None:
             "methodology": [
                 "Every implementation parses the same nested JSON request and compact-encodes the parsed document.",
                 "Every run checks the same id/workers values and returns identical checksum and total input+output bytes.",
-                "Swan dispatches through its x86-64 C ABI to the C11 JSON runtime driver; the repeated hot loop runs in that runtime helper, so this isolates runtime throughput rather than Swan loop or per-call FFI overhead.",
+                "Brew dispatches through its x86-64 C ABI to the C11 JSON runtime driver; the repeated hot loop runs in that runtime helper, so this isolates runtime throughput rather than Brew loop or per-call FFI overhead.",
                 "Go uses encoding/json; Goose uses its stdlib json DOM and writer; Rust uses serde_json with preserve_order.",
                 "The benchmark is in-process and excludes TCP/HTTP, TLS, and socket overhead.",
                 "Seven timed runs rotate execution order; throughput values are medians across runs.",

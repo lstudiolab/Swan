@@ -1,7 +1,7 @@
-#include "swan/lexer.h"
-#include "swan/sema.h"
-#include "swan/irgen.h"
-#include "swan/optimization.h"
+#include "brew/lexer.h"
+#include "brew/sema.h"
+#include "brew/irgen.h"
+#include "brew/optimization.h"
 #include <assert.h>
 #include <stdio.h>
 
@@ -32,39 +32,39 @@ int main(void) {
         "        return total\n"
         "    return 0\n"
         ;
-    SwanError error={0}; TokenStream tokens={0}; Program program={0};
-    assert(swan_lex(source,&tokens,&error));
-    assert(swan_parse(&tokens,&program,&error));
+    BrewError error={0}; TokenStream tokens={0}; Program program={0};
+    assert(brew_lex(source,&tokens,&error));
+    assert(brew_parse(&tokens,&program,&error));
     int64_t minimum=0;
     bool found_minimum=false;
     for(size_t i=0;i<program.count;i++){
         Stmt *function=program.functions[i];
         if(function&&!strcmp(function->name,"minimum")&&function->body_count){
-            found_minimum=swan_irgen_integer_literal(function->body[0]->value,&minimum);
+            found_minimum=brew_irgen_integer_literal(function->body[0]->value,&minimum);
             break;
         }
     }
     assert(found_minimum&&minimum==INT64_MIN);
-    assert(swan_semantic_check(&program,&error));
-    SwanIRModule module={0};
-    assert(swan_irgen_program(&program,&module,&error));
+    assert(brew_semantic_check(&program,&error));
+    BrewIRModule module={0};
+    assert(brew_irgen_program(&program,&module,&error));
     bool emitted_minimum=false;
     for(size_t f=0;f<module.function_count;f++)
         for(size_t b=0;b<module.functions[f].block_count;b++)
             for(size_t i=0;i<module.functions[f].blocks[b].instruction_count;i++){
-                SwanIRInst *instruction=&module.functions[f].blocks[b].instructions[i];
-                if(instruction->op==SWAN_IR_CONST&&instruction->immediate==INT64_MIN)
+                BrewIRInst *instruction=&module.functions[f].blocks[b].instructions[i];
+                if(instruction->op==BREW_IR_CONST&&instruction->immediate==INT64_MIN)
                     emitted_minimum=true;
             }
     assert(emitted_minimum);
     char detail[256]={0};
-    assert(swan_ir_optimize(&module,detail,sizeof(detail)));
-    assert(swan_ir_verify(&module,detail,sizeof(detail)));
-    swan_ir_destroy(&module);
+    assert(brew_ir_optimize(&module,detail,sizeof(detail)));
+    assert(brew_ir_verify(&module,detail,sizeof(detail)));
+    brew_ir_destroy(&module);
     /* The diagnostic sink is optional, including for void-call statements. */
-    assert(swan_irgen_program(&program,&module,NULL));
-    swan_ir_destroy(&module);
-    swan_program_destroy(&program);free(tokens.items);free(tokens.text_storage);
-    puts("PASS: .swan -> typed IR -> verified optimization, loops, branches and calls");
+    assert(brew_irgen_program(&program,&module,NULL));
+    brew_ir_destroy(&module);
+    brew_program_destroy(&program);free(tokens.items);free(tokens.text_storage);
+    puts("PASS: .brew -> typed IR -> verified optimization, loops, branches and calls");
     return 0;
 }

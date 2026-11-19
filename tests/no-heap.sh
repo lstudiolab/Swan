@@ -1,45 +1,45 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swanc"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/test/no-heap"
 mkdir -p "$TMP"
 
-cat > "$TMP/stack.swan" <<'SWAN'
+cat > "$TMP/stack.brew" <<'BREW'
 func main() -> int:
     let values = array_u32(16)
     values[0] = 21
     values[1] = 21
     return values[0] + values[1] - 42
-SWAN
-"$SWAN" build "$TMP/stack.swan" --no-heap -o "$TMP/stack"
+BREW
+"$BREW" build "$TMP/stack.brew" --no-heap -o "$TMP/stack"
 "$TMP/stack"
-"$SWAN" build "$TMP/stack.swan" --no-heap --emit-asm -o "$TMP/stack.s"
+"$BREW" build "$TMP/stack.brew" --no-heap --emit-asm -o "$TMP/stack.s"
 if grep -q 'calloc@PLT' "$TMP/stack.s"; then
     echo "no-heap output unexpectedly calls calloc" >&2
     exit 1
 fi
 
-cat > "$TMP/dynamic.swan" <<'SWAN'
+cat > "$TMP/dynamic.brew" <<'BREW'
 func main() -> int:
     let count = 16
     let values = array_u32(count)
     return 0
-SWAN
-if "$SWAN" build "$TMP/dynamic.swan" --no-heap -o "$TMP/dynamic" 2>"$TMP/dynamic-error"; then
+BREW
+if "$BREW" build "$TMP/dynamic.brew" --no-heap -o "$TMP/dynamic" 2>"$TMP/dynamic-error"; then
     echo "expected dynamic array allocation to fail in no-heap mode" >&2
     exit 1
 fi
 grep -F 'no-heap mode' "$TMP/dynamic-error" >/dev/null
 
-cat > "$TMP/escaped.swan" <<'SWAN'
+cat > "$TMP/escaped.brew" <<'BREW'
 func consume(values: u32_array) -> int:
     return values[0]
 func main() -> int:
     let values = array_u32(16)
     return consume(values)
-SWAN
-if "$SWAN" build "$TMP/escaped.swan" --no-heap -o "$TMP/escaped" 2>"$TMP/escaped-error"; then
+BREW
+if "$BREW" build "$TMP/escaped.brew" --no-heap -o "$TMP/escaped" 2>"$TMP/escaped-error"; then
     echo "expected escaped array to fail in no-heap mode" >&2
     exit 1
 fi

@@ -1,20 +1,20 @@
-#include "swan/lexer.h"
-#include "swan/sema.h"
-#include "swan/irgen.h"
-#include "swan/optimization.h"
+#include "brew/lexer.h"
+#include "brew/sema.h"
+#include "brew/irgen.h"
+#include "brew/optimization.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
 
 static void compile_and_verify(const char *source) {
-    SwanError error={0};TokenStream tokens={0};Program program={0};
-    assert(swan_lex(source,&tokens,&error));
-    assert(swan_parse(&tokens,&program,&error));
-    assert(swan_semantic_check(&program,&error));
-    SwanIRModule module={0};assert(swan_irgen_program(&program,&module,&error));
-    char detail[256]={0};assert(swan_ir_optimize(&module,detail,sizeof(detail)));
-    assert(swan_ir_verify(&module,detail,sizeof(detail)));
-    swan_ir_destroy(&module);swan_program_destroy(&program);
+    BrewError error={0};TokenStream tokens={0};Program program={0};
+    assert(brew_lex(source,&tokens,&error));
+    assert(brew_parse(&tokens,&program,&error));
+    assert(brew_semantic_check(&program,&error));
+    BrewIRModule module={0};assert(brew_irgen_program(&program,&module,&error));
+    char detail[256]={0};assert(brew_ir_optimize(&module,detail,sizeof(detail)));
+    assert(brew_ir_verify(&module,detail,sizeof(detail)));
+    brew_ir_destroy(&module);brew_program_destroy(&program);
     free(tokens.items);free(tokens.text_storage);
 }
 int main(void) {

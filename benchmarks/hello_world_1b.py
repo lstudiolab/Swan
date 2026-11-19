@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Print Hello World one billion times in Swan, Goose, Rust and C."""
+"""Print Hello World one billion times in Brew, Goose, Rust and C."""
 import os
 import pathlib
 import platform
@@ -9,11 +9,11 @@ import tempfile
 import time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 N = 1_000_000_000
 
 SOURCES = {
-    "Swan": f"""func main() -> int:
+    "Brew": f"""func main() -> int:
     var i = 0
     while i < {N}
         !printin >> "Hello World"
@@ -74,14 +74,14 @@ def main():
         "Rust": shutil.which("rustc"),
         "C": shutil.which("cc"),
     }
-    if not SWAN.is_file():
-        raise SystemExit("Build Swan first: sh build.sh")
+    if not BREW.is_file():
+        raise SystemExit("Build Brew first: sh build.sh")
     if not all(tools.values()):
         raise SystemExit("Goose, rustc and cc are required")
 
-    with tempfile.TemporaryDirectory(prefix="swan-hello-billion-") as td:
+    with tempfile.TemporaryDirectory(prefix="brew-hello-billion-") as td:
         work = pathlib.Path(td)
-        extensions = {"Swan": "swan", "Goose": "goose", "Rust": "rs", "C": "c"}
+        extensions = {"Brew": "brew", "Goose": "goose", "Rust": "rs", "C": "c"}
         binaries = {}
         compile_times = {}
 
@@ -89,8 +89,8 @@ def main():
             src = work / f"hello.{extensions[name]}"
             binary = work / name.lower()
             src.write_text(source, encoding="utf-8")
-            if name == "Swan":
-                command = [str(SWAN), "build", str(src), "-o", str(binary)]
+            if name == "Brew":
+                command = [str(BREW), "build", str(src), "-o", str(binary)]
             elif name == "Goose":
                 command = [tools[name], "build", "-o", str(binary), str(src)]
             elif name == "Rust":
@@ -113,7 +113,7 @@ def main():
         print("|---|---:|---:|", flush=True)
 
         # Rotate order to reduce systematic first/last-run bias.
-        order = ["Swan", "Goose", "Rust", "C"]
+        order = ["Brew", "Goose", "Rust", "C"]
         for name in order:
             runtime = timed_run(binaries[name])
             print(f"| {name} | {compile_times[name]:.6f} | {runtime:.6f} |", flush=True)

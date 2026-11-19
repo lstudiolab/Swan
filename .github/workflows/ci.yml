@@ -1,4 +1,4 @@
-name: Swan CI
+name: Brew CI
 
 on:
   push:
@@ -7,6 +7,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: brew-ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   compiler-c11:
@@ -30,7 +34,7 @@ jobs:
         run: sh tests/sil.sh
       - name: Verify IR optimization passes
         run: sh tests/optimization.sh
-      - name: Verify .swan to optimized typed-IR integration
+      - name: Verify .brew to optimized typed-IR integration
         run: sh tests/irgen.sh
       - name: Verify IR control-flow lowering
         run: sh tests/irgen-control.sh
@@ -43,14 +47,14 @@ jobs:
       - name: Verify direct single-compiler build
         run: sh tests/compiler-single-build.sh
       - name: Verify compiler version
-        run: ./build/swanc --version
+        run: ./build/brewc --version
 
   memory-safety:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - name: Build compiler with AddressSanitizer and UndefinedBehaviorSanitizer
-        run: SWAN_SANITIZE=1 sh build.sh
+        run: BREW_SANITIZE=1 sh build.sh
       - name: Exercise C ABI, JSON handles, and native linking
         run: sh tests/ffi.sh
       - name: Exercise independent source translation units
@@ -67,7 +71,7 @@ jobs:
           echo "$RUNNER_TEMP/wasmtime-v50.0.2-aarch64-linux" >> "$GITHUB_PATH"
       - name: Build compiler on native ARM64
         run: sh build.sh
-      - name: Execute native ARM64 Swan programs
+      - name: Execute native ARM64 Brew programs
         run: sh tests/arm64-native.sh
       - name: Verify AArch64 object and ABI lowering
         run: sh tests/aarch64.sh

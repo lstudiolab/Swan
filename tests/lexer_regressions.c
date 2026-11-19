@@ -1,4 +1,4 @@
-#include "swan/lexer.h"
+#include "brew/lexer.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -12,9 +12,9 @@ static void release_tokens(TokenStream *ts) {
 
 int main(void) {
     TokenStream ts = {0};
-    SwanError error = {0};
+    BrewError error = {0};
     const char *multiline = "\"\"\"alpha\nbeta\"\"\" x";
-    assert(swan_lex(multiline, &ts, &error));
+    assert(brew_lex(multiline, &ts, &error));
     assert(ts.count == 3);
     assert(ts.items[0].kind == T_STRING);
     assert(strcmp(ts.items[0].text, "alpha\nbeta") == 0);
@@ -25,7 +25,7 @@ int main(void) {
     release_tokens(&ts);
 
     const char *three_lines = "\"\"\"alpha\nbeta\ngamma\"\"\"\nnext";
-    assert(swan_lex(three_lines, &ts, &error));
+    assert(brew_lex(three_lines, &ts, &error));
     assert(ts.items[0].kind == T_STRING);
     assert(strcmp(ts.items[0].text, "alpha\nbeta\ngamma") == 0);
     assert(ts.items[1].kind == T_NEWLINE);
@@ -40,13 +40,13 @@ int main(void) {
         many_tokens[i * 2 + 1] = ' ';
     }
     many_tokens[512] = '\0';
-    assert(swan_lex(many_tokens, &ts, &error));
+    assert(brew_lex(many_tokens, &ts, &error));
     assert(ts.count == 257);
     assert(ts.capacity >= ts.count && ts.capacity <= 512);
     release_tokens(&ts);
 
     const char *following = "\"first\\nsecond\"\nname";
-    assert(swan_lex(following, &ts, &error));
+    assert(brew_lex(following, &ts, &error));
     assert(ts.items[0].kind == T_STRING);
     assert(ts.items[1].kind == T_NEWLINE);
     assert(ts.items[2].kind == T_IDENT);
@@ -54,12 +54,12 @@ int main(void) {
     release_tokens(&ts);
 
     const char malformed[] = {'x', '\n', (char)0xE2, '(', (char)0xA1, 0};
-    assert(!swan_lex(malformed, &ts, &error));
+    assert(!brew_lex(malformed, &ts, &error));
     assert(error.line == 2 && error.col == 2);
     assert(strstr(error.message, "UTF-8") != NULL);
 
     const char unterminated[] = "\"\"\"open\nstring";
-    assert(!swan_lex(unterminated, &ts, &error));
+    assert(!brew_lex(unterminated, &ts, &error));
     assert(error.line == 1 && error.col == 1);
     assert(strstr(error.message, "triple-quoted") != NULL);
 

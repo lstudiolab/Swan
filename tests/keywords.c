@@ -1,5 +1,5 @@
-#include "swan/lexer.h"
-#include "swan/ast.h"
+#include "brew/lexer.h"
+#include "brew/ast.h"
 #include <assert.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -24,8 +24,8 @@ int main(void) {
         if (i) strcat(source," ");
         strcat(source,keywords[i]);
     }
-    TokenStream ts={0};SwanError error={0};
-    assert(swan_lex(source,&ts,&error));
+    TokenStream ts={0};BrewError error={0};
+    assert(brew_lex(source,&ts,&error));
     assert(sizeof(keywords)/sizeof(keywords[0])==33);
     assert(ts.count==34);
     for (size_t i=0;i<33;i++) {
@@ -40,7 +40,7 @@ int main(void) {
         if (i) strcat(source," ");
         strcat(source,identifiers[i]);
     }
-    assert(swan_lex(source,&ts,&error));
+    assert(brew_lex(source,&ts,&error));
     assert(ts.count==sizeof(identifiers)/sizeof(identifiers[0])+1);
     for (size_t i=0;i<sizeof(identifiers)/sizeof(identifiers[0]);i++) {
         if (ts.items[i].kind!=T_IDENT) {
@@ -49,6 +49,6 @@ int main(void) {
         }
     }
     free(ts.items);free(ts.text_storage);
-    puts("PASS: exact 33-word Swan keyword set; all other tested spellings are identifiers");
+    puts("PASS: exact 33-word Brew keyword set; all other tested spellings are identifiers");
     return 0;
 }

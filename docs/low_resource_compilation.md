@@ -1,4 +1,4 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
 # Low-Resource and Single-Worker Compilation
 
@@ -6,26 +6,26 @@
 
 ## Goal
 
-Swan projects must be buildable on small machines, mobile development environments, CI runners with tight quotas, and memory-constrained servers without requiring a large compiler worker pool.
+Brew projects must be buildable on small machines, mobile development environments, CI runners with tight quotas, and memory-constrained servers without requiring a large compiler worker pool.
 
 ## Current compiler behavior
 
-The current `swanc` driver is single-worker and sequential:
+The current `brewc` driver is single-worker and sequential:
 
-- It reads the selected Swan source files into one compilation unit.
+- It reads the selected Brew source files into one compilation unit.
 - Lexing, parsing, import loading, semantic analysis, reachability, IR lowering, optimization, and code generation run sequentially.
 - C source assembly and lazy-module builds are launched and waited on one at a time.
 - The compiler does not create a thread pool or spawn compiler worker threads.
 
-The external C toolchain and system linker are separate processes and may have their own resource behavior. Swan's single-worker guarantee applies to Swan compiler orchestration, not to every third-party tool or the operating system.
+The external C toolchain and system linker are separate processes and may have their own resource behavior. Brew's single-worker guarantee applies to Brew compiler orchestration, not to every third-party tool or the operating system.
 
 ## Cli contract
 
 Use either:
 
 ```sh
-swanc build src/ --low-resource -o app
-swanc build src/ --jobs 1 -o app
+brewc build src/ --low-resource -o app
+brewc build src/ --jobs 1 -o app
 ```
 
 Both select the single-worker compilation policy. `--low-resource` is the convenient profile name. `--jobs 1` makes the worker limit explicit.
@@ -37,7 +37,7 @@ At present, values greater than one are rejected with a clear diagnostic rather 
 Low-resource compilation should remain deterministic and bounded:
 
 - No compiler worker pool is initialized in single-worker mode.
-- No source file is compiled concurrently by the Swan driver.
+- No source file is compiled concurrently by the Brew driver.
 - Process launches are serialized and reaped before the next tool invocation.
 - Future parallel compilation must use a bounded worker pool, never one thread per source file.
 - Future `--jobs N` support must cap both active compiler jobs and queued work.
@@ -60,5 +60,5 @@ Parallelism is opt-in. The default remains one worker unless a future release ex
 - `--low-resource` compiles a multi-file project successfully.
 - `--jobs 1` produces byte-identical output to the default single-worker build where output formats are deterministic.
 - `--jobs 0`, missing values, malformed numbers, and values above the currently supported limit produce clear usage errors.
-- Stress builds confirm that the driver never has more than one Swan compilation job active.
+- Stress builds confirm that the driver never has more than one Brew compilation job active.
 - Resource benchmarks report wall time, peak RSS, process/thread count, and output checksum.

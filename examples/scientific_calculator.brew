@@ -1,0 +1,407 @@
+# Brew Scientific Calculator
+# Fixed-point arithmetic: 1.0000 is represented as 10000.
+# All public results use the same scale unless documented otherwise.
+# This module is deliberately integer-only because the current Brew
+# native numeric pipeline does not yet provide end-to-end floating point.
+
+import std
+import std_math
+
+const CALC_SCALE = 10000
+const CALC_PI = 31416
+const CALC_TWO_PI = 62832
+const CALC_HALF_PI = 15708
+const CALC_LN2 = 6931
+
+# ---------------------------------------------------------------------------
+# Core fixed-point arithmetic
+# ---------------------------------------------------------------------------
+
+func calc_add(left: int, right: int) -> int:
+    return left + right
+
+func calc_subtract(left: int, right: int) -> int:
+    return left - right
+
+func calc_multiply(left: int, right: int) -> int:
+    return (left * right) / CALC_SCALE
+
+func calc_divide(numerator: int, denominator: int) -> int:
+    if denominator == 0:
+        return 0
+    return (numerator * CALC_SCALE) / denominator
+
+func calc_remainder(left: int, right: int) -> int:
+    if right == 0:
+        return 0
+    return left % right
+
+func calc_percent(value: int, percentage: int) -> int:
+    return (value * percentage) / (100 * CALC_SCALE)
+
+func calc_negate(value: int) -> int:
+    return 0 - value
+
+func calc_absolute(value: int) -> int:
+    return abs(value)
+
+func calc_round(value: int) -> int:
+    if value >= 0:
+        return (value + CALC_SCALE / 2) / CALC_SCALE
+    return 0 - ((0 - value + CALC_SCALE / 2) / CALC_SCALE)
+
+func calc_floor(value: int) -> int:
+    return floor_div(value, CALC_SCALE)
+
+func calc_ceil(value: int) -> int:
+    return ceil_div(value, CALC_SCALE)
+
+func calc_truncate(value: int) -> int:
+    return value / CALC_SCALE
+
+func calc_fraction(value: int) -> int:
+    return value % CALC_SCALE
+
+func calc_clamp(value: int, lower: int, upper: int) -> int:
+    return clamp(value, lower, upper)
+
+# ---------------------------------------------------------------------------
+# Powers, roots, and factorials
+# ---------------------------------------------------------------------------
+
+func calc_square(value: int) -> int:
+    return calc_multiply(value, value)
+
+func calc_cube(value: int) -> int:
+    return calc_multiply(calc_multiply(value, value), value)
+
+func calc_power_integer(base: int, exponent: int) -> int:
+    var power = exponent
+    var factor = base
+    var result = CALC_SCALE
+    if power < 0:
+        if base == 0:
+            return 0
+        power = 0 - power
+    while power > 0:
+        if power % 2 == 1:
+            result = calc_multiply(result, factor)
+        power = power / 2
+        if power > 0:
+            factor = calc_multiply(factor, factor)
+    if exponent < 0:
+        return calc_divide(CALC_SCALE, result)
+    return result
+
+func calc_power(base: int, exponent: int) -> int:
+    if base <= 0:
+        if base == 0:
+            if exponent > 0:
+                return 0
+            return 0
+        if exponent % CALC_SCALE != 0:
+            return 0
+        return calc_power_integer(base, exponent / CALC_SCALE)
+    return calc_exp(calc_multiply(exponent, calc_ln(base)))
+
+func calc_square_root(value: int) -> int:
+    if value < 0:
+        return 0
+    return integer_sqrt(value * CALC_SCALE)
+
+func calc_cube_root(value: int) -> int:
+    if value == 0:
+        return 0
+    var estimate = value
+    if estimate < 0:
+        estimate = 0 - estimate
+    var index = 0
+    while index < 32:
+        let square = calc_multiply(estimate, estimate)
+        if square == 0:
+            return 0
+        let quotient = calc_divide(value, square)
+        estimate = (2 * estimate + quotient) / 3
+        index = index + 1
+    return estimate
+
+func calc_factorial(value: int) -> int:
+    if value < 0:
+        return 0
+    if value % CALC_SCALE != 0:
+        return 0
+    return factorial(value / CALC_SCALE) * CALC_SCALE
+
+# ---------------------------------------------------------------------------
+# Trigonometry. Arguments and results are radians in fixed-point form.
+# ---------------------------------------------------------------------------
+
+func calc_reduce_angle(angle: int) -> int:
+    var reduced = angle % CALC_TWO_PI
+    if reduced > CALC_PI:
+        reduced = reduced - CALC_TWO_PI
+    if reduced < 0 - CALC_PI:
+        reduced = reduced + CALC_TWO_PI
+    return reduced
+
+func calc_sin(angle: int) -> int:
+    let x = calc_reduce_angle(angle)
+    let x2 = calc_multiply(x, x)
+    var term = x
+    var total = x
+    var index = 1
+    while index <= 9:
+        let first = 2 * index
+        let denominator = first * (first + 1)
+        term = 0 - calc_multiply(term, x2) / denominator
+        total = total + term
+        index = index + 1
+    return total
+
+func calc_cos(angle: int) -> int:
+    let x = calc_reduce_angle(angle)
+    let x2 = calc_multiply(x, x)
+    var term = CALC_SCALE
+    var total = CALC_SCALE
+    var index = 1
+    while index <= 9:
+        let first = 2 * index - 1
+        let denominator = first * (first + 1)
+        term = 0 - calc_multiply(term, x2) / denominator
+        total = total + term
+        index = index + 1
+    return total
+
+func calc_tan(angle: int) -> int:
+    let cosine = calc_cos(angle)
+    if cosine == 0:
+        return 0
+    return calc_divide(calc_sin(angle), cosine)
+
+func calc_cot(angle: int) -> int:
+    let sine = calc_sin(angle)
+    if sine == 0:
+        return 0
+    return calc_divide(calc_cos(angle), sine)
+
+func calc_sec(angle: int) -> int:
+    return calc_divide(CALC_SCALE, calc_cos(angle))
+
+func calc_csc(angle: int) -> int:
+    return calc_divide(CALC_SCALE, calc_sin(angle))
+
+func calc_degrees_to_radians(degrees: int) -> int:
+    return calc_multiply(degrees, CALC_PI) / 180
+
+func calc_radians_to_degrees(radians: int) -> int:
+    return (radians * 180 * CALC_SCALE) / CALC_PI
+
+# ---------------------------------------------------------------------------
+# Inverse trigonometry
+# ---------------------------------------------------------------------------
+
+func calc_atan_series(value: int) -> int:
+    let value2 = calc_multiply(value, value)
+    var term = value
+    var total = value
+    var denominator = 3
+    var positive = false
+    while denominator <= 61:
+        term = calc_multiply(term, value2)
+        if positive:
+            total = total + term / denominator
+            positive = false
+        else:
+            total = total - term / denominator
+            positive = true
+        denominator = denominator + 2
+    return total
+
+func calc_atan(value: int) -> int:
+    if value > CALC_SCALE:
+        return CALC_HALF_PI - calc_atan(CALC_SCALE * CALC_SCALE / value)
+    if value < 0 - CALC_SCALE:
+        return 0 - CALC_HALF_PI - calc_atan(CALC_SCALE * CALC_SCALE / value)
+    if value > CALC_SCALE / 2:
+        return CALC_PI / 4 + calc_atan_series(calc_divide(value - CALC_SCALE, value + CALC_SCALE))
+    if value < 0 - CALC_SCALE / 2:
+        return 0 - CALC_PI / 4 + calc_atan_series(calc_divide(value + CALC_SCALE, CALC_SCALE - value))
+    return calc_atan_series(value)
+
+func calc_asin(value: int) -> int:
+    if value < 0 - CALC_SCALE or value > CALC_SCALE:
+        return 0
+    if value == CALC_SCALE:
+        return CALC_HALF_PI
+    if value == 0 - CALC_SCALE:
+        return 0 - CALC_HALF_PI
+    let radicand = CALC_SCALE - calc_multiply(value, value)
+    return calc_atan(calc_divide(value, calc_square_root(radicand)))
+
+func calc_acos(value: int) -> int:
+    return CALC_HALF_PI - calc_asin(value)
+
+func calc_atan2(y: int, x: int) -> int:
+    if x > 0:
+        return calc_atan(calc_divide(y, x))
+    if x < 0 and y >= 0:
+        return calc_atan(calc_divide(y, x)) + CALC_PI
+    if x < 0 and y < 0:
+        return calc_atan(calc_divide(y, x)) - CALC_PI
+    if x == 0 and y > 0:
+        return CALC_HALF_PI
+    if x == 0 and y < 0:
+        return 0 - CALC_HALF_PI
+    return 0
+
+# ---------------------------------------------------------------------------
+# Exponential and logarithmic functions
+# ---------------------------------------------------------------------------
+
+func calc_exp(value: int) -> int:
+    if value > 100000:
+        return 0
+    if value < 0 - 100000:
+        return 0
+    var term = CALC_SCALE
+    var total = CALC_SCALE
+    var index = 1
+    while index <= 28:
+        term = calc_multiply(term, value) / index
+        total = total + term
+        index = index + 1
+    return total
+
+func calc_ln(value: int) -> int:
+    if value <= 0:
+        return 0
+    var normalized = value
+    var exponent = 0
+    while normalized > 2 * CALC_SCALE:
+        normalized = normalized / 2
+        exponent = exponent + 1
+    while normalized < CALC_SCALE / 2:
+        normalized = normalized * 2
+        exponent = exponent - 1
+    let z = calc_divide(normalized - CALC_SCALE, normalized + CALC_SCALE)
+    let z2 = calc_multiply(z, z)
+    var term = z
+    var total = z
+    var denominator = 3
+    while denominator <= 49:
+        term = calc_multiply(term, z2)
+        total = total + term / denominator
+        denominator = denominator + 2
+    return 2 * total + exponent * CALC_LN2
+
+func calc_log10(value: int) -> int:
+    if value <= 0:
+        return 0
+    return calc_divide(calc_ln(value), 23026)
+
+func calc_log2(value: int) -> int:
+    if value <= 0:
+        return 0
+    return calc_divide(calc_ln(value), 6931)
+
+func calc_log(base: int, value: int) -> int:
+    if base <= 0 or base == CALC_SCALE:
+        return 0
+    if value <= 0:
+        return 0
+    return calc_divide(calc_ln(value), calc_ln(base))
+
+# ---------------------------------------------------------------------------
+# Hyperbolic functions
+# ---------------------------------------------------------------------------
+
+func calc_sinh(value: int) -> int:
+    return (calc_exp(value) - calc_exp(0 - value)) / 2
+
+func calc_cosh(value: int) -> int:
+    return (calc_exp(value) + calc_exp(0 - value)) / 2
+
+func calc_tanh(value: int) -> int:
+    let denominator = calc_cosh(value)
+    if denominator == 0:
+        return 0
+    return calc_divide(calc_sinh(value), denominator)
+
+# ---------------------------------------------------------------------------
+# Statistics for scalar samples
+# ---------------------------------------------------------------------------
+
+func calc_mean_two(left: int, right: int) -> int:
+    return (left + right) / 2
+
+func calc_mean_three(first: int, second: int, third: int) -> int:
+    return (first + second + third) / 3
+
+func calc_variance_two(left: int, right: int) -> int:
+    let mean = calc_mean_two(left, right)
+    let first_delta = left - mean
+    let second_delta = right - mean
+    return (calc_square(first_delta) + calc_square(second_delta)) / 2
+
+func calc_standard_deviation_two(left: int, right: int) -> int:
+    return calc_square_root(calc_variance_two(left, right))
+
+# ---------------------------------------------------------------------------
+# Number theory and combinatorics
+# ---------------------------------------------------------------------------
+
+func calc_gcd(left: int, right: int) -> int:
+    if left % CALC_SCALE != 0 or right % CALC_SCALE != 0:
+        return 0
+    return gcd(left / CALC_SCALE, right / CALC_SCALE) * CALC_SCALE
+
+func calc_lcm(left: int, right: int) -> int:
+    if left % CALC_SCALE != 0 or right % CALC_SCALE != 0:
+        return 0
+    return lcm(left / CALC_SCALE, right / CALC_SCALE) * CALC_SCALE
+
+func calc_is_prime(value: int) -> bool:
+    if value % CALC_SCALE != 0:
+        return false
+    return is_prime(value / CALC_SCALE)
+
+func calc_combinations(n: int, r: int) -> int:
+    if n < 0 or r < 0 or r > n:
+        return 0
+    if r > n - r:
+        r = n - r
+    var result = 1
+    var index = 1
+    while index <= r:
+        result = (result * (n - r + index)) / index
+        index = index + 1
+    return result * CALC_SCALE
+
+func calc_permutations(n: int, r: int) -> int:
+    if n < 0 or r < 0 or r > n:
+        return 0
+    var result = 1
+    var index = 0
+    while index < r:
+        result = result * (n - index)
+        index = index + 1
+    return result * CALC_SCALE
+
+# ---------------------------------------------------------------------------
+# Demonstration entry point. The public functions above form the calculator
+# engine; interactive input and decimal text formatting are not yet available
+# in the current Brew runtime.
+# ---------------------------------------------------------------------------
+
+func main() -> int:
+    print("Brew Scientific Calculator")
+    print("Fixed-point scale: 10000 = 1.0000")
+    print("sin(90 degrees), scaled:")
+    print(calc_sin(calc_degrees_to_radians(90 * CALC_SCALE)))
+    print("sqrt(2), scaled:")
+    print(calc_square_root(2 * CALC_SCALE))
+    print("ln(2), scaled:")
+    print(calc_ln(2 * CALC_SCALE))
+    print("5 choose 2, scaled:")
+    print(calc_combinations(5, 2))
+    return 0

@@ -1,4 +1,4 @@
-name: Swan Compiler File Timing
+name: Brew Compiler File Timing
 
 on:
   workflow_dispatch:
@@ -10,7 +10,7 @@ on:
       - "main.c"
       - "compiler/**"
       - "build.sh"
-      - "benchmarks/compiler_pipeline.swan"
+      - "benchmarks/compiler_pipeline.brew"
 
 permissions:
   contents: read
@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang
-      - name: Build Swan
+      - name: Build Brew
         run: sh build.sh
       - name: Measure time per compiler file
         run: |
@@ -42,7 +42,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swan-compiler-file-timing
+          name: brew-compiler-file-timing
           path: |
             benchmark-results/compiler-file-timing.md
             benchmark-results/compiler-file-timing.json

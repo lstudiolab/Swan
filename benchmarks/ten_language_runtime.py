@@ -13,7 +13,7 @@ COMPILE_RUNS = 3
 TIME = "/usr/bin/time"
 
 SRC = {
-"Swan": r"""fn transform(x: int) -> int:
+"Brew": r"""fn transform(x: int) -> int:
     return (x * 31 + 7) % 97
 
 fn main() -> int:
@@ -67,17 +67,17 @@ int main() {
 """,
 "Objective-C": r"""#include <stdio.h>
 __attribute__((objc_root_class))
-@interface SwanBench
+@interface BrewBench
 + (long long)transform:(long long)x;
 @end
-@implementation SwanBench
+@implementation BrewBench
 + (long long)transform:(long long)x { return (x * 31 + 7) % 97; }
 @end
 int main(void) {
     long long total = 0;
     for (long long i = 0; i < 100000000LL; ++i) {
-        if ((i % 2) == 0) total += [SwanBench transform:i];
-        else total += [SwanBench transform:(i + 1)];
+        if ((i % 2) == 0) total += [BrewBench transform:i];
+        else total += [BrewBench transform:(i + 1)];
     }
     printf("%lld\n", total);
     return 0;
@@ -187,21 +187,21 @@ main:
 """
 }
 
-EXT = {"Swan":"swan","Goose":"goose","C":"c","C++":"cpp","Objective-C":"m",
+EXT = {"Brew":"brew","Goose":"goose","C":"c","C++":"cpp","Objective-C":"m",
        "Go":"go","Zig":"zig","Kotlin":"kt","Rust":"rs","ASM":"s"}
-ORDER = ["Swan","Goose","C","C++","Objective-C","Go","Zig","Kotlin","Rust","ASM"]
+ORDER = ["Brew","Goose","C","C++","Objective-C","Go","Zig","Kotlin","Rust","ASM"]
 
 def timed(command, cwd=ROOT):
     metrics = OUT / "time.txt"
     metrics.unlink(missing_ok=True)
     start = time.perf_counter()
-    p = subprocess.run([TIME, "-f", "SWAN_BENCH:%e,%U,%S,%M", "-o", str(metrics),
+    p = subprocess.run([TIME, "-f", "BREW_BENCH:%e,%U,%S,%M", "-o", str(metrics),
                         *map(str, command)], cwd=cwd, text=True,
                        stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     wall = time.perf_counter() - start
     if p.returncode:
         raise RuntimeError(f"Command failed ({p.returncode}): {' '.join(map(str,command))}\n{p.stdout}\n{p.stderr}")
-    m = re.search(r"SWAN_BENCH:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+)", metrics.read_text())
+    m = re.search(r"BREW_BENCH:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+)", metrics.read_text())
     if not m: raise RuntimeError(f"GNU time metrics missing for {command}")
     elapsed, user, system, rss = m.groups()
     return {"wall_s": wall, "gnu_wall_s": float(elapsed), "cpu_s": float(user)+float(system),
@@ -230,12 +230,12 @@ def main():
         sources[name] = srcdir / ("program." + EXT[name])
         sources[name].write_text(SRC[name], encoding="utf-8")
 
-    swan = ROOT/"build/swan"
+    brew = ROOT/"build/brew"
     goose = ROOT.parent/"goose"/"build"/"goose"
     zig = pathlib.Path(os.environ["ZIG"])
     kotlin = pathlib.Path(os.environ["KOTLINC"])
     compilers = {
-      "Swan": lambda s,o: [swan, s, "--emit-asm", "-o", o],
+      "Brew": lambda s,o: [brew, s, "--emit-asm", "-o", o],
       "Goose": lambda s,o: [goose, "build", "-o", o, s],
       "C": lambda s,o: ["cc","-O3","-march=native","-DNDEBUG","-std=c11",s,"-o",o],
       "C++": lambda s,o: ["c++","-O3","-march=native","-DNDEBUG","-std=c++17",s,"-o",o],
@@ -247,7 +247,7 @@ def main():
       "ASM": lambda s,o: ["cc","-no-pie",s,"-o",o],
     }
     versions = {
-      "Swan": "repository compiler",
+      "Brew": "repository compiler",
       "Goose": version([str(goose),"version"]),
       "C": version(["cc","--version"]),
       "C++": version(["c++","--version"]),
@@ -264,8 +264,8 @@ def main():
         compile_samples = []
         for attempt in range(COMPILE_RUNS):
             out = bindir / (name.lower().replace("+","p").replace("-","") + (".jar" if name=="Kotlin" else ""))
-            if name == "Swan":
-                asm = bindir / f"swan-{attempt}.s"
+            if name == "Brew":
+                asm = bindir / f"brew-{attempt}.s"
                 front = timed(compilers[name](sources[name],asm))
                 link = timed(["cc","-no-pie",asm,"-o",out])
                 compile_samples.append({"wall_s":front["wall_s"]+link["wall_s"],
@@ -310,7 +310,7 @@ def main():
         r["iterations_per_second"]=N/r["runtime_median_s"]
 
     report = {
-      "benchmark":"Swan ten-language branch + function-call workload",
+      "benchmark":"Brew ten-language branch + function-call workload",
       "commit":os.getenv("GITHUB_SHA","local"),
       "host":{"platform":platform.platform(),"machine":platform.machine(),"logical_cpus":os.cpu_count()},
       "workload":{"iterations":N,"operation":"if (i % 2 == 0) total += transform(i); else total += transform(i + 1);",
@@ -323,13 +323,13 @@ def main():
         "Objective-C uses GNU Objective-C runtime message dispatch on every iteration.",
         "Kotlin is Kotlin/JVM bytecode, not Kotlin/Native; runtime includes JVM startup and JIT behavior.",
         "ASM is hand-written x86-64 System V assembly and is architecture-specific.",
-        "Swan compile time includes Swan assembly generation plus system assembly/linking.",
+        "Brew compile time includes Brew assembly generation plus system assembly/linking.",
         "Compile and runtime values are medians; runtime order rotates between rounds. Every output checksum is verified.",
-        "This workload tests branches, calls and integer arithmetic. It does not measure allocation, arrays, strings, concurrency, or I/O; Swan does not yet support all those features."
+        "This workload tests branches, calls and integer arithmetic. It does not measure allocation, arrays, strings, concurrency, or I/O; Brew does not yet support all those features."
       ]
     }
     (OUT/"results.json").write_text(json.dumps(report,indent=2)+"\n")
-    lines=["# Swan: ten-language runtime comparison","",
+    lines=["# Brew: ten-language runtime comparison","",
       f"Workload: {N:,} iterations; branch + function call + integer arithmetic; checksum {EXPECTED}.",
       "Runner: GitHub Actions ubuntu-24.04 x86-64. Lower is better.","",
       "| Language | Compile median (s) | Compile RAM (MiB) | Runtime median (s) | Runtime RAM (MiB) | Binary (B) | Iterations/s |",
@@ -339,7 +339,7 @@ def main():
         lines.append(f"| {name} | {r['compile_median_s']:.4f} | {r['compile_peak_rss_mib_median']:.2f} | {r['runtime_median_s']:.4f} | {r['runtime_peak_rss_mib_median']:.2f} | {r['artifact_bytes']:,} | {r['iterations_per_second']:.0f} |")
     lines += ["","## Methodology","- Three compilation samples and five interleaved runtime samples per language.",
       "- All binaries must print the exact same checksum; any mismatch fails the benchmark.",
-      "- Swan compile time includes code generation and native assembly/linking.",
+      "- Brew compile time includes code generation and native assembly/linking.",
       "- Objective-C measures Objective-C message dispatch in the hot loop.",
       "- Kotlin measures the JVM process, including startup and JIT effects; it is not native AOT.",
       "- ASM is hand-written x86-64 System V and is not portable to other architectures.",

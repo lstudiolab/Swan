@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Profile Swan's compiler files, pipeline stages, compile time, and runtime.
+"""Profile Brew's compiler files, pipeline stages, compile time, and runtime.
 
 Run after: sh build.sh
   python3 benchmarks/compiler_pipeline.py --repeats 7 --warmups 2
 
-The compiler's --profile timings measure Swan source processing. Clang's
+The compiler's --profile timings measure Brew source processing. Clang's
 -ftime-trace attributes C frontend work to individual included compiler files.
 All durations are seconds. Reports are written as JSON, CSV, and Markdown.
 """
@@ -24,9 +24,9 @@ import time
 from collections import defaultdict
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-DEFAULT_COMPILER = ROOT / "build" / "swan"
-HEADER = "Swan compiler pipeline profile (seconds)"
-RSS_MARKER = re.compile(r"^__SWAN_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
+DEFAULT_COMPILER = ROOT / "build" / "brew"
+HEADER = "Brew compiler pipeline profile (seconds)"
+RSS_MARKER = re.compile(r"^__BREW_MAX_RSS_KB__([0-9]+)$", re.MULTILINE)
 PASS_COUNTS = re.compile(r"IR pass executions: ([0-9]+) \(rounds: ([0-9]+); maximum: 350\)")
 PROFILE_LINE = re.compile(
     r"^\s{2}(.+?)\s+([0-9]+(?:\.[0-9]+)?) s(?:\s+\(\s*([0-9]+(?:\.[0-9]+)?)%\))?\s*$"
@@ -50,14 +50,14 @@ STAGES = PROFILE_STAGES + tuple(f"{stage} share percent" for stage in PROFILE_ST
 
 
 def write_source(directory: pathlib.Path, name: str, lines: list[str]) -> pathlib.Path:
-    path = directory / f"{name}.swan"
+    path = directory / f"{name}.brew"
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
     return path
 
 
 def workloads(directory: pathlib.Path) -> dict[str, pathlib.Path]:
     result: dict[str, pathlib.Path] = {}
-    result["control-flow"] = ROOT / "benchmarks" / "compiler_pipeline.swan"
+    result["control-flow"] = ROOT / "benchmarks" / "compiler_pipeline.brew"
 
     # Many declarations and identifiers; all helpers remain reachable.
     for count in (256, 512):
@@ -143,7 +143,7 @@ def compile_once(compiler: pathlib.Path, source: pathlib.Path,
         raise RuntimeError("GNU time is required for peak compiler RSS measurement")
     assembly = output.with_suffix(".s")
     command = [
-        str(time_bin), "-f", "__SWAN_MAX_RSS_KB__%M",
+        str(time_bin), "-f", "__BREW_MAX_RSS_KB__%M",
         str(compiler), "build", "--profile", str(source), "--emit-asm",
         "-o", str(assembly),
     ]
@@ -180,7 +180,7 @@ def profile_compiler_files(directory: pathlib.Path) -> list[dict[str, object]]:
     command = [
         clang, "-std=c11", "-O2", "-DNDEBUG", "-Wall", "-Wextra", "-Wpedantic",
         f"-I{ROOT / 'compiler' / 'include'}",
-        "-ftime-trace", "-c", str(ROOT / "compiler" / "tools" / "swanc" / "main.c"), "-o", str(trace_dir / "swanc.o"),
+        "-ftime-trace", "-c", str(ROOT / "compiler" / "tools" / "brewc" / "main.c"), "-o", str(trace_dir / "brewc.o"),
     ]
     start = time.perf_counter()
     proc = subprocess.run(command, cwd=trace_dir, text=True, capture_output=True)
@@ -269,7 +269,7 @@ def write_reports(results: dict[str, list[dict[str, float]]],
         for row in file_rows:
             writer.writerow(["compiler-file", row["file"], f"{float(row['compile_seconds']):.9f}", "seconds", f"{float(row['share_percent']):.2f}"])
     lines = [
-        "# Swan compiler pipeline benchmark", "",
+        "# Brew compiler pipeline benchmark", "",
         f"- Host: {summary['host']}",
         "- Units: seconds for time, percentage of total for stage shares, counts for optimizer passes, KiB for peak RSS",
         "- Statistic: median of measured runs",
@@ -309,7 +309,7 @@ def main() -> None:
     if not compiler.is_file():
         raise SystemExit(f"Compiler not found: {compiler}; run sh build.sh first.")
 
-    with tempfile.TemporaryDirectory(prefix="swan-pipeline-") as temp:
+    with tempfile.TemporaryDirectory(prefix="brew-pipeline-") as temp:
         temp_dir = pathlib.Path(temp)
         cases = workloads(temp_dir)
         results: dict[str, list[dict[str, float]]] = {}
@@ -322,7 +322,7 @@ def main() -> None:
         file_rows = profile_compiler_files(temp_dir)
 
     write_reports(results, file_rows, args.output_dir.resolve())
-    print("Swan compiler pipeline benchmark")
+    print("Brew compiler pipeline benchmark")
     print(f"Host: {platform.platform()} / {platform.machine()}")
     print(f"Compiler: {compiler}")
     print(f"Median of {args.repeats} runs; {args.warmups} warmups; stage times in seconds, RSS in KiB")

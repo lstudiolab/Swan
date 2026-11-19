@@ -1,4 +1,4 @@
-<p align="center"><img src="../../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../../assets/brew-logo.png" alt="Brew" width="180"></p>
 
 # JSON runtime benchmark
 
@@ -17,15 +17,15 @@ parse the request, validate `id` and `workers`, then compact-encode the parsed
 document. Seven timed runs rotate implementation order. Every run must produce
 the same checksum and input-plus-output byte count or the benchmark aborts.
 
-- **Swan:** the Swan source calls a C11 JSON runtime driver through the x86-64 C ABI.
-  The driver reuses one document handle and its token/output capacities; its hot loop runs in C, so this isolates runtime throughput and excludes Swan loop/FFI-call overhead.
+- **Brew:** the Brew source calls a C11 JSON runtime driver through the x86-64 C ABI.
+  The driver reuses one document handle and its token/output capacities; its hot loop runs in C, so this isolates runtime throughput and excludes Brew loop/FFI-call overhead.
 - **Go:** `encoding/json` into a typed struct and back to JSON.
 - **Goose:** its standard-library JSON DOM parser and JSON writer.
 - **Rust:** `serde_json` with insertion-order preservation.
 
 This is an in-process parse/encode benchmark, not an HTTP server benchmark. It
-does not include sockets, TLS, request scheduling, or concurrent load. The Swan
-result measures its native runtime path, not a parser written entirely in Swan.
+does not include sockets, TLS, request scheduling, or concurrent load. The Brew
+result measures its native runtime path, not a parser written entirely in Brew.
 The reported MiB/s counts input bytes plus compact output bytes. Throughput
 percentiles are across whole benchmark runs, not per-request latency percentiles.
 

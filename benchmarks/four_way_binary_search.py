@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Identical 20M-element / 20M-query binary search benchmark: Swan, Goose, C, Rust."""
+"""Identical 20M-element / 20M-query binary search benchmark: Brew, Goose, C, Rust."""
 import json, os, pathlib, platform, statistics, subprocess, tempfile, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -68,7 +68,7 @@ fn main() {
  print(sum);
 }
 """
-SWAN_SRC = r"""
+BREW_SRC = r"""
 func main() -> int:
     let values = array(20000000)
     var i = 0
@@ -124,12 +124,12 @@ def measured(command, cwd):
     return {"wall_s":wall,"cpu_s":user+system,"peak_rss_mib":rss/1024}
 
 def main():
-    compiler=ROOT/"build/swan"
-    if not compiler.is_file(): raise SystemExit("Build Swan first: sh build.sh")
-    with tempfile.TemporaryDirectory(prefix="swan-four-way-") as td:
+    compiler=ROOT/"build/brew"
+    if not compiler.is_file(): raise SystemExit("Build Brew first: sh build.sh")
+    with tempfile.TemporaryDirectory(prefix="brew-four-way-") as td:
         d=pathlib.Path(td)
         sources={
-          "Swan":(d/"search.swan",SWAN_SRC),
+          "Brew":(d/"search.brew",BREW_SRC),
           "Goose":(d/"search.goose",GOOSE_SRC),
           "C":(d/"search.c",C),
           "Rust":(d/"search.rs",RUST),
@@ -137,14 +137,14 @@ def main():
         for path,body in sources.values(): path.write_text(body)
         bins={name:d/("bin-"+name.lower()) for name in sources}
         commands={
-          "Swan":[str(compiler),"build",str(sources["Swan"][0]),"-o",str(bins["Swan"])],
+          "Brew":[str(compiler),"build",str(sources["Brew"][0]),"-o",str(bins["Brew"])],
           "Goose":[GOOSE,"build","-o",str(bins["Goose"]),str(sources["Goose"][0])],
           "C":["cc","-O3","-march=native","-DNDEBUG",str(sources["C"][0]),"-o",str(bins["C"])],
           "Rust":["rustc","-C","opt-level=3","-C","target-cpu=native",str(sources["Rust"][0]),"-o",str(bins["Rust"])],
         }
-        names=["Swan","Goose","C","Rust"]
+        names=["Brew","Goose","C","Rust"]
         versions={
-          "Swan":"repository main",
+          "Brew":"repository main",
           "Goose":subprocess.run([GOOSE,"version"],text=True,capture_output=True).stdout.strip().splitlines()[0],
           "C":subprocess.run(["cc","--version"],text=True,capture_output=True).stdout.splitlines()[0],
           "Rust":subprocess.run(["rustc","--version"],text=True,capture_output=True).stdout.strip(),

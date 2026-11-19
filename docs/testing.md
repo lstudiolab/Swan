@@ -1,6 +1,6 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Testing Swan
+# Testing Brew
 
 ## Full test command
 
@@ -10,7 +10,7 @@ From the repository root:
 sh test.sh
 ```
 
-Requirements: a C11 compiler, POSIX shell, and host assembler/linker available through `cc`. The build script directly compiles the production C11 compiler and creates `build/swan` as an alias before running the tests.
+Requirements: a C11 compiler, POSIX shell, and host assembler/linker available through `cc`. The build script directly compiles the production C11 compiler and creates `build/brew` as an alias before running the tests.
 
 ## Top-level test sequence
 
@@ -34,9 +34,9 @@ The current `test.sh` runs:
 
 The source test suite covers compiler construction, parser/semantic diagnostics, UTF-8 handling, local bindings, function calls, control flow, arrays, bounds checks, output, Foundation imports, lazy module loading, automatic local-array cleanup and legacy syntax compatibility.
 
-The typed-IR tests cover SSA construction and verification, CFG and PHI invariants, scalar lowering, optimization passes, SVM execution, and module serialization. Architecture tests cover the implemented target emitters, including WebAssembly module validation and ELF object identification where configured by the test scripts.
+The typed-IR tests cover SSA construction and verification, CFG and PHI invariants, scalar lowering, optimization passes, BVM execution, and module serialization. Architecture tests cover the implemented target emitters, including WebAssembly module validation and ELF object identification where configured by the test scripts.
 
-The C ABI test compiles a C implementation to an object, imports its header declarations, links the object through Swan's native executable path, and checks the resulting process exit status.
+The C ABI test compiles a C implementation to an object, imports its header declarations, links the object through Brew's native executable path, and checks the resulting process exit status.
 
 ## What a passing test means
 
@@ -45,7 +45,7 @@ The C ABI test compiles a C implementation to an object, imports its header decl
 - An IR verifier test proves the relevant IR invariant.
 - An object-header test proves object emission for that architecture, not execution or ABI correctness on that machine.
 - A WebAssembly structural validation test proves module validity; runtime execution is a stronger check.
-- An SVM test proves the verified lowering and generated behavior for the tested IR operations; it does not establish complete language or target parity.
+- An BVM test proves the verified lowering and generated behavior for the tested IR operations; it does not establish complete language or target parity.
 - A successful compile does not establish that every language feature is implemented on every target.
 
 ## Cross-target policy
@@ -57,4 +57,4 @@ A backend is advertised only for the subset exercised by its tests. Cross-target
 For a new feature, add the narrowest useful positive and negative cases. Include source diagnostics, IR verification, generated artifact checks, and executable tests as appropriate. For optimizer changes, add before/after IR assertions and behavior tests. For ownership changes, test valid release, leak, double-free, use-after-free, aliasing, and branch/loop state consistency.
 
 
-The architecture integration test also invokes `swanc build source.swan --target all -o output/` and checks that the x86-64 executable runs, the ARM64 output is an AArch64 ELF object, and the WASM64 output has a valid WebAssembly header.
+The architecture integration test also invokes `brewc build source.brew --target all -o output/` and checks that the x86-64 executable runs, the ARM64 output is an AArch64 ELF object, and the WASM64 output has a valid WebAssembly header.

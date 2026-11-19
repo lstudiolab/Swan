@@ -1,0 +1,109 @@
+# Brew standard library
+# Import with: import std
+# Public functions use ordinary calls, e.g. abs(-42).
+# Output uses print(expression).
+
+func abs(value: int) -> int:
+    if value == (-9223372036854775807 - 1):
+        return 0
+    if value < 0:
+        return 0 - value
+    return value
+
+func min(left: int, right: int) -> int:
+    if left < right:
+        return left
+    return right
+
+func max(left: int, right: int) -> int:
+    if left > right:
+        return left
+    return right
+
+func clamp(value: int, lower: int, upper: int) -> int:
+    if lower > upper:
+        return lower
+    if value < lower:
+        return lower
+    if value > upper:
+        return upper
+    return value
+
+func sign(value: int) -> int:
+    if value < 0:
+        return 0 - 1
+    if value > 0:
+        return 1
+    return 0
+
+func square(value: int) -> int:
+    if value > 3037000499 or value < -3037000499:
+        return 0
+    return value * value
+
+func cube(value: int) -> int:
+    if value > 2097151 or value < -2097152:
+        return 0
+    return value * value * value
+
+func multiplication_overflows(left: int, right: int) -> bool:
+    if left > 0:
+        if right > 0 and left > 9223372036854775807 / right:
+            return true
+        if right < 0 and right < (-9223372036854775807 - 1) / left:
+            return true
+    else if left < 0:
+        if right > 0 and left < (-9223372036854775807 - 1) / right:
+            return true
+        if right < 0 and left < 9223372036854775807 / right:
+            return true
+    return false
+
+func power(base: int, exponent: int) -> int:
+    if exponent < 0:
+        return 0
+    var result: int = 1
+    var factor = base
+    var remaining = exponent
+    while remaining > 0:
+        if remaining % 2 != 0:
+            if multiplication_overflows(result, factor):
+                return 0
+            result = result * factor
+        remaining = remaining / 2
+        if remaining > 0:
+            if multiplication_overflows(factor, factor):
+                return 0
+            factor = factor * factor
+    return result
+func factorial(value: int) -> int:
+    var result: int = 1
+    var count: int = 2
+    if value < 0:
+        return 0
+    while count <= value:
+        if result > 9223372036854775807 / count:
+            return 0
+        result = result * count
+        count = count + 1
+    return result
+
+func sum_to(value: int) -> int:
+    if value < 1 or value > 4294967295:
+        return 0
+    if value % 2 == 0:
+        let half = value / 2
+        return half * (value + 1)
+    return value * ((value + 1) / 2)
+
+func is_even(value: int) -> bool:
+    return value % 2 == 0
+
+func is_odd(value: int) -> bool:
+    return value % 2 != 0
+
+func in_range(value: int, lower: int, upper: int) -> bool:
+    return value >= lower and value <= upper
+
+func average(left: int, right: int) -> int:
+    return left / 2 + right / 2 + (left % 2 + right % 2) / 2

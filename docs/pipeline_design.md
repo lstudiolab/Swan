@@ -1,22 +1,22 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler Pipeline Design
+# Brew Compiler Pipeline Design
 
 ## Implemented pipeline
 
 ```text
-.swan
+.brew
   -> source reader and UTF-8 validation
   -> lexer
   -> parser and AST
-  -> C-header importer and Swan module loader
+  -> C-header importer and Brew module loader
   -> semantic analysis
   -> reachability analysis
-  -> direct AST -> SVM typed SSA IR lowering
-  -> SVM verifier
+  -> direct AST -> BVM typed SSA IR lowering
+  -> BVM verifier
   -> target-independent optimization
-  -> final SVM verification
-  -> Swan-owned target code generation or explicit LLVM portability bridge
+  -> final BVM verification
+  -> Brew-owned target code generation or explicit LLVM portability bridge
   -> assembly / object / WebAssembly emission
   -> assembler and linker where applicable
 ```
@@ -36,7 +36,7 @@ The x86-64 AST compatibility route remains for implemented features not yet repr
 | Module loader | Import declarations | Loaded module functions | Resolve canonical module identities and avoid duplicate loads |
 | Semantic analysis | Project AST | Checked program | Validate supported names, scopes, declarations, calls, and control flow |
 | Reachability | Checked program | Reachability map | Identify functions/modules reachable from the entry point |
-| SVM lowering | Checked AST | Typed SSA IR | Represent each supported operation or return a diagnostic |
+| BVM lowering | Checked AST | Typed SSA IR | Represent each supported operation or return a diagnostic |
 | IR verifier | Typed SSA IR | Verified IR or diagnostic | Enforce SSA, CFG, PHI, call, type, and terminator invariants |
 | IR optimizer | Verified IR | Optimized IR | Run bounded, semantics-preserving passes and preserve verifier invariants |
 | Target codegen | Optimized IR and target | Assembly/module/object | Lower only operations supported by the selected backend |
@@ -46,7 +46,7 @@ The x86-64 AST compatibility route remains for implemented features not yet repr
 
 ## Typed Ir and verifier
 
-SVM IR uses function-local SSA value IDs, typed instructions, basic blocks, explicit terminators, and PHI incoming edges. The verifier checks definition uniqueness, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage and types, operand types, and call signatures.
+BVM IR uses function-local SSA value IDs, typed instructions, basic blocks, explicit terminators, and PHI incoming edges. The verifier checks definition uniqueness, use-before-definition, dominance, branch targets, terminators, PHI predecessor coverage and types, operand types, and call signatures.
 
 A supported IR opcode does not imply that every source construct or target backend can generate it. Unsupported source/target combinations must produce precise diagnostics.
 
@@ -63,16 +63,16 @@ The pass manager repeats its ordered pass list until a full round makes no chang
 ## Target boundaries
 
 - x86-64 System V: native executable and assembly; typed IR plus AST compatibility path.
-- AArch64, ARMv7, RISC-V64: Swan-owned limited scalar IR object/assembly.
-- WASM32 and WASM64: Swan-owned limited scalar WebAssembly emitters.
+- AArch64, ARMv7, RISC-V64: Brew-owned limited scalar IR object/assembly.
+- WASM32 and WASM64: Brew-owned limited scalar WebAssembly emitters.
 - LLVM target triple: explicit portability path for the supported typed-IR subset and installed Clang/LLVM targets.
 
 Object emission is not equivalent to native execution or complete platform ABI support. Cross-target runtime integration remains separate work.
 
 ## Required invariants
 
-1. Do not transpile Swan to C.
-2. Keep the native backend path Swan-owned.
+1. Do not transpile Brew to C.
+2. Keep the native backend path Brew-owned.
 3. Keep the LLVM bridge explicit through `--target-triple`; it is not a silent fallback.
 4. Do not silently lower unknown AST/IR kinds to empty or zero code.
 5. Verify IR before backend use and after optimizer transformations.

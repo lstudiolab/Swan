@@ -1,7 +1,7 @@
 use serde_json::Value;
 
 const REQUESTS: usize = 100_000;
-const PAYLOAD: &str = r#"{"id":42,"workers":128,"enabled":true,"service":"swan","items":[1,2,3,4,5],"meta":{"region":"ap-southeast-1","version":1}}"#;
+const PAYLOAD: &str = r#"{"id":42,"workers":128,"enabled":true,"service":"brew","items":[1,2,3,4,5],"meta":{"region":"ap-southeast-1","version":1}}"#;
 
 fn main() {
     let input = PAYLOAD.as_bytes();

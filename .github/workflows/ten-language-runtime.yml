@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          path: swan
+          path: brew
       - uses: actions/checkout@v4
         with:
           repository: aardappel/goose
@@ -55,21 +55,21 @@ jobs:
           go version
           zig version
           kotlinc -version
-      - name: Build Swan compiler
-        working-directory: swan
+      - name: Build Brew compiler
+        working-directory: brew
         run: sh build.sh
       - name: Build Goose compiler
         run: |
           cmake -S goose -B goose/build -DCMAKE_BUILD_TYPE=Release
           cmake --build goose/build --parallel 2
       - name: Run ten-language benchmark
-        working-directory: swan
+        working-directory: brew
         run: python3 benchmarks/ten_language_runtime.py
       - name: Publish benchmark summary
         if: always()
         run: |
-          if [ -f swan/ten-language-benchmark/results.md ]; then
-            cat swan/ten-language-benchmark/results.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f brew/ten-language-benchmark/results.md ]; then
+            cat brew/ten-language-benchmark/results.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Benchmark did not produce a report. Inspect build and benchmark logs." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -77,6 +77,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swan-ten-language-benchmark
-          path: swan/ten-language-benchmark/
+          name: brew-ten-language-benchmark
+          path: brew/ten-language-benchmark/
           if-no-files-found: warn

@@ -1,4 +1,4 @@
-// Same 1B Park-Miller input and in-place heapsort as sort_1b.swan.
+// Same 1B Park-Miller input and in-place heapsort as sort_1b.brew.
 import std;
 
 fn main() {

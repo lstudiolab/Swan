@@ -1,15 +1,15 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swanc"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/test/std-library"
 mkdir -p "$TMP"
 
-cat > "$TMP/program.swan" <<'SWAN'
+cat > "$TMP/program.brew" <<'BREW'
 import std
 
 func main() -> int:
-    print("Swan std library ready")
+    print("Brew std library ready")
     print(abs(-9))
     print(average(4, 7))
     print(is_even(12))
@@ -46,11 +46,11 @@ func main() -> int:
     print(power(-1, 9223372036854775807))
     print(power(0, 9223372036854775807))
     return 0
-SWAN
+BREW
 
-"$SWAN" build "$TMP/program.swan" -o "$TMP/program"
+"$BREW" build "$TMP/program.brew" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
-Swan std library ready
+Brew std library ready
 9
 5
 1

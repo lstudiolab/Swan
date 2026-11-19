@@ -27,7 +27,7 @@ jobs:
           test -n "$GOOSE_BIN"
           echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
           "$GOOSE_BIN" version
-      - name: Build Swan
+      - name: Build Brew
         run: sh build.sh
       - name: Run one-billion-print benchmark
         run: python3 -u benchmarks/hello_world_1b.py | tee hello-world-1b-benchmark.txt

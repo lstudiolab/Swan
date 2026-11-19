@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""Same one-billion-iteration integer workload in Swan, Goose, Rust and C."""
+"""Same one-billion-iteration integer workload in Brew, Goose, Rust and C."""
 import json, os, pathlib, platform, re, shutil, statistics, subprocess, tempfile, time
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SWAN = ROOT / "build" / "swan"
+BREW = ROOT / "build" / "brew"
 EXPECTED = 48000000020
 COMPILE_RUNS = 3
 RUNTIME_RUNS = 5
 TIMER = "/usr/bin/time"
 
 SRC = {
-"Swan": """func main() -> int:
+"Brew": """func main() -> int:
     var total = 0
     var i = 0
     while i < 1000
@@ -104,12 +104,12 @@ def host():
             "logical_cpus": os.cpu_count(), "memory": mem}
 
 def run(cmd, cwd, expected=None):
-    fmt = "SWAN_BENCH:%e,%U,%S,%M,%P,%F,%R,%w,%c"
+    fmt = "BREW_BENCH:%e,%U,%S,%M,%P,%F,%R,%w,%c"
     start = time.perf_counter()
     p = subprocess.run([TIMER, "-f", fmt, *map(str, cmd)], cwd=cwd,
                        text=True, capture_output=True)
     wall = time.perf_counter() - start
-    m = re.search(r"SWAN_BENCH:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", p.stderr)
+    m = re.search(r"BREW_BENCH:([0-9.]+),([0-9.]+),([0-9.]+),([0-9]+),([^,]+),([0-9]+),([0-9]+),([0-9]+),([0-9]+)", p.stderr)
     if p.returncode: raise RuntimeError(f"{cmd} failed ({p.returncode})\\n{p.stdout}\\n{p.stderr}")
     if not m: raise RuntimeError(f"GNU time metrics missing: {p.stderr}")
     elapsed, user, system, rss, cpu, major, minor, voluntary, involuntary = m.groups()
@@ -129,19 +129,19 @@ def tool_version(command):
     return text.splitlines()[0] if p.returncode == 0 and text else 'unavailable'
 
 def main():
-    if not SWAN.is_file(): raise SystemExit("Build Swan first: sh build.sh")
+    if not BREW.is_file(): raise SystemExit("Build Brew first: sh build.sh")
     goose = os.environ.get("GOOSE", "goose")
     cc, rustc = shutil.which("cc"), shutil.which("rustc")
     if not cc or not rustc: raise SystemExit("cc and rustc are required")
     host_info = host()
     versions = {
-        'Swan': 'Swan compiler at commit ' + str(os.getenv('GITHUB_SHA', 'local')),
+        'Brew': 'Brew compiler at commit ' + str(os.getenv('GITHUB_SHA', 'local')),
         'Goose': tool_version([goose, 'version']),
         'Rust': tool_version([rustc, '--version']),
         'C': tool_version([cc, '--version']),
     }
-    exts = {"Swan":"swan", "Goose":"goose", "Rust":"rs", "C":"c"}
-    with tempfile.TemporaryDirectory(prefix="swan-goose-rust-c-") as td:
+    exts = {"Brew":"brew", "Goose":"goose", "Rust":"rs", "C":"c"}
+    with tempfile.TemporaryDirectory(prefix="brew-goose-rust-c-") as td:
         d = pathlib.Path(td)
         src = {}
         for name, body in SRC.items():
@@ -153,35 +153,35 @@ def main():
           "C": lambda out:[cc,"-O3","-march=native","-DNDEBUG","-std=c11",str(src["C"]),"-o",str(out)]
         }
         flags = {
-          "Swan":"Swan x86-64 assembly generation + cc assembler/linker",
+          "Brew":"Brew x86-64 assembly generation + cc assembler/linker",
           "Goose":"goose build defaults; native C backend",
           "Rust":"rustc -C opt-level=3 -C target-cpu=native",
           "C":"cc -O3 -march=native -DNDEBUG -std=c11"
         }
         # One untimed warm-up per toolchain.
-        for name in ("Swan","Goose","Rust","C"):
+        for name in ("Brew","Goose","Rust","C"):
             out = d / ("warm-" + name.lower())
-            if name == "Swan":
+            if name == "Brew":
                 asm = d / "warm.s"
-                subprocess.run([str(SWAN),str(src[name]),"--emit-asm","-o",str(asm)],cwd=ROOT,check=True,capture_output=True)
+                subprocess.run([str(BREW),str(src[name]),"--emit-asm","-o",str(asm)],cwd=ROOT,check=True,capture_output=True)
                 subprocess.run([cc,"-x","assembler",str(asm),"-o",str(out)],cwd=ROOT,check=True,capture_output=True)
             else:
                 subprocess.run(cmds[name](out),cwd=ROOT,check=True,capture_output=True)
             actual = subprocess.check_output([str(out)],text=True).strip()
             if actual != str(EXPECTED): raise RuntimeError(f"{name} warm-up checksum mismatch: {actual}")
         results, bins = {}, {}
-        for name in ("Swan","Goose","Rust","C"):
+        for name in ("Brew","Goose","Rust","C"):
             samples, final = [], None
             for i in range(COMPILE_RUNS):
                 out = d / f"{name.lower()}-{i}"
-                if name == "Swan":
-                    asm = d / f"swan-{i}.s"
-                    front = run([str(SWAN),str(src[name]),"--emit-asm","-o",str(asm)],ROOT)
+                if name == "Brew":
+                    asm = d / f"brew-{i}.s"
+                    front = run([str(BREW),str(src[name]),"--emit-asm","-o",str(asm)],ROOT)
                     link = run([cc,"-x","assembler",str(asm),"-o",str(out)],ROOT)
                     samples.append({"wall_s":front["wall_s"]+link["wall_s"],
                                     "cpu_s":front["cpu_s"]+link["cpu_s"],
                                     "peak_rss_mib":max(front["peak_rss_mib"],link["peak_rss_mib"]),
-                                    "swan_codegen_s":front["wall_s"],"assembler_link_s":link["wall_s"]})
+                                    "brew_codegen_s":front["wall_s"],"assembler_link_s":link["wall_s"]})
                 else: samples.append(run(cmds[name](out),ROOT))
                 final = out
             bins[name] = final
@@ -190,7 +190,7 @@ def main():
                              "compile_cpu_median_s":med(samples,"cpu_s"),
                              "compile_peak_rss_mib_median":med(samples,"peak_rss_mib"),
                              "binary_bytes":final.stat().st_size,"runtime_samples":[]}
-        names = ["Swan","Goose","Rust","C"]
+        names = ["Brew","Goose","Rust","C"]
         for round_no in range(RUNTIME_RUNS):
             order = names[round_no:] + names[:round_no]
             for name in order:
@@ -207,7 +207,7 @@ def main():
             x["runtime_peak_rss_mib_median"] = med(samples,"peak_rss_mib")
             x["runtime_cpu_percent_median"] = statistics.median(float(s["cpu_percent"].rstrip("%")) for s in samples)
             x["iterations_per_second"] = 1_000_000_000/x["runtime_median_s"]
-        report = {"benchmark":"Swan vs Goose vs Rust vs C — one billion integer loop iterations",
+        report = {"benchmark":"Brew vs Goose vs Rust vs C — one billion integer loop iterations",
                   "commit":os.getenv("GITHUB_SHA"),"host":host_info,"toolchain_versions":versions,
                   "workload":{"loop_dimensions":[1000,1000,1000],"iterations":1_000_000_000,
                     "operation":"total += ((i * 31 + j * 17 + k * 13) % 97)",
@@ -215,14 +215,14 @@ def main():
                     "compile_repeats":COMPILE_RUNS,"runtime_repeats":RUNTIME_RUNS},
                   "languages":results,
                   "notes":["All programs execute the same loop and signed 64-bit arithmetic.",
-                    "Swan compile time includes Swan assembly generation and host assembly/linking; sub-times are reported.",
+                    "Brew compile time includes Brew assembly generation and host assembly/linking; sub-times are reported.",
                     "Goose uses its default build/backend optimization settings; Rust and C flags are explicit.",
                     "Runtime order rotates each round; every sample must produce the expected checksum.",
                     "Wall time uses perf_counter; GNU time provides CPU time, peak RSS, faults and context switches.",
                     "Peak RSS is per-process maximum resident memory, not total host RAM.",
-                    "This common supported compute workload is distinct from the 20M binary-search workload; current Swan backend does not lower array allocation/indexing or break/continue."]}
+                    "This common supported compute workload is distinct from the 20M binary-search workload; current Brew backend does not lower array allocation/indexing or break/continue."]}
         (ROOT/"four-language-benchmark.json").write_text(json.dumps(report,indent=2)+"\n")
-        lines = ["# Swan vs Goose vs Rust vs C","",
+        lines = ["# Brew vs Goose vs Rust vs C","",
           "Workload: 1,000,000,000 identical loop iterations. Checksum verified.",
           f"Host: {host_info['cpu']}; {host_info['logical_cpus']} logical CPUs; RAM {host_info['memory'].get('MemTotal','unknown')}.","",
           "| Language | Compile median (s) | Compile CPU (s) | Compile RAM (MiB) | Runtime median (s) | Runtime CPU (s) | Runtime RAM (MiB) | Binary (B) | Iterations/s |",
@@ -230,14 +230,14 @@ def main():
         for name in names:
             x=results[name]
             lines.append(f"| {name} | {x['compile_median_s']:.6f} | {x['compile_cpu_median_s']:.3f} | {x['compile_peak_rss_mib_median']:.2f} | {x['runtime_median_s']:.6f} | {x['runtime_cpu_median_s']:.3f} | {x['runtime_peak_rss_mib_median']:.2f} | {x['binary_bytes']} | {x['iterations_per_second']:.0f} |")
-        lines += ["","## Runtime samples (seconds)","","| Round | Swan | Goose | Rust | C |","|---:|---:|---:|---:|---:|"]
+        lines += ["","## Runtime samples (seconds)","","| Round | Brew | Goose | Rust | C |","|---:|---:|---:|---:|---:|"]
         for i in range(RUNTIME_RUNS):
             lines.append("| "+str(i+1)+" | "+" | ".join(f"{results[n]['runtime_samples'][i]['wall_s']:.6f}" for n in names)+" |")
         lines += ["","## Toolchain versions",""]+[f"- **{n}:** {versions[n]}" for n in names]
         lines += ["","## Compiler settings",""]+[f"- **{n}:** {flags[n]}" for n in names]
         lines += ["","Expected checksum: 48,000,000,020. All samples must match or the run fails.",
                   "Raw per-sample metrics: four-language-benchmark.json.",
-                  "Note: Swan's 20M-array binary-search support is not yet complete; this is the largest common supported compute workload."]
+                  "Note: Brew's 20M-array binary-search support is not yet complete; this is the largest common supported compute workload."]
         md="\n".join(lines)+"\n"
         (ROOT/"four-language-benchmark.md").write_text(md,encoding="utf-8")
         print(md)

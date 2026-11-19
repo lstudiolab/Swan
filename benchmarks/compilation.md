@@ -1,4 +1,4 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
 # Compilation benchmarks
 
@@ -7,7 +7,7 @@
 Use `compile_speed.py` to compare source-to-native-executable compile time for:
 
 - Goose
-- Swan
+- Brew
 - Rust
 - C++
 - C
@@ -32,21 +32,21 @@ GOOSE_BIN=/path/to/goose python3 benchmarks/compile_speed.py \
   --repeats 5 --warmups 1 --functions 384 --operations 96
 ```
 
-The Swan compiler defaults to `build/swan`. Override it with `--swan` or
-`SWAN_BIN`. Override the Goose compiler with `--goose` or `GOOSE_BIN`.
+The Brew compiler defaults to `build/brew`. Override it with `--brew` or
+`BREW_BIN`. Override the Goose compiler with `--goose` or `GOOSE_BIN`.
 C and C++ compilers can be selected with `--cc` and `--cxx`. Rust uses
 `rustc`.
 
 By default all six toolchains are required. `--allow-missing` permits a
 partial local run, but partial results must not be presented as a six-way
-comparison. Swan and Goose remain required.
+comparison. Brew and Goose remain required.
 
 ### Fairness and interpretation
 
 - The primary metric is cold source-to-executable time, including linking.
-- Rust, C++, and C use `-O2`; Swan and Goose use their normal native build
+- Rust, C++, and C use `-O2`; Brew and Goose use their normal native build
   pipelines. Record the exact compiler versions printed in the report.
-- The same workload shape and constants are generated for Goose, Swan, Rust,
+- The same workload shape and constants are generated for Goose, Brew, Rust,
   C++, and C. Arithmetic is data-dependent within each function so the source
   exercises parsing, semantic analysis, optimization, and code generation.
 - The ASM row uses handwritten x86-64 GAS and measures assembly plus linking.

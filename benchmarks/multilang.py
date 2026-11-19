@@ -8,7 +8,7 @@ BIN.mkdir(parents=True, exist_ok=True)
 N = 10_000_000
 EXPECTED = N * len(b"Hello, World!\n")
 programs = {
- "swan": ("hello.swan", f'func main() -> int:\n    for i in 0..{N}\n        !printin >> "Hello, World!"\n    return 0\n'),
+ "brew": ("hello.brew", f'func main() -> int:\n    for i in 0..{N}\n        !printin >> "Hello, World!"\n    return 0\n'),
  "goose": ("hello.goose", f'fn main() {{\n    for i in {N} {{ print("Hello, World!"); }}\n}}\n'),
  "c": ("hello.c", f'#include <stdio.h>\nint main(void) {{ for (long i=0; i<{N}; ++i) puts("Hello, World!"); return 0; }}\n'),
  "cpp": ("hello.cpp", f'#include <cstdio>\nint main() {{ for (long i=0; i<{N}; ++i) std::puts("Hello, World!"); }}\n'),
@@ -46,9 +46,9 @@ def execute(command,label):
 bins={k:BIN/(k+(".dll" if k=="csharp" else "")) for k in programs}
 sources={k:SRC/v[0] for k,v in programs.items()}
 goose=pathlib.Path("goose/build/goose").resolve()
-swan=pathlib.Path("swan/build/swan").resolve()
+brew=pathlib.Path("brew/build/brew").resolve()
 commands={
- "swan": ([swan,"build",sources["swan"],"-o",bins["swan"]],[bins["swan"]]),
+ "brew": ([brew,"build",sources["brew"],"-o",bins["brew"]],[bins["brew"]]),
  "goose": ([goose,"build","-o",bins["goose"],sources["goose"]],[bins["goose"]]),
  "c": (["cc","-O2","-std=c11",sources["c"],"-o",bins["c"]],[bins["c"]]),
  "cpp": (["c++","-O2","-std=c++17",sources["cpp"],"-o",bins["cpp"]],[bins["cpp"]]),
@@ -70,11 +70,11 @@ dll=csout/"Bench.dll"
 rt,rm,ob=execute(["dotnet",dll],"csharp-runtime")
 results["csharp"]={"compile_seconds":round(ct,4),"compile_peak_rss_kib":cm,"runtime_seconds":round(rt,4),"runtime_peak_rss_kib":rm,"source_bytes":(proj/"Program.cs").stat().st_size,"artifact_bytes":dll.stat().st_size,"output_bytes":ob,"output_mib_per_second":round(ob/1048576/rt,2),"status":"PASS"}
 
-order=["swan","goose","c","cpp","objective-c","csharp"]
+order=["brew","goose","c","cpp","objective-c","csharp"]
 data={"workload":f"{N:,} identical Hello, World! lines","expected_output_bytes":EXPECTED,"runner":"GitHub Actions ubuntu-24.04","languages":results,"notes":["Output is streamed and counted, not saved; every language must produce identical bytes.","Compile time includes native linking; C# includes dotnet build/restore.","Runtime includes output and language buffering/runtime behavior; this is not a compute-only benchmark.","C# artifact size is the managed DLL and excludes the shared .NET runtime.","Objective-C uses GCC's Objective-C frontend, GNU libobjc, a root class, and one message dispatch."]}
 (OUT/"results.json").write_text(json.dumps(data,indent=2)+"\n")
 def mib(k): return "N/A" if k is None else f"{k/1024:.2f}"
-lines=["# Swan, Goose, C, C++, Objective-C and C# benchmark","",f"Workload: {N:,} lines; expected output: {EXPECTED:,} bytes.","Runner: GitHub Actions ubuntu-24.04. Lower values are better.","","| Language | Compile (s) | Compile RAM (MiB) | Runtime (s) | Runtime RAM (MiB) | Source (B) | Artifact (B) | Output (B) | Throughput (MiB/s) |","|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
+lines=["# Brew, Goose, C, C++, Objective-C and C# benchmark","",f"Workload: {N:,} lines; expected output: {EXPECTED:,} bytes.","Runner: GitHub Actions ubuntu-24.04. Lower values are better.","","| Language | Compile (s) | Compile RAM (MiB) | Runtime (s) | Runtime RAM (MiB) | Source (B) | Artifact (B) | Output (B) | Throughput (MiB/s) |","|---|---:|---:|---:|---:|---:|---:|---:|---:|"]
 for name in order:
  r=results[name]
  lines.append(f"| {name} | {r['compile_seconds']:.2f} | {mib(r['compile_peak_rss_kib'])} | {r['runtime_seconds']:.2f} | {mib(r['runtime_peak_rss_kib'])} | {r['source_bytes']:,} | {r['artifact_bytes']:,} | {r['output_bytes']:,} | {r['output_mib_per_second']:.2f} |")

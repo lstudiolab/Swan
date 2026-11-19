@@ -1,0 +1,34 @@
+name: Brew-only stress benchmark
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Record runner environment and measurement context
+        run: |
+          echo "=== CPU ==="
+          lscpu
+          echo "=== MEMORY ==="
+          free -h
+          echo "=== STORAGE ==="
+          df -h .
+          echo "=== OS ==="
+          uname -a
+          echo "=== COMPILER TOOLCHAIN ==="
+          cc --version
+          python3 --version
+      - name: Build, measure and run Brew benchmark
+        run: python3 benchmarks/brew_only.py
+      - name: Upload complete measurement report
+        uses: actions/upload-artifact@v4
+        with:
+          name: brew-only-benchmark
+          path: |
+            brew-only-benchmark.json
+            brew-only-benchmark.s
+          if-no-files-found: error

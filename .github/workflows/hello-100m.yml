@@ -1,4 +1,4 @@
-name: Swan vs Goose 100M Hello World Benchmark
+name: Brew vs Goose 100M Hello World Benchmark
 
 on:
   workflow_dispatch:
@@ -8,10 +8,10 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
-      - name: Check out Swan
+      - name: Check out Brew
         uses: actions/checkout@v4
         with:
-          path: swan
+          path: brew
 
       - name: Check out Goose
         uses: actions/checkout@v4
@@ -24,8 +24,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential cmake python3 time
 
-      - name: Build Swan
-        working-directory: swan
+      - name: Build Brew
+        working-directory: brew
         run: sh build.sh
 
       - name: Build Goose
@@ -34,7 +34,7 @@ jobs:
           cmake --build goose/build --parallel 2
 
       - name: Run 100-million-line benchmark
-        run: python3 swan/benchmarks/hello_100m.py
+        run: python3 brew/benchmarks/hello_100m.py
         env:
           PYTHONUNBUFFERED: "1"
 
@@ -42,7 +42,7 @@ jobs:
         if: always()
         run: |
           if [ -f benchmark-results/results.md ]; then
-            cat swan/benchmark-results/results.md >> "$GITHUB_STEP_SUMMARY"
+            cat brew/benchmark-results/results.md >> "$GITHUB_STEP_SUMMARY"
           else
             echo "Benchmark did not produce results. Inspect the preceding build or run step." >> "$GITHUB_STEP_SUMMARY"
           fi
@@ -51,8 +51,8 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swan-goose-hello-100m-results
+          name: brew-goose-hello-100m-results
           path: |
-            swan/benchmark-results/results.md
+            brew/benchmark-results/results.md
             benchmark-results/results.json
           if-no-files-found: warn

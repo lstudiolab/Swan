@@ -1,4 +1,4 @@
-name: Swan Compiler Pipeline Stress Benchmark
+name: Brew Compiler Pipeline Stress Benchmark
 
 on:
   push:
@@ -24,13 +24,13 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y time
-      - name: Build Swan compiler
+      - name: Build Brew compiler
         run: sh build.sh
       - name: Run fresh compiler pipeline stress benchmark
         run: python3 benchmarks/compiler_pipeline_stress.py --repeats 5 --warmups 2 | tee compiler-pipeline-stress.txt
       - name: Upload stress benchmark report
         uses: actions/upload-artifact@v4
         with:
-          name: swan-compiler-pipeline-stress
+          name: brew-compiler-pipeline-stress
           path: compiler-pipeline-stress.txt
           if-no-files-found: error

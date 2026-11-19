@@ -1,40 +1,40 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swan"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/c11-tests"
 mkdir -p "$TMP"
-cat > "$TMP/hello.swan" <<'SWAN'
+cat > "$TMP/hello.brew" <<'BREW'
 func main():
-    print("Hello from Swan C")
+    print("Hello from Brew C")
     return 0
-SWAN
-"$SWAN" "$TMP/hello.swan" --emit-asm -o "$TMP/hello.s"
+BREW
+"$BREW" "$TMP/hello.brew" --emit-asm -o "$TMP/hello.s"
 cc -x assembler "$TMP/hello.s" -o "$TMP/hello"
-test "$("$TMP/hello")" = "Hello from Swan C"
+test "$("$TMP/hello")" = "Hello from Brew C"
 printf 'PASS: C11 frontend emits native x86-64 assembly and string output\n'
-cat > "$TMP/log-operator.swan" <<'SWAN'
+cat > "$TMP/log-operator.brew" <<'BREW'
 func main():
     print("Hello, World!")
     return 0
-SWAN
-"$SWAN" "$TMP/log-operator.swan" --emit-asm -o "$TMP/log-operator.s"
+BREW
+"$BREW" "$TMP/log-operator.brew" --emit-asm -o "$TMP/log-operator.s"
 cc -x assembler "$TMP/log-operator.s" -o "$TMP/log-operator"
 test "$("$TMP/log-operator")" = "Hello, World!"
 printf 'PASS: print() standard-library output\n'
-cat > "$TMP/arithmetic.swan" <<'SWAN'
+cat > "$TMP/arithmetic.brew" <<'BREW'
 func main():
     let a: int = 40
     var b: int = 2
     b = b + 1
     print(a + b)
     return 0
-SWAN
-"$SWAN" "$TMP/arithmetic.swan" --emit-asm -o "$TMP/arithmetic.s"
+BREW
+"$BREW" "$TMP/arithmetic.brew" --emit-asm -o "$TMP/arithmetic.s"
 cc -x assembler "$TMP/arithmetic.s" -o "$TMP/arithmetic"
 test "$("$TMP/arithmetic")" = "43"
 printf 'PASS: typed locals, mutation, and arithmetic lowering\n'
-cat > "$TMP/remainder.swan" <<'SWAN'
+cat > "$TMP/remainder.brew" <<'BREW'
 func main():
     print(195 % 97)
     print(194 % 97)
@@ -44,8 +44,8 @@ func main():
     print(-13 % 4)
     print(-8 % 4)
     return 0
-SWAN
-"$SWAN" "$TMP/remainder.swan" --emit-asm -o "$TMP/remainder.s"
+BREW
+"$BREW" "$TMP/remainder.brew" --emit-asm -o "$TMP/remainder.s"
 cc -x assembler "$TMP/remainder.s" -o "$TMP/remainder"
 test "$("$TMP/remainder")" = "1
 0
@@ -55,18 +55,18 @@ test "$("$TMP/remainder")" = "1
 -1
 0"
 printf 'PASS: signed constant remainder lowering\n'
-cat > "$TMP/calls.swan" <<'SWAN'
+cat > "$TMP/calls.brew" <<'BREW'
 func add(a: int, b: int) -> int:
     return a + b
 func main():
     print(add(20, 22))
     return 0
-SWAN
-"$SWAN" "$TMP/calls.swan" --emit-asm -o "$TMP/calls.s"
+BREW
+"$BREW" "$TMP/calls.brew" --emit-asm -o "$TMP/calls.s"
 cc -x assembler "$TMP/calls.s" -o "$TMP/calls"
 test "$("$TMP/calls")" = "42"
 printf 'PASS: function calls and System V argument registers\n'
-cat > "$TMP/control.swan" <<'SWAN'
+cat > "$TMP/control.brew" <<'BREW'
 func main():
     var value: int = 0
     while value < 3
@@ -76,14 +76,14 @@ func main():
             print(value)
         value = value + 1
     return 0
-SWAN
-"$SWAN" "$TMP/control.swan" --emit-asm -o "$TMP/control.s"
+BREW
+"$BREW" "$TMP/control.brew" --emit-asm -o "$TMP/control.s"
 cc -x assembler "$TMP/control.s" -o "$TMP/control"
 test "$("$TMP/control")" = "0
 9
 2"
 printf 'PASS: nested if/else and while control flow\n'
-cat > "$TMP/unroll.swan" <<'SWAN'
+cat > "$TMP/unroll.brew" <<'BREW'
 func main():
     var i = 0
     var sum = 0
@@ -92,13 +92,13 @@ func main():
         i = i + 1
     print(sum)
     return 0
-SWAN
-"$SWAN" "$TMP/unroll.swan" --emit-asm -o "$TMP/unroll.s"
+BREW
+"$BREW" "$TMP/unroll.brew" --emit-asm -o "$TMP/unroll.s"
 cc -x assembler "$TMP/unroll.s" -o "$TMP/unroll"
 test "$("$TMP/unroll")" = "45"
 printf 'PASS: loop condition and induction-variable fast paths preserve iteration counts\n'
 printf 'PASS: bottom-tested loop branches preserve iteration counts\n'
-cat > "$TMP/nested-loops.swan" <<'SWAN'
+cat > "$TMP/nested-loops.brew" <<'BREW'
 func main():
     var i = 0
     var total = 0
@@ -110,12 +110,12 @@ func main():
         i = i + 1
     print(total)
     return 0
-SWAN
-"$SWAN" "$TMP/nested-loops.swan" --emit-asm -o "$TMP/nested-loops.s"
+BREW
+"$BREW" "$TMP/nested-loops.brew" --emit-asm -o "$TMP/nested-loops.s"
 cc -x assembler "$TMP/nested-loops.s" -o "$TMP/nested-loops"
 test "$("$TMP/nested-loops")" = "12"
 printf 'PASS: nested bottom-tested loops\n'
-cat > "$TMP/invariant-hoist.swan" <<'SWAN'
+cat > "$TMP/invariant-hoist.brew" <<'BREW'
 func main():
     var i = 0
     var total = 0
@@ -130,8 +130,8 @@ func main():
         i = i + 1
     print(total)
     return 0
-SWAN
-"$SWAN" "$TMP/invariant-hoist.swan" --emit-asm -o "$TMP/invariant-hoist.s"
+BREW
+"$BREW" "$TMP/invariant-hoist.brew" --emit-asm -o "$TMP/invariant-hoist.s"
 if ! grep -q "mov r11, rax" "$TMP/invariant-hoist.s" || ! grep -q "mov rax, r11" "$TMP/invariant-hoist.s" || ! grep -q "imul r15, r14, 13" "$TMP/invariant-hoist.s" || ! grep -q "add r15, 13" "$TMP/invariant-hoist.s"; then
     echo "FAIL: expected invariant expression was not hoisted" >&2
     cat "$TMP/invariant-hoist.s" >&2
@@ -141,7 +141,7 @@ cc -x assembler "$TMP/invariant-hoist.s" -o "$TMP/invariant-hoist"
 actual=$("$TMP/invariant-hoist")
 if [ "$actual" != "2913" ]; then echo "FAIL: invariant-hoist expected 2913, got $actual" >&2; exit 1; fi
 printf 'PASS: loop-invariant arithmetic hoisting preserves results\n'
-cat > "$TMP/zero-loop.swan" <<'SWAN'
+cat > "$TMP/zero-loop.brew" <<'BREW'
 func main():
     var i = 0
     var total = 0
@@ -150,12 +150,12 @@ func main():
         i = i + 1
     print(total)
     return 0
-SWAN
-"$SWAN" "$TMP/zero-loop.swan" --emit-asm -o "$TMP/zero-loop.s"
+BREW
+"$BREW" "$TMP/zero-loop.brew" --emit-asm -o "$TMP/zero-loop.s"
 cc -x assembler "$TMP/zero-loop.s" -o "$TMP/zero-loop"
 test "$("$TMP/zero-loop")" = "0"
 printf 'PASS: bottom-tested loop zero-iteration guard\n'
-cat > "$TMP/loop-fallback.swan" <<'SWAN'
+cat > "$TMP/loop-fallback.brew" <<'BREW'
 func main():
     var i = 0
     var total = 0
@@ -166,33 +166,33 @@ func main():
         i = i + 1
     print(total)
     return 0
-SWAN
-"$SWAN" "$TMP/loop-fallback.swan" --emit-asm -o "$TMP/loop-fallback.s"
+BREW
+"$BREW" "$TMP/loop-fallback.brew" --emit-asm -o "$TMP/loop-fallback.s"
 cc -x assembler "$TMP/loop-fallback.s" -o "$TMP/loop-fallback"
 test "$("$TMP/loop-fallback")" = "3"
 printf 'PASS: loops with noncanonical induction updates retain top-tested control flow\n'
-cat > "$TMP/unknown-name.swan" <<'SWAN'
+cat > "$TMP/unknown-name.brew" <<'BREW'
 func main():
     print(missing_name)
     return 0
-SWAN
-if "$SWAN" "$TMP/unknown-name.swan" --emit-asm -o "$TMP/unknown-name.s"; then
+BREW
+if "$BREW" "$TMP/unknown-name.brew" --emit-asm -o "$TMP/unknown-name.s"; then
     echo 'FAIL: unknown variable was accepted' >&2
     exit 1
 fi
 printf 'PASS: semantic name resolution rejects unknown variables\n'
-cat > "$TMP/immutable.swan" <<'SWAN'
+cat > "$TMP/immutable.brew" <<'BREW'
 func main():
     let value = 1
     value = 2
     return 0
-SWAN
-if "$SWAN" "$TMP/immutable.swan" --emit-asm -o "$TMP/immutable.s"; then
+BREW
+if "$BREW" "$TMP/immutable.brew" --emit-asm -o "$TMP/immutable.s"; then
     echo 'FAIL: assignment to immutable binding was accepted' >&2
     exit 1
 fi
 printf 'PASS: semantic analysis enforces immutable bindings\n'
-cat > "$TMP/nested-calls.swan" <<'SWAN'
+cat > "$TMP/nested-calls.brew" <<'BREW'
 func base() -> int:
     return 20
 func add(a: int, b: int) -> int:
@@ -202,12 +202,12 @@ func wrap(value: int) -> int:
 func main():
     print(1 + wrap(21))
     return 0
-SWAN
-"$SWAN" "$TMP/nested-calls.swan" --emit-asm -o "$TMP/nested-calls.s"
+BREW
+"$BREW" "$TMP/nested-calls.brew" --emit-asm -o "$TMP/nested-calls.s"
 cc -x assembler "$TMP/nested-calls.s" -o "$TMP/nested-calls"
 test "$("$TMP/nested-calls")" = "42"
 printf 'PASS: nested function calls preserve x86-64 ABI stack alignment\n'
-cat > "$TMP/call-hotpath.swan" <<'SWAN'
+cat > "$TMP/call-hotpath.brew" <<'BREW'
 func transform(x: int) -> int:
     return (x * 31 + 7) % 97
 func main():
@@ -221,12 +221,12 @@ func main():
         i = i + 1
     print(total)
     return 0
-SWAN
-"$SWAN" "$TMP/call-hotpath.swan" --emit-asm -o "$TMP/call-hotpath.s"
+BREW
+"$BREW" "$TMP/call-hotpath.brew" --emit-asm -o "$TMP/call-hotpath.s"
 cc -x assembler "$TMP/call-hotpath.s" -o "$TMP/call-hotpath"
 test "$("$TMP/call-hotpath")" = "466"
 grep -Eq 'test (r12|rdi|rsi|rdx|r8|r9), 1' "$TMP/call-hotpath.s"
-if grep -q 'call swan_fn_transform' "$TMP/call-hotpath.s"; then
+if grep -q 'call brew_fn_transform' "$TMP/call-hotpath.s"; then
     echo 'FAIL: eligible single-return function was not inlined' >&2
     exit 1
 fi
@@ -235,43 +235,43 @@ if grep -q 'mov QWORD PTR \[rsp' "$TMP/call-hotpath.s"; then
     echo 'FAIL: simple direct-call arguments were unnecessarily staged on the stack' >&2
     exit 1
 fi
-if grep -A8 '^swan_fn_transform:' "$TMP/call-hotpath.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
+if grep -A8 '^brew_fn_transform:' "$TMP/call-hotpath.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
     echo 'FAIL: leaf function unexpectedly creates a stack frame' >&2
     exit 1
 fi
-if grep -B2 'call swan_fn_transform' "$TMP/call-hotpath.s" | grep -q 'push rax'; then
+if grep -B2 'call brew_fn_transform' "$TMP/call-hotpath.s" | grep -q 'push rax'; then
     echo 'FAIL: accumulator was spilled around a call' >&2
     exit 1
 fi
 printf 'PASS: leaf-call, register argument, accumulator, and parity fast paths\n'
-cat > "$TMP/leaf-registers.swan" <<'SWAN'
+cat > "$TMP/leaf-registers.brew" <<'BREW'
 func leaf(a: int, b: int, c: int, d: int, e: int) -> int:
     return (a + b) * (c + d) + e
 func main():
     print(leaf(1, 2, 3, 4, 5))
     return 0
-SWAN
-"$SWAN" "$TMP/leaf-registers.swan" --emit-asm -o "$TMP/leaf-registers.s"
+BREW
+"$BREW" "$TMP/leaf-registers.brew" --emit-asm -o "$TMP/leaf-registers.s"
 cc -x assembler "$TMP/leaf-registers.s" -o "$TMP/leaf-registers"
 actual=$( "$TMP/leaf-registers" )
 if [ "$actual" != "26" ]; then echo "FAIL: leaf-registers expected 26, got $actual" >&2; cat "$TMP/leaf-registers.s" >&2; exit 1; fi
-if grep -A12 '^swan_fn_leaf:' "$TMP/leaf-registers.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
+if grep -A12 '^brew_fn_leaf:' "$TMP/leaf-registers.s" | grep -Eq 'push rbp|mov QWORD PTR \[rbp'; then
     echo 'FAIL: five-register leaf function unexpectedly spills or creates a frame' >&2
     exit 1
 fi
 printf 'PASS: leaf volatile-register allocation does not overlap backend scratch registers\n'
-cat > "$TMP/accumulator-side-effect.swan" <<'SWAN'
+cat > "$TMP/accumulator-side-effect.brew" <<'BREW'
 func main():
     var total = 2
     total = total + (total = 5)
     print(total)
     return 0
-SWAN
-"$SWAN" "$TMP/accumulator-side-effect.swan" --emit-asm -o "$TMP/accumulator-side-effect.s"
+BREW
+"$BREW" "$TMP/accumulator-side-effect.brew" --emit-asm -o "$TMP/accumulator-side-effect.s"
 cc -x assembler "$TMP/accumulator-side-effect.s" -o "$TMP/accumulator-side-effect"
 test "$("$TMP/accumulator-side-effect")" = "7"
 printf 'PASS: accumulator optimization preserves assignment evaluation order\n'
-cat > "$TMP/local-operands.swan" <<'SWAN'
+cat > "$TMP/local-operands.brew" <<'BREW'
 func main():
     var left = 84
     var right = 7
@@ -282,8 +282,8 @@ func main():
     print(left % right)
     print(left > right)
     return 0
-SWAN
-"$SWAN" "$TMP/local-operands.swan" --emit-asm -o "$TMP/local-operands.s"
+BREW
+"$BREW" "$TMP/local-operands.brew" --emit-asm -o "$TMP/local-operands.s"
 cc -x assembler "$TMP/local-operands.s" -o "$TMP/local-operands"
 test "$("$TMP/local-operands")" = "91
 77
@@ -297,7 +297,7 @@ if grep -q 'push rax' "$TMP/local-operands.s"; then
     exit 1
 fi
 printf 'PASS: register/memory local operands avoid expression stack temporaries\n'
-cat > "$TMP/array-u32.swan" <<'SWAN'
+cat > "$TMP/array-u32.brew" <<'BREW'
 func main():
     let values = array_u32(4)
     values[0] = 4294967295
@@ -309,15 +309,15 @@ func main():
     print(values[2])
     print(values[3])
     return 0
-SWAN
-"$SWAN" "$TMP/array-u32.swan" --emit-asm -o "$TMP/array-u32.s"
+BREW
+"$BREW" "$TMP/array-u32.brew" --emit-asm -o "$TMP/array-u32.s"
 cc -x assembler "$TMP/array-u32.s" -o "$TMP/array-u32"
 test "$("$TMP/array-u32")" = "4294967295
 42
 7
 99"
 printf 'PASS: zero-initialized u32 arrays, indexed loads/stores, and unsigned value preservation\n'
-cat > "$TMP/array-midpoint.swan" <<'SWAN'
+cat > "$TMP/array-midpoint.brew" <<'BREW'
 func main():
     let values = array(8)
     var low = 0
@@ -327,8 +327,8 @@ func main():
         print(values[middle])
         break
     return 0
-SWAN
-"$SWAN" "$TMP/array-midpoint.swan" --emit-asm -o "$TMP/array-midpoint.s"
+BREW
+"$BREW" "$TMP/array-midpoint.brew" --emit-asm -o "$TMP/array-midpoint.s"
 cc -x assembler "$TMP/array-midpoint.s" -o "$TMP/array-midpoint"
 test "$("$TMP/array-midpoint")" = "0"
 grep -q 'shr rax, 1' "$TMP/array-midpoint.s"
@@ -342,7 +342,7 @@ if grep -q 'mov r11, rbx' "$TMP/array-midpoint.s"; then
 fi
 printf 'PASS: proven-nonnegative midpoint and direct array-base addressing\n'
 
-cat > "$TMP/unsafe-midpoint.swan" <<'SWAN'
+cat > "$TMP/unsafe-midpoint.brew" <<'BREW'
 func main():
     let values = array(8)
     var low = 0
@@ -353,8 +353,8 @@ func main():
         low = -1
         break
     return 0
-SWAN
-"$SWAN" "$TMP/unsafe-midpoint.swan" --emit-asm -o "$TMP/unsafe-midpoint.s"
+BREW
+"$BREW" "$TMP/unsafe-midpoint.brew" --emit-asm -o "$TMP/unsafe-midpoint.s"
 if ! grep -Eq 'cmp rcx, (8|QWORD PTR \[[a-z0-9]+ - 8\])' "$TMP/unsafe-midpoint.s"; then
     echo "FAIL: midpoint bounds check was removed after a bound mutation" >&2
     cat "$TMP/unsafe-midpoint.s" >&2
@@ -362,7 +362,7 @@ if ! grep -Eq 'cmp rcx, (8|QWORD PTR \[[a-z0-9]+ - 8\])' "$TMP/unsafe-midpoint.s
 fi
 printf 'PASS: midpoint bounds-check elimination rejects mutated bounds\n'
 
-cat > "$TMP/power-two-multiply.swan" <<'SWAN'
+cat > "$TMP/power-two-multiply.brew" <<'BREW'
 func main():
     var value = 7
     var dividend = -43
@@ -377,8 +377,8 @@ func main():
     print(dividend % 8)
     print(dividend % -8)
     return 0
-SWAN
-"$SWAN" "$TMP/power-two-multiply.swan" --emit-asm -o "$TMP/power-two-multiply.s"
+BREW
+"$BREW" "$TMP/power-two-multiply.brew" --emit-asm -o "$TMP/power-two-multiply.s"
 cc -x assembler "$TMP/power-two-multiply.s" -o "$TMP/power-two-multiply"
 test "$("$TMP/power-two-multiply")" = "56
 -56
@@ -398,7 +398,7 @@ if grep -q 'idiv' "$TMP/power-two-multiply.s"; then
 fi
 printf 'PASS: signed power-of-two multiplication, division, and remainder lowering\n'
 
-cat > "$TMP/array-store-register.swan" <<'SWAN'
+cat > "$TMP/array-store-register.brew" <<'BREW'
 func main():
     let values = array_unchecked(4)
     var index = 0
@@ -415,14 +415,14 @@ func main():
     print(first + second + third + fourth + fifth + sixth + seventh)
     print(values[3])
     return 0
-SWAN
-"$SWAN" "$TMP/array-store-register.swan" --emit-asm -o "$TMP/array-store-register.s"
+BREW
+"$BREW" "$TMP/array-store-register.brew" --emit-asm -o "$TMP/array-store-register.s"
 cc -x assembler "$TMP/array-store-register.s" -o "$TMP/array-store-register"
 test "$("$TMP/array-store-register")" = "308
 44"
 printf 'PASS: array stores preserve live allocated registers\n'
 
-cat > "$TMP/add-scratch-preservation.swan" <<'SWAN'
+cat > "$TMP/add-scratch-preservation.brew" <<'BREW'
 func main():
     let a = 1
     let b = 2
@@ -439,13 +439,13 @@ func main():
     var index = 0
     print(a + values[index] + (b % 97))
     return 0
-SWAN
-"$SWAN" "$TMP/add-scratch-preservation.swan" --emit-asm -o "$TMP/add-scratch-preservation.s"
+BREW
+"$BREW" "$TMP/add-scratch-preservation.brew" --emit-asm -o "$TMP/add-scratch-preservation.s"
 cc -x assembler "$TMP/add-scratch-preservation.s" -o "$TMP/add-scratch-preservation"
 test "$("$TMP/add-scratch-preservation")" = "15"
 printf 'PASS: addition accumulators survive spilled-array and remainder scratch use\n'
 
-cat > "$TMP/heapsort.swan" <<'SWAN'
+cat > "$TMP/heapsort.brew" <<'BREW'
 func main():
     let values = array_u32_unchecked(10)
     values[0] = 91
@@ -509,20 +509,20 @@ func main():
         i = i + 1
     print(sorted)
     return 0
-SWAN
-"$SWAN" "$TMP/heapsort.swan" --emit-asm -o "$TMP/heapsort.s"
+BREW
+"$BREW" "$TMP/heapsort.brew" --emit-asm -o "$TMP/heapsort.s"
 cc -x assembler "$TMP/heapsort.s" -o "$TMP/heapsort"
 test "$("$TMP/heapsort")" = "1"
 printf 'PASS: in-place heapsort with unchecked u32 array indexing\n'
 
-"$SWAN" "$ROOT/benchmarks/sort_1b.swan" --emit-asm -o "$TMP/sort-1b.s"
+"$BREW" "$ROOT/benchmarks/sort_1b.brew" --emit-asm -o "$TMP/sort-1b.s"
 cc -x assembler "$TMP/sort-1b.s" -o "$TMP/sort-1b"
-printf 'PASS: one-billion-element Swan sorting workload compiles and links\n'
+printf 'PASS: one-billion-element Brew sorting workload compiles and links\n'
 
 
 
 
-cat > "$TMP/volatile-preservation.swan" <<'SWAN'
+cat > "$TMP/volatile-preservation.brew" <<'BREW'
 func combine(a: int, b: int) -> int:
     return a + b
 func main():
@@ -535,8 +535,8 @@ func main():
     let g = 77
     print(combine(a, 1) + combine(b, 1) + combine(c, 1) + combine(d, 1) + combine(e, 1) + combine(f, 1) + combine(g, 1))
     return 0
-SWAN
-"$SWAN" "$TMP/volatile-preservation.swan" --emit-asm -o "$TMP/volatile-preservation.s"
+BREW
+"$BREW" "$TMP/volatile-preservation.brew" --emit-asm -o "$TMP/volatile-preservation.s"
 cc -x assembler "$TMP/volatile-preservation.s" -o "$TMP/volatile-preservation"
 test "$("$TMP/volatile-preservation")" = "315"
 grep -q 'mov QWORD PTR \[rbp - .*\], rbx' "$TMP/volatile-preservation.s"
@@ -546,12 +546,12 @@ if ! grep -q 'push rdi' "$TMP/volatile-preservation.s" || ! grep -q 'pop rdi' "$
     exit 1
 fi
 printf 'PASS: callee-saved and volatile local preservation across calls\n'
-cat > "$TMP/constant-fold.swan" <<'SWAN'
+cat > "$TMP/constant-fold.brew" <<'BREW'
 func main():
     print((6 * 7) + (9 - 2))
     return 0
-SWAN
-"$SWAN" "$TMP/constant-fold.swan" --emit-asm -o "$TMP/constant-fold.s"
+BREW
+"$BREW" "$TMP/constant-fold.brew" --emit-asm -o "$TMP/constant-fold.s"
 cc -x assembler "$TMP/constant-fold.s" -o "$TMP/constant-fold"
 test "$("$TMP/constant-fold")" = "49"
 if grep -Eq 'imul|add rax|sub rax' "$TMP/constant-fold.s"; then
@@ -560,7 +560,7 @@ if grep -Eq 'imul|add rax|sub rax' "$TMP/constant-fold.s"; then
     exit 1
 fi
 printf 'PASS: integer constant folding removes runtime arithmetic\n'
-cat > "$TMP/local-compare.swan" <<'SWAN'
+cat > "$TMP/local-compare.brew" <<'BREW'
 func main():
     var index = 0
     let limit = 5
@@ -568,8 +568,8 @@ func main():
         index = index + 1
     print(index)
     return 0
-SWAN
-"$SWAN" "$TMP/local-compare.swan" --emit-asm -o "$TMP/local-compare.s"
+BREW
+"$BREW" "$TMP/local-compare.brew" --emit-asm -o "$TMP/local-compare.s"
 cc -x assembler "$TMP/local-compare.s" -o "$TMP/local-compare"
 test "$("$TMP/local-compare")" = "5"
 if ! grep -Eq 'cmp (rbx|r12|r13|r14|r15|rdi|rsi|rdx|r8|r9), (rbx|r12|r13|r14|r15|rdi|rsi|rdx|r8|r9)' "$TMP/local-compare.s"; then
@@ -578,10 +578,10 @@ if ! grep -Eq 'cmp (rbx|r12|r13|r14|r15|rdi|rsi|rdx|r8|r9), (rbx|r12|r13|r14|r15
     exit 1
 fi
 printf 'PASS: local-to-local loop comparisons avoid stack temporaries\n'
-"$SWAN" --version | grep -q 'Swan 0.8.0'
+"$BREW" --version | grep -q 'Brew 0.8.0'
 printf 'PASS: C compiler version command\n'
 
-cat > "$TMP/compound-arithmetic.swan" <<'SWAN'
+cat > "$TMP/compound-arithmetic.brew" <<'BREW'
 func main():
     var value = 6
     var factor = 7
@@ -601,8 +601,8 @@ func main():
     spilled = spilled - value
     print(spilled)
     return 0
-SWAN
-"$SWAN" "$TMP/compound-arithmetic.swan" --emit-asm -o "$TMP/compound-arithmetic.s"
+BREW
+"$BREW" "$TMP/compound-arithmetic.brew" --emit-asm -o "$TMP/compound-arithmetic.s"
 cc -x assembler "$TMP/compound-arithmetic.s" -o "$TMP/compound-arithmetic"
 test "$("$TMP/compound-arithmetic")" = "41
 328

@@ -27,7 +27,7 @@ jobs:
           test -n "$GOOSE_BIN"
           echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
           "$GOOSE_BIN" version
-      - name: Build Swan
+      - name: Build Brew
         run: sh build.sh
       - name: Run dependency-chain workload
         run: python3 benchmarks/dependency_chain.py | tee dependency-chain-benchmark.txt

@@ -20,14 +20,14 @@ concurrency:
 
 jobs:
   compile-speed:
-    name: Goose, Swan, Rust, C++, C and ASM
+    name: Goose, Brew, Rust, C++, C and ASM
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
-      - name: Check out Swan
+      - name: Check out Brew
         uses: actions/checkout@v4
         with:
-          path: swan
+          path: brew
 
       - name: Check out Goose
         uses: actions/checkout@v4
@@ -48,8 +48,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential cmake python3 time
 
-      - name: Build Swan compiler
-        working-directory: swan
+      - name: Build Brew compiler
+        working-directory: brew
         run: sh build.sh
 
       - name: Build Goose compiler
@@ -63,7 +63,7 @@ jobs:
           {
             echo "## Benchmark environment"
             echo "- Runner: ubuntu-24.04"
-            echo "- Swan commit: $(git -C swan rev-parse HEAD)"
+            echo "- Brew commit: $(git -C brew rev-parse HEAD)"
             echo "- Goose commit: $(git -C goose rev-parse HEAD)"
             echo "- C compiler: $(cc --version | head -n 1)"
             echo "- C++ compiler: $(c++ --version | head -n 1)"
@@ -71,16 +71,16 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Run heavy compilation benchmark
-        working-directory: swan
+        working-directory: brew
         env:
-          SWAN_BIN: ${{ github.workspace }}/swan/build/swan
+          BREW_BIN: ${{ github.workspace }}/brew/build/brewc
           GOOSE_BIN: ${{ github.workspace }}/goose/build/goose
         run: |
           python3 benchmarks/compile_speed.py             --repeats 5             --warmups 1             --functions 384             --operations 96             --output benchmark-results/compile-speed.md
 
       - name: Publish benchmark results to job summary
         if: always()
-        working-directory: swan
+        working-directory: brew
         run: |
           if [ -f benchmark-results/compile-speed.md ]; then
             cat benchmark-results/compile-speed.md >> "$GITHUB_STEP_SUMMARY"
@@ -94,6 +94,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: heavy-compilation-speed-results
-          path: swan/benchmark-results/
+          path: brew/benchmark-results/
           if-no-files-found: warn
           retention-days: 30

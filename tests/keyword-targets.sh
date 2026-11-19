@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BIN="$ROOT/build/swanc"
+BIN="$ROOT/build/brewc"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-cat > "$TMP/loop.swan" <<'SWAN'
+cat > "$TMP/loop.brew" <<'BREW'
 func value() -> int:
     return 4
 func enabled() -> bool:
@@ -24,19 +24,19 @@ func main() -> int:
             pass
             break
     return count
-SWAN
-"$BIN" build "$TMP/loop.swan" --target x86_64 --warnings-as-errors -o "$TMP/native"
+BREW
+"$BIN" build "$TMP/loop.brew" --target x86_64 --warnings-as-errors -o "$TMP/native"
 set +e
 "$TMP/native"
 status=$?
 set -e
 test "$status" -eq 4
 printf 'PASS: shared language semantics execute on x86-64\n'
-"$BIN" build "$TMP/loop.swan" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
+"$BIN" build "$TMP/loop.brew" --target aarch64 --emit-asm -o "$TMP/aarch64.s"
 clang --target=aarch64-unknown-linux-gnu -c -x assembler "$TMP/aarch64.s" -o "$TMP/aarch64.o"
 readelf -h "$TMP/aarch64.o" | grep -q 'AArch64'
 printf 'PASS: shared language semantics emit AArch64 objects\n'
-"$BIN" build "$TMP/loop.swan" --target wasm64 -o "$TMP/loop64.wasm"
+"$BIN" build "$TMP/loop.brew" --target wasm64 -o "$TMP/loop64.wasm"
 python3 - "$TMP/loop64.wasm" <<'PY'
 import sys
 data=open(sys.argv[1],"rb").read()

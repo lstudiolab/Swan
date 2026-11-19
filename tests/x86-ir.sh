@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-BIN="$ROOT/build/swan"
+BIN="$ROOT/build/brewc"
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT HUP INT TERM
-cat > "$TMP/main.swan" <<'SWAN'
+cat > "$TMP/main.brew" <<'BREW'
 fn sum8(a: int, b: int, c: int, d: int, e: int, f: int, g: int, h: int) -> int:
     return h
 fn explode() -> bool:
@@ -22,8 +22,8 @@ fn main() -> int:
     if false and explode():
         return 1
     return total + sum8(1, 2, 3, 4, 5, 6, 7, 8)
-SWAN
-"$BIN" build "$TMP/main.swan" -o "$TMP/main"
+BREW
+"$BIN" build "$TMP/main.brew" -o "$TMP/main"
 set +e
 "$TMP/main"
 STATUS=$?

@@ -1,0 +1,172 @@
+# Brew standard math
+# Import this module, then call its functions by their ordinary names.
+# Import with: import std_math
+# These algorithms use Brew integer operations only.
+
+func gcd(left: int, right: int) -> int:
+    var a = left
+    var b = right
+    while b != 0:
+        # INT64_MIN % -1 is the one signed remainder overflow case.
+        var remainder = 0
+        if a != (-9223372036854775807 - 1) or b != -1:
+            remainder = a % b
+        a = b
+        b = remainder
+    if a == (-9223372036854775807 - 1):
+        return 0
+    if a < 0:
+        return 0 - a
+    return a
+
+func lcm(left: int, right: int) -> int:
+    if left == 0 or right == 0:
+        return 0
+    let divisor = gcd(left, right)
+    if divisor == 0:
+        return 0
+    let factor = left / divisor
+    if factor > 0:
+        if right > 0 and factor > 9223372036854775807 / right:
+            return 0
+        if right < 0 and right < (-9223372036854775807 - 1) / factor:
+            return 0
+    else if factor < 0:
+        if right > 0 and factor < (-9223372036854775807 - 1) / right:
+            return 0
+        if right < 0 and factor < 9223372036854775807 / right:
+            return 0
+    let value = factor * right
+    if value == (-9223372036854775807 - 1):
+        return 0
+    if value < 0:
+        return 0 - value
+    return value
+
+func euclidean_mod(value: int, modulus: int) -> int:
+    if modulus <= 0:
+        return 0
+    var remainder = value % modulus
+    if remainder < 0:
+        remainder = remainder + modulus
+    return remainder
+
+func floor_div(left: int, right: int) -> int:
+    if right == 0 or (left == (-9223372036854775807 - 1) and right == -1):
+        return 0
+    if right == (-9223372036854775807 - 1):
+        if left == right:
+            return 1
+        if left > 0:
+            return 0 - 1
+        return 0
+    if right < 0:
+        if left == (-9223372036854775807 - 1):
+            return left / right
+        return floor_div(0 - left, 0 - right)
+    var quotient = left / right
+    var remainder = left % right
+    while remainder < 0:
+        remainder = remainder + right
+        quotient = quotient - 1
+    return quotient
+
+func ceil_div(left: int, right: int) -> int:
+    if right == 0 or (left == (-9223372036854775807 - 1) and right == -1):
+        return 0
+    if left == (-9223372036854775807 - 1):
+        if right > 0:
+            return left / right
+        if right == (-9223372036854775807 - 1):
+            return 1
+        var quotient = left / right
+        var remainder = left % right
+        if remainder < 0:
+            quotient = quotient + 1
+        return quotient
+    return 0 - floor_div(0 - left, right)
+
+func integer_sqrt(value: int) -> int:
+    if value < 0:
+        return 0
+    if value < 2:
+        return value
+    var estimate = value
+    loop:
+        let quotient = value / estimate
+        let next = estimate / 2 + quotient / 2 + ((estimate % 2 + quotient % 2) / 2)
+        if next >= estimate:
+            return estimate
+        estimate = next
+
+func is_prime(value: int) -> bool:
+    if value < 2:
+        return false
+    if value == 2:
+        return true
+    if value % 2 == 0:
+        return false
+    var divisor = 3
+    while divisor <= value / divisor:
+        if value % divisor == 0:
+            return false
+        divisor = divisor + 2
+    return true
+
+func is_composite(value: int) -> bool:
+    if value < 4:
+        return false
+    return not is_prime(value)
+
+func triangular(value: int) -> int:
+    if value < 1 or value > 4294967295:
+        return 0
+    if value % 2 == 0:
+        return (value / 2) * (value + 1)
+    return value * ((value + 1) / 2)
+
+func distance_int(left: int, right: int) -> int:
+    if left >= right:
+        if right < 0 and left > 9223372036854775807 + right:
+            return 0
+        return left - right
+    if left < 0 and right > 9223372036854775807 + left:
+        return 0
+    return right - left
+
+func is_power_of_two(value: int) -> bool:
+    if value < 1:
+        return false
+    var remaining = value
+    while remaining % 2 == 0:
+        remaining = remaining / 2
+    return remaining == 1
+
+func next_power_of_two(value: int) -> int:
+    if value <= 1:
+        return 1
+    var result = 1
+    while result < value:
+        if result > 4611686018427387903:
+            return 0
+        result = result * 2
+    return result
+
+func fibonacci(value: int) -> int:
+    if value < 0:
+        return 0
+    if value == 0:
+        return 0
+    if value == 1:
+        return 1
+    var previous = 0
+    var current = 1
+    var index = 2
+    while index <= value:
+        if current > 9223372036854775807 - previous:
+            return 0
+        let next = previous + current
+        previous = current
+        current = next
+        index = index + 1
+    return current

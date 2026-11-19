@@ -13,7 +13,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
-      - name: Build Swan compiler
+      - name: Build Brew compiler
         run: sh build.sh
       - name: Check out Goose compiler
         uses: actions/checkout@v4

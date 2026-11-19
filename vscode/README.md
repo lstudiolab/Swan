@@ -1,19 +1,19 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.svg" alt="Brew" width="180"></p>
 
-# Swan for Visual Studio Code
+# Brew for Visual Studio Code
 
-This extension adds basic editor support for Swan source files.
+This extension adds basic editor support for Brew source files.
 
 ## Included
 
-- Language registration for `.swan`
+- Language registration for `.brew`
 - TextMate syntax highlighting
 - Indentation and bracket behavior
 - Snippets for common declarations and control-flow blocks
 
 ## Requirements
 
-Install the Swan compiler separately and ensure `swan` is available on your `PATH`. The compiler installation and usage instructions are in the repository root README.
+Install the Brew compiler separately and ensure `brewc` is available on your `PATH`. The compiler installation and usage instructions are in the repository root README.
 
 ## Install the compiler
 
@@ -22,9 +22,9 @@ From the repository root, build the single production compiler and put it on PAT
 ~~~sh
 sh build.sh
 mkdir -p ~/.local/bin
-cp build/swanc ~/.local/bin/swan
+cp build/brewc ~/.local/bin/brewc
 export PATH="$HOME/.local/bin:$PATH"
-swan --version
+brewc --version
 ~~~
 
 Add the PATH export to ~/.bashrc, ~/.zshrc, or your shell's startup file so VS Code can find the compiler after restarting.
@@ -36,10 +36,10 @@ From the repository's vscode directory:
 ~~~sh
 npm install
 npm run package
-code --install-extension swan-language-0.1.0.vsix
+code --install-extension brew-language-0.1.0.vsix
 ~~~
 
-Reload VS Code and open a `.swan` file.
+Reload VS Code and open a `.brew` file.
 
 ## Current scope
 

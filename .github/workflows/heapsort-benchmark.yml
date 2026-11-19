@@ -18,11 +18,11 @@ concurrency:
 
 jobs:
   benchmark:
-    name: 1B heapsort (Swan, Goose, Rust, C, C++, Swift)
+    name: 1B heapsort (Brew, Goose, Rust, C, C++, Swift)
     runs-on: ubuntu-24.04
     timeout-minutes: 360
     steps:
-      - name: Check out Swan
+      - name: Check out Brew
         uses: actions/checkout@v4
 
       - name: Install build dependencies
@@ -38,7 +38,7 @@ jobs:
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
 
-      - name: Build Swan compiler
+      - name: Build Brew compiler
         run: sh build.sh
 
       - name: Check out Goose compiler
@@ -63,7 +63,7 @@ jobs:
 
       - name: Run benchmark
         env:
-          SWAN: ${{ github.workspace }}/build/swanc
+          BREW: ${{ github.workspace }}/build/brewc
           GOOSE: ${{ github.workspace }}/goose/build/goose
         run: python3 benchmarks/heapsort_benchmark.py
 

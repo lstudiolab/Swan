@@ -1,11 +1,11 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swanc"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/test/std-collections"
 mkdir -p "$TMP"
 
-cat > "$TMP/program.swan" <<'SWAN'
+cat > "$TMP/program.brew" <<'BREW'
 import std_collections
 
 func main() -> int:
@@ -63,9 +63,9 @@ func main() -> int:
     print(array_insertion_sort(values, -1))
     print(array_heap_sort(values, -1))
     return 0
-SWAN
+BREW
 
-"$SWAN" build "$TMP/program.swan" -o "$TMP/program"
+"$BREW" build "$TMP/program.brew" -o "$TMP/program"
 cat > "$TMP/expected.txt" <<'EXPECTED'
 26
 1
@@ -105,4 +105,4 @@ cat > "$TMP/expected.txt" <<'EXPECTED'
 EXPECTED
 "$TMP/program" > "$TMP/actual.txt"
 diff -u "$TMP/expected.txt" "$TMP/actual.txt"
-printf 'PASS: Swan-authored u32 array and sequence algorithms\n'
+printf 'PASS: Brew-authored u32 array and sequence algorithms\n'

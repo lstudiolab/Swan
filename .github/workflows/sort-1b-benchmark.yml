@@ -1,4 +1,4 @@
-name: Swan 1B Integer Sort Benchmark
+name: Brew 1B Integer Sort Benchmark
 
 on:
   workflow_dispatch:
@@ -21,6 +21,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swan-sort-1b-${{ github.run_id }}
+          name: brew-sort-1b-${{ github.run_id }}
           path: sort-1b-benchmark.log
           if-no-files-found: warn

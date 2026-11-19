@@ -1,36 +1,36 @@
-# Swan automatic memory management
+# Brew automatic memory management
 
-Swan is a high-level language. Programmers work with ordinary values and
+Brew is a high-level language. Programmers work with ordinary values and
 references; they do not manage allocation, deallocation, pointer lifetimes, or
 ownership transfers as part of normal application code.
 
-Swan uses automatic reference counting (ARC) as its default managed-memory
+Brew uses automatic reference counting (ARC) as its default managed-memory
 model. The compiler and runtime insert the retain/release operations needed to
 keep referenced objects alive and reclaim them when they are no longer
 reachable through managed references.
 
 There is no raw-library mode that disables automatic memory management. Importing
 a library must never silently change the memory-safety or lifetime rules of the
-calling Swan code.
+calling Brew code.
 
 ## Language contract
 
-1. **Automatic allocation and cleanup.** Ordinary Swan code never needs to pair
+1. **Automatic allocation and cleanup.** Ordinary Brew code never needs to pair
    allocation with a manual free operation.
 2. **Automatic reference counting.** Managed references keep their objects
    alive. The runtime reclaims an object when its managed reference count reaches
    zero.
-3. **No manual ownership syntax.** Everyday Swan code does not require
+3. **No manual ownership syntax.** Everyday Brew code does not require
    `own`, `borrow`, `move`, `drop`, `stack`, `heap`, or `arena`.
 4. **No raw mode.** There is no import modifier, library annotation, or compiler
    switch that turns off ARC for a module or for its callers.
 5. **Safe library boundaries.** Imported libraries are exposed through typed
    interfaces and managed wrappers. External resources must use wrapper-defined
    cleanup, such as closing a file or releasing a native handle; this does not
-   disable ARC for Swan values.
+   disable ARC for Brew values.
 6. **Compiler-controlled storage.** The compiler may use registers, stack slots,
    heap allocations, arenas, pooling, or other optimizations internally. These
-   choices do not change Swan source semantics.
+   choices do not change Brew source semantics.
 7. **Deterministic resource cleanup.** Objects and external resources must be
    released according to documented lifetime rules. ARC handles managed object
    memory; resource wrappers handle operating-system or library resources.
@@ -40,14 +40,14 @@ calling Swan code.
 
 ## What programmers write
 
-Normal Swan code uses values and library APIs. The compiler handles object
+Normal Brew code uses values and library APIs. The compiler handles object
 lifetimes:
 
-```swan
+```brew
 import std
 
 func make_message() -> string:
-    let message = "Hello from Swan"
+    let message = "Hello from Brew"
     return message
 
 func main() -> int:
@@ -62,22 +62,22 @@ reclaimed automatically when its last managed reference is gone.
 
 ## Library and native interoperability
 
-A normal Swan import always retains Swan's automatic memory-management rules.
+A normal Brew import always retains Brew's automatic memory-management rules.
 A library cannot opt the importing source file out of ARC.
 
-For libraries implemented outside Swan:
+For libraries implemented outside Brew:
 
-- Prefer typed Swan wrappers that expose ordinary Swan values.
-- Copy or convert externally owned data into managed Swan values when needed.
+- Prefer typed Brew wrappers that expose ordinary Brew values.
+- Copy or convert externally owned data into managed Brew values when needed.
 - Wrap native handles in managed objects whose cleanup routine releases the
   external resource exactly once.
 - Document whether a native function borrows data for the duration of a call,
   copies it, or returns a separately owned resource.
 - Do not expose arbitrary pointer arithmetic or unmanaged memory as ordinary
-  Swan application syntax.
+  Brew application syntax.
 
 A wrapper may internally call native allocation or release functions. That is
-an implementation detail of the wrapper, not a mode change for the Swan
+an implementation detail of the wrapper, not a mode change for the Brew
 program. ARC does not automatically know how to release an arbitrary external
 resource; the wrapper must define that resource's cleanup behavior.
 
@@ -110,7 +110,7 @@ lifetime cleanup for selected array forms, including stack placement for small
 fixed-size non-escaping arrays and conservative cleanup for eligible heap
 arrays.
 
-That implementation is not a complete ARC runtime. The typed SVM IR, SIL,
+That implementation is not a complete ARC runtime. The typed BVM IR, SIL,
 other backends, general strings, structs, closures, collections, and imported
 library wrappers do not yet share a complete retain/release implementation.
 Do not claim universal automatic memory management until the compiler/runtime
@@ -132,6 +132,6 @@ ARC is complete only when tests demonstrate:
 - All supported targets pass lifetime, stress, sanitizer, and interoperability
   tests.
 
-Swan aims to make ordinary application programming high-level and automatic.
+Brew aims to make ordinary application programming high-level and automatic.
 Low-level allocation strategies remain compiler/runtime implementation details,
 not a second programming mode that users must learn.

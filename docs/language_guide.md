@@ -1,11 +1,11 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# The Swan Programming Language
+# The Brew Programming Language
 ## Language Guide and Reference
 
 **Status:** This guide describes the current compiler implementation. The normative high-level language direction is in [the High-Level Language Contract](high_level_language.md).
 
-> Swan is a high-level, ahead-of-time compiled language. Programmers work with values, functions, data structures, collections, and libraries. Memory management and hardware-specific execution are compiler/runtime responsibilities. SVM is Swan's compiler middle-end, not a virtual machine or runtime.
+> Brew is a high-level, ahead-of-time compiled language. Programmers work with values, functions, data structures, collections, and libraries. Memory management and hardware-specific execution are compiler/runtime responsibilities. BVM is Brew's compiler middle-end, not a virtual machine or runtime.
 
 The language contract is the intended public design; this guide and the [compiler completion matrix](compiler_completion_matrix.md) distinguish that design from constructs that are currently implemented. Reserved words, parsed syntax, and IR operations are not proof of complete end-to-end support.
 
@@ -14,11 +14,11 @@ The language contract is the intended public design; this guide and the [compile
 
 ## 1. First program
 
-Create a file named `hello.swan`:
+Create a file named `hello.brew`:
 
-```swan
+```brew
 func main() -> int:
-    print("Hello, Swan!")
+    print("Hello, Brew!")
     return 0
 ```
 
@@ -26,13 +26,13 @@ Build and run it:
 
 ```sh
 sh build.sh
-./build/swanc run hello.swan
+./build/brewc run hello.brew
 ```
 
 Build a standalone executable:
 
 ```sh
-./build/swanc build hello.swan -o hello
+./build/brewc build hello.brew -o hello
 ./hello
 ```
 
@@ -42,11 +42,11 @@ The compiler's `run` command builds a host-native executable and launches it as 
 
 - `func` is the canonical, reserved function-declaration keyword.
 - `fn` is accepted as a compatibility spelling. It is not reserved; the parser recognizes it contextually at file scope.
-- Use `func` in new Swan code and documentation.
+- Use `func` in new Brew code and documentation.
 
 Equivalent compatibility example:
 
-```swan
+```brew
 fn main() -> int:
     print("Hello")
     return 0
@@ -54,15 +54,15 @@ fn main() -> int:
 
 ---
 
-## 2. Swan's coding style
+## 2. Brew's coding style
 
-Swan source is designed around indentation-based blocks. It does not use braces to delimit function, conditional, or loop bodies.
+Brew source is designed around indentation-based blocks. It does not use braces to delimit function, conditional, or loop bodies.
 
 ### 2.1 Indentation
 
 Use four spaces per indentation level. Do not mix tabs and spaces. A block begins after a newline and a deeper indentation level. A colon before the newline is the recommended, canonical form.
 
-```swan
+```brew
 func main() -> int:
     if 10 > 5:
         print("Ten is greater")
@@ -89,7 +89,7 @@ The lexer treats indentation as syntax. Inconsistent indentation is an error.
 
 A hash begins a line comment:
 
-```swan
+```brew
 # This is a comment.
 func main() -> int:
     # This is also a comment.
@@ -114,13 +114,13 @@ The compiler validates UTF-8. Its current identifier handling is byte-oriented a
 
 ### 2.4 Semicolons and line endings
 
-Newlines separate statements. Semicolons are optional statement separators, not required line terminators. Prefer one statement per line and omit semicolons in ordinary Swan code.
+Newlines separate statements. Semicolons are optional statement separators, not required line terminators. Prefer one statement per line and omit semicolons in ordinary Brew code.
 
 ---
 
 ## 3. Variables and bindings
 
-Swan currently has three declaration spellings:
+Brew currently has three declaration spellings:
 
 | Form | Mutability | Initialization |
 |---|---|---|
@@ -130,9 +130,9 @@ Swan currently has three declaration spellings:
 
 Examples:
 
-```swan
+```brew
 func main() -> int:
-    let language = "Swan"
+    let language = "Brew"
     const version = 1
 
     var score = 10
@@ -157,7 +157,7 @@ Rules:
 
 Optional type annotations use a colon:
 
-```swan
+```brew
 let count: int = 12
 var enabled: bool = true
 ```
@@ -172,7 +172,7 @@ A function is declared at file scope with `func`, a name, parentheses, optional 
 
 General form:
 
-```swan
+```brew
 func function_name(parameter: type) -> return_type:
     # statements
     return value
@@ -180,7 +180,7 @@ func function_name(parameter: type) -> return_type:
 
 Example:
 
-```swan
+```brew
 func add(left: int, right: int) -> int:
     return left + right
 
@@ -205,7 +205,7 @@ Current rules:
 
 A simple function call:
 
-```swan
+```brew
 func greet():
     print("Welcome")
 func main() -> int:
@@ -215,7 +215,7 @@ func main() -> int:
 
 ### External declarations
 
-An external declaration describes a function implemented outside the Swan source. The parser accepts the contextual `external` spelling before a function declaration. External declarations have no Swan body.
+An external declaration describes a function implemented outside the Brew source. The parser accepts the contextual `external` spelling before a function declaration. External declarations have no Brew body.
 
 C header imports are the documented route for supported C interoperability; see [Section 14](#14-c-interoperability).
 
@@ -223,24 +223,24 @@ C header imports are the documented route for supported C interoperability; see 
 
 The parser accepts `export func` and `export C func` as exported function markers. Export currently applies to functions only; exported variables, constants, types, structures, enums, namespaces, and whole-module re-exports are not implemented. The currently documented native x86-64 System V scalar/pointer ABI subset for C exports is:
 
-```swan
-export C func swan_add(left: i64, right: i64) -> i64:
+```brew
+export C func brew_add(left: i64, right: i64) -> i64:
     return left + right
 ```
 
-This does not imply that every Swan type or every target ABI can be exported.
+This does not imply that every Brew type or every target ABI can be exported.
 
 ---
 
 ## 5. Output
 
-Swan has one output operation, provided by the standard library:
+Brew has one output operation, provided by the standard library:
 
-```swan
+```brew
 import std
 
 func main() -> int:
-    print("Hello, Swan!")
+    print("Hello, Brew!")
     print(123)
     print(true)
     return 0
@@ -256,7 +256,7 @@ The current lexer recognizes these literal categories:
 |---|---|---|
 | Integer | `42` | Decimal integer literal |
 | Floating-point | `3.14` | Decimal point must have digits on both sides |
-| String | `"Swan"` | Single-quoted and double-quoted forms are accepted |
+| String | `"Brew"` | Single-quoted and double-quoted forms are accepted |
 | Boolean | `true`, `false` | Boolean literals |
 | Null | `null` | Reserved, but rejected by the current expression parser/runtime |
 
@@ -355,7 +355,7 @@ Use parentheses whenever an expression could be read ambiguously.
 
 Example:
 
-```swan
+```brew
 let total = (base + bonus) * multiplier
 let allowed = age >= 18 and has_permission
 ```
@@ -368,7 +368,7 @@ The parser accepts assignment as an expression operator, but assignment is seman
 
 Use `if` and `else`:
 
-```swan
+```brew
 func main() -> int:
     let score = 85
 
@@ -397,7 +397,7 @@ Rules:
 
 `while` repeats its body while its condition is true:
 
-```swan
+```brew
 func main() -> int:
     var count = 0
 
@@ -414,7 +414,7 @@ func main() -> int:
 - `continue` skips the rest of the current loop body and proceeds to the next iteration.
 - Both are valid only inside a loop.
 
-```swan
+```brew
 func main() -> int:
     var count = 0
 
@@ -435,7 +435,7 @@ func main() -> int:
 
 `return` exits the current function. A value may follow it:
 
-```swan
+```brew
 func square(value: int) -> int:
     return value * value
 ```
@@ -444,9 +444,9 @@ A bare `return` is also accepted by the parser.
 
 ### 9.4 Infinite loops
 
-`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared SVM control flow and is supported by the x86-64, AArch64/ARM64, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
+`loop:` starts an unconditional loop. It uses the same control-flow representation as `while`, so `break` exits the nearest loop and `continue` begins the next iteration. The construct is lowered into shared BVM control flow and is supported by the x86-64, AArch64/ARM64, and WASM64 backends, subject to each backend's existing scalar type and ABI limits.
 
-```swan
+```brew
 func count_to(limit: int) -> int:
     var count = 0
     loop:
@@ -466,7 +466,7 @@ The x86-64 compatibility backend currently supports zero-initialized `u32` array
 
 Allocation forms:
 
-```swan
+```brew
 var values = array(100)
 var values_u32 = array_u32(100)
 ```
@@ -482,7 +482,7 @@ Bounds-checked and unchecked allocation forms:
 
 Indexing and assignment:
 
-```swan
+```brew
 func main() -> int:
     var values = array_u32(4)
     values[0] = 10
@@ -507,9 +507,9 @@ Small fixed-size, non-escaping arrays may use stack-frame storage as an optimiza
 
 ## 11. Imports and modules
 
-A standard-library or installed Swan library module is imported by its module name:
+A standard-library or installed Brew library module is imported by its module name:
 
-```swan
+```brew
 import foundation
 
 func main() -> int:
@@ -517,11 +517,11 @@ func main() -> int:
     return 0
 ```
 
-The loader resolves `foundation` to `foundation.swan` in the selected standard-library directory. The same module-loading mechanism is used for Swan library modules available in the configured library search locations. By default, imported Swan modules are bundled into the program's generated assembly. Imported functions are included according to reachability. The current import grammar accepts a module name and C header imports; aliases, selective imports, wildcard imports, arbitrary source paths, package manifests, and version constraints are not implemented yet. A library must be resolvable by the compiler's configured module search path.
+The loader resolves `foundation` to `foundation.brew` in the selected standard-library directory. The same module-loading mechanism is used for Brew library modules available in the configured library search locations. By default, imported Brew modules are bundled into the program's generated assembly. Imported functions are included according to reachability. The current import grammar accepts a module name and C header imports; aliases, selective imports, wildcard imports, arbitrary source paths, package manifests, and version constraints are not implemented yet. A library must be resolvable by the compiler's configured module search path.
 
 A lazy import uses the contextual modifier:
 
-```swan
+```brew
 lazy import foundation
 ```
 
@@ -531,7 +531,7 @@ Lazy imports use the compiler's optional shared-library module model on the supp
 
 ### Importing C headers
 
-```swan
+```brew
 import C "math_api.h"
 ```
 
@@ -541,7 +541,7 @@ C interoperability is limited to the documented importer and ABI subset in Secti
 
 ## 12. Foundation standard library
 
-The repository's current `stdlib/foundation.swan` provides:
+The repository's current `std/foundation.brew` provides:
 
 | Function | Purpose |
 |---|---|
@@ -569,11 +569,11 @@ These are library functions, not language keywords. Their current implementation
 
 Import the standard library module once at file scope:
 
-```swan
+```brew
 import std
 
 func main() -> int:
-    print("Hello from Swan")
+    print("Hello from Brew")
     print(abs(-42))
     print(max(10, 20))
     return 0
@@ -604,7 +604,7 @@ The current standard library is integer-focused. Arithmetic overflow follows the
 
 Import the integer mathematics module separately:
 
-```swan
+```brew
 import std_math
 
 func main() -> int:
@@ -614,7 +614,7 @@ func main() -> int:
     return 0
 ```
 
-The Swan-authored `stdlib/std_math.swan` module currently provides:
+The Brew-authored `std/std_math.brew` module currently provides:
 
 | API | Behavior |
 |---|---|
@@ -632,13 +632,13 @@ The Swan-authored `stdlib/std_math.swan` module currently provides:
 | `next_power_of_two(value)` | Next power of two for positive inputs; the caller must ensure the result fits the signed integer range |
 | `fibonacci(value)` | Iterative Fibonacci number; negative input returns 0 |
 
-These functions are regular Swan code, not compiler intrinsics. They are compiled with the importing program. Integer overflow in arithmetic functions that do not explicitly guard it follows the active backend's integer behavior.
+These functions are regular Brew code, not compiler intrinsics. They are compiled with the importing program. Integer overflow in arithmetic functions that do not explicitly guard it follows the active backend's integer behavior.
 
 ### 12.3 The `std_collections` module
 
 The current collection implementation uses the compiler's `u32_array` representation. Pass the array and its logical length explicitly:
 
-```swan
+```brew
 import std_collections
 
 func main() -> int:
@@ -738,7 +738,7 @@ The current C header importer uses Clang's C AST dump to read a supported subset
 
 Example:
 
-```swan
+```brew
 import C "math_api.h"
 
 func main() -> int:
@@ -750,15 +750,15 @@ The current documented subset includes:
 - Up to 16 scalar integer/boolean parameters.
 - Scalar integer/boolean or `void` returns.
 - Opaque pointer parameters and returns represented as machine-word `i64` values on x86-64 System V.
-- Exported Swan scalar/pointer functions using the documented native C ABI.
+- Exported Brew scalar/pointer functions using the documented native C ABI.
 
-Current limitations include structs/unions passed by value, variadic functions, callback invocation, floating-point ABI classification, C++ name mangling, non-System-V calling conventions, and dereferencing imported opaque pointers from Swan. Clang must be installed when using C header imports. C source bundling/linker inputs are currently limited to the native x86-64 path.
+Current limitations include structs/unions passed by value, variadic functions, callback invocation, floating-point ABI classification, C++ name mangling, non-System-V calling conventions, and dereferencing imported opaque pointers from Brew. Clang must be installed when using C header imports. C source bundling/linker inputs are currently limited to the native x86-64 path.
 
 ---
 
 ## 15. Errors, warnings, and compilation guarantees
 
-Swan's compiler is phase-gated. A failed source read, lex, parse, import, semantic analysis, IR verification, optimization, code-generation, assembly, or link step stops the build. Later phases must not consume invalid output from an earlier phase.
+Brew's compiler is phase-gated. A failed source read, lex, parse, import, semantic analysis, IR verification, optimization, code-generation, assembly, or link step stops the build. Later phases must not consume invalid output from an earlier phase.
 
 Examples of errors include:
 
@@ -779,7 +779,7 @@ The compiler also reports non-fatal warnings for suspicious constructs, includin
 Promote warnings to errors:
 
 ```sh
-./build/swanc build hello.swan --warnings-as-errors -o hello
+./build/brewc build hello.brew --warnings-as-errors -o hello
 ```
 
 Warnings are conservative indicators, not proof of a bug. A warning promoted to an error stops compilation before code generation.
@@ -788,7 +788,7 @@ Warnings are conservative indicators, not proof of a bug. A warning promoted to 
 
 ## 16. Performance model
 
-Swan is designed as a compiled systems language. Its performance model depends on the generated target code, not on interpreting Swan instructions.
+Brew is designed as a compiled systems language. Its performance model depends on the generated target code, not on interpreting Brew instructions.
 
 The production model is:
 
@@ -796,7 +796,7 @@ The production model is:
 2. Tokenize and parse.
 3. Resolve imports and declarations.
 4. Perform semantic analysis.
-5. Lower source into Swan-owned intermediate representations.
+5. Lower source into Brew-owned intermediate representations.
 6. Verify the IR.
 7. Optimize the IR.
 8. Select the destination backend.
@@ -806,16 +806,16 @@ The production model is:
 12. Link a native executable when requested.
 13. Execute the resulting native program as a normal operating-system process.
 
-Typed IR and SVM are compiler representations. SVM is not a CPU, runtime, interpreter, or bytecode format. The executable must not need a Swan VM.
+Typed IR and BVM are compiler representations. BVM is not a CPU, runtime, interpreter, or bytecode format. The executable must not need a Brew VM.
 
 Optimization is required to preserve the language's semantics. Integer transformations must respect width, signedness, and overflow rules. Memory and call transformations must preserve observable side effects. Backends must reject unsupported operations rather than emit placeholders.
 
 ### Target availability
 
-Swan exposes exactly three code-generation targets:
+Brew exposes exactly three code-generation targets:
 
 - x86-64 System V Linux: native executable/assembly, typed-IR scalar path plus compatibility path.
-- AArch64 / ARM64 Linux: Swan-owned ELF assembly/object for a limited scalar IR subset.
+- AArch64 / ARM64 Linux: Brew-owned ELF assembly/object for a limited scalar IR subset.
 - WebAssembly 64 (WASM64): memory64 module emission for the implemented subset; a memory64-capable WebAssembly host is required to execute it.
 
 ARMv7, RISC-V, WASM32, and arbitrary LLVM target triples are not supported. The compiler rejects those targets instead of falling back to another compiler backend.
@@ -826,7 +826,7 @@ An emitted object is not proof of full language support, ABI completeness, succe
 
 ## 17. Practical complete example
 
-```swan
+```brew
 import foundation
 
 func calculate_total(price: int, quantity: int) -> int:
@@ -875,4 +875,4 @@ For compiler architecture and implementation requirements, see:
 
 - [Compiler System Contract](compiler_system.md)
 - [Compiler Engineering Style](engineering_style.md)
-- [SVM Compiler Architecture](svm_architecture.md)
+- [BVM Compiler Architecture](bvm_architecture.md)

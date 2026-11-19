@@ -6,7 +6,7 @@ import (
 )
 
 const requests = 100000
-const payload = `{"id":42,"workers":128,"enabled":true,"service":"swan","items":[1,2,3,4,5],"meta":{"region":"ap-southeast-1","version":1}}`
+const payload = `{"id":42,"workers":128,"enabled":true,"service":"brew","items":[1,2,3,4,5],"meta":{"region":"ap-southeast-1","version":1}}`
 
 type Metadata struct {
 	Region string `json:"region"`

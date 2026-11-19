@@ -1,10 +1,10 @@
 #!/usr/bin/env sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
-SWAN="$ROOT/build/swanc"
+BREW="$ROOT/build/brewc"
 TMP="$ROOT/build/test/ast-stack-arguments"
 mkdir -p "$TMP"
-cat > "$TMP/program.swan" <<'SWAN'
+cat > "$TMP/program.brew" <<'BREW'
 func get_value() -> int:
     return 19
 
@@ -15,7 +15,7 @@ func main() -> int:
     var values = array_u32(1)
     values[0] = 42
     return sum20(values, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, get_value()) - 232
-SWAN
-"$SWAN" build "$TMP/program.swan" -o "$TMP/program"
+BREW
+"$BREW" build "$TMP/program.brew" -o "$TMP/program"
 "$TMP/program"
 printf 'PASS: AST backend stack arguments and nested argument staging beyond six parameters\n'

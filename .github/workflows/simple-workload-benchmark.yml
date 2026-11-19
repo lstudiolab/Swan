@@ -27,7 +27,7 @@ jobs:
           test -n "$GOOSE_BIN"
           echo "GOOSE=$GOOSE_BIN" >> "$GITHUB_ENV"
           "$GOOSE_BIN" version
-      - name: Build Swan
+      - name: Build Brew
         run: sh build.sh
       - name: Run identical workload
         run: python3 benchmarks/simple_workload.py | tee simple-workload-benchmark.txt

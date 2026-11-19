@@ -1,8 +1,8 @@
-<p align="center"><img src="../assets/swan-logo.png" alt="Swan" width="180"></p>
+<p align="center"><img src="../assets/brew-logo.png" alt="Brew" width="180"></p>
 
-# Swan Compiler Engineering Style
+# Brew Compiler Engineering Style
 
-This guide adapts the engineering qualities associated with Apple's compiler and systems codebases to Swan's C11 implementation. It is a design standard, not a claim that Swan is written by or endorsed by Apple. Do not copy proprietary source code or imitate superficial syntax at the expense of C correctness.
+This guide adapts the engineering qualities associated with Apple's compiler and systems codebases to Brew's C11 implementation. It is a design standard, not a claim that Brew is written by or endorsed by Apple. Do not copy proprietary source code or imitate superficial syntax at the expense of C correctness.
 
 The goal is code that is predictable, locally understandable, mechanically verifiable, and maintainable as the compiler grows.
 
@@ -13,7 +13,7 @@ The goal is code that is predictable, locally understandable, mechanically verif
 3. Keep responsibilities narrow. A file and a function should have one primary reason to change.
 4. Make data flow visible. Prefer explicit parameters and return values over hidden global state.
 5. Fail closed. Unsupported syntax, IR, target features, ABI forms, or relocations produce diagnostics; they never become placeholders or interpreter fallbacks.
-6. Verify boundaries. Validate parsed AST, SVM IR, machine IR, and object metadata at phase boundaries.
+6. Verify boundaries. Validate parsed AST, BVM IR, machine IR, and object metadata at phase boundaries.
 7. Optimize measured hot paths. Use algorithmic improvements before micro-optimizations and keep benchmark evidence with performance changes.
 8. Preserve deterministic behavior. Stable source ordering, symbol resolution, diagnostics, pass ordering, and artifact naming are part of compiler quality.
 
@@ -23,8 +23,8 @@ The goal is code that is predictable, locally understandable, mechanically verif
 - Put one declaration or statement on each line unless a short initializer is clearer as a compact group.
 - Use braces for all control-flow bodies, including single-statement branches.
 - Keep lines short enough to review comfortably; split complex expressions into named intermediate values.
-- Use descriptive snake_case names for functions, variables, and fields. Prefix compiler-private APIs consistently with swan_.
-- Use PascalCase for public struct and enum type names, and SWAN_ for macros and enum constants.
+- Use descriptive snake_case names for functions, variables, and fields. Prefix compiler-private APIs consistently with brew_.
+- Use PascalCase for public struct and enum type names, and BREW_ for macros and enum constants.
 - Prefer const for read-only inputs and borrowed data.
 - Use fixed-width integer types for serialized, target, and IR identifiers. Use size_t for host memory sizes and collection indices.
 - Check arithmetic before allocation-size calculations and before narrowing conversions.
@@ -50,12 +50,12 @@ A function should expose its contract in its signature and control flow.
 
 ## 4. Ownership and memory
 
-Swan uses explicit ownership with arena allocation for compilation-scoped graphs.
+Brew uses explicit ownership with arena allocation for compilation-scoped graphs.
 
 - Source buffers and source identities belong to the source manager.
 - Tokens borrow source identity and own or reference token text according to the token-stream lifetime.
 - AST nodes belong to the program arena; AST nodes do not individually free arena memory.
-- SVM modules own their dynamic instruction, block, and metadata arrays.
+- BVM modules own their dynamic instruction, block, and metadata arrays.
 - Backend temporary state belongs to the backend invocation and is destroyed before returning.
 - Object buffers belong to the object writer until ownership is transferred to the caller.
 - Never retain pointers into temporary token streams, stack buffers, or reallocatable arrays.
@@ -71,7 +71,7 @@ The source tree follows subsystem boundaries rather than historical implementati
 - Parse: lexer, token stream, parser and syntax recovery.
 - AST: source-oriented syntax representation.
 - Sema: declaration indexing, name resolution, type checking and language rules.
-- IR: typed SSA SVM, builders, verifier, analyses and pass manager.
+- IR: typed SSA BVM, builders, verifier, analyses and pass manager.
 - Target: target triples, data layout, ABI and feature descriptions.
 - Machine: target legalization, instruction selection and machine IR.
 - RegAlloc: liveness, register allocation, spills and frame layout.
@@ -125,7 +125,7 @@ For architectural work, prefer incremental replacements behind stable contracts:
 3. Reusable analysis manager and cached dominance/loop analyses.
 4. Explicit pass manager with preservation/invalidation declarations.
 5. Shared machine IR and target backend registry.
-6. Swan-owned object writer for one fully tested native target.
+6. Brew-owned object writer for one fully tested native target.
 7. Additional backends migrated to the same contracts.
 8. Canonical root driver and removal of compatibility-only entry points.
 
@@ -134,7 +134,7 @@ A subsystem is complete only when its implementation, tests, diagnostics, and do
 
 ## Documentation voice
 
-Swan documentation uses a restrained, product-focused editorial voice. Write for the person completing a task, not for the author explaining the implementation.
+Brew documentation uses a restrained, product-focused editorial voice. Write for the person completing a task, not for the author explaining the implementation.
 
 - Lead with the result or the decision the reader needs to make.
 - Use short, direct sentences and active voice.

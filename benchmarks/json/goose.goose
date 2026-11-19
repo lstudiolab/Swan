@@ -2,7 +2,7 @@ import std;
 import json;
 
 let REQUESTS = 100000;
-let PAYLOAD = "{\"id\":42,\"workers\":128,\"enabled\":true,\"service\":\"swan\",\"items\":[1,2,3,4,5],\"meta\":{\"region\":\"ap-southeast-1\",\"version\":1}}";
+let PAYLOAD = "{\"id\":42,\"workers\":128,\"enabled\":true,\"service\":\"brew\",\"items\":[1,2,3,4,5],\"meta\":{\"region\":\"ap-southeast-1\",\"version\":1}}";
 
 recursive fn render(node: json::Node&, out: u8[>..]&) {
     match node.val {

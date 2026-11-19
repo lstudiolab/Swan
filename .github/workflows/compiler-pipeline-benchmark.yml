@@ -1,11 +1,11 @@
-name: Swan Compiler Pipeline Benchmark
+name: Brew Compiler Pipeline Benchmark
 
 on:
   push:
     branches: [main]
     paths:
       - 'benchmarks/compiler_pipeline.py'
-      - 'benchmarks/compiler_pipeline.swan'
+      - 'benchmarks/compiler_pipeline.brew'
       - 'compiler/**'
       - 'main.c'
       - 'build.sh'
@@ -25,7 +25,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y clang time
-      - name: Build Swan compiler and measure build time
+      - name: Build Brew compiler and measure build time
         shell: bash
         run: |
           mkdir -p benchmark-results
@@ -53,7 +53,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: swan-compiler-pipeline-benchmark
+          name: brew-compiler-pipeline-benchmark
           path: benchmark-results/
           if-no-files-found: error
           retention-days: 30

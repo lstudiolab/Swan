@@ -1,7 +1,7 @@
 {
-  "name": "swan-language",
-  "displayName": "Swan Language",
-  "description": "Language support for Swan: syntax highlighting, snippets, and compiler tasks.",
+  "name": "brew-language",
+  "displayName": "Brew Language",
+  "description": "Language support for Brew: syntax highlighting, snippets, and compiler tasks.",
   "version": "0.1.0",
   "publisher": "lstudiolab",
   "license": "MIT",
@@ -13,36 +13,36 @@
     "Other"
   ],
   "keywords": [
-    "swan",
+    "brew",
     "programming-language",
     "syntax-highlighting"
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/lstudiolab/Swan.git",
+    "url": "https://github.com/lstudiolab/Brew.git",
     "directory": "vscode"
   },
   "main": "./extension.js",
   "contributes": {
     "languages": [
       {
-        "id": "swan",
-        "aliases": ["Swan", "swan"],
-        "extensions": [".swan"],
+        "id": "brew",
+        "aliases": ["Brew", "brew"],
+        "extensions": [".brew"],
         "configuration": "./language-configuration.json"
       }
     ],
     "grammars": [
       {
-        "language": "swan",
-        "scopeName": "source.swan",
-        "path": "./syntaxes/swan.tmLanguage.json"
+        "language": "brew",
+        "scopeName": "source.brew",
+        "path": "./syntaxes/brew.tmLanguage.json"
       }
     ],
     "snippets": [
       {
-        "language": "swan",
-        "path": "./snippets/swan.json"
+        "language": "brew",
+        "path": "./snippets/brew.json"
       }
     ]
   },

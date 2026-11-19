@@ -1,5 +1,5 @@
-#ifndef SWAN_CORE_H
-#define SWAN_CORE_H
+#ifndef BREW_CORE_H
+#define BREW_CORE_H
 #ifndef _POSIX_C_SOURCE
 #define _POSIX_C_SOURCE 200809L
 #endif
@@ -15,17 +15,17 @@
 #include <string.h>
 #include <time.h>
 typedef enum {
- SWAN_PROFILE_READ, SWAN_PROFILE_LEX, SWAN_PROFILE_PARSE, SWAN_PROFILE_IMPORTS,
- SWAN_PROFILE_SEMA, SWAN_PROFILE_REACHABILITY, SWAN_PROFILE_SIL, SWAN_PROFILE_IRGEN,
- SWAN_PROFILE_IR_OPT, SWAN_PROFILE_CODEGEN, SWAN_PROFILE_AST_CODEGEN,
- SWAN_PROFILE_ASM_WRITE, SWAN_PROFILE_LINK, SWAN_PROFILE_RUN,
- SWAN_PROFILE_IR_VERIFY, SWAN_PROFILE_IR_PASS_CONSTANT_FOLD,
- SWAN_PROFILE_IR_PASS_CFG, SWAN_PROFILE_IR_PASS_ALGEBRAIC,
- SWAN_PROFILE_IR_PASS_COPY, SWAN_PROFILE_IR_PASS_CSE,
- SWAN_PROFILE_IR_PASS_LICM, SWAN_PROFILE_IR_PASS_DCE,
- SWAN_PROFILE_COUNT
-} SwanProfileStage;
-static const char *const swan_profile_names[SWAN_PROFILE_COUNT]={
+ BREW_PROFILE_READ, BREW_PROFILE_LEX, BREW_PROFILE_PARSE, BREW_PROFILE_IMPORTS,
+ BREW_PROFILE_SEMA, BREW_PROFILE_REACHABILITY, BREW_PROFILE_SIL, BREW_PROFILE_IRGEN,
+ BREW_PROFILE_IR_OPT, BREW_PROFILE_CODEGEN, BREW_PROFILE_AST_CODEGEN,
+ BREW_PROFILE_ASM_WRITE, BREW_PROFILE_LINK, BREW_PROFILE_RUN,
+ BREW_PROFILE_IR_VERIFY, BREW_PROFILE_IR_PASS_CONSTANT_FOLD,
+ BREW_PROFILE_IR_PASS_CFG, BREW_PROFILE_IR_PASS_ALGEBRAIC,
+ BREW_PROFILE_IR_PASS_COPY, BREW_PROFILE_IR_PASS_CSE,
+ BREW_PROFILE_IR_PASS_LICM, BREW_PROFILE_IR_PASS_DCE,
+ BREW_PROFILE_COUNT
+} BrewProfileStage;
+static const char *const brew_profile_names[BREW_PROFILE_COUNT]={
  "Source file read","Lexing","Parsing","Import loading",
  "Semantic analysis","Reachability analysis","SIL generation and optimization","IR generation",
  "IR optimization","Target code generation","AST fallback code generation",
@@ -35,57 +35,57 @@ static const char *const swan_profile_names[SWAN_PROFILE_COUNT]={
  "IR pass: copy propagation","IR pass: common-subexpression elimination",
  "IR pass: loop-invariant code motion","IR pass: dead-code elimination"
 };
-static bool swan_profile_enabled=false;
-static uint64_t swan_profile_ns[SWAN_PROFILE_COUNT];
-static size_t swan_profile_ir_pass_executions;
-static size_t swan_profile_ir_pass_rounds;
-#define SWAN_COMPILER_OPTIMIZATION_BUDGET 350u
-static size_t swan_compiler_optimization_passes;
-static inline void swan_optimizer_reset(void){swan_compiler_optimization_passes=0;}
-static inline bool swan_optimizer_consume(size_t count){
- if(count>SWAN_COMPILER_OPTIMIZATION_BUDGET-swan_compiler_optimization_passes)return false;
- swan_compiler_optimization_passes+=count;return true;
+static bool brew_profile_enabled=false;
+static uint64_t brew_profile_ns[BREW_PROFILE_COUNT];
+static size_t brew_profile_ir_pass_executions;
+static size_t brew_profile_ir_pass_rounds;
+#define BREW_COMPILER_OPTIMIZATION_BUDGET 350u
+static size_t brew_compiler_optimization_passes;
+static inline void brew_optimizer_reset(void){brew_compiler_optimization_passes=0;}
+static inline bool brew_optimizer_consume(size_t count){
+ if(count>BREW_COMPILER_OPTIMIZATION_BUDGET-brew_compiler_optimization_passes)return false;
+ brew_compiler_optimization_passes+=count;return true;
 }
-static struct timespec swan_profile_total_start;
-static inline bool swan_profile_time(struct timespec *t){
-#if defined(SWAN_USE_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
+static struct timespec brew_profile_total_start;
+static inline bool brew_profile_time(struct timespec *t){
+#if defined(BREW_USE_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
  return clock_gettime(CLOCK_MONOTONIC,t)==0;
 #else
  return timespec_get(t,TIME_UTC)==TIME_UTC;
 #endif
 }
-static inline uint64_t swan_profile_clock(void){
- struct timespec t;if(!swan_profile_time(&t))return 0;
+static inline uint64_t brew_profile_clock(void){
+ struct timespec t;if(!brew_profile_time(&t))return 0;
  return (uint64_t)t.tv_sec*UINT64_C(1000000000)+(uint64_t)t.tv_nsec;
 }
-static inline uint64_t swan_profile_start(void){return swan_profile_enabled?swan_profile_clock():0;}
-static inline void swan_profile_end(SwanProfileStage stage,uint64_t start){
- if(swan_profile_enabled&&start&&stage<SWAN_PROFILE_COUNT){uint64_t end=swan_profile_clock();if(end>=start)swan_profile_ns[stage]+=end-start;}
+static inline uint64_t brew_profile_start(void){return brew_profile_enabled?brew_profile_clock():0;}
+static inline void brew_profile_end(BrewProfileStage stage,uint64_t start){
+ if(brew_profile_enabled&&start&&stage<BREW_PROFILE_COUNT){uint64_t end=brew_profile_clock();if(end>=start)brew_profile_ns[stage]+=end-start;}
 }
-static inline void swan_profile_reset(void){
- memset(swan_profile_ns,0,sizeof(swan_profile_ns));
- swan_profile_ir_pass_executions=0;
- swan_profile_ir_pass_rounds=0;
- if(!swan_profile_time(&swan_profile_total_start))memset(&swan_profile_total_start,0,sizeof(swan_profile_total_start));
+static inline void brew_profile_reset(void){
+ memset(brew_profile_ns,0,sizeof(brew_profile_ns));
+ brew_profile_ir_pass_executions=0;
+ brew_profile_ir_pass_rounds=0;
+ if(!brew_profile_time(&brew_profile_total_start))memset(&brew_profile_total_start,0,sizeof(brew_profile_total_start));
 }
-static inline void swan_profile_print(void){
- if(!swan_profile_enabled)return;
- uint64_t total=swan_profile_clock(),begin=(uint64_t)swan_profile_total_start.tv_sec*UINT64_C(1000000000)+(uint64_t)swan_profile_total_start.tv_nsec;
+static inline void brew_profile_print(void){
+ if(!brew_profile_enabled)return;
+ uint64_t total=brew_profile_clock(),begin=(uint64_t)brew_profile_total_start.tv_sec*UINT64_C(1000000000)+(uint64_t)brew_profile_total_start.tv_nsec;
  uint64_t elapsed=total>=begin?total-begin:0;
- fprintf(stderr,"\nSwan compiler pipeline profile (seconds)\n");
- for(size_t i=0;i<SWAN_PROFILE_COUNT;i++)if(swan_profile_ns[i]){
-  double seconds=(double)swan_profile_ns[i]/1e9;
-  fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\n",swan_profile_names[i],seconds,elapsed?(double)swan_profile_ns[i]*100.0/(double)elapsed:0.0);
+ fprintf(stderr,"\nBrew compiler pipeline profile (seconds)\n");
+ for(size_t i=0;i<BREW_PROFILE_COUNT;i++)if(brew_profile_ns[i]){
+  double seconds=(double)brew_profile_ns[i]/1e9;
+  fprintf(stderr,"  %-30s %0.9f s  (%5.1f%%)\n",brew_profile_names[i],seconds,elapsed?(double)brew_profile_ns[i]*100.0/(double)elapsed:0.0);
  }
  fprintf(stderr,"  %-30s %0.9f s\n","Total wall time",(double)elapsed/1e9);
- fprintf(stderr,"  IR pass executions: %zu (rounds: %zu)\n",swan_profile_ir_pass_executions,swan_profile_ir_pass_rounds);
- fprintf(stderr,"  Compiler-wide optimization passes: %zu / %u\n",swan_compiler_optimization_passes,SWAN_COMPILER_OPTIMIZATION_BUDGET);
+ fprintf(stderr,"  IR pass executions: %zu (rounds: %zu)\n",brew_profile_ir_pass_executions,brew_profile_ir_pass_rounds);
+ fprintf(stderr,"  Compiler-wide optimization passes: %zu / %u\n",brew_compiler_optimization_passes,BREW_COMPILER_OPTIMIZATION_BUDGET);
 }
-#define SWAN_VERSION "0.8.0"
-#define SWAN_MEMORY_MODEL "Automatic cleanup; borrow checking incomplete"
-#define SWAN_MAX_TOKENS 131072
-#define SWAN_MAX_NODES 32768
-#define SWAN_MAX_TEXT 512
+#define BREW_VERSION "0.8.0"
+#define BREW_MEMORY_MODEL "Automatic cleanup; borrow checking incomplete"
+#define BREW_MAX_TOKENS 131072
+#define BREW_MAX_NODES 32768
+#define BREW_MAX_TEXT 512
 typedef enum {
  T_EOF,T_IDENT,T_INT,T_FLOAT,T_STRING,T_NEWLINE,T_INDENT,T_DEDENT,
  T_FN,T_IMPORT,T_EXTERN,T_LET,T_VAR,T_CONST,T_RETURN,T_IF,T_ELSE,T_WHILE,T_BREAK,T_CONTINUE,T_PASS,
@@ -96,10 +96,10 @@ typedef enum {
 } TokenKind;
 typedef struct { TokenKind kind; const char *text; unsigned line,col; const char *source_name; } Token;
 typedef struct { Token *items; size_t count,capacity,pos; const char *source; size_t length; char *text_storage; size_t text_used,text_capacity; } TokenStream;
-typedef struct SwanArenaChunk { struct SwanArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } SwanArenaChunk;
-typedef struct { char message[1024]; unsigned line,col; const char *source_name; } SwanError;
-typedef struct { char message[256]; unsigned line,col; const char *source_name; } SwanWarning;
-static inline void swan_error(SwanError *e,const Token *t,const char *fmt,...) {
+typedef struct BrewArenaChunk { struct BrewArenaChunk *next; size_t used,capacity; max_align_t alignment; unsigned char data[]; } BrewArenaChunk;
+typedef struct { char message[1024]; unsigned line,col; const char *source_name; } BrewError;
+typedef struct { char message[256]; unsigned line,col; const char *source_name; } BrewWarning;
+static inline void brew_error(BrewError *e,const Token *t,const char *fmt,...) {
  if(!e)return;
  va_list ap;
  va_start(ap,fmt);

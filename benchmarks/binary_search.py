@@ -158,7 +158,7 @@ def check_output(name, output):
         raise RuntimeError(f"{name} checksum {value}; expected {EXPECTED}")
 
 def main():
-    with tempfile.TemporaryDirectory(prefix="swan-bsearch-") as td:
+    with tempfile.TemporaryDirectory(prefix="brew-bsearch-") as td:
         d = pathlib.Path(td)
         bodies = {"C": (C, "c"), "C++": (CPP, "cpp"), "Rust": (RUST, "rs"),
                   "Goose": (GOOSE_SRC, "goose"), "Go": (GO, "go"), "Zig": (ZIG, "zig")}
@@ -167,8 +167,8 @@ def main():
             src[name] = d / f"search.{suffix}"
             src[name].write_text(body)
         exe = {name: d / name.lower().replace("+", "p") for name in bodies}
-        exe["Swan"] = d / "swan-checked"
-        exe["Swan unchecked"] = d / "swan-unchecked"
+        exe["Brew"] = d / "brew-checked"
+        exe["Brew unchecked"] = d / "brew-unchecked"
         commands = {
             "C": ["cc", "-O3", "-march=native", "-DNDEBUG", str(src["C"]), "-o", str(exe["C"])],
             "C++": ["c++", "-O3", "-march=native", "-DNDEBUG", "-std=c++17", str(src["C++"]), "-o", str(exe["C++"])],
@@ -176,16 +176,16 @@ def main():
             "Goose": [GOOSE, "build", "-o", str(exe["Goose"]), str(src["Goose"])],
             "Go": ["go", "build", "-trimpath", "-ldflags=-s -w", "-o", str(exe["Go"]), str(src["Go"])],
             "Zig": ["zig", "build-exe", "-O", "ReleaseFast", "-mcpu=native", str(src["Zig"]), "-femit-bin=" + str(exe["Zig"])],
-            "Swan": [str(ROOT / "build/swan"), "build", str(ROOT / "benchmarks/binary_search.swan"), "-o", str(exe["Swan"])],
-            "Swan unchecked": [str(ROOT / "build/swan"), "build", str(ROOT / "benchmarks/binary_search_unchecked.swan"), "-o", str(exe["Swan unchecked"])],
+            "Brew": [str(ROOT / "build/brew"), "build", str(ROOT / "benchmarks/binary_search.brew"), "-o", str(exe["Brew"])],
+            "Brew unchecked": [str(ROOT / "build/brew"), "build", str(ROOT / "benchmarks/binary_search_unchecked.brew"), "-o", str(exe["Brew unchecked"])],
         }
-        names = ("Swan", "Swan unchecked", "Goose", "Rust", "C", "C++", "Go", "Zig")
+        names = ("Brew", "Brew unchecked", "Goose", "Rust", "C", "C++", "Go", "Zig")
         assembly_paths = {
-            "Swan": ROOT / "binary-search-swan-checked.s",
-            "Swan unchecked": ROOT / "binary-search-swan-unchecked.s",
+            "Brew": ROOT / "binary-search-brew-checked.s",
+            "Brew unchecked": ROOT / "binary-search-brew-unchecked.s",
         }
-        for name, source in [("Swan", "binary_search.swan"), ("Swan unchecked", "binary_search_unchecked.swan")]:
-            subprocess.run([str(ROOT / "build/swan"), str(ROOT / "benchmarks" / source),
+        for name, source in [("Brew", "binary_search.brew"), ("Brew unchecked", "binary_search_unchecked.brew")]:
+            subprocess.run([str(ROOT / "build/brew"), str(ROOT / "benchmarks" / source),
                             "--emit-asm", "-o", str(assembly_paths[name])], cwd=ROOT, check=True)
         results = {}
         for name in names:
@@ -222,7 +222,7 @@ def main():
                   f"RSS {x['runtime_peak_mib']:.2f} MiB, samples {x['runtime_samples_seconds']}", flush=True)
         report = {"array_elements": N, "queries": N,
                   "query_formula": "target starts at 0 and advances by 7919 modulo 20000000",
-                  "array_modes": {"Swan": "bounds checked", "Swan unchecked": "unchecked"},
+                  "array_modes": {"Brew": "bounds checked", "Brew unchecked": "unchecked"},
                   "measurement_rounds": RUNS, "balanced_measurement_orders": orders,
                   "expected_checksum": EXPECTED, "all_checksums_valid": True, "languages": results}
         out = ROOT / "binary-search-benchmark.json"
