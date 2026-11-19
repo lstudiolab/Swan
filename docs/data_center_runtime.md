@@ -32,7 +32,7 @@ Make Brew a native, ahead-of-time compiled language suitable for long-running ba
 
 Preserve the production compiler model:
 
-- C11 compiler frontend and Brew-owned typed IR/SVM pipeline.
+- C11 compiler frontend and Brew-owned typed IR/BVM pipeline.
 - Native code generation; no interpreter, bytecode VM, or mandatory managed runtime.
 - Whole-project compilation and the existing C interoperability path.
 - Explicit, phase-gated diagnostics. Unsupported source constructs must fail compilation.
