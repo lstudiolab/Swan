@@ -1,49 +1,61 @@
 # swanc
 
-`swanc` is the C++ frontend/compiler driver for Swan. It emits one C11 translation unit and is designed to delegate machine-code generation, object generation, linking, and target-specific ABI work to Clang.
+swanc is the C++ compiler for Swan. It compiles **one .swan source file per invocation**. The frontend validates Swan and lowers the accepted syntax to C in memory; Clang reads that generated source from standard input and directly produces an object file or executable. No generated .c file is written to disk.
 
 ## Build
 
 ```sh
 cmake -S swanc -B build
 cmake --build build
-./build/swanc --check examples
-./build/swanc --emit-c build/swan.c examples
-clang -std=c11 build/swan.c -o build/swan
 ```
 
-Pass individual `.swan` files or a directory. Directory inputs are searched recursively and sorted before compilation. The generated C contains forward declarations so functions can refer to functions defined in other source files.
+Clang must be installed and available on PATH (or supplied with --clang).
 
-## Current implementation
+## Use
 
-- C++17 compiler executable and CMake build.
-- Lexer recognizes the complete keyword list supplied for Swan, identifiers, numeric/string literals, comments, and basic punctuation/operators.
-- Parser currently supports function declarations, primitive parameter/return types, blocks, local declarations, return, if/else, while, and basic expressions.
-- Semantic pass currently checks duplicate functions/parameters and primitive signature types.
-- C emitter produces one C translation unit for all supplied source files, with prototypes before definitions.
-- `--check` runs frontend and semantic checks; `--emit-c` writes generated C.
+```sh
+# Check syntax and declarations
+./build/swanc --check examples/hello.swan
 
-This is a bootstrap compiler, not yet a complete implementation of the language. Function calls, imports, structs, enums, full expression/statement coverage, type inference, control-flow validation, and a dedicated IR/lowering pass remain to be implemented. In particular, the sample is a syntax roadmap and is not yet accepted in full because call expressions are not implemented.
+# Compile and link an executable
+./build/swanc examples/hello.swan -o hello
 
-## Planned pipeline
+# Compile one source file to an object file
+./build/swanc -c examples/hello.swan -o hello.o
 
-1. **Driver / project loader** — discover source files, normalize paths, establish compilation options.
-2. **Source manager** — own source buffers and map spans to file/line/column.
-3. **Lexer** — tokenize the source and recognize Swan keywords.
-4. **Parser** — build an AST without emitting target code.
-5. **Semantic analysis** — scopes, symbol resolution, type checking, mutability, visibility, and diagnostics.
-6. **Lowering / Swan IR** — normalize control flow, resolve language sugar, and make storage/lifetime decisions explicit.
-7. **Module linker** — resolve imports, detect cycles, deduplicate declarations, and construct one ordered program.
-8. **C translation-unit emitter** — emit declarations, layouts, prototypes, and definitions into exactly one C file.
-9. **Clang driver** — invoke Clang for C compilation and final linking.
+# Compile with optimization and debug information
+./build/swanc examples/hello.swan -O2 -g -o hello
+```
 
-## Memory model direction
+For a multi-file program, compile each source file independently to an object file, then link the objects with the platform linker/Clang. Cross-file declarations currently need to be declared using Swan's extern syntax once its declaration grammar is implemented; automatic project/module imports are not implemented yet.
 
-Swan has no language-level garbage collector and no implicit general-purpose heap. Local values should have lexical scope and stack storage; globals should have static storage. Aggregate layout and ownership/lifetime rules must be explicit and statically checked. The compiler itself may use ordinary C++ implementation allocations; that is separate from Swan program semantics.
+## Pipeline
 
-The language design must still specify how references, slices, escaping values, returned aggregates, and resource cleanup work. Swift-style ownership/lifetime analysis is a useful architectural reference, but Swan should not inherit Swift ARC or a runtime heap by accident.
+```text
+Source.swan
+  -> Lexer
+  -> Parser
+  -> Sema
+  -> Type checking (in progress)
+  -> Swan IR (planned)
+  -> Code generation
+  -> Clang (C from stdin)
+  -> .o or executable
+```
 
-## Architecture references
+## Current language support
 
-- **Swift:** source management, lexer/parser, AST, semantic analysis, and a dedicated lowering representation (SIL) are separated into stages. Swan should follow the separation, not copy Swift's runtime or ARC.
-- **Objective-C / Clang:** Clang owns parsing/code generation for C-family targets and platform ABI details. Swan emits C as a stable backend boundary, then Clang produces native code. Objective-C runtime features are not part of Swan unless deliberately designed later.
+The bootstrap frontend currently supports:
+- Function declarations with primitive parameter and return types.
+- let, var, and const local declarations.
+- return, if / else, and while.
+- Integer/floating literals, booleans, names, unary operators, arithmetic, comparisons, and grouped expressions.
+- Duplicate function and parameter checks and primitive signature validation.
+
+The current parser does **not** yet implement the full Swan language. Function calls, imports, structs, enums, assignment, complete type checking, control-flow validation, and ownership/lifetime analysis remain outstanding. The listed reserved words are tokenized but are not all implemented as language constructs.
+
+## Backend and performance
+
+Clang is used as a backend driver, not as the Swan frontend. The compiler generates C text in memory and streams it directly to Clang using stdin. This avoids creating a temporary C source file, but it does not remove Clang's C parsing/code-generation cost. A future direct machine-code backend can replace this boundary without changing the lexer/parser/semantic frontend.
+
+Swan has no language-level garbage collector or implicit general-purpose heap allocation. The exact rules for references, aggregate storage, lifetimes, and resource cleanup still need to be specified and enforced before the language can be considered complete.
